@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 
 export default function GeometryPage() {
-  // Inputs with default values (all in millimeters except pitch degrees)
-  const [internalWidth, setInternalWidth] = useState(3000); // mm
-  const [internalProjection, setInternalProjection] = useState(3000); // mm
+  // Inputs with default values (all in mm except pitch degrees)
+  const [internalWidth, setInternalWidth] = useState(2805); // mm
+  const [internalProjection, setInternalProjection] = useState(3875); // mm
   const [pitch, setPitch] = useState(25); // degrees
   const [ringBeamDepth, setRingBeamDepth] = useState(40); // mm
   const [frameThickness, setFrameThickness] = useState(70); // mm
-  const [soffitSize, setSoffitSize] = useState(150); // mm
-  const [rafterSpacing, setRafterSpacing] = useState(665); // mm
+  const [soffitSize, setSoffitSize] = useState(100); // mm
+  const [rafterSpacing, setRafterSpacing] = useState(665); // mm (truss centres)
+  const [trussThickness, setTrussThickness] = useState(47); // mm
   const [pricePerMeter, setPricePerMeter] = useState(6.12); // £ per meter
 
   // Calculated states
@@ -19,13 +20,14 @@ export default function GeometryPage() {
   const [materialCost, setMaterialCost] = useState(0);
   const [externalWidth, setExternalWidth] = useState(0);
   const [externalProjection, setExternalProjection] = useState(0);
+  const [ridgeLength, setRidgeLength] = useState(0);
 
   // Helper: convert degrees to radians
   function degreesToRadians(degrees) {
     return (degrees * Math.PI) / 180;
   }
 
-  // Truss length calculation (matching spreadsheet formula)
+  // Truss length calculation (using external width and pitch)
   function calculateTrussLength(externalWidthMm, pitchDegrees) {
     const pitchRadians = degreesToRadians(pitchDegrees);
     const halfWidth = externalWidthMm / 2;
@@ -37,7 +39,8 @@ export default function GeometryPage() {
       internalWidth > 0 &&
       internalProjection > 0 &&
       pitch > 0 &&
-      rafterSpacing > 0
+      rafterSpacing > 0 &&
+      trussThickness > 0
     ) {
       // Calculate external sizes in mm
       const extWidth =
@@ -47,8 +50,12 @@ export default function GeometryPage() {
       // Calculate truss length using external width and pitch
       const trussLen = calculateTrussLength(extWidth, pitch);
 
-      // Number of trusses (round up + 1)
-      const trusses = Math.ceil(internalWidth / rafterSpacing) + 1;
+      // Calculate ridge length (effective projection for truss spacing)
+      const ridgeLen = internalProjection - internalWidth / 2;
+
+      // Calculate number of trusses along ridge length spaced at rafterSpacing centers,
+      // accounting for truss thickness
+      const trusses = Math.ceil((ridgeLen - trussThickness) / rafterSpacing) + 1;
 
       // Approximate hips/jack rafters & intermediate bars length (meters)
       const hipsJackRaftersLength = 5; // meters placeholder
@@ -72,6 +79,7 @@ export default function GeometryPage() {
       setMaterialCost(cost);
       setExternalWidth(extWidth);
       setExternalProjection(extProjection);
+      setRidgeLength(ridgeLen);
     } else {
       setTrussLength(0);
       setNumTrusses(0);
@@ -80,6 +88,7 @@ export default function GeometryPage() {
       setMaterialCost(0);
       setExternalWidth(0);
       setExternalProjection(0);
+      setRidgeLength(0);
     }
   }, [
     internalWidth,
@@ -90,6 +99,7 @@ export default function GeometryPage() {
     ringBeamDepth,
     frameThickness,
     soffitSize,
+    trussThickness,
   ]);
 
   return (
@@ -197,6 +207,19 @@ export default function GeometryPage() {
 
       <div style={{ marginBottom: 10 }}>
         <label>
+          Truss Thickness (mm):{' '}
+          <input
+            type="number"
+            min="0"
+            value={trussThickness}
+            onChange={(e) => setTrussThickness(parseInt(e.target.value) || 0)}
+            style={{ width: 80 }}
+          />
+        </label>
+      </div>
+
+      <div style={{ marginBottom: 10 }}>
+        <label>
           Price per Meter (£):{' '}
           <input
             type="number"
@@ -212,13 +235,14 @@ export default function GeometryPage() {
       <hr />
 
       <div>
-        <p>Truss Length: {(trussLength).toFixed(0)} mm</p>
+        <p>External Roof Width: {externalWidth} mm</p>
+        <p>External Roof Projection: {externalProjection} mm</p>
+        <p>Ridge Length (usable projection): {ridgeLength.toFixed(0)} mm</p>
+        <p>Truss Length: {trussLength.toFixed(0)} mm</p>
         <p>Number of Trusses: {numTrusses}</p>
         <p>Total Joist Length: {totalJoistMeters.toFixed(2)} m</p>
         <p>Stock Lengths Needed (12m each): {stockLengths}</p>
         <p>Estimated Material Cost: £{materialCost.toFixed(2)}</p>
-        <p>External Roof Width: {externalWidth} mm</p>
-        <p>External Roof Projection: {externalProjection} mm</p>
       </div>
     </div>
   );
