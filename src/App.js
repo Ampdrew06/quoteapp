@@ -1,9 +1,7 @@
-// src/App.js
-import React from 'react';
+import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useParams } from 'react-router-dom';
-
-
-import logo from './TIMBERLITE LOGO SMALL.jpg'; // make sure to put the logo file in src/
+import TradeLogin from './TradeLogin'; // Make sure this path matches your file location
+import logo from './TIMBERLITE LOGO SMALL.jpg';
 
 // Sample roof designs
 const roofDesigns = [
@@ -16,6 +14,7 @@ const roofDesigns = [
 ];
 
 function Home() {
+  const [tradeDiscount, setTradeDiscount] = useState(null);
   const navigate = useNavigate();
 
   const handleRoofSelect = (design) => {
@@ -24,10 +23,16 @@ function Home() {
 
   return (
     <div style={{ maxWidth: 600, margin: '0 auto', padding: 20, fontFamily: 'Arial, sans-serif' }}>
-      <img src={logo} alt="Timberlite Logo" style={{ width: '100%', maxWidth: 400, marginBottom: 20 }} />
-      <h1>Welcome to Timberlite Roof Quote App</h1>
+      <img src={logo} alt="Timberlite Logo" style={{ width: '100%', maxWidth: 400, marginBottom: 20, display: 'block', marginLeft: 'auto', marginRight: 'auto' }} />
+      <h1 style={{ textAlign: 'center' }}>Welcome to Timberlite Roof Quote App</h1>
 
-      <TradeLogin />
+      <TradeLogin onLogin={setTradeDiscount} />
+
+      {tradeDiscount !== null && (
+        <p style={{ textAlign: 'center', fontWeight: 'bold' }}>
+          Trade discount active: {(tradeDiscount * 100).toFixed(0)}%
+        </p>
+      )}
 
       <h2>Select a Roof Design</h2>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
@@ -50,49 +55,6 @@ function Home() {
         ))}
       </div>
     </div>
-  );
-}
-
-function TradeLogin() {
-  const [email, setEmail] = React.useState('');
-  const [password, setPassword] = React.useState('');
-  const [loggedIn, setLoggedIn] = React.useState(false);
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    // Placeholder: Add real auth logic later
-    if (email && password) {
-      setLoggedIn(true);
-    }
-  };
-
-  if (loggedIn) {
-    return <p style={{ marginBottom: 20 }}>Logged in as {email}</p>;
-  }
-
-  return (
-    <form onSubmit={handleSubmit} style={{ marginBottom: 30 }}>
-      <h3>Trade Login (optional)</h3>
-      <input
-        type="email"
-        placeholder="Email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        style={{ marginRight: 10, padding: 8, width: 200 }}
-        required
-      />
-      <input
-        type="password"
-        placeholder="Password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        style={{ marginRight: 10, padding: 8, width: 200 }}
-        required
-      />
-      <button type="submit" style={{ padding: '8px 16px' }}>
-        Login
-      </button>
-    </form>
   );
 }
 
