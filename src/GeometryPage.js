@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 
 export default function GeometryPage() {
-  // Inputs with default values
+  // Inputs with default values (all in millimeters except pitch degrees)
   const [internalWidth, setInternalWidth] = useState(3000); // mm
   const [internalProjection, setInternalProjection] = useState(3000); // mm
   const [pitch, setPitch] = useState(25); // degrees
-  const [ringBeamDepth, setRingBeamDepth] = useState(40); // mm (40mm)
+  const [ringBeamDepth, setRingBeamDepth] = useState(40); // mm
   const [frameThickness, setFrameThickness] = useState(70); // mm
   const [soffitSize, setSoffitSize] = useState(150); // mm
   const [rafterSpacing, setRafterSpacing] = useState(665); // mm
@@ -20,13 +20,16 @@ export default function GeometryPage() {
   const [externalWidth, setExternalWidth] = useState(0);
   const [externalProjection, setExternalProjection] = useState(0);
 
-  // Helper function: calculate truss length in mm
-  function calculateTrussLength(widthMm, pitchDegrees, verticalCutHeightMm) {
-    const run = widthMm / 2;
-    const pitchRadians = (pitchDegrees * Math.PI) / 180;
-    const rise = run * Math.tan(pitchRadians);
-    const verticalTrussHeight = rise - verticalCutHeightMm;
-    return Math.sqrt(run * run + verticalTrussHeight * verticalTrussHeight);
+  // Helper: convert degrees to radians
+  function degreesToRadians(degrees) {
+    return (degrees * Math.PI) / 180;
+  }
+
+  // Truss length calculation (matching spreadsheet formula)
+  function calculateTrussLength(externalWidthMm, pitchDegrees) {
+    const pitchRadians = degreesToRadians(pitchDegrees);
+    const halfWidth = externalWidthMm / 2;
+    return halfWidth / Math.cos(pitchRadians);
   }
 
   useEffect(() => {
@@ -36,37 +39,32 @@ export default function GeometryPage() {
       pitch > 0 &&
       rafterSpacing > 0
     ) {
-      const verticalCutHeight = 165; // mm, truss vertical cut spar height
-
-      // Truss length in mm
-      const trussLen = calculateTrussLength(
-        internalWidth,
-        pitch,
-        verticalCutHeight
-      );
-
-      // Number of trusses, rounded up (+1 to include end)
-      const trusses = Math.ceil(internalWidth / rafterSpacing) + 1;
-
-      // Approximate hips/jack rafters & intermediate bars length (meters)
-      const hipsJackRaftersLength = 5; // meters (placeholder)
-      const intermediateBarsLength = 10; // meters (placeholder)
-
-      // Total joist length in meters (trussLen is in mm, convert to meters)
-      const totalMeters =
-        trusses * (trussLen / 1000) + hipsJackRaftersLength + intermediateBarsLength;
-
-      // Number of 12m stock lengths needed
-      const stockNeeded = Math.ceil(totalMeters / 12);
-
-      // Calculate material cost
-      const cost = totalMeters * pricePerMeter;
-
-      // Calculate external sizes (mm)
+      // Calculate external sizes in mm
       const extWidth =
         internalWidth + 2 * frameThickness + 2 * soffitSize;
       const extProjection = internalProjection + ringBeamDepth + soffitSize;
 
+      // Calculate truss length using external width and pitch
+      const trussLen = calculateTrussLength(extWidth, pitch);
+
+      // Number of trusses (round up + 1)
+      const trusses = Math.ceil(internalWidth / rafterSpacing) + 1;
+
+      // Approximate hips/jack rafters & intermediate bars length (meters)
+      const hipsJackRaftersLength = 5; // meters placeholder
+      const intermediateBarsLength = 10; // meters placeholder
+
+      // Total joist length in meters (convert truss length mm to meters)
+      const totalMeters =
+        trusses * (trussLen / 1000) + hipsJackRaftersLength + intermediateBarsLength;
+
+      // Stock lengths needed (12m each)
+      const stockNeeded = Math.ceil(totalMeters / 12);
+
+      // Material cost
+      const cost = totalMeters * pricePerMeter;
+
+      // Update states
       setTrussLength(trussLen);
       setNumTrusses(trusses);
       setTotalJoistMeters(totalMeters);
@@ -214,7 +212,7 @@ export default function GeometryPage() {
       <hr />
 
       <div>
-        <p>Truss Length: {(trussLength / 1000).toFixed(3)} m</p>
+        <p>Truss Length: {(trussLength).toFixed(0)} mm</p>
         <p>Number of Trusses: {numTrusses}</p>
         <p>Total Joist Length: {totalJoistMeters.toFixed(2)} m</p>
         <p>Stock Lengths Needed (12m each): {stockLengths}</p>
