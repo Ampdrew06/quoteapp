@@ -1,9 +1,18 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useParams } from 'react-router-dom';
-import TradeLogin from './TradeLogin'; // Make sure this path matches your file location
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Link,
+  useNavigate,
+  useParams,
+} from 'react-router-dom';
+
+import TradeLogin from './TradeLogin';
+import QuoteCalculator from './QuoteCalculator';
 import logo from './TIMBERLITE LOGO SMALL.jpg';
 
-// Sample roof designs
+// Roof design options
 const roofDesigns = [
   'Lean-To',
   'Hipped Lean-To',
@@ -13,7 +22,7 @@ const roofDesigns = [
   'Victorian',
 ];
 
-function Home() {
+function Home({ onLogin }) {
   const [tradeDiscount, setTradeDiscount] = useState(null);
   const navigate = useNavigate();
 
@@ -21,12 +30,38 @@ function Home() {
     navigate(`/design/${design.toLowerCase().replace(/\s+/g, '-')}`);
   };
 
-  return (
-    <div style={{ maxWidth: 600, margin: '0 auto', padding: 20, fontFamily: 'Arial, sans-serif' }}>
-      <img src={logo} alt="Timberlite Logo" style={{ width: '100%', maxWidth: 400, marginBottom: 20, display: 'block', marginLeft: 'auto', marginRight: 'auto' }} />
-      <h1 style={{ textAlign: 'center' }}>Welcome to Timberlite Roof Quote App</h1>
+  // Pass discount up to App via onLogin
+  const handleLogin = (discount) => {
+    setTradeDiscount(discount);
+    if (onLogin) onLogin(discount);
+  };
 
-      <TradeLogin onLogin={setTradeDiscount} />
+  return (
+    <div
+      style={{
+        maxWidth: 600,
+        margin: '0 auto',
+        padding: 20,
+        fontFamily: 'Arial, sans-serif',
+      }}
+    >
+      <img
+        src={logo}
+        alt="Timberlite Logo"
+        style={{
+          width: '100%',
+          maxWidth: 400,
+          marginBottom: 20,
+          display: 'block',
+          marginLeft: 'auto',
+          marginRight: 'auto',
+        }}
+      />
+      <h1 style={{ textAlign: 'center' }}>
+        Welcome to Timberlite Roof Quote App
+      </h1>
+
+      <TradeLogin onLogin={handleLogin} />
 
       {tradeDiscount !== null && (
         <p style={{ textAlign: 'center', fontWeight: 'bold' }}>
@@ -58,28 +93,35 @@ function Home() {
   );
 }
 
-function DesignForm({ design }) {
-  // Placeholder form page when a roof design is selected
+function DesignForm({ design, tradeDiscount, isTrade }) {
   return (
     <div style={{ maxWidth: 600, margin: '0 auto', padding: 20 }}>
       <h2>{design.replace(/-/g, ' ')} Dimensions & Options</h2>
-      <p>This is where input fields for dimensions and options will go.</p>
+      <QuoteCalculator tradeDiscount={tradeDiscount} isTrade={isTrade} />
       <Link to="/">← Back to Home</Link>
     </div>
   );
 }
 
-function DesignPage() {
+function DesignPage({ tradeDiscount, isTrade }) {
   const { design } = useParams();
-  return <DesignForm design={design} />;
+  return (
+    <DesignForm design={design} tradeDiscount={tradeDiscount} isTrade={isTrade} />
+  );
 }
 
 export default function App() {
+  const [tradeDiscount, setTradeDiscount] = useState(null);
+  const isTrade = tradeDiscount !== null;
+
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/design/:design" element={<DesignPage />} />
+        <Route path="/" element={<Home onLogin={setTradeDiscount} />} />
+        <Route
+          path="/design/:design"
+          element={<DesignPage tradeDiscount={tradeDiscount} isTrade={isTrade} />}
+        />
       </Routes>
     </Router>
   );
