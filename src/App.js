@@ -10,9 +10,9 @@ import {
 
 import TradeLogin from './TradeLogin';
 import QuoteCalculator from './QuoteCalculator';
+import GeometryPage from './GeometryPage';
 import logo from './TIMBERLITE LOGO SMALL.jpg';
 
-// Roof design options
 const roofDesigns = [
   'Lean-To',
   'Hipped Lean-To',
@@ -30,7 +30,6 @@ function Home({ onLogin }) {
     navigate(`/design/${design.toLowerCase().replace(/\s+/g, '-')}`);
   };
 
-  // Pass discount up to App via onLogin
   const handleLogin = (discount) => {
     setTradeDiscount(discount);
     if (onLogin) onLogin(discount);
@@ -89,6 +88,13 @@ function Home({ onLogin }) {
           </button>
         ))}
       </div>
+
+      <Link
+        to="/geometry"
+        style={{ display: 'block', marginTop: 30, textAlign: 'center' }}
+      >
+        Go to Geometry & Material Calculator
+      </Link>
     </div>
   );
 }
@@ -122,6 +128,7 @@ export default function App() {
           path="/design/:design"
           element={<DesignPage tradeDiscount={tradeDiscount} isTrade={isTrade} />}
         />
+        <Route path="/geometry" element={<GeometryPage />} />
       </Routes>
     </Router>
   );
