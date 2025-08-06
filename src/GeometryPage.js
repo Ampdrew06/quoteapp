@@ -1,17 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 
 export default function GeometryPage() {
-  // Inputs with default values (all in mm except pitch degrees)
-  const [internalWidth, setInternalWidth] = useState(2805); // mm
-  const [internalProjection, setInternalProjection] = useState(3875); // mm
-  const [pitch, setPitch] = useState(25); // degrees
-  const [ringBeamThickness, setRingBeamThickness] = useState(40); // mm
-  const [undersideHeight, setUndersideHeight] = useState(306); // mm (floor to bottom of ring-beam)
-  const [frameThickness, setFrameThickness] = useState(70); // mm
-  const [soffitSize, setSoffitSize] = useState(100); // mm
-  const [rafterSpacing, setRafterSpacing] = useState(665); // mm (truss centres)
-  const [trussThickness, setTrussThickness] = useState(47); // mm
-  const [pricePerMeter, setPricePerMeter] = useState(6.12); // £ per meter
+  // Inputs (mm except pitch in degrees)
+  const [internalWidth, setInternalWidth] = useState(4450);
+  const [internalProjection, setInternalProjection] = useState(3900);
+  const [pitch, setPitch] = useState(23);
+  const [frameThickness, setFrameThickness] = useState(70);
+  const [soffitSize, setSoffitSize] = useState(150);
+  const [ringBeamThickness, setRingBeamThickness] = useState(40);
+  const [undersideHeight, setUndersideHeight] = useState(306);
+  const [rafterSpacing, setRafterSpacing] = useState(665);
+  const [trussThickness, setTrussThickness] = useState(47);
+  const [hookOffset, setHookOffset] = useState(155);
+  const [pricePerMeter, setPricePerMeter] = useState(6.12);
 
   // Calculated states
   const [externalWidth, setExternalWidth] = useState(0);
@@ -24,38 +25,56 @@ export default function GeometryPage() {
   const [totalJoistMeters, setTotalJoistMeters] = useState(0);
   const [stockLengths, setStockLengths] = useState(0);
   const [materialCost, setMaterialCost] = useState(0);
+  const [hipLength, setHipLength] = useState(0);
 
-  // Placeholder for hips and jack rafters lengths (meters)
-  const hipsJackRaftersLength = 5;
-  const intermediateBarsLength = 10;
+  // Helper: degrees to radians
+  const toRad = (deg) => (deg * Math.PI) / 180;
 
-  // Helper: convert degrees to radians
-  function degreesToRadians(degrees) {
-    return (degrees * Math.PI) / 180;
-  }
-
-  // Calculate truss length using external width and pitch (spreadsheet formula)
-  function calculateTrussLength(externalWidthMm, pitchDegrees) {
-    const pitchRadians = degreesToRadians(pitchDegrees);
-    const halfWidth = externalWidthMm / 2;
-    return halfWidth / Math.cos(pitchRadians);
-  }
+  // Calculate truss length from external width and pitch
+  const calculateTrussLength = (extWidth, pitchDegrees) => {
+    const theta = toRad(pitchDegrees);
+    return (extWidth / 2) / Math.cos(theta);
+  };
 
   // Calculate vertical truss height (underside to ridge)
-  function calculateVerticalTrussHeight(trussLengthMm, pitchDegrees) {
-    const pitchRadians = degreesToRadians(pitchDegrees);
-    return Math.sin(pitchRadians) * trussLengthMm;
-  }
+  const calculateVerticalTrussHeight = (trussLength, pitchDegrees) => {
+    const theta = toRad(pitchDegrees);
+    return Math.sin(theta) * trussLength;
+  };
 
-  // Calculate ridge length (effective projection for truss spacing)
-  function calculateRidgeLength(internalProjectionMm, internalWidthMm) {
-    return internalProjectionMm - internalWidthMm / 2;
-  }
+  // Calculate ridge length (projection to ridge center)
+  const calculateRidgeLength = (internalProj, internalWidth) => {
+    return internalProj - internalWidth / 2;
+  };
 
   // Calculate number of trusses spaced along ridge length
-  function calculateNumTrusses(ridgeLengthMm, trussThicknessMm, rafterSpacingMm) {
-    return Math.ceil((ridgeLengthMm - trussThicknessMm) / rafterSpacingMm) + 1;
-  }
+  const calculateNumTrusses = (ridgeLen, trussThick, rafterSpacing) => {
+    return Math.ceil((ridgeLen - trussThick) / rafterSpacing) + 1;
+  };
+
+  // Calculate hip length adjusted for hook offset
+  const calculateHipLength = ({
+    internalWidth,
+    internalProjection,
+    pitchDegrees,
+    frameThickness,
+    soffitSize,
+    ringBeamThickness,
+    undersideHeight,
+    hookOffset,
+  }) => {
+    const theta = toRad(pitchDegrees);
+    const ridgeLength = internalProjection - internalWidth / 2;
+    const externalWidth = internalWidth + 2 * frameThickness + 2 * soffitSize;
+    const trussLength = (externalWidth / 2) / Math.cos(theta);
+    const ridgeHeight = Math.sin(theta) * trussLength;
+    const adjustedRidgeLength = ridgeLength - hookOffset;
+    const horizontalRun = Math.sqrt(
+      adjustedRidgeLength * adjustedRidgeLength + (internalWidth / 2) * (internalWidth / 2)
+    );
+    const hipLength = Math.sqrt(horizontalRun * horizontalRun + ridgeHeight * ridgeHeight);
+    return hipLength;
+  };
 
   useEffect(() => {
     if (
@@ -65,37 +84,29 @@ export default function GeometryPage() {
       rafterSpacing > 0 &&
       trussThickness > 0
     ) {
-      // Calculate external sizes
-      const extWidth =
-        internalWidth + 2 * frameThickness + 2 * soffitSize;
+      const extWidth = internalWidth + 2 * frameThickness + 2 * soffitSize;
       const extProjection = internalProjection + ringBeamThickness + soffitSize;
 
-      // Calculate truss length (mm)
       const tLength = calculateTrussLength(extWidth, pitch);
-
-      // Calculate vertical truss height (underside to ridge)
       const vHeight = calculateVerticalTrussHeight(tLength, pitch);
-
-      // Calculate finished height (floor to ridge)
       const fHeight = vHeight + ringBeamThickness + undersideHeight;
-
-      // Calculate ridge length (mm)
       const rLength = calculateRidgeLength(internalProjection, internalWidth);
-
-      // Calculate number of trusses
       const nTrusses = calculateNumTrusses(rLength, trussThickness, rafterSpacing);
-
-      // Calculate total joist length in meters (truss length mm to meters)
       const totalMeters =
-        nTrusses * (tLength / 1000) + hipsJackRaftersLength + intermediateBarsLength;
-
-      // Calculate stock lengths needed
+        nTrusses * (tLength / 1000) + 5 + 10; // hipsJackRafters + intermediateBars placeholder
       const stocks = Math.ceil(totalMeters / 12);
-
-      // Calculate material cost
       const cost = totalMeters * pricePerMeter;
+      const hipLen = calculateHipLength({
+        internalWidth,
+        internalProjection,
+        pitchDegrees: pitch,
+        frameThickness,
+        soffitSize,
+        ringBeamThickness,
+        undersideHeight,
+        hookOffset,
+      });
 
-      // Update states
       setExternalWidth(extWidth);
       setExternalProjection(extProjection);
       setTrussLength(tLength);
@@ -106,8 +117,8 @@ export default function GeometryPage() {
       setTotalJoistMeters(totalMeters);
       setStockLengths(stocks);
       setMaterialCost(cost);
+      setHipLength(hipLen);
     } else {
-      // Reset all values if inputs invalid
       setExternalWidth(0);
       setExternalProjection(0);
       setTrussLength(0);
@@ -118,6 +129,7 @@ export default function GeometryPage() {
       setTotalJoistMeters(0);
       setStockLengths(0);
       setMaterialCost(0);
+      setHipLength(0);
     }
   }, [
     internalWidth,
@@ -130,17 +142,11 @@ export default function GeometryPage() {
     soffitSize,
     trussThickness,
     undersideHeight,
+    hookOffset,
   ]);
 
   return (
-    <div
-      style={{
-        maxWidth: 600,
-        margin: '20px auto',
-        padding: 20,
-        fontFamily: 'Arial, sans-serif',
-      }}
-    >
+    <div style={{ maxWidth: 700, margin: "20px auto", padding: 20, fontFamily: "Arial, sans-serif" }}>
       <h2>Geometry & Material Calculator</h2>
 
       {/* Input fields */}
@@ -186,6 +192,32 @@ export default function GeometryPage() {
 
       <div style={{ marginBottom: 10 }}>
         <label>
+          Frame Thickness (mm):
+          <input
+            type="number"
+            min="0"
+            value={frameThickness}
+            onChange={(e) => setFrameThickness(parseInt(e.target.value) || 0)}
+            style={{ width: 80, marginLeft: 10 }}
+          />
+        </label>
+      </div>
+
+      <div style={{ marginBottom: 10 }}>
+        <label>
+          Soffit Size (mm):
+          <input
+            type="number"
+            min="0"
+            value={soffitSize}
+            onChange={(e) => setSoffitSize(parseInt(e.target.value) || 0)}
+            style={{ width: 80, marginLeft: 10 }}
+          />
+        </label>
+      </div>
+
+      <div style={{ marginBottom: 10 }}>
+        <label>
           Ring-Beam Thickness (mm):
           <input
             type="number"
@@ -207,32 +239,6 @@ export default function GeometryPage() {
             min="0"
             value={undersideHeight}
             onChange={(e) => setUndersideHeight(parseInt(e.target.value) || 0)}
-            style={{ width: 80, marginLeft: 10 }}
-          />
-        </label>
-      </div>
-
-      <div style={{ marginBottom: 10 }}>
-        <label>
-          Frame Thickness (mm):
-          <input
-            type="number"
-            min="0"
-            value={frameThickness}
-            onChange={(e) => setFrameThickness(parseInt(e.target.value) || 0)}
-            style={{ width: 80, marginLeft: 10 }}
-          />
-        </label>
-      </div>
-
-      <div style={{ marginBottom: 10 }}>
-        <label>
-          Soffit Size (mm):
-          <input
-            type="number"
-            min="0"
-            value={soffitSize}
-            onChange={(e) => setSoffitSize(parseInt(e.target.value) || 0)}
             style={{ width: 80, marginLeft: 10 }}
           />
         </label>
@@ -266,6 +272,19 @@ export default function GeometryPage() {
 
       <div style={{ marginBottom: 10 }}>
         <label>
+          Hook Offset (mm):
+          <input
+            type="number"
+            min="0"
+            value={hookOffset}
+            onChange={(e) => setHookOffset(parseInt(e.target.value) || 0)}
+            style={{ width: 80, marginLeft: 10 }}
+          />
+        </label>
+      </div>
+
+      <div style={{ marginBottom: 10 }}>
+        <label>
           Price per Meter (£):
           <input
             type="number"
@@ -292,6 +311,7 @@ export default function GeometryPage() {
         <p>Total Joist Length: {totalJoistMeters.toFixed(2)} m</p>
         <p>Stock Lengths Needed (12m each): {stockLengths}</p>
         <p>Estimated Material Cost: £{materialCost.toFixed(2)}</p>
+        <p>Hip Length (adjusted for hook): {hipLength.toFixed(0)} mm</p>
       </div>
     </div>
   );
