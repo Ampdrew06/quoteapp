@@ -11,7 +11,7 @@ export default function GeometryPage() {
   const [undersideHeight, setUndersideHeight] = useState(306);
   const [rafterSpacing, setRafterSpacing] = useState(665);
   const [trussThickness, setTrussThickness] = useState(47);
-  const [hookOffset, setHookOffset] = useState(155);
+  const [hookOffset, setHookOffset] = useState(190); // ONLY hook offset now
   const [pricePerMeter, setPricePerMeter] = useState(6.12);
 
   // Calculated states
@@ -52,7 +52,7 @@ export default function GeometryPage() {
     return Math.ceil((ridgeLen - trussThick) / rafterSpacing) + 1;
   };
 
-  // Calculate hip length adjusted for hook offset
+  // Calculate hip length adjusted for hook offset ONLY
   const calculateHipLength = ({
     internalWidth,
     internalProjection,
