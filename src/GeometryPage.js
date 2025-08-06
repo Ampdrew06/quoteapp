@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from "react";
 
 export default function GeometryPage() {
-  // Inputs (mm except pitch in degrees)
+  // Inputs (mm except pitch degrees)
   const [internalWidth, setInternalWidth] = useState(4450);
   const [internalProjection, setInternalProjection] = useState(3900);
-  const [pitch, setPitch] = useState(23);
+  const [roofPitch, setRoofPitch] = useState(23); // degrees
   const [frameThickness, setFrameThickness] = useState(70);
   const [soffitSize, setSoffitSize] = useState(150);
   const [ringBeamThickness, setRingBeamThickness] = useState(40);
   const [undersideHeight, setUndersideHeight] = useState(306);
   const [rafterSpacing, setRafterSpacing] = useState(665);
   const [trussThickness, setTrussThickness] = useState(47);
-  const [hookOffset, setHookOffset] = useState(190); // ONLY hook offset now
+  const [hookOffset, setHookOffset] = useState(190); // mm
   const [pricePerMeter, setPricePerMeter] = useState(6.12);
 
   // Calculated states
@@ -26,11 +26,13 @@ export default function GeometryPage() {
   const [stockLengths, setStockLengths] = useState(0);
   const [materialCost, setMaterialCost] = useState(0);
   const [hipLength, setHipLength] = useState(0);
+  const [hipPitch, setHipPitch] = useState(0);
 
-  // Helper: degrees to radians
+  // Helper functions
   const toRad = (deg) => (deg * Math.PI) / 180;
+  const toDeg = (rad) => (rad * 180) / Math.PI;
 
-  // Calculate truss length from external width and pitch
+  // Calculate truss length from external width and roof pitch
   const calculateTrussLength = (extWidth, pitchDegrees) => {
     const theta = toRad(pitchDegrees);
     return (extWidth / 2) / Math.cos(theta);
@@ -52,43 +54,60 @@ export default function GeometryPage() {
     return Math.ceil((ridgeLen - trussThick) / rafterSpacing) + 1;
   };
 
-  // Calculate hip length adjusted for hook offset ONLY
+  // Calculate hip pitch from roof pitch using compound angle formula
+  const calculateHipPitch = (roofPitchDegrees) => {
+    const theta = toRad(roofPitchDegrees);
+    // Hip runs at 45 degrees horizontally (corner)
+    const hipPitchRad = Math.atan(Math.tan(theta) * Math.cos(toRad(45)));
+    return toDeg(hipPitchRad);
+  };
+
+  // Calculate hip length using hip pitch and hook offset
   const calculateHipLength = ({
     internalWidth,
     internalProjection,
-    pitchDegrees,
+    roofPitchDegrees,
     frameThickness,
     soffitSize,
-    ringBeamThickness,
-    undersideHeight,
     hookOffset,
   }) => {
-    const theta = toRad(pitchDegrees);
-    const ridgeLength = internalProjection - internalWidth / 2;
+    // Calculate external width
     const externalWidth = internalWidth + 2 * frameThickness + 2 * soffitSize;
-    const trussLength = (externalWidth / 2) / Math.cos(theta);
-    const ridgeHeight = Math.sin(theta) * trussLength;
+
+    // Calculate ridge length
+    const ridgeLength = internalProjection - internalWidth / 2;
+
+    // Calculate horizontal run adjusted for hook offset
     const adjustedRidgeLength = ridgeLength - hookOffset;
+
+    // Horizontal distance from corner to hip connection point
     const horizontalRun = Math.sqrt(
-      adjustedRidgeLength * adjustedRidgeLength + (internalWidth / 2) * (internalWidth / 2)
+      adjustedRidgeLength * adjustedRidgeLength + (externalWidth / 2) * (externalWidth / 2)
     );
-    const hipLength = Math.sqrt(horizontalRun * horizontalRun + ridgeHeight * ridgeHeight);
-    return hipLength;
+
+    // Calculate hip pitch
+    const hipPitchDegrees = calculateHipPitch(roofPitchDegrees);
+    const hipPitchRad = toRad(hipPitchDegrees);
+
+    // Calculate hip length
+    const hipLen = horizontalRun / Math.cos(hipPitchRad);
+
+    return { hipLen, hipPitchDegrees };
   };
 
   useEffect(() => {
     if (
       internalWidth > 0 &&
       internalProjection > 0 &&
-      pitch > 0 &&
+      roofPitch > 0 &&
       rafterSpacing > 0 &&
       trussThickness > 0
     ) {
       const extWidth = internalWidth + 2 * frameThickness + 2 * soffitSize;
       const extProjection = internalProjection + ringBeamThickness + soffitSize;
 
-      const tLength = calculateTrussLength(extWidth, pitch);
-      const vHeight = calculateVerticalTrussHeight(tLength, pitch);
+      const tLength = calculateTrussLength(extWidth, roofPitch);
+      const vHeight = calculateVerticalTrussHeight(tLength, roofPitch);
       const fHeight = vHeight + ringBeamThickness + undersideHeight;
       const rLength = calculateRidgeLength(internalProjection, internalWidth);
       const nTrusses = calculateNumTrusses(rLength, trussThickness, rafterSpacing);
@@ -96,14 +115,12 @@ export default function GeometryPage() {
         nTrusses * (tLength / 1000) + 5 + 10; // hipsJackRafters + intermediateBars placeholder
       const stocks = Math.ceil(totalMeters / 12);
       const cost = totalMeters * pricePerMeter;
-      const hipLen = calculateHipLength({
+      const { hipLen, hipPitchDegrees } = calculateHipLength({
         internalWidth,
         internalProjection,
-        pitchDegrees: pitch,
+        roofPitchDegrees: roofPitch,
         frameThickness,
         soffitSize,
-        ringBeamThickness,
-        undersideHeight,
         hookOffset,
       });
 
@@ -118,6 +135,7 @@ export default function GeometryPage() {
       setStockLengths(stocks);
       setMaterialCost(cost);
       setHipLength(hipLen);
+      setHipPitch(hipPitchDegrees);
     } else {
       setExternalWidth(0);
       setExternalProjection(0);
@@ -130,11 +148,12 @@ export default function GeometryPage() {
       setStockLengths(0);
       setMaterialCost(0);
       setHipLength(0);
+      setHipPitch(0);
     }
   }, [
     internalWidth,
     internalProjection,
-    pitch,
+    roofPitch,
     rafterSpacing,
     pricePerMeter,
     ringBeamThickness,
@@ -149,7 +168,7 @@ export default function GeometryPage() {
     <div style={{ maxWidth: 700, margin: "20px auto", padding: 20, fontFamily: "Arial, sans-serif" }}>
       <h2>Geometry & Material Calculator</h2>
 
-      {/* Input fields */}
+      {/* Inputs */}
       <div style={{ marginBottom: 10 }}>
         <label>
           Internal Width (mm):
@@ -183,8 +202,8 @@ export default function GeometryPage() {
             type="number"
             step="0.1"
             min="0"
-            value={pitch}
-            onChange={(e) => setPitch(parseFloat(e.target.value) || 0)}
+            value={roofPitch}
+            onChange={(e) => setRoofPitch(parseFloat(e.target.value) || 0)}
             style={{ width: 80, marginLeft: 10 }}
           />
         </label>
@@ -299,7 +318,7 @@ export default function GeometryPage() {
 
       <hr />
 
-      {/* Display results */}
+      {/* Display Results */}
       <div>
         <p>External Roof Width: {externalWidth.toFixed(0)} mm</p>
         <p>External Roof Projection: {externalProjection.toFixed(0)} mm</p>
@@ -311,6 +330,7 @@ export default function GeometryPage() {
         <p>Total Joist Length: {totalJoistMeters.toFixed(2)} m</p>
         <p>Stock Lengths Needed (12m each): {stockLengths}</p>
         <p>Estimated Material Cost: £{materialCost.toFixed(2)}</p>
+        <p>Hip Pitch: {hipPitch.toFixed(2)}°</p>
         <p>Hip Length (adjusted for hook): {hipLength.toFixed(0)} mm</p>
       </div>
     </div>
