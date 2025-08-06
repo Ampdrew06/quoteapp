@@ -11,7 +11,12 @@ export default function GeometryPage() {
   const [undersideHeight, setUndersideHeight] = useState(306);
   const [rafterSpacing, setRafterSpacing] = useState(665);
   const [trussThickness, setTrussThickness] = useState(47);
-  const [hookOffset, setHookOffset] = useState(190); // mm
+
+  // NEW inputs for hip length calc
+  const [footCutHorizontal, setFootCutHorizontal] = useState(315); // mm
+  const [footCutVertical, setFootCutVertical] = useState(135); // mm
+  const [hookLength, setHookLength] = useState(125); // mm
+
   const [pricePerMeter, setPricePerMeter] = useState(6.12);
 
   // Calculated states
@@ -57,42 +62,42 @@ export default function GeometryPage() {
   // Calculate hip pitch from roof pitch using compound angle formula
   const calculateHipPitch = (roofPitchDegrees) => {
     const theta = toRad(roofPitchDegrees);
-    // Hip runs at 45 degrees horizontally (corner)
     const hipPitchRad = Math.atan(Math.tan(theta) * Math.cos(toRad(45)));
     return toDeg(hipPitchRad);
   };
 
-  // Calculate hip length using hip pitch and hook offset
+  // Calculate hip length using hip pitch and foot cut + hook lengths
   const calculateHipLength = ({
     internalWidth,
     internalProjection,
     roofPitchDegrees,
     frameThickness,
     soffitSize,
-    hookOffset,
+    footCutHorizontal,
+    footCutVertical,
+    hookLength,
   }) => {
-    // Calculate external width
     const externalWidth = internalWidth + 2 * frameThickness + 2 * soffitSize;
-
-    // Calculate ridge length
     const ridgeLength = internalProjection - internalWidth / 2;
 
-    // Calculate horizontal run adjusted for hook offset
-    const adjustedRidgeLength = ridgeLength - hookOffset;
-
-    // Horizontal distance from corner to hip connection point
     const horizontalRun = Math.sqrt(
-      adjustedRidgeLength * adjustedRidgeLength + (externalWidth / 2) * (externalWidth / 2)
+      Math.pow(internalProjection + frameThickness - ridgeLength, 2) +
+        Math.pow(externalWidth / 2, 2)
     );
 
-    // Calculate hip pitch
     const hipPitchDegrees = calculateHipPitch(roofPitchDegrees);
     const hipPitchRad = toRad(hipPitchDegrees);
 
-    // Calculate hip length
     const hipLen = horizontalRun / Math.cos(hipPitchRad);
 
-    return { hipLen, hipPitchDegrees };
+    const footCutLength = Math.sqrt(
+      footCutHorizontal * footCutHorizontal + footCutVertical * footCutVertical
+    );
+
+    // Final hip length including foot cut and hook
+    const finalHipLength = hipLen + footCutLength + hookLength;
+
+    return { finalHipLength, hipPitchDegrees };
   };
 
   useEffect(() => {
@@ -112,16 +117,18 @@ export default function GeometryPage() {
       const rLength = calculateRidgeLength(internalProjection, internalWidth);
       const nTrusses = calculateNumTrusses(rLength, trussThickness, rafterSpacing);
       const totalMeters =
-        nTrusses * (tLength / 1000) + 5 + 10; // hipsJackRafters + intermediateBars placeholder
+        nTrusses * (tLength / 1000) + 5 + 10; // placeholder for hips and jack rafters
       const stocks = Math.ceil(totalMeters / 12);
       const cost = totalMeters * pricePerMeter;
-      const { hipLen, hipPitchDegrees } = calculateHipLength({
+      const { finalHipLength, hipPitchDegrees } = calculateHipLength({
         internalWidth,
         internalProjection,
         roofPitchDegrees: roofPitch,
         frameThickness,
         soffitSize,
-        hookOffset,
+        footCutHorizontal,
+        footCutVertical,
+        hookLength,
       });
 
       setExternalWidth(extWidth);
@@ -134,7 +141,7 @@ export default function GeometryPage() {
       setTotalJoistMeters(totalMeters);
       setStockLengths(stocks);
       setMaterialCost(cost);
-      setHipLength(hipLen);
+      setHipLength(finalHipLength);
       setHipPitch(hipPitchDegrees);
     } else {
       setExternalWidth(0);
@@ -161,7 +168,9 @@ export default function GeometryPage() {
     soffitSize,
     trussThickness,
     undersideHeight,
-    hookOffset,
+    footCutHorizontal,
+    footCutVertical,
+    hookLength,
   ]);
 
   return (
@@ -289,14 +298,41 @@ export default function GeometryPage() {
         </label>
       </div>
 
+      {/* NEW INPUTS FOR HIP CALC */}
       <div style={{ marginBottom: 10 }}>
         <label>
-          Hook Offset (mm):
+          Foot Cut Horizontal (mm):
           <input
             type="number"
             min="0"
-            value={hookOffset}
-            onChange={(e) => setHookOffset(parseInt(e.target.value) || 0)}
+            value={footCutHorizontal}
+            onChange={(e) => setFootCutHorizontal(parseInt(e.target.value) || 0)}
+            style={{ width: 80, marginLeft: 10 }}
+          />
+        </label>
+      </div>
+
+      <div style={{ marginBottom: 10 }}>
+        <label>
+          Foot Cut Vertical (mm):
+          <input
+            type="number"
+            min="0"
+            value={footCutVertical}
+            onChange={(e) => setFootCutVertical(parseInt(e.target.value) || 0)}
+            style={{ width: 80, marginLeft: 10 }}
+          />
+        </label>
+      </div>
+
+      <div style={{ marginBottom: 10 }}>
+        <label>
+          Hook Length (mm):
+          <input
+            type="number"
+            min="0"
+            value={hookLength}
+            onChange={(e) => setHookLength(parseInt(e.target.value) || 0)}
             style={{ width: 80, marginLeft: 10 }}
           />
         </label>
@@ -331,7 +367,7 @@ export default function GeometryPage() {
         <p>Stock Lengths Needed (12m each): {stockLengths}</p>
         <p>Estimated Material Cost: £{materialCost.toFixed(2)}</p>
         <p>Hip Pitch: {hipPitch.toFixed(2)}°</p>
-        <p>Hip Length (adjusted for hook): {hipLength.toFixed(0)} mm</p>
+        <p>Hip Length (adjusted for foot cut & hook): {hipLength.toFixed(0)} mm</p>
       </div>
     </div>
   );
