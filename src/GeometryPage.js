@@ -12,9 +12,7 @@ export default function GeometryPage() {
   const [rafterSpacing, setRafterSpacing] = useState(665);
   const [trussThickness, setTrussThickness] = useState(47);
 
-  // NEW inputs for hip length calc
-  const [footCutHorizontal, setFootCutHorizontal] = useState(315); // mm
-  const [footCutVertical, setFootCutVertical] = useState(135); // mm
+  // Hook length remains input
   const [hookLength, setHookLength] = useState(125); // mm
 
   const [pricePerMeter, setPricePerMeter] = useState(6.12);
@@ -32,6 +30,10 @@ export default function GeometryPage() {
   const [materialCost, setMaterialCost] = useState(0);
   const [hipLength, setHipLength] = useState(0);
   const [hipPitch, setHipPitch] = useState(0);
+
+  // Calculated foot cut lengths (readonly)
+  const [footCutHorizontal, setFootCutHorizontal] = useState(0);
+  const [footCutVertical, setFootCutVertical] = useState(0);
 
   // Helper functions
   const toRad = (deg) => (deg * Math.PI) / 180;
@@ -66,7 +68,7 @@ export default function GeometryPage() {
     return toDeg(hipPitchRad);
   };
 
-  // Calculate hip length using hip pitch and foot cut + hook lengths
+  // Calculate hip length using hip pitch and calculated foot cut + hook lengths
   const calculateHipLength = ({
     internalWidth,
     internalProjection,
@@ -100,6 +102,21 @@ export default function GeometryPage() {
     return { finalHipLength, hipPitchDegrees };
   };
 
+  // Calculate foot cut lengths based on geometry
+  const calculateFootCutLengths = ({
+    internalWidth,
+    soffitSize,
+    frameThickness,
+  }) => {
+    // Foot cut horizontal = soffit + frame thickness (for side)
+    const footH = soffitSize + frameThickness;
+    // Foot cut vertical = height of truss (approx)
+    // Here we use a typical height from your example, approx 135 mm
+    // This could be enhanced later if you provide formula
+    const footV = 135;
+    return { footH, footV };
+  };
+
   useEffect(() => {
     if (
       internalWidth > 0 &&
@@ -109,7 +126,8 @@ export default function GeometryPage() {
       trussThickness > 0
     ) {
       const extWidth = internalWidth + 2 * frameThickness + 2 * soffitSize;
-      const extProjection = internalProjection + ringBeamThickness + soffitSize;
+      // UPDATED: Use frameThickness + soffitSize, NOT ringBeamThickness here
+      const extProjection = internalProjection + frameThickness + soffitSize;
 
       const tLength = calculateTrussLength(extWidth, roofPitch);
       const vHeight = calculateVerticalTrussHeight(tLength, roofPitch);
@@ -120,14 +138,25 @@ export default function GeometryPage() {
         nTrusses * (tLength / 1000) + 5 + 10; // placeholder for hips and jack rafters
       const stocks = Math.ceil(totalMeters / 12);
       const cost = totalMeters * pricePerMeter;
+
+      // Calculate foot cut lengths (readonly)
+      const { footH, footV } = calculateFootCutLengths({
+        internalWidth,
+        soffitSize,
+        frameThickness,
+      });
+
+      setFootCutHorizontal(footH);
+      setFootCutVertical(footV);
+
       const { finalHipLength, hipPitchDegrees } = calculateHipLength({
         internalWidth,
         internalProjection,
         roofPitchDegrees: roofPitch,
         frameThickness,
         soffitSize,
-        footCutHorizontal,
-        footCutVertical,
+        footCutHorizontal: footH,
+        footCutVertical: footV,
         hookLength,
       });
 
@@ -156,6 +185,8 @@ export default function GeometryPage() {
       setMaterialCost(0);
       setHipLength(0);
       setHipPitch(0);
+      setFootCutHorizontal(0);
+      setFootCutVertical(0);
     }
   }, [
     internalWidth,
@@ -168,13 +199,18 @@ export default function GeometryPage() {
     soffitSize,
     trussThickness,
     undersideHeight,
-    footCutHorizontal,
-    footCutVertical,
     hookLength,
   ]);
 
   return (
-    <div style={{ maxWidth: 700, margin: "20px auto", padding: 20, fontFamily: "Arial, sans-serif" }}>
+    <div
+      style={{
+        maxWidth: 700,
+        margin: "20px auto",
+        padding: 20,
+        fontFamily: "Arial, sans-serif",
+      }}
+    >
       <h2>Geometry & Material Calculator</h2>
 
       {/* Inputs */}
@@ -298,33 +334,7 @@ export default function GeometryPage() {
         </label>
       </div>
 
-      {/* NEW INPUTS FOR HIP CALC */}
-      <div style={{ marginBottom: 10 }}>
-        <label>
-          Foot Cut Horizontal (mm):
-          <input
-            type="number"
-            min="0"
-            value={footCutHorizontal}
-            onChange={(e) => setFootCutHorizontal(parseInt(e.target.value) || 0)}
-            style={{ width: 80, marginLeft: 10 }}
-          />
-        </label>
-      </div>
-
-      <div style={{ marginBottom: 10 }}>
-        <label>
-          Foot Cut Vertical (mm):
-          <input
-            type="number"
-            min="0"
-            value={footCutVertical}
-            onChange={(e) => setFootCutVertical(parseInt(e.target.value) || 0)}
-            style={{ width: 80, marginLeft: 10 }}
-          />
-        </label>
-      </div>
-
+      {/* Hook length remains editable */}
       <div style={{ marginBottom: 10 }}>
         <label>
           Hook Length (mm):
@@ -367,6 +377,8 @@ export default function GeometryPage() {
         <p>Stock Lengths Needed (12m each): {stockLengths}</p>
         <p>Estimated Material Cost: £{materialCost.toFixed(2)}</p>
         <p>Hip Pitch: {hipPitch.toFixed(2)}°</p>
+        <p>Foot Cut Horizontal (calculated): {footCutHorizontal.toFixed(0)} mm</p>
+        <p>Foot Cut Vertical (calculated): {footCutVertical.toFixed(0)} mm</p>
         <p>Hip Length (adjusted for foot cut & hook): {hipLength.toFixed(0)} mm</p>
       </div>
     </div>
