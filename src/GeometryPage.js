@@ -12,10 +12,10 @@ export default function GeometryPage() {
   const [rafterSpacing, setRafterSpacing] = useState(665);
   const [trussThickness, setTrussThickness] = useState(47);
 
-  // Hook length remains input
-  const [hookLength, setHookLength] = useState(125); // mm
-
   const [pricePerMeter, setPricePerMeter] = useState(6.12);
+
+  // Hook length remains input for cutting clearance
+  const [hookLength, setHookLength] = useState(125); // mm
 
   // Calculated states
   const [externalWidth, setExternalWidth] = useState(0);
@@ -31,6 +31,9 @@ export default function GeometryPage() {
   const [hipLength, setHipLength] = useState(0);
   const [hipPitch, setHipPitch] = useState(0);
   const [footCutSparLength, setFootCutSparLength] = useState(0);
+
+  // Fixed spar hook cut angle for fabrication notes only
+  const sparHookCutAngle = 19;
 
   // Helper functions
   const toRad = (deg) => (deg * Math.PI) / 180;
@@ -58,19 +61,17 @@ export default function GeometryPage() {
     return Math.ceil((ridgeLen - trussThick) / rafterSpacing) + 1;
   };
 
-  // Calculate hip pitch from roof pitch using compound angle formula
+  // Calculate hip pitch from roof pitch using compound angle formula (without 19° cut)
   const calculateHipPitch = (roofPitchDegrees) => {
     const theta = toRad(roofPitchDegrees);
     const hipPitchRad = Math.atan(Math.tan(theta) * Math.cos(toRad(45)));
     return toDeg(hipPitchRad);
   };
 
-  // Calculate foot cut spar length automatically from ring-beam and soffit
+  // Calculate foot cut spar length automatically from ring-beam and soffit diagonal
   const calculateFootCutSparLength = (ringBeamWidth, soffitDepth, hipPitchDegrees) => {
-    // Horizontal diagonal (assuming ring-beam width and soffit depth are equal on corner)
     const diagonal = Math.sqrt(ringBeamWidth * ringBeamWidth + soffitDepth * soffitDepth);
     const hipPitchRad = toRad(hipPitchDegrees);
-    // Project along hip pitch
     return diagonal / Math.cos(hipPitchRad);
   };
 
@@ -346,6 +347,7 @@ export default function GeometryPage() {
         <p>Hip Pitch: {hipPitch.toFixed(2)}°</p>
         <p>Foot Cut Spar Length (calculated): {footCutSparLength.toFixed(0)} mm</p>
         <p>Hip Length (adjusted for foot cut & hook): {hipLength.toFixed(0)} mm</p>
+        <p>Fixed Spar Hook Cut Angle (fabrication): {sparHookCutAngle}°</p>
       </div>
     </div>
   );
