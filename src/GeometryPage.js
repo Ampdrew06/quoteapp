@@ -1,20 +1,24 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 export default function GeometryPage() {
-  // Inputs (mm except pitch degrees)
-  const [internalWidth, setInternalWidth] = useState(4450);
-  const [internalProjection, setInternalProjection] = useState(3900);
-  const [roofPitch, setRoofPitch] = useState(23); // degrees
-  const [frameThickness, setFrameThickness] = useState(70);
-  const [soffitSize, setSoffitSize] = useState(150);
-  const [ringBeamThickness, setRingBeamThickness] = useState(40);
-  const [undersideHeight, setUndersideHeight] = useState(306);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Initialize inputs from route state or defaults
+  const initialState = location.state || {};
+
+  const [internalWidth, setInternalWidth] = useState(initialState.internalWidth ?? 4450);
+  const [internalProjection, setInternalProjection] = useState(initialState.internalProjection ?? 3900);
+  const [roofPitch, setRoofPitch] = useState(initialState.pitch ?? 25);
+  const [frameThickness, setFrameThickness] = useState(initialState.frameThickness ?? 70);
+  const [soffitSize, setSoffitSize] = useState(initialState.soffitDepth ?? 150);
+  const [ringBeamThickness, setRingBeamThickness] = useState(40); // fixed
   const [rafterSpacing, setRafterSpacing] = useState(665);
   const [trussThickness, setTrussThickness] = useState(47);
-  const [maxHeight, setMaxHeight] = useState(""); // New optional max height input
-  const [hookLength, setHookLength] = useState(125); // mm
-  const [pricePerMeter, setPricePerMeter] = useState(6.12);
+  const [maxHeight, setMaxHeight] = useState(initialState.maxHeight ?? "");
+  const [hookLength, setHookLength] = useState(125);
+  const [pricePerMeter, setPricePerMeter] = useState(initialState.pricePerMeter ?? 6.12);
 
   // Calculated states
   const [externalWidth, setExternalWidth] = useState(0);
@@ -29,57 +33,46 @@ export default function GeometryPage() {
   const [materialCost, setMaterialCost] = useState(0);
   const [hipLength, setHipLength] = useState(0);
   const [hipPitch, setHipPitch] = useState(0);
-  const [footCutSparLength, setFootCutSparLength] = useState(0);
+  const [footCutLength, setFootCutLength] = useState(0);
 
-  // Fixed spar hook cut angle for fabrication notes only
+  // Constants
   const sparHookCutAngle = 19;
-  // Fixed ridge cap height (added here for clarity)
   const ridgeCapHeight = 60;
 
-  // React Router navigation hook for Back button
-  const navigate = useNavigate();
-
-  // Helper functions
+  // Helpers
   const toRad = (deg) => (deg * Math.PI) / 180;
   const toDeg = (rad) => (rad * 180) / Math.PI;
 
-  // Calculate truss length from external width and roof pitch
   const calculateTrussLength = (extWidth, pitchDegrees) => {
     const theta = toRad(pitchDegrees);
     return (extWidth / 2) / Math.cos(theta);
   };
 
-  // Calculate vertical truss height (underside to ridge)
   const calculateVerticalTrussHeight = (trussLength, pitchDegrees) => {
     const theta = toRad(pitchDegrees);
     return Math.sin(theta) * trussLength;
   };
 
-  // Calculate ridge length (projection to ridge center)
   const calculateRidgeLength = (internalProj, internalWidth) => {
     return internalProj - internalWidth / 2;
   };
 
-  // Calculate number of trusses spaced along ridge length
   const calculateNumTrusses = (ridgeLen, trussThick, rafterSpacing) => {
     return Math.ceil((ridgeLen - trussThick) / rafterSpacing) + 1;
   };
 
-  // Calculate hip pitch from roof pitch using compound angle formula (without 19° cut)
   const calculateHipPitch = (roofPitchDegrees) => {
     const theta = toRad(roofPitchDegrees);
     const hipPitchRad = Math.atan(Math.tan(theta) * Math.cos(toRad(45)));
     return toDeg(hipPitchRad);
   };
 
-  // Calculate foot cut spar length automatically from ring-beam and soffit diagonal
-  const calculateFootCutSparLength = (ringBeamWidth, soffitDepth, hipPitchDegrees) => {
+  const calculateFootCutLength = (ringBeamWidth, soffitDepth, hipPitchDegrees) => {
     const diagonal = Math.sqrt(ringBeamWidth * ringBeamWidth + soffitDepth * soffitDepth);
     const hipPitchRad = toRad(hipPitchDegrees);
     return diagonal / Math.cos(hipPitchRad);
   };
 
-  // Calculate hip length including foot cut spar length and hook length
   const calculateHipLength = ({
     internalWidth,
     internalProjection,
@@ -102,26 +95,25 @@ export default function GeometryPage() {
 
     const hipLen = horizontalRun / Math.cos(hipPitchRad);
 
-    const footCutSparLength = calculateFootCutSparLength(ringBeamThickness + soffitSize, soffitSize, hipPitchDegrees);
+    const footCut = calculateFootCutLength(ringBeamThickness + soffitSize, soffitSize, hipPitchDegrees);
 
-    const finalHipLength = hipLen + footCutSparLength + hookLength;
+    const finalHipLength = hipLen + footCut + hookLength;
 
-    return { finalHipLength, hipPitchDegrees, footCutSparLength };
+    return { finalHipLength, hipPitchDegrees, footCut };
   };
 
-  // Calculate external dimensions on input change
+  // Calculate external dims
   useEffect(() => {
     setExternalWidth(internalWidth + 2 * frameThickness + 2 * soffitSize);
     setExternalProjection(internalProjection + frameThickness + soffitSize);
   }, [internalWidth, internalProjection, frameThickness, soffitSize]);
 
-  // Calculate pitch if maxHeight is given, else use roofPitch input
+  // Only recalc pitch if maxHeight set, else keep manual pitch
   useEffect(() => {
     if (maxHeight !== "") {
       const targetHeight = parseFloat(maxHeight);
       if (isNaN(targetHeight) || targetHeight <= 0) return;
 
-      // Binary search pitch between 0-60 degrees to match target finished height
       let low = 0;
       let high = 60;
       let mid = roofPitch;
@@ -138,13 +130,13 @@ export default function GeometryPage() {
         }
       }
       setHipPitch(mid);
-      setRoofPitch(mid); // sync roofPitch input to calculated pitch
+      setRoofPitch(mid);
     } else {
       setHipPitch(roofPitch);
     }
   }, [maxHeight, roofPitch, externalWidth, frameThickness]);
 
-  // Calculate truss lengths, heights, ridge, hips, etc.
+  // Main calc useEffect
   useEffect(() => {
     if (
       internalWidth > 0 &&
@@ -163,7 +155,7 @@ export default function GeometryPage() {
       const stocks = Math.ceil(totalMeters / 12);
       const cost = totalMeters * pricePerMeter;
 
-      const { finalHipLength, hipPitchDegrees, footCutSparLength } = calculateHipLength({
+      const { finalHipLength, hipPitchDegrees, footCut } = calculateHipLength({
         internalWidth,
         internalProjection,
         roofPitchDegrees: roofPitch,
@@ -183,7 +175,21 @@ export default function GeometryPage() {
       setMaterialCost(cost);
       setHipLength(finalHipLength);
       setHipPitch(hipPitchDegrees);
-      setFootCutSparLength(footCutSparLength);
+      setFootCutLength(footCut);
+    } else {
+      setExternalWidth(0);
+      setExternalProjection(0);
+      setTrussLength(0);
+      setVerticalTrussHeight(0);
+      setFinishedHeight(0);
+      setRidgeLength(0);
+      setNumTrusses(0);
+      setTotalJoistMeters(0);
+      setStockLengths(0);
+      setMaterialCost(0);
+      setHipLength(0);
+      setHipPitch(0);
+      setFootCutLength(0);
     }
   }, [
     internalWidth,
@@ -195,7 +201,6 @@ export default function GeometryPage() {
     frameThickness,
     soffitSize,
     trussThickness,
-    undersideHeight,
     hookLength,
   ]);
 
@@ -264,40 +269,12 @@ export default function GeometryPage() {
 
       <div style={{ marginBottom: 10 }}>
         <label>
-          Soffit Size (mm):
+          Soffit Depth (mm):
           <input
             type="number"
             min="0"
             value={soffitSize}
             onChange={(e) => setSoffitSize(parseInt(e.target.value) || 0)}
-            style={{ width: 80, marginLeft: 10 }}
-          />
-        </label>
-      </div>
-
-      <div style={{ marginBottom: 10 }}>
-        <label>
-          Ring-Beam Thickness (mm):
-          <input
-            type="number"
-            min="0"
-            value={ringBeamThickness}
-            onChange={(e) =>
-              setRingBeamThickness(parseInt(e.target.value) || 0)
-            }
-            style={{ width: 80, marginLeft: 10 }}
-          />
-        </label>
-      </div>
-
-      <div style={{ marginBottom: 10 }}>
-        <label>
-          Underside Height (floor to bottom of ring-beam) (mm):
-          <input
-            type="number"
-            min="0"
-            value={undersideHeight}
-            onChange={(e) => setUndersideHeight(parseInt(e.target.value) || 0)}
             style={{ width: 80, marginLeft: 10 }}
           />
         </label>
@@ -330,6 +307,22 @@ export default function GeometryPage() {
       </div>
 
       <div style={{ marginBottom: 10 }}>
+        <label title="Length of spar hook for fabrication (mm)">
+          Hip Foot Cut Length (mm):
+          <input
+            type="number"
+            min="0"
+            value={footCutLength}
+            readOnly
+            style={{ width: 80, marginLeft: 10, backgroundColor: "#eee" }}
+          />
+          <span style={{ marginLeft: 5, fontStyle: "italic", fontSize: 12 }}>
+            (calculated)
+          </span>
+        </label>
+      </div>
+
+      <div style={{ marginBottom: 10 }}>
         <label>
           Hook Length (mm):
           <input
@@ -358,7 +351,7 @@ export default function GeometryPage() {
 
       <div style={{ marginBottom: 10 }}>
         <label>
-          Max Finished Height (mm):
+          Max Finished Height (mm, optional):
           <input
             type="number"
             min="0"
@@ -385,7 +378,6 @@ export default function GeometryPage() {
         <p>Stock Lengths Needed (12m each): {stockLengths}</p>
         <p>Estimated Material Cost: £{materialCost.toFixed(2)}</p>
         <p>Hip Pitch: {hipPitch.toFixed(2)}°</p>
-        <p>Foot Cut Spar Length (calculated): {footCutSparLength.toFixed(0)} mm</p>
         <p>Hip Length (adjusted for foot cut & hook): {hipLength.toFixed(0)} mm</p>
         <p>Fixed Spar Hook Cut Angle (fabrication): {sparHookCutAngle}°</p>
       </div>
