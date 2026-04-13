@@ -12,6 +12,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import NavTabs from "../../components/NavTabs";
 //import { buildLeanToTotals, buildLeanToQuoteBase } from "../../lib/leanToTotals";
 import { computePricing } from "../../lib/pricing";
+import { buildLeanToQuoteBase } from "../../lib/leanToTotals";
 //import { computeLeanToManufactureGeometry } from "../../lib/leanToManufactureGeometry";
 
 // adjust path if file structure differs
