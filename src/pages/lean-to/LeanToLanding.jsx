@@ -8,7 +8,7 @@ import { computeGuttersLeanTo } from "../../lib/guttersCalc";
 import PlanDiagramLeanTo from "../../components/PlanDiagramLeanTo";
 import { computeLiteSlateLeanTo as computeLiteSlate } from "../../lib/liteslateCalc";
 import { computeMiscLeanTo } from "../../lib/miscCalc"; 
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import NavTabs from "../../components/NavTabs";
 import { buildLeanToTotals, buildLeanToQuoteBase } from "../../lib/leanToTotals";
 import { computePricing } from "../../lib/pricing";
@@ -16,7 +16,7 @@ import { computeLeanToManufactureGeometry } from "../../lib/leanToManufactureGeo
 
 // adjust path if file structure differs
 
-const LEAN_TO_STORAGE_KEY = "leanToInputs";
+//const LEAN_TO_STORAGE_KEY = "leanToInputs";
 
 /* ——— styles ——— */
 const card = { background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 16 };
@@ -30,14 +30,15 @@ const primaryBtn = {
   color: "#fff",
   fontWeight: 600,
 };
-const linkBtn = {
+/*
+  const linkBtn = {
   color: "#fff",
   textDecoration: "none",
   padding: "6px 10px",
   borderRadius: 8,
   border: "1px solid rgba(255,255,255,0.15)",
 };
-
+*/
 // small helpers
 const num = (v, f = 0) => (Number.isFinite(Number(v)) ? Number(v) : f);
 const round = (v, dp = 0) => {
@@ -259,6 +260,7 @@ useEffect(() => {
   useEffect(() => {
     const list = tileSystem === "liteslate" ? liteslateColours : britmetColours;
     if (!list.includes(tileColor)) setTileColor(list[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tileSystem, tileColor]);
 
   // ✅ Save tile system whenever it changes
@@ -411,11 +413,11 @@ const totalsInput = useMemo(
   ]
 );
 
-const t = useMemo(
+/*const t = useMemo(
   () => buildLeanToTotals(totalsInput, exclusions),
   [totalsInput, exclusions]
 );
-
+*/
 const quoteBase = useMemo(
   () => buildLeanToQuoteBase(totalsInput, exclusions),
   [totalsInput, exclusions]
@@ -547,7 +549,7 @@ const extWidthMM = useMemo(() => {
     m,
   ]);
 
-  const plastics = useMemo(
+  /*const plastics = useMemo(
   () =>
     computeFasciaSoffitLeanTo(
       {
@@ -622,7 +624,7 @@ const extWidthMM = useMemo(() => {
       m
     );
   }, [extWidthMM, extProjectionMM, pitchDeg, leftSideExposed, rightSideExposed, tileSystem, plasticsColor, m]);
-
+*/
 // --- Build a tile total hint for misc (so tile screws use real tile count) ---
 const tilesLineForHint =
   (tilesBom?.lines || []).find(r =>
@@ -636,6 +638,7 @@ const tilesTotalHintRaw =
 const tilesTotalHint = Number(tilesTotalHintRaw);
 
 // --- Compute Misc (breather, slab, SuperQuilt, fixings etc.) ---
+/*
 const misc = React.useMemo(() => {
   return computeMiscLeanTo(
     {
@@ -647,7 +650,9 @@ const misc = React.useMemo(() => {
     },
     m
   );
+  
 }, [tileSystem, pitchDeg, widthMM, projMM, tilesTotalHint, m]);
+*/
 
 // Can we generate a quote yet?
 const canQuote = Number(widthMM) > 0 && Number(projMM) > 0;
@@ -753,6 +758,7 @@ const canQuote = Number(widthMM) > 0 && Number(projMM) > 0;
     localStorage.setItem(KEY, JSON.stringify(list));
     alert("Quote saved.");
   };
+  /*
 const manufactureGeom = useMemo(
   () =>
     computeLeanToManufactureGeometry({
@@ -769,7 +775,7 @@ const manufactureGeom = useMemo(
     }),
   [projMM, pitchDeg, eavesOverhangMM]
 );
-
+*/
 const demoBase = tileSystem === "liteslate" ? 450 : 110;
 const demoPct = tileSystem === "liteslate" ? 0.235 : 0.525;
 
