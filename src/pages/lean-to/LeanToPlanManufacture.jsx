@@ -52,7 +52,7 @@ const sectionTitle = {
   margin: "0 0 8px",
 };
 
-function BookFrontRow({ leftLabel, leftValue, rightLabel, rightValue }) {
+/* function BookFrontRow({ leftLabel, leftValue, rightLabel, rightValue }) {
   return (
     <div
       style={{
@@ -72,6 +72,7 @@ function BookFrontRow({ leftLabel, leftValue, rightLabel, rightValue }) {
     </div>
   );
 }
+  */
 function RafterDetailDiagram({
   externalSlopeMM,
   internalSlopeMM,
@@ -190,8 +191,8 @@ const rightWall =
   typeof q.right_verge_exposed === "boolean" ? !q.right_verge_exposed :
   false;
 
-const leftSideLabel = leftWall ? "WALL" : "END";
-const rightSideLabel = rightWall ? "WALL" : "END";
+///const leftSideLabel = leftWall ? "WALL" : "END";
+//const rightSideLabel = rightWall ? "WALL" : "END";
 
   // External sizes
   const extWidthMM = useMemo(
@@ -288,17 +289,17 @@ const overallBlankLengthMM = round(
   const gutterProfile = q.gutter_profile || "";
   const gutterColour = q.gutter_color || q.gutter_colour || "";
   const downpipeColour = q.downpipe_colour || q.downpipeColor || gutterColour || "";
-  const roofVentDetails = q.vent_spec || q.ventSpec || q.roof_vent_details || "N/A";
+  //const roofVentDetails = q.vent_spec || q.ventSpec || q.roof_vent_details || "N/A";
   const boxGutterDetails = q.box_gutter_details || "N/A";
   const deliveryAddress = q.deliveryAddress || q.site_address || q.address || "";
-  const distanceMiles = q.distance_miles || q.distance || "";
-  const invoiceDate = q.invoice_date || "";
-  const invoiceNo = q.invoice_no || "";
+  //const distanceMiles = q.distance_miles || q.distance || "";
+  //const invoiceDate = q.invoice_date || "";
+  //const invoiceNo = q.invoice_no || "";
   const notes = q.notes || q.specialInstructions || q.special_instructions || "";
-  const roofWeightKg = q.total_weight_kg || q.weight_kg || q.roofWeightKg || "";
+  //const roofWeightKg = q.total_weight_kg || q.weight_kg || q.roofWeightKg || "";
   const gutterOutlet = q.gutter_outlet || q.gutterOutlet || q.outlet || "left";
 
-  const roofSizeDisplay = `${round(iw)} × ${round(ip)} mm int / ${round(extWidthMM)} × ${round(extProjectionMM)} mm ext`;
+  //const roofSizeDisplay = `${round(iw)} × ${round(ip)} mm int / ${round(extWidthMM)} × ${round(extProjectionMM)} mm ext`;
 
   return (
     <div style={{ fontFamily: "Inter, system-ui, Arial", background: "#f9fafb" }}>
