@@ -2,17 +2,17 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { getMaterials } from "../../lib/materials";
 import { computeTilesLathsBOM } from "../../lib/tilesLathsCalc";
-import { computeFasciaSoffitLeanTo } from "../../lib/fasciaSoffitCalc";
-import { computeEdgeTrimsLeanTo } from "../../lib/edgeTrimsCalc";
-import { computeGuttersLeanTo } from "../../lib/guttersCalc";
+//import { computeFasciaSoffitLeanTo } from "../../lib/fasciaSoffitCalc";
+//import { computeEdgeTrimsLeanTo } from "../../lib/edgeTrimsCalc";
+//import { computeGuttersLeanTo } from "../../lib/guttersCalc";
 import PlanDiagramLeanTo from "../../components/PlanDiagramLeanTo";
 import { computeLiteSlateLeanTo as computeLiteSlate } from "../../lib/liteslateCalc";
-import { computeMiscLeanTo } from "../../lib/miscCalc"; 
+//import { computeMiscLeanTo } from "../../lib/miscCalc"; 
 import { useLocation, useNavigate } from "react-router-dom";
 import NavTabs from "../../components/NavTabs";
-import { buildLeanToTotals, buildLeanToQuoteBase } from "../../lib/leanToTotals";
+//import { buildLeanToTotals, buildLeanToQuoteBase } from "../../lib/leanToTotals";
 import { computePricing } from "../../lib/pricing";
-import { computeLeanToManufactureGeometry } from "../../lib/leanToManufactureGeometry";
+//import { computeLeanToManufactureGeometry } from "../../lib/leanToManufactureGeometry";
 
 // adjust path if file structure differs
 
@@ -47,7 +47,7 @@ const round = (v, dp = 0) => {
 };
 
   export default function LeanToLanding() {
-  console.log("LEAN_TO_LANDING: RENDERED");
+ // console.log("LEAN_TO_LANDING: RENDERED");
 
   // Router hooks must be inside the component
   const location = useLocation();
@@ -62,7 +62,7 @@ const round = (v, dp = 0) => {
   const [rightWall, setRightWall] = useState(false);
 
         // ---- react to Materials changes ----
-const [materialsTick, setMaterialsTick] = useState(0);
+/*const [materialsTick, setMaterialsTick] = useState(0);
 
 useEffect(() => {
   const bump = () => setMaterialsTick((t) => t + 1);
@@ -75,8 +75,8 @@ useEffect(() => {
     window.removeEventListener("storage", bump);
   };
 }, []);
-
-const m = useMemo(() => getMaterials(), [materialsTick]);
+*/
+const m = getMaterials();
 
 
     // Restore saved Lean-To inputs (if any) when landing on this page
@@ -427,7 +427,7 @@ const pricing = useMemo(
   () => computePricing(quoteBase.materialsCostForPricing, m),
   [quoteBase.materialsCostForPricing, m]
 );
-console.log("PRICING_COMPARE", {
+/*console.log("PRICING_COMPARE", {
   page: "LeanToLanding",
   materialsCostForPricing: quoteBase?.materialsCostForPricing,
   delivery_flat: m?.delivery_flat,
@@ -451,7 +451,7 @@ console.log("PRICING_COMPARE", {
   gutterOutlet: totalsInput?.gutterOutlet,
   gutterColor: totalsInput?.gutterColor,
 });
-
+*/
 
   // ❌ Do NOT auto-save on every input change – it wipes leanToInputs when revisiting the page
 /*
