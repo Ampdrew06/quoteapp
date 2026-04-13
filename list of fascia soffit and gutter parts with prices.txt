@@ -1,0 +1,147 @@
+Title,Option,Colour,Length,Where,Width,Weight,Price,Description.
+J-trim (Soffit Starter),Toggle,White,5m,External Frame Perimeter,?,?,4.75,Fixed externally at top of frame. Pinned to underside of ply ring-beam soffit to fix soffit board. Used on every roof but should have a toggle option to remove if required.
+J-trim (Soffit Starter),Toggle,Foiled,5m,External Frame Perimeter,?,?,8.97,Fixed externally at top of frame. Pinned to underside of ply ring-beam soffit to fix soffit board.Used on every roof but should have a toggle option to remove if required.
+H-Trim,n/a,White,150mm,Soffit,n/a,n/a,1.37,Used to join soffit at corners 1 per joint.
+H-Trim,n/a,foiled,150mm,Soffit,n/a,n/a,2.00,Used to join soffit at corners 1 per joint.
+Soffit Board,toggle,White,5m,Perimeter of Roof,100mm,2,8.89,Pinned to underside of ply ring-beam to create soffit (variable option).
+Soffit Board,toggle,White,5m,Perimeter of Roof,150mm,2.2,11.47,Pinned to underside of ply ring-beam to create soffit (variable option).
+Soffit Board,toggle,White,5m,Perimeter of Roof,175mm,2.4,13.59,Pinned to underside of ply ring-beam to create soffit (variable option).
+Soffit Board,toggle,White,5m,Perimeter of Roof,200mm,2.4,13.59,Pinned to underside of ply ring-beam to create soffit (variable option).
+Soffit Board,toggle,Foiled,5m,Perimeter of Roof,100mm,2,18.81,Pinned to underside of ply ring-beam to create soffit (variable option).
+Soffit Board,toggle,Foiled,5m,Perimeter of Roof,150mm,2.2,26.29,Pinned to underside of ply ring-beam to create soffit (variable option).
+Soffit Board,toggle,Foiled,5m,Perimeter of Roof,175mm,2.4,27.19,Pinned to underside of ply ring-beam to create soffit (variable option).
+Soffit Board,toggle,Foiled,5m,Perimeter of Roof,200mm,2.4,29.22,Pinned to underside of ply ring-beam to create soffit (variable option).
+Fascia,n/a,White,5m,Perimeter of Roof,200mm,4.6,13.41,Fixed around external face of roof to create fascia.
+Fascia,n/a,White,5m,Perimeter of Roof,225mm,5,15.95,Fixed around external face of roof to create fascia.
+Fascia,n/a,White,5m,Perimeter of Roof,250mm,5.5,18.42,Fixed around external face of roof to create fascia.
+Fascia,n/a,White,5m,Perimeter of Roof,300mm,6.5,22.57,Fixed around external face of roof to create fascia.
+Fascia,n/a,White,5m,Perimeter of Roof,400mm,9,31.33,Fixed around external face of roof to create fascia.
+Fascia,n/a,Foiled,5m,Perimeter of Roof,200mm,4.6,27.15,Fixed around external face of roof to create fascia.
+Fascia,n/a,Foiled,5m,Perimeter of Roof,225mm,5,32.43,Fixed around external face of roof to create fascia.
+Fascia,Foiled,5m,Perimeter of Roof,250mm,5.5,35.13,Fixed around external face of roof to create fascia.
+Fascia,n/a,Foiled,5m,Perimeter of Roof,300mm,6.5,39.62,Fixed around external face of roof to create fascia.
+Fascia,n/a,Foiled,5m,Perimeter of Roof,400mm,9,56.30,Fixed around external face of roof to create fascia.
+Vent Disc,All,n/a,Perimeter of Roof,n/a,n/a,0.50,Option Toggle to include or not. Should be priced @ 1 per metre whether chosen or not. When Chosen, added to material list, when not chosen still priced but not added to material list.
+Polytop Pins 30mm,All,n/a,Perimeter of Roof,n/a,n/a,1.19,Used to fix fascia to rood 1 added per roof.
+Sq Fascia Corner,n/a,White,300mm,n/a,n/a,1.19, Used on every 90degree corner for example 2 on an Edwardian roof (because 2 x 90degree corners at the front) but 2 per open end of a lean-to roof and 3 per side for a gable roof e.g., 4 for a lean-to unless one or both sides abut a wall & 6 on a gable roof.
+Sq Fascia Corner (Double Ended),n/a,White,500mm,n/a,n/a,3.00, Used on every 90degree corner if fascia height exceeds 300mm for example 2 on an Edwardian roof (because 2 x 90degree corners at the front) but 2 per open end of a lean-to roof and 3 per side for a gable roof e.g., 4 for a lean-to unless one or both sides abut a wall & 6 on a gable roof.
+Sq Fascia Joint,n/a,White,300mm,n/a,n/a,1.19, Used to join fascia together when length exceeds 5m but 2 per Gable Roof
+Sq Fascia Joint (Double Ended),n/a,White,500mm,n/a,n/a,3.00, Used to join fascia together when length exceeds 5m and height exceeds 300mm but 2 per Gable Roof when front facing fascia exceeds 300mm.
+Ext 135deg Fascia Corner,n/a,White,300mm,n/a,n/a,2.31,used on every 135 degree corner e.g. Victorian Roof.
+Int Square Fascia Corner,n/a,White,500mm,n/a,n/a,4.94, used on an internal 90 degree corner e.g. on a P-Shape roof.
+Sq Fascia Corner,Foiled,300mm,n/a,n/a,4.39,Used on every 90degree corner for example 2 on an Edwardian roof (because 2 x 90degree corners at the front) but 2 per open end of a lean-to roof and 3 per side for a gable roof e.g., 4 for a lean-to unless one or both sides abut a wall & 6 on a gable roof.
+Sq Fascia Corner (Double Ended),n/a,Foiled,500mm,n/a,n/a,8.69, Used on every 90degree corner if fascia height exceeds 300mm for example 2 on an Edwardian roof (because 2 x 90degree corners at the front) but 2 per open end of a lean-to roof and 3 per side for a gable roof e.g., 4 for a lean-to unless one or both sides abut a wall & 6 on a gable roof.
+Sq Fascia Joint,Foiled,300mm,n/a,n/a,4.39, Used to join fascia together when length exceeds 5m but 2 per Gable Roof
+Sq Fascia Joint (Double Ended),n/a,Foiled,500mm,n/a,n/a,8.69, Used to join fascia together when length exceeds 5m and height exceeds 300mm but 2 per Gable Roof when front facing fascia exceeds 300mm.
+Ext 135deg Fascia Corner,n/a,Foiled,300mm,n/a,n/a,7.64,used on every 135 degree corner e.g. Victorian Roof.
+Int Square Fascia Corner,n/a,Foiled,500mm,n/a,n/a,8.55, used on an internal 90 degree corner e.g. on a P-Shape roof.
+Gutter,Square,Black,4m,Perimeter of Roof,n/a,2.6,8.43, fixed on front face of each roof.
+Gutter,Square,White,4m,Perimeter of Roof,n/a,2.6,8.43, fixed on front face of each roof.
+Gutter,Square,Brown,4m,Perimeter of Roof,n/a,2.6,8.43, fixed on front face of each roof.
+Gutter Square,Anthracite,4m,Perimeter of Roof,n/a,2.6,8.43, fixed on front face of each roof.
+Gutter,Round,Black,4m,Perimeter of Roof,n/a,2.6,8.43, fixed on front face of each roof.
+Gutter Round,White,4m,Perimeter of Roof,n/a,2.6,8.43, fixed on front face of each roof.
+Gutter,Round,Brown,4m,Perimeter of Roof,n/a,2.6,8.43, fixed on front face of each roof.
+Gutter,Round,Anthracite,4m,Perimeter of Roof,n/a,2.6,8.43, fixed on front face of each roof.
+Gutter,Ogee,Black,4m,Perimeter of Roof,n/a,3.2,14.65, fixed on front face of each roof.
+Gutter,Ogee,Brown,4m,Perimeter of Roof,n/a,3.2,14.65, fixed on front face of each roof.
+Gutter,Ogee,Anthracite,4m,Perimeter of Roof,n/a,3.2,14.65, fixed on front face of each roof.
+Gutter Bracket,Square,Black,n/a,Perimeter of roof,n/a,n/a,0.69, 1 used every 800mm of perimeter guttering.
+Gutter Bracket,Round,Black,n/a,Perimeter of roof,n/a,n/a,0.69, 1 used every 800mm of perimeter guttering.
+Gutter Bracket,Ogee,Black,n/a,Perimeter of roof,n/a,n/a,1.03, 1 used every 800mm of perimeter guttering.
+Gutter Bracket,Square,White,n/a,Perimeter of roof,n/a,n/a,0.69, 1 used every 800mm of perimeter guttering.
+Gutter Bracket,Round,White,n/a,Perimeter of roof,n/a,n/a,0.69, 1 used every 800mm of perimeter guttering.
+Gutter Bracket,Ogee,White,n/a,Perimeter of roof,n/a,n/a,1.03, 1 used every 800mm of perimeter guttering.
+Gutter Bracket,Square,Brown,n/a,Perimeter of roof,n/a,n/a,0.69, 1 used every 800mm of perimeter guttering.
+Gutter Bracket,Round,Brown,n/a,Perimeter of roof,n/a,n/a,0.69, 1 used every 800mm of perimeter guttering.
+Gutter Bracket,Ogee,Brown,n/a,Perimeter of roof,n/a,n/a,1.03, 1 used every 800mm of perimeter guttering.
+Gutter Bracket,Square,Anthracite,n/a,Perimeter of roof,n/a,n/a,0.69, 1 used every 800mm of perimeter guttering.
+Gutter Bracket,Round,Anthracite,n/a,Perimeter of roof,n/a,n/a,0.69, 1 used every 800mm of perimeter guttering.
+Gutter Bracket,Ogee,Anthracite,n/a,Perimeter of roof,n/a,n/a,1.03, 1 used every 800mm of perimeter guttering.
+Running Outlet,Square,Black,n/a,?,134m,0.45,2.64,1 per downpipe. 
+Running Outlet,Round,Black,n/a,?,134m,0.45,2.64,1 per downpipe. 
+Running Outlet,Ogee,Black,n/a,?,134m,0.45,4.32,1 per downpipe. 
+Running Outlet,Square,White,n/a,?,134m,0.45,2.64,1 per downpipe. 
+Running Outlet,Round,White,n/a,?,134m,0.45,2.64,1 per downpipe. 
+Running Outlet,Ogee,White,n/a,?,134m,0.45,4.32,1 per downpipe.
+Running Outlet,Square,Brown,n/a,?,134m,0.45,2.64,1 per downpipe. 
+Running Outlet,Round,Brown,n/a,?,134m,0.45,2.64,1 per downpipe. 
+Running Outlet,Ogee,Brown,n/a,?,134m,0.45,4.32,1 per downpipe.
+Running Outlet,Square,Anthracite,n/a,?,134m,0.45,2.64,1 per downpipe. 
+Running Outlet,Round,Anthracite,n/a,?,134m,0.45,2.64,1 per downpipe. 
+Running Outlet,Ogee,Anthracite,n/a,?,134m,0.45,4.32,1 per downpipe.
+Stop End,Square,Black,n/a,n/a,n/a,n/a,1.42, 2 per roof except Gable Roof then 4 per roof.
+Stop End,Round,Black,n/a,n/a,n/a,n/a,1.42, 2 per roof except Gable Roof then 4 per roof.
+Stop End,Ogee,Black,n/a,n/a,n/a,n/a,2.17, 2 per roof except Gable Roof then 4 per roof.
+Stop End,Square,White,n/a,n/a,n/a,n/a,1.42, 2 per roof except Gable Roof then 4 per roof.
+Stop End,Round,White,n/a,n/a,n/a,n/a,1.42, 2 per roof except Gable Roof then 4 per roof.
+Stop End,Ogee,White,n/a,n/a,n/a,n/a,2.17, 2 per roof except Gable Roof then 4 per roof.
+Stop End,Square,Brown,n/a,n/a,n/a,n/a,1.42, 2 per roof except Gable Roof then 4 per roof.
+Stop End,Round,Brown,n/a,n/a,n/a,n/a,1.42, 2 per roof except Gable Roof then 4 per roof.
+Stop End,Ogee,Brown,n/a,n/a,n/a,n/a,2.17, 2 per roof except Gable Roof then 4 per roof.
+Stop End,Square,Anthracite,n/a,n/a,n/a,n/a,1.42, 2 per roof except Gable Roof then 4 per roof.
+Stop End,Round,Anthracite,n/a,n/a,n/a,n/a,1.42, 2 per roof except Gable Roof then 4 per roof.
+Stop End,Ogee,Anthracite,n/a,n/a,n/a,n/a,2.17, 2 per roof except Gable Roof then 4 per roof.
+90 Deg Corner,Square,Black,n/a,n/a,n/a,0.2,2.67, 1 per 90 deg gutter corner.
+90 Deg Corner,Square,White,n/a,n/a,n/a,0.2,2.67, 1 per 90 deg gutter corner.
+90 Deg Corner,Square,Brown,n/a,n/a,n/a,0.2,2.67, 1 per 90 deg gutter corner.
+90 Deg Corner Ext,Ogee,Black,n/a,n/a,n/a,0.2,4.50, 1 per 90 deg gutter corner.
+90 Deg Corner Ext,Ogee,White,n/a,n/a,n/a,0.2,4.50, 1 per 90 deg gutter corner.
+90 Deg Corner Ext,Ogee,Brown,n/a,n/a,n/a,0.2,4.50, 1 per 90 deg gutter corner.
+90 Deg Corner Ext,Ogee,Anthracite,n/a,n/a,n/a,0.2,4.50, 1 per 90 deg gutter corner.
+90 Deg Corner Int,Ogee,Black,n/a,n/a,n/a,0.2,5.12, 1 per 90 deg internal gutter corner e.g. on a P-Shape Roof.
+90 Deg Corner Int,Ogee,White,n/a,n/a,n/a,0.2,5.12, 1 per 90 deg internal gutter corner e.g. on a P-Shape Roof.
+90 Deg Corner Int,Ogee,Brown,n/a,n/a,n/a,0.2,5.12, 1 per 90 deg internal gutter corner e.g. on a P-Shape Roof.
+90 Deg Corner Int,Ogee,Anthracite,n/a,n/a,n/a,0.2,5.12, 1 per 90 deg internal gutter corner e.g. on a P-Shape Roof.
+135 Deg Corner,Square,Black,n/a,n/a,n/a,0.2,3.82, 1 per 135 deg gutter corner.
+135 Deg Corner,Square,White,n/a,n/a,n/a,0.2,3.82, 1 per 135 deg gutter corner.
+135 Deg Corner,Square,Brown,n/a,n/a,n/a,0.2,3.82, 1 per 135 deg gutter corner.
+135 Deg Corner,Square,Anthracite,n/a,n/a,n/a,0.2,3.82, 1 per 135 deg gutter corner.
+135 Deg Corner,Round,Black,n/a,n/a,n/a,0.2,3.82, 1 per 135 deg gutter corner.
+135 Deg Corner,Round,White,n/a,n/a,n/a,0.2,3.82, 1 per 135 deg gutter corner.
+135 Deg Corner,Round,Brown,n/a,n/a,n/a,n/a,3.82, 1 per 135 deg gutter corner.
+135 Deg Corner,Round,Anthracite,n/a,n/a,n/a,0.2,3.82, 1 per 135 deg gutter corner.
+135 Deg Corner Ext,Ogee,Black,n/a,n/a,n/a,0.2,5.55, 1 per 135 deg gutter corner.
+135 Deg Corner Ext,Ogee,White,n/a,n/a,n/a,n/a,5.55, 1 per 135 deg gutter corner.
+135 Deg Corner Ext,Ogee,Brown,n/a,n/a,n/a,0.2,5.55, 1 per 135 deg gutter corner.
+135 Deg Corner Ext,Ogee,Anthracite,n/a,n/a,n/a,0.28,5.55, 1 per 135 deg gutter corner.
+135 Deg Corner Int,Ogee,Black,n/a,n/a,n/a,0.28,5.55, 1 per 135 deg internal gutter corner.
+135 Deg Corner Int,Ogee,White,n/a,n/a,n/a,0.28,5.55, 1 per 135 deg internal gutter corner.
+135 Deg Corner Int,Ogee,Brown,n/a,n/a,n/a,0.28,5.55, 1 per 135 deg internal gutter corner.
+135 Deg Corner Int,Ogee,Anthracite,n/a,n/a,n/a,0.28,5.55, 1 per 135 deg internal gutter corner.
+Gutter Union,Square,Black,n/a,n/a,n/a,n/a,2.03, used to join gutter lengths in excess of 4m or when optimisation requires gutter lengths to be joined.
+Gutter Union,Square,White,n/a,n/a,n/a,n/a,2.03, used to join gutter lengths in excess of 4m or when optimisation requires gutter lengths to be joined.
+Gutter Union,Square,Brown,n/a,n/a,n/a,n/a,2.03, used to join gutter lengths in excess of 4m or when optimisation requires gutter lengths to be joined.
+Gutter Union,Square,Anthracite,n/a,n/a,n/a,n/a,2.03, used to join gutter lengths in excess of 4m or when optimisation requires gutter lengths to be joined.
+Gutter Union,Round,Black,n/a,n/a,n/a,n/a,2.03, used to join gutter lengths in excess of 4m or when optimisation requires gutter lengths to be joined.
+Gutter Union,Round,White,n/a,n/a,n/a,n/a,2.03, used to join gutter lengths in excess of 4m or when optimisation requires gutter lengths to be joined.
+Gutter Union,Round,Brown,n/a,n/a,n/a,n/a,2.03, used to join gutter lengths in excess of 4m or when optimisation requires gutter lengths to be joined.
+Gutter Union,Round,Anthracite,n/a,n/a,n/a,n/a,2.03, used to join gutter lengths in excess of 4m or when optimisation requires gutter lengths to be joined.
+Gutter Union,Ogee,Black,n/a,n/a,n/a,n/a,3.52, used to join gutter lengths in excess of 4m or when optimisation requires gutter lengths to be joined.
+Gutter Union,Ogee,White,n/a,n/a,n/a,n/a,3.52, used to join gutter lengths in excess of 4m or when optimisation requires gutter lengths to be joined.
+Gutter Union,Ogee,Brown,n/a,n/a,n/a,n/a,3.52, used to join gutter lengths in excess of 4m or when optimisation requires gutter lengths to be joined.
+Gutter Union,Ogee,Anthracite,n/a,n/a,n/a,n/a,3.52, used to join gutter lengths in excess of 4m or when optimisation requires gutter lengths to be joined.
+Sq to Rnd Adaptor,n/a,Black,n/a,n/a,n/a,n/a,2.66, 1 per downpipe except when round gutter.
+Sq to Rnd Adaptor,n/a,White,n/a,n/a,n/a,n/a,2.66, 1 per downpipe except when round gutter.
+Sq to Rnd Adaptor,n/a,Brown,n/a,n/a,n/a,n/a,2.66, 1 per downpipe except when round gutter.
+Sq to Rnd Adaptor,n/a,Anthracite,n/a,n/a,n/a,n/a,2.66, 1 per downpipe except when round gutter.
+112 Deg Offset Bend,Round,Black,n/a,n/a,n/a,n/a,1.80, 2 per downpipe.
+112 Deg Offset Bend,Round,White,n/a,n/a,n/a,n/a,1.80, 2 per downpipe.
+112 Deg Offset Bend,Round,Brown,n/a,n/a,n/a,n/a,1.80, 2 per downpipe.
+112 Deg Offset Bend,Round,Anthracite,n/a,n/a,n/a,n/a,1.80, 2 per downpipe.
+Downpipe,Extra?,Black,2.5m,?,?,n/a,6.25,1 per roof except 2 for Gable with option top add extra if required.
+Downpipe,Extra?,White,2.5m,?,?,n/a,6.25,1 per roof except 2 for Gable with option top add extra if required.
+Downpipe,Extra?,Brown,2.5m,?,?,n/a,6.25,1 per roof except 2 for Gable with option top add extra if required.
+Downpipe,Extra?,Antracite,2.5m,?,?,n/a,6.25,1 per roof except 2 for Gable with option top add extra if required.
+Downpipe Shoe,n/a,Black,n/a,n/a,n/a,n/a,2.02, 1 per downpipe.
+Downpipe Shoe,n/a,White,n/a,n/a,n/a,n/a,2.02, 1 per downpipe.
+Downpipe Shoe,n/a,Brown,n/a,n/a,n/a,n/a,2.02, 1 per downpipe.
+Downpipe Shoe,n/a,Anthracite,n/a,n/a,n/a,n/a,2.02, 1 per downpipe.
+Downpipe Clip,n/s,Black,n/a,n/a,n/a,n/a,0.59, 2 per downpipe.
+Downpipe Clip,n/s,White,n/a,n/a,n/a,n/a,0.59, 2 per downpipe.
+Downpipe Clip,n/s,Brown,n/a,n/a,n/a,n/a,0.59, 2 per downpipe.
+Downpipe Clip,n/s,Anthracite,n/a,n/a,n/a,n/a,0.59, 2 per downpipe.
+
+
+
+

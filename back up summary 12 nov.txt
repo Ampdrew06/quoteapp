@@ -1,0 +1,746 @@
+// src/pages/Summary.jsx
+
+import React, { useState } from "react";
+import { Link } from "react-router-dom";
+import { getMaterials } from "../lib/materials";
+import { computeTilesLathsBOM } from "../lib/tilesLathsCalc";
+import { computeFasciaSoffitLeanTo } from "../lib/fasciaSoffitCalc";
+import { computeEdgeTrimsLeanTo } from "../lib/edgeTrimsCalc";
+import { computeGuttersLeanTo } from "../lib/guttersCalc";
+import { computeMiscLeanTo } from "../lib/miscCalc"; // if this errors, change to "../lib/Calculations/miscCalc"
+import NavTabs from "../components/NavTabs"; 
+// adjust path if file structure differs
+
+
+// ---------- small helpers ----------
+
+const tabStyle = {
+  padding: "6px 12px",
+  border: "1px solid #ccc",
+  borderRadius: 6,
+  background: "#f9fafb",
+  textDecoration: "none",
+  color: "#333",
+  fontWeight: 500,
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 6,
+};
+
+const activeTabStyle = {
+  ...tabStyle,
+  background: "#0284c7",
+  color: "#fff",
+  borderColor: "#0284c7",
+  fontWeight: 600,
+};
+
+const th = {
+  border: "1px solid #e5e7eb",
+  padding: "4px 6px",
+  fontSize: 12,
+  textAlign: "left",
+  background: "#f9fafb",
+};
+
+const td = {
+  border: "1px solid #e5e7eb",
+  padding: "4px 6px",
+  fontSize: 12,
+  verticalAlign: "top",
+};
+
+const fmtMoney = (n) => `£${(Number(n) || 0).toFixed(2)}`;
+const fmtKg = (n) => `${Number(n || 0).toFixed(2)} kg`;
+
+// exclusions in localStorage
+const loadExclusions = () => {
+  try {
+    return JSON.parse(localStorage.getItem("summary_exclusions") || "{}");
+  } catch {
+    return {};
+  }
+};
+
+const saveExclusions = (obj) => {
+  try {
+    localStorage.setItem("summary_exclusions", JSON.stringify(obj || {}));
+  } catch {
+    // ignore
+  }
+};
+
+// lean-to inputs (same key used by LeanToLanding / Quotes)
+const loadInputs = () => {
+  try {
+    return JSON.parse(localStorage.getItem("leanToInputs") || "null");
+  } catch {
+    return null;
+  }
+};
+
+// ---------- main component ----------
+
+export default function Summary() {
+  const m = getMaterials();
+  const [ex, setEx] = useState(loadExclusions());
+
+  const toggle = (key) => {
+    const k = String(key || "");
+    const next = { ...(ex || {}) };
+    if (next[k]) delete next[k];
+    else next[k] = true;
+    setEx(next);
+    saveExclusions(next);
+  };
+
+  const isExcluded = (key) => !!(ex && ex[String(key || "")]);
+
+  const inputs = loadInputs();
+
+  // If no inputs yet, guide user back
+   if (!inputs) {
+    return (
+      <div style={{ fontFamily: "Inter, system-ui, Arial" }}>
+        <NavTabs />
+        <div
+          style={{
+            maxWidth: 900,
+            margin: "0 auto",
+            padding: 16,
+          }}
+        >
+          <h1
+            style={{
+              fontSize: 20,
+              fontWeight: 600,
+              marginBottom: 8,
+            }}
+          >
+            Summary
+          </h1>
+          <p
+            style={{
+              fontSize: 14,
+              color: "#4b5563",
+            }}
+          >
+            No Lean-To configuration found. Go to{" "}
+            <Link
+              to="/quote/lean-to"
+              style={{ textDecoration: "underline" }}
+            >
+              Design/Options
+            </Link>{" "}
+            first, enter the roof details, then return here.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+
+  // ---------- derive basics from inputs ----------
+
+  const iw = Number(inputs.internalWidthMM || inputs.widthMM || 0);
+  const ip = Number(inputs.internalProjectionMM || inputs.projMM || 0);
+  const pitchDeg = Number(inputs.pitchDeg || inputs.pitch || 15);
+  const tileSystem = String(
+    inputs.tile_system || inputs.tileSystem || "britmet"
+  ).toLowerCase();
+
+    // ---------- Timber Elements (rafters & joists) ----------
+
+  const sft =
+    Number(inputs.side_frame_thickness_mm) ||
+    Number(m.side_frame_thickness_mm) ||
+    70;
+  const lip =
+    Number(inputs.fascia_lip_mm) ||
+    Number(m.fascia_lip_mm) ||
+    25;
+  const soff =
+    Number(inputs.soffit_mm) ||
+    Number(inputs.eaves_overhang_mm) ||
+    150;
+  const frameOn =
+    Number(inputs.frame_on_mm) ||
+    Number(m.frame_on_mm) ||
+    70;
+
+  // External sizes (simple, to feed timber calcs)
+  const extWidthMM = iw + 2 * (sft + lip);
+  const extProjectionMM = ip + soff + frameOn;
+
+  // Rafter length at pitch (to front)
+  const theta = (pitchDeg * Math.PI) / 180;
+const timberRafterLenMM = timberExtProjectionMM / (Math.cos(thetaRad) || 1);
+
+
+  const totalRafterRunMM = rafters * rafterLenMM;
+  const wallplateMM = extWidthMM;
+
+  const totalTimberMM = totalRafterRunMM + wallplateMM;
+
+  // Use 12m stock unless overridden in materials
+  const stockLenMM = Number(m.timber_stock_length_mm || 12000) || 12000;
+  const timberFullLengths =
+    totalTimberMM > 0
+      ? Math.max(1, Math.ceil(totalTimberMM / stockLenMM))
+      : 0;
+
+  // Basic timber / lath / ring-beam summary for this page
+  const LATH_STOCK_M = Number(m.lath_stock_length_m || 4.8) || 4.8;
+
+  // External tiling laths:
+  // assume one lath per tile course across external width.
+  const courses =
+    Number(tilesBom?.derived?.courses) ||
+    (pitchDeg > 0
+      ? Math.ceil(
+          (extProjectionMM / Math.cos(theta || 0)) /
+            (Number(inputs.gauge_mm) || 250)
+        )
+      : 0);
+
+  const run_m = extWidthMM / 1000;
+  const laths_external_m = Math.max(0, courses * run_m);
+  const extLathLengths = laths_external_m
+    ? Math.ceil(laths_external_m / LATH_STOCK_M)
+    : 0;
+
+  // Internal fixing laths:
+  // span internal width, e.g. 400 mm centres up the slope
+  const int_run_m = iw / 1000;
+  const int_courses = pitchDeg > 0 ? Math.ceil((extProjectionMM / Math.cos(theta || 0)) / 400) : 0;
+  const laths_internal_m = Math.max(0, int_courses * int_run_m);
+  const intLathLengths = laths_internal_m
+    ? Math.ceil(laths_internal_m / LATH_STOCK_M)
+    : 0;
+
+  // Simple front ring-beam as 1 length across external width
+  const ringBeam_m = run_m > 0 ? run_m : 0;
+
+  const timberManualLines = [
+    {
+      key: "timber_rafters",
+      label: "Rafters",
+      qty: rafters,
+      units: "pcs",
+      line: 0,
+      weight_kg: 0,
+    },
+    {
+      key: "timber_full_lengths",
+      label: `Full lengths of ${(stockLenMM / 1000).toFixed(2)} m timber (rafters + wallplate)`,
+      qty: timberFullLengths,
+      units: "lengths",
+      line: 0,
+      weight_kg: 0,
+    },
+    {
+      key: "timber_ringbeam",
+      label: "Front ring-beam (approx)",
+      qty: ringBeam_m.toFixed(2),
+      units: "m",
+      line: 0,
+      weight_kg: 0,
+    },
+    {
+      key: "lath_external",
+      label: `External tiling laths (${LATH_STOCK_M} m lengths)`,
+      qty: extLathLengths,
+      units: "lengths",
+      line: 0,
+      weight_kg: 0,
+    },
+    {
+      key: "lath_internal",
+      label: `Internal fixing laths (${LATH_STOCK_M} m lengths)`,
+      qty: intLathLengths,
+      units: "lengths",
+      line: 0,
+      weight_kg: 0,
+    },
+    {
+      key: "lath_chamfer_front",
+      label: "Chamfered lath (front) approx",
+      qty: Math.max(0, Math.ceil(run_m)),
+      units: "m",
+      line: 0,
+      weight_kg: 0,
+    },
+  ];
+
+
+  // ---------- recompute BOMs (same calculators used elsewhere) ----------
+
+const tilesBom = (() => {
+  try {
+    return computeTilesLathsBOM(
+      {
+        internalWidthMM: iw,
+        internalProjectionMM: ip,
+        pitchDeg,
+        tile_system: tileSystem,
+        // Fallbacks if your tiles calc expects extra fields:
+        ...inputs,
+      },
+      m
+    );
+  } catch {
+    return { lines: [], grand: 0 };
+  }
+})();
+
+
+const plastics = (() => {
+  try {
+    return computeFasciaSoffitLeanTo(
+      {
+        internalWidthMM: iw,
+        internalProjectionMM: ip,
+        pitchDeg,
+        ...inputs,
+      },
+      m
+    );
+  } catch {
+    return { lines: [], grand: 0 };
+  }
+})();
+
+
+const edgeTrims = (() => {
+  try {
+    return computeEdgeTrimsLeanTo(
+      {
+        internalWidthMM: iw,
+        internalProjectionMM: ip,
+        pitchDeg,
+        tileSystem,
+        ...inputs,
+      },
+      m
+    );
+  } catch {
+    return { lines: [], grand: 0 };
+  }
+})();
+
+
+const gutters = (() => {
+  try {
+    return computeGuttersLeanTo(
+      {
+        internalWidthMM: iw,
+        internalProjectionMM: ip,
+        pitchDeg,
+        ...inputs,
+      },
+      m
+    );
+  } catch {
+    return { lines: [], grand: 0 };
+  }
+})();
+
+
+const misc = (() => {
+  try {
+    // Try to get tile total hint if tilesBom has it
+    const tilesLine =
+      (tilesBom?.lines || []).find((r) =>
+        /tiles/i.test(String(r.key || r.label || ""))
+      ) || null;
+
+    const hintRaw =
+      tilesBom?.derived?.tiles_total ??
+      tilesLine?.qty ??
+      tilesLine?.qtyDisplay;
+
+    const tiles_total_hint = Number.isFinite(Number(hintRaw))
+      ? Number(hintRaw)
+      : undefined;
+
+    return computeMiscLeanTo(
+      {
+        internalWidthMM: iw,
+        internalProjectionMM: ip,
+        pitchDeg,
+        tileSystem,
+        tiles_total_hint,
+        ...inputs,
+      },
+      m
+    );
+  } catch {
+    return { lines: [], grand: 0 };
+  }
+})();
+  // ---------- Timber Elements (Lean-to framing) ----------
+
+  // Rafter spacing & first centre from materials (or sensible defaults)
+// ---- Timber Elements from geometry (for Summary only) ----
+const timberSpacing = Number(m.rafter_spacing_mm ?? 665);
+const timberFirstCtr = Number(m.rafter_first_center_mm ?? 690);
+
+let timberCentresCount = 0;
+for (let c = timberFirstCtr; c <= iw; c += timberSpacing) {
+  timberCentresCount++;
+}
+
+// +2 edge rafters
+const raftersCount = Math.max(2, timberCentresCount + 2);
+
+// internal projection + eaves/soffit + frame-on
+const eavesOverhangMM = Number(inputs.eaves_overhang_mm ?? inputs.soffit_mm ?? 150);
+const frameOnMM = Number(inputs.frame_on_mm ?? 70);
+
+const thetaRad = (pitchDeg * Math.PI) / 180 || 0;
+const timberExtProjectionMM = ip + eavesOverhangMM + frameOnMM;
+const rafterLenMM = timberExtProjectionMM / (Math.cos(thetaRad) || 1);
+
+// Wallplate runs along internal width
+const wallplate_m = iw / 1000;
+const raftersTotal_m = (raftersCount * timberRafterLenMM) / 1000;
+
+const timberManualLines = [
+  { key: "rafters_count", label: "Rafters", qty: raftersCount, units: "Ea" },
+  { key: "rafter_length_each_mm", label: "Rafter length (each)", qty: Math.round(timberRafterLenMM), units: "mm" },
+  { key: "rafters_total_m", label: "Rafters total run", qty: Number(raftersTotal_m.toFixed(2)), units: "m" },
+  // ...
+];
+
+
+  // ---------- normalise all lines ----------
+
+  const asQty = (r) => {
+    if (Number.isFinite(r.qty)) return r.qty;
+    if (Number.isFinite(r.count)) return r.count;
+    if (Number.isFinite(r.lengths)) return r.lengths;
+    const n = Number(r.qtyDisplay);
+    return Number.isFinite(n) ? n : undefined;
+  };
+
+  const asCost = (r) => Number(r.line ?? r.total ?? 0);
+
+  const lineWeightKg = (r) => {
+    if (Number.isFinite(r.weight_kg)) return r.weight_kg;
+    if (Number.isFinite(r.weight)) return r.weight;
+    return 0;
+  };
+
+  const allLines = [
+    ...timberLines, // our synthetic timber summary rows
+    ...(tilesBom?.lines || []),
+    ...(plastics?.lines || []),
+    ...(edgeTrims?.lines || []),
+    ...(gutters?.lines || []),
+    ...((misc?.items || []).map((x) => ({ ...x, _from: "misc" }))),
+  ].map((r) => ({
+    ...r,
+    _k: String(r.key || r.label || r.name || "").toLowerCase(),
+  }));
+
+
+  // ---------- classification rules ----------
+
+  const isTile = (k) =>
+    /(^|_)(tiles?|verge|eaves_guard|watercourse|touchup|fixings_pack_britmet)(_|$)/.test(
+      k
+    );
+
+  const isPlastics = (k) =>
+    /(^|_)(fascia|soffit|vent(?!ilator))(_|$)/.test(k);
+
+  // J-section, joist hangers, tile starters → Metal
+  const isMetal = (k) =>
+    /(^|_)(tile_starter|joist|hanger|j[_-]?(section|trim))(_|$)/.test(k);
+
+  const isGutter = (k) => /(gutter|^dp_|downpipe)/.test(k);
+
+  // Misc = insulation, tapes, screws, pins, breather, etc.
+  const isMisc = (k) =>
+    /breather|slab100|superquilt|expanding|polytop|alu|lath_fixings|rafter_eaves|screws/.test(
+      k
+    );
+
+      const isTimber = (k) =>
+    /(timber_rafters|timber_full_lengths|timber_ringbeam|lath_external|lath_internal|lath_chamfer_front)/.test(
+      k
+    );
+
+  // Combine manual timber geometry lines + any existing timber items from calculators
+  const timberFilteredLines = allLines.filter((r) => isTimber(r._k));
+  const timberLines = [...timberManualLines, ...timberFilteredLines];
+  const tilesLines = allLines.filter((r) => isTile(r._k));
+  const plasticsLines = allLines.filter((r) => isPlastics(r._k));
+  const metalLines = allLines.filter((r) => isMetal(r._k));
+  const gutterLines = allLines.filter((r) => isGutter(r._k));
+  const miscLines = allLines.filter(
+    (r) =>
+      isMisc(r._k) &&
+      !isTimber(r._k) &&
+      !isTile(r._k) &&
+      !isPlastics(r._k) &&
+      !isMetal(r._k) &&
+      !isGutter(r._k)
+  );
+
+
+  // ---------- totals per section (cost respects exclude; weight never does) ----------
+
+  const sectionTotals = (lines = []) => {
+    let cost = 0;
+    let weight = 0;
+    (lines || []).forEach((r) => {
+      if (!isExcluded(r.key)) {
+        cost += asCost(r);
+      }
+      const w = lineWeightKg(r);
+      if (Number.isFinite(w)) weight += w;
+    });
+    return { cost, weight };
+  };
+
+  const timberTotals = sectionTotals(timberLines);
+  const tilesTotals = sectionTotals(tilesLines);
+  const plasticsTotals = sectionTotals(plasticsLines);
+  const metalTotals = sectionTotals(metalLines);
+  const gutterTotals = sectionTotals(gutterLines);
+  const miscTotals = sectionTotals(miscLines);
+
+  // ---------- table renderer with footer row ----------
+
+  const Section = ({ title, lines, totals }) => (
+    <div style={{ marginBottom: 16 }}>
+      <h2
+        style={{ fontSize: 18, fontWeight: 600, margin: "8px 0" }}
+      >
+        {title}
+      </h2>
+      <div style={{ overflowX: "auto" }}>
+        <table
+          style={{ width: "100%", borderCollapse: "collapse" }}
+        >
+          <thead>
+            <tr>
+              <th style={{ ...th, minWidth: 260 }}>Item</th>
+              <th style={th}>Qty</th>
+              <th style={th}>Weight</th>
+              <th
+                style={{ ...th, textAlign: "right" }}
+              >
+                Cost
+              </th>
+              <th style={th}>Exclude</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(lines || []).map((r, idx) => {
+              const qty = asQty(r);
+              const w = lineWeightKg(r);
+              const excluded = isExcluded(r.key);
+
+              return (
+                <tr
+                  key={
+                    (r.key ||
+                      r.label ||
+                      r.name ||
+                      "row") +
+                    "-" +
+                    idx
+                  }
+                  style={
+                    excluded ? { opacity: 0.55 } : undefined
+                  }
+                >
+                  <td style={td}>
+                    {r.label ||
+                      r.name ||
+                      r.item ||
+                      r.key}
+                  </td>
+                  <td style={td}>
+                    {Number.isFinite(qty) ? qty : "—"}
+                  </td>
+                  <td style={td}>
+                    {fmtKg(w)}
+                  </td>
+                  <td
+                    style={{
+                      ...td,
+                      textAlign: "right",
+                    }}
+                  >
+                    {fmtMoney(asCost(r))}
+                  </td>
+                  <td style={td}>
+                    <input
+                      type="checkbox"
+                      checked={excluded}
+                      onChange={() => toggle(r.key)}
+                      title="Exclude cost (weight still included)"
+                    />
+                  </td>
+                </tr>
+              );
+            })}
+
+            {/* Footer total row */}
+            <tr>
+              <td
+                style={{
+                  ...td,
+                  fontWeight: 700,
+                }}
+              >
+                Total
+              </td>
+              <td style={td}>—</td>
+              <td style={td}>
+                <b>{fmtKg(totals.weight)}</b>
+              </td>
+              <td
+                style={{
+                  ...td,
+                  textAlign: "right",
+                }}
+              >
+                <b>{fmtMoney(totals.cost)}</b>
+              </td>
+              <td style={td}>—</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
+  // ---------- overall totals ----------
+
+  const overallCost =
+    timberTotals.cost +
+    tilesTotals.cost +
+    plasticsTotals.cost +
+    metalTotals.cost +
+    gutterTotals.cost +
+    miscTotals.cost;
+
+  const overallWeight =
+    timberTotals.weight +
+    tilesTotals.weight +
+    plasticsTotals.weight +
+    metalTotals.weight +
+    gutterTotals.weight +
+    miscTotals.weight;
+
+
+  return (
+  <div style={{ fontFamily: "Inter, system-ui, Arial" }}>
+    <NavTabs />
+
+    <div
+      style={{
+        maxWidth: 1120,
+        margin: "0 auto",
+        padding: 12,
+      }}
+    >
+      <h1
+        style={{
+          fontSize: 22,
+          fontWeight: 700,
+          margin: "0 0 10px",
+        }}
+      >
+        Summary — Cost &amp; Weight Breakdown
+      </h1>
+
+      <p
+        style={{
+          fontSize: 13,
+          color: "#4b5563",
+          marginBottom: 12,
+        }}
+      >
+        Tick <b>Exclude</b> to drop an
+        item&apos;s cost from the quote (for example when a
+        customer supplies their own gutters) while its weight
+        remains included for final overall weight purposes.
+      </p>
+
+      <Section
+       title="Timber Elements"
+       lines={timberLines}
+       totals={timberTotals}
+      />
+      <Section
+        title="Tile Elements"
+        lines={tilesLines}
+        totals={tilesTotals}
+      />
+      <Section
+        title="Plastics Elements"
+        lines={plasticsLines}
+        totals={plasticsTotals}
+      />
+      <Section
+        title="Metal Elements"
+        lines={metalLines}
+        totals={metalTotals}
+      />
+      <Section
+        title="Guttering Elements"
+        lines={gutterLines}
+        totals={gutterTotals}
+      />
+      <Section
+        title="Miscellaneous"
+        lines={miscLines}
+        totals={miscTotals}
+      />
+
+      {/* Overall Totals Summary */}
+      <div
+        style={{
+          marginTop: 16,
+          borderTop: "2px solid #e5e7eb",
+          paddingTop: 12,
+        }}
+      >
+        <h3
+          style={{
+            margin: "4px 0 8px",
+            fontSize: 16,
+          }}
+        >
+          Overall Totals
+        </h3>
+        <p style={{ margin: 0, fontSize: 13 }}>
+          <b>Total Cost (after exclusions):</b>{" "}
+          {fmtMoney(overallCost)}
+        </p>
+        <p style={{ margin: 0, fontSize: 13 }}>
+          <b>Total Weight (all items):</b>{" "}
+          {fmtKg(overallWeight)}
+        </p>
+      </div>
+
+      <p
+        style={{
+          color: "#6b7280",
+          fontSize: 11,
+          marginTop: 8,
+        }}
+      >
+        Note: profit, delivery, VAT, and customer-specific markup
+        will be layered on top of this cost on the Quote page. This
+        Summary is your internal check.
+      </p>
+    </div>
+  </div>
+);
+}

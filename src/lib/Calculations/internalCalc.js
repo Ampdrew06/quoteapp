@@ -1,0 +1,320 @@
+// src/lib/internalCalc.js
+import { mm, slopeLength, lineTotal, money, ceil } from "./roofMath";
+
+/**
+ * Compute internal insulation (SuperQuilt) + internal fixing laths for a lean-to.
+ *
+ * inputs:
+ *  - internal_width_mm: number           // clear width between frames (plan)
+ *  - internal_projection_mm: number      // wall→eaves inside (plan)
+ *  - pitch_deg: number
+ *  - lath_centres_mm?: number            // default 400
+ *  - extra_waste_pct?: number            // optional extra wastage on quilt (cuts etc), default 0
+ *  - include_vcl?: boolean               // not priced here (only SuperQuilt), default false
+ *
+ * materials (all optional; sensible defaults included):
+ *  - superquilt_roll_width_mm            // default 1200 mm
+ *  - superquilt_overlap_mm               // default 50 mm
+ *  - superquilt_12m2_price_ex_vat        // default 78.90
+ *  - superquilt_15m2_price_ex_vat        // default 96.60
+ *  - vat_rate_pct                        // default 20
+ *  - internal_fixing_lath_price_per_m    // if missing, falls back to chamfer_lath_price_per_m or 0
+ *
+ * Returns:
+ *  {
+ *    derived: {
+ *      slope_mm,
+ *      area_m2_board,                    // pure internal area (use for plasterboard)
+ *      area_m2_quilt_nominal_needed,     // nominal m² you must buy after overlap & extra waste
+ *      quilt_overlap_factor,             // effective coverage factor = (W - overlap)/W
+ *      lath_rows,
+ *      lath_linear_m
+ *    },
+ *    superquilt: {
+ *      mix: [{size_m2, label, count, unit_ex_vat, line_ex_vat, line_inc_vat}],
+ *      totals: { ex_vat, inc_vat, coverage_m2, overage_m2 }
+ *    },
+ *    laths: {
+ *      unit_pm_ex_vat,
+ *      line_ex_vat,
+ *      metres
+ *    },
+ *    plasterboardSuggestions: { "2400x1200": { boards, each_m2, coverage_m2 }, ... },
+ *    grand_ex_vat,
+ *    grand_inc_vat
+ *  }
+ */
+export function computeInternalLining(inputs = {}, materials = {}) {
+  // --- inputs ---
+  const internal_width_mm = mm(inputs.internal_width_mm);
+  const internal_projection_mm = mm(inputs.internal_projection_mm);
+  const pitch_deg = Number(inputs.pitch_deg) || 0;
+  const lath_centres_mm = mm(inputs.lath_centres_mm) || 400;
+  const extra_waste_pct = Number(inputs.extra_waste_pct) || 0;
+  // include_vcl reserved for later pricing of a separate VCL line if needed
+
+  // --- materials / defaults ---
+  const rollW = mm(materials.superquilt_roll_width_mm) || 1200;
+  const overlap = mm(materials.superquilt_overlap_mm) || 50;
+  const price12 = Number(materials.superquilt_12m2_price_ex_vat ?? 78.90);
+  const price15 = Number(materials.superquilt_15m2_price_ex_vat ?? 96.60);
+  const vatRate = (Number(materials.vat_rate_pct) || 20) / 100;
+  // Only allow a half-roll when we're within this many m² of a full-roll boundary
+const halfWindow = Number(materials.superquilt_half_roll_window_m2 ?? 2.0);
+
+
+  // internal fixing lath price: same as external chamfer lath, if dedicated price missing
+  const lathPricePM =
+    Number(materials.internal_fixing_lath_price_per_m ??
+      materials.chamfer_lath_price_per_m ??
+      0);
+
+  // --- geometry ---
+  const slope_mm = slopeLength({ projection_mm: internal_projection_mm, pitch_deg });
+  const area_m2_board = +( (internal_width_mm * slope_mm) / 1_000_000 ).toFixed(2); // pure internal area (for boards)
+
+  // Quilt overlap coverage factor (effective area vs nominal roll area)
+  // Treat rolls laid as horizontal courses up the slope; each course loses 50 mm height.
+  const coverageFactor = rollW > 0 ? (rollW - overlap) / rollW : 1; // e.g., (1200-50)/1200 = 0.9583
+  const required_nominal_m2 = +( (area_m2_board / (coverageFactor || 1)) * (1 + extra_waste_pct / 100) ).toFixed(2);
+
+  // --- choose optimal roll mix (12, 15, half 6, half 7.5) ---
+  const mix = chooseRollMix(required_nominal_m2, { price12, price15, halfWindow });
+
+
+  const totCoverage = mix.reduce((s, r) => s + r.size_m2 * r.count, 0);
+  const exVAT = mix.reduce((s, r) => s + r.unit_ex_vat * r.count, 0);
+  const incVAT = exVAT * (1 + vatRate);
+  const overage = Math.max(0, +(totCoverage - required_nominal_m2).toFixed(2));
+
+  // --- internal fixing laths ---
+  // Start at ring-beam, then every 400 mm up to wallplate. Rows = floor(slope/400) + 1 (includes ring-beam row).
+  const lath_rows = Math.max(1, Math.floor(slope_mm / (lath_centres_mm || 1)) + 1);
+  const lath_linear_m = +((internal_width_mm * lath_rows) / 1000).toFixed(2);
+  const lathLine = lineTotal(lath_linear_m, lathPricePM);
+
+  const grand_ex_vat = money(exVAT + lathLine);
+  const grand_inc_vat = money(incVAT + lathLine * (1 + vatRate));
+
+  // --- plasterboard suggestions (pure area, no quilt overlap) ---
+  const boardOpts = [
+    { key: "2400x1200", w: 2.4, h: 1.2 },
+    { key: "2400x900", w: 2.4, h: 0.9 },
+    { key: "1800x900", w: 1.8, h: 0.9 },
+  ];
+  const plasterboardSuggestions = Object.fromEntries(
+    boardOpts.map((b) => {
+      const each = b.w * b.h;
+      const boards = Math.max(1, Math.ceil(area_m2_board / each));
+      return [b.key, { boards, each_m2: each, coverage_m2: +(boards * each).toFixed(2) }];
+    })
+  );
+
+  return {
+    derived: {
+      slope_mm,
+      area_m2_board,
+      area_m2_quilt_nominal_needed: required_nominal_m2,
+      quilt_overlap_factor: +(coverageFactor.toFixed(4)),
+      lath_rows,
+      lath_linear_m,
+    },
+    superquilt: {
+      mix,
+      totals: {
+        ex_vat: money(exVAT),
+        inc_vat: money(incVAT),
+        coverage_m2: +totCoverage.toFixed(2),
+        overage_m2: overage,
+      },
+    },
+    laths: {
+      unit_pm_ex_vat: lathPricePM,
+      line_ex_vat: lathLine,
+      metres: lath_linear_m,
+    },
+    plasterboardSuggestions,
+    grand_ex_vat,
+    grand_inc_vat,
+  };
+}
+
+/**
+ * Policy-driven roll picker:
+ * 1) Prefer FULL rolls (12 or 15). If a SINGLE full roll covers, pick that (12 ≤ req ≤ 15 ⇒ pick 15).
+ * 2) For larger areas, find the best FULL-roll combo (12 & 15 only) with minimal overage.
+ * 3) Allow AT MOST ONE half-roll (6 or 7.5) ONLY if the requirement is within `halfWindow` m²
+ *    above a full-roll boundary. Use the smallest half that covers.
+ * 4) Choose between the best full-only combo and the half-roll candidate by smaller overage,
+ *    then fewer items, then lower cost.
+ */
+function chooseRollMix(required_m2, { price12, price15, halfWindow = 2.0 }) {
+  const rows = [];
+
+  // --- 1) Single-roll cases
+  if (required_m2 <= 12) {
+    rows.push({
+      size_m2: 12,
+      label: "SuperQuilt 12 m² roll",
+      count: 1,
+      unit_ex_vat: price12,
+      line_ex_vat: Number(price12.toFixed(2)),
+      line_inc_vat: null,
+    });
+    return rows;
+  }
+  if (required_m2 <= 15) {
+    rows.push({
+      size_m2: 15,
+      label: "SuperQuilt 15 m² roll",
+      count: 1,
+      unit_ex_vat: price15,
+      line_ex_vat: Number(price15.toFixed(2)),
+      line_inc_vat: null,
+    });
+    return rows;
+  }
+
+  // --- 2) Search full-roll combos (12 & 15 only)
+  const maxFull = Math.ceil(required_m2 / 12) + 3; // small buffer
+  let bestFull = null;   // { coverage, items, cost, n12, n15 }
+  let bestBelow = null;  // best coverage <= required
+
+  for (let n12 = 0; n12 <= maxFull; n12++) {
+    for (let n15 = 0; n15 <= maxFull; n15++) {
+      if (n12 + n15 === 0) continue;
+      const coverage = n12 * 12 + n15 * 15;
+      const items = n12 + n15;
+      const cost = n12 * price12 + n15 * price15;
+
+      // Best full-only covering combo
+      if (coverage >= required_m2) {
+        if (
+          !bestFull ||
+          coverage < bestFull.coverage ||
+          (coverage === bestFull.coverage && items < bestFull.items) ||
+          (coverage === bestFull.coverage && items === bestFull.items && cost < bestFull.cost)
+        ) {
+          bestFull = { coverage, items, cost, n12, n15 };
+        }
+      }
+
+      // Best full-only boundary below requirement
+      if (coverage <= required_m2) {
+        if (
+          !bestBelow ||
+          coverage > bestBelow.coverage ||
+          (coverage === bestBelow.coverage && items < bestBelow.items)
+        ) {
+          bestBelow = { coverage, items, cost, n12, n15 };
+        }
+      }
+    }
+  }
+
+  // Safety: if somehow nothing found, ceil with 12s
+  if (!bestFull) {
+    const n12 = Math.ceil(required_m2 / 12);
+    rows.push({
+      size_m2: 12,
+      label: "SuperQuilt 12 m² roll",
+      count: n12,
+      unit_ex_vat: price12,
+      line_ex_vat: Number((n12 * price12).toFixed(2)),
+      line_inc_vat: null,
+    });
+    return rows;
+  }
+
+  // --- 3) Consider ONE half-roll if just above a full boundary
+  let candidateHalf = null;
+  if (bestBelow) {
+    const delta = required_m2 - bestBelow.coverage; // how far above the boundary
+    if (delta > 0 && delta <= halfWindow) {
+      // Use the smallest half that still covers the delta
+      let halfSize = null;
+      if (delta <= 6) halfSize = 6;
+      else if (delta <= 7.5) halfSize = 7.5;
+
+      if (halfSize !== null) {
+        const coverage = bestBelow.coverage + halfSize;
+        const items = bestBelow.items + 1;
+        const cost =
+          bestBelow.n12 * price12 +
+          bestBelow.n15 * price15 +
+          (halfSize === 6 ? price12 / 2 : price15 / 2);
+
+        candidateHalf = {
+          coverage,
+          items,
+          cost,
+          n12: bestBelow.n12,
+          n15: bestBelow.n15,
+          n6: halfSize === 6 ? 1 : 0,
+          n75: halfSize === 7.5 ? 1 : 0,
+        };
+      }
+    }
+  }
+
+  // --- 4) Choose between best full-only vs half candidate
+  let choice = bestFull;
+  if (candidateHalf) {
+    const overFull = bestFull.coverage - required_m2;
+    const overHalf = candidateHalf.coverage - required_m2;
+    if (
+      overHalf < overFull ||
+      (overHalf === overFull && candidateHalf.items < bestFull.items) ||
+      (overHalf === overFull &&
+        candidateHalf.items === bestFull.items &&
+        candidateHalf.cost < bestFull.cost)
+    ) {
+      choice = candidateHalf;
+    }
+  }
+
+  // Build rows for the chosen option
+  rows.length = 0; // reuse the same array name the rest of the file expects
+  if (choice.n15) {
+    rows.push({
+      size_m2: 15,
+      label: "SuperQuilt 15 m² roll",
+      count: choice.n15,
+      unit_ex_vat: price15,
+      line_ex_vat: Number((choice.n15 * price15).toFixed(2)),
+      line_inc_vat: null,
+    });
+  }
+  if (choice.n12) {
+    rows.push({
+      size_m2: 12,
+      label: "SuperQuilt 12 m² roll",
+      count: choice.n12,
+      unit_ex_vat: price12,
+      line_ex_vat: Number((choice.n12 * price12).toFixed(2)),
+      line_inc_vat: null,
+    });
+  }
+  if (choice.n75) {
+    rows.push({
+      size_m2: 7.5,
+      label: "SuperQuilt 7.5 m² half-roll",
+      count: choice.n75,
+      unit_ex_vat: Number((price15 / 2).toFixed(2)),
+      line_ex_vat: Number(((choice.n75 * price15) / 2).toFixed(2)),
+      line_inc_vat: null,
+    });
+  }
+  if (choice.n6) {
+    rows.push({
+      size_m2: 6,
+      label: "SuperQuilt 6 m² half-roll",
+      count: choice.n6,
+      unit_ex_vat: Number((price12 / 2).toFixed(2)),
+      line_ex_vat: Number(((choice.n6 * price12) / 2).toFixed(2)),
+      line_inc_vat: null,
+    });
+  }
+
+  return rows;
+}

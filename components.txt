@@ -1,0 +1,18 @@
+name,where,side,unit,stock_piece_len_mm,effective_cover_mm,overlap_mm,weight_per_unit_kg,price_per_unit,default_waste_pct,qty_formula,notes
+*Timberlite* Eaves Guard,eaves,n/a,piece,3000,3000,0,2.7,8.80,5,eaves = external_width_mm,Metal starter around front only on lean-to but perimeter on other roof styles
+2 Part Barg Trim,verge,left,piece,1250,1150,100,?, ?,7,verge = slope_len_from_eaves_guard_mm,Used on left exposed edge (not needed if abutting wall)
+2 Part Barge Trim,verge,right,piece,1250,1150,100,?, ?,7,verge = slope_len_from_eaves_guard_mm,Used on right exposed edge (not needed if abutting wall), also used to finish open end of Gable Roof
+Chamfered Lath,perimeter,n/a,3m/4.8m/5.2m,0,0,?,0.65p/m, 0.55,5,eaves = external_width_mm,Front edge only on a plain lean-to but perimeter on other roof styles
+Hip/Ridge Cap,hip/ridge,n/a,piece,1250,1150,100,1.6, 5.97,8,hip = hip_len_mm,For hips on hipped roofs and ridges on hipped roofs (and Ridges on Gable Roofs)
+Gable End Cap, Ridge, n/a, piece, n/a, n/a, n/a, 0.15,10.15, n/a, Used to finish ridge on a gable Roof
+Y Adaptor (3 Way Ridge/Hip Adaptor), Ridge, n/a, piece, n/a, n/a, 0.5, 17.20, n/a, 1 for connecting ridges to hips on Edwardian, 2 for Double Hip Edwardian & 1 for Edwardian P-Shape
+5 Way Adaptor, Ridge, n/a, piece, n/a, n/a, 1.2, 36.82, n/a, 1 for Victorian, 1 for Victorian P-Shape
+Universal Ridge Cover, Ridge, n/a, unit, n/a, n/a, 2, 36.82, n/a, Used when the facet sizes on a Victorian Roof are not equal (or when the facet angles are not 135 degrees) 
+90 Deg Hip End Cap, Hip, n/a, piece, n/a, n/a, 0.15, 10.15, n/a, 2 for Edwardian, 4 for Double hip Edwardian (How ever many hips are on a roof with 90deg return hips)
+135 Deg Hip End Cap, Hip, n/a, piece, n/a, n/a, 2, 10.15, n/a, 4 for standard 3 facet Victorian, 5 for 5 facet Victorian Wherever there is a Victorian Hip)   
+Valley Tray,valley,n/a,piece,3000,2800,200,?, 28.08,8,valley = valley_len_mm,For P-shapes etc.
+Fixings Pack (Britmet),course_dependent,n/a,each,0,0,0,?, ?,5,courses = ceil(slope_len_from_eaves_guard_mm / gauge_mm),Include nails/screws per course if you price fixings that way
+End Closure (Verge),verge,n/a,each,0,0,0,?, ?,5,each_end = 1,Use when verge exposed (per side)
+Britmet Touch-Up Kit, ?, ?, ?, ?, ?, ?, ?, 5.10, n/a, 1 per roof (colour coded to tile colour) 
+Britmet Shingle, roof, all, piece, 1326, 1231, 95, 2.19, 5.92, ?, used to cover roofs (standard, Liteslate is an alternative option)
+Watercourse, Wall Rafter, left/right, piece, 3000, 2950, 50, 0.9, 4, ?, used as a secondary precaution against water ingress below the tiles at the house wall

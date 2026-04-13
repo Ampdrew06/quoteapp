@@ -1,0 +1,478 @@
+// src/pages/IdiotList.jsx
+import React, { useMemo } from "react";
+import { Link } from "react-router-dom";
+import { getMaterials } from "../lib/materials";
+import { computeTilesLathsBOM } from "../lib/tilesLathsCalc";
+import { computeFasciaSoffitLeanTo } from "../lib/fasciaSoffitCalc";
+import { computeEdgeTrimsLeanTo } from "../lib/edgeTrimsCalc";
+import { computeGuttersLeanTo } from "../lib/guttersCalc";
+import { computeLiteSlateLeanTo as computeLiteSlate } from "../lib/liteslateCalc";
+
+const num = (v, f = 0) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : f;
+};
+const round = (v, dp = 0) => {
+  const p = 10 ** dp;
+  return Math.round((Number(v) || 0) * p) / p;
+};
+
+function loadInputs() {
+  try {
+    const s = localStorage.getItem("leanToInputs");
+    return s ? JSON.parse(s) : {};
+  } catch {
+    return {};
+  }
+}
+
+export default function IdiotList() {
+  const m = getMaterials();
+  const q = loadInputs();
+
+  // ---- read core dims (fallbacks match TilesLaths) ----
+  const iw   = num(q.internalWidthMM, 4000);
+  const ip   = num(q.internalProjectionMM, 2500);
+  const sft  = num(q.side_frame_thickness_mm ?? 70);
+  const lip  = num(q.fascia_lip_mm ?? 25);
+  const soff = num(q.soffit_mm ?? 150);
+  const frm  = num(q.frame_on_mm ?? 70);
+  const leftOH  = num(q.left_overhang_mm, 0);
+  const rightOH = num(q.right_overhang_mm, 0);
+  const pitchDeg = num(q.pitchDeg, 15);
+
+  // tile choice from Get Quote
+  const tileSystem = String(q.tile_system || "britmet").toLowerCase();
+  const tileColour = String(q.tile_color || "").trim();
+
+  // External sizes (match LeanTo)
+  const extWidthMM      = useMemo(() => iw + 2 * (sft + lip) + leftOH + rightOH, [iw, sft, lip, leftOH, rightOH]);
+  const extProjectionMM = useMemo(() => ip + soff + frm, [ip, soff, frm]);
+
+  // geometry
+  const theta    = (pitchDeg * Math.PI) / 180;
+  const slope_mm = extProjectionMM / Math.cos(theta);
+
+  // Exposed ends → end fascia per side
+ const left_exposed  = (q.left_exposed ?? q.left_verge_exposed ?? true) ? true : false;
+const right_exposed = (q.right_exposed ?? q.right_verge_exposed ?? true) ? true : false;
+
+
+  // Tile geometry / overrides the calculators expect
+  const eaves_overhang_mm = num(q.eaves_overhang_mm, 50);
+  const waste_pct         = num(q.tile_waste_pct, 5);         // 5% matches your target
+  const gauge_mm          = num(q.gauge_mm, 250);
+  const cover_w           = num(q.tile_cover_w_mm, m.tile_britmet_cover_w_mm ?? 1231);
+
+  // Plastics selections
+  const plastics_finish = String(q.plastics_finish ?? "white").toLowerCase();
+  const vent_method     = String(q.vent_method ?? "factory").toLowerCase();
+
+  // Gutter selections (defaults)
+  const gutter_profile = String(q.gutter_profile || "square");
+  const gutter_outlet  = String(q.gutter_outlet  || "left");
+  const gutter_color   = String(q.gutter_color   || "black");
+
+  // --- Calculations (shared engine) ---
+  const bom = useMemo(() => {
+    if (tileSystem === "liteslate") {
+      // LiteSlate uses tiles-per-m² by pitch. We pass plan + slope info so your calc can decide.
+      return computeLiteSlate(
+        {
+          run_mm: extWidthMM,
+          projection_mm: extProjectionMM,
+          slope_mm,
+          pitch_deg: pitchDeg,
+          waste_pct,
+          colour: tileColour || "Slate",
+        },
+        m
+      );
+    }
+
+    // Britmet (now area-based in tilesLathsCalc)
+    return computeTilesLathsBOM(
+      {
+        run_mm: extWidthMM,
+        projection_mm: extProjectionMM,
+        slope_mm,
+        pitch_deg: pitchDeg,
+        eaves_overhang_mm,
+        leftSide: left_exposed ? "exposed" : "wall",
+        rightSide: right_exposed ? "exposed" : "wall",
+        waste_pct,
+        gauge_mm,
+        cover_width_mm: cover_w,
+      },
+      m
+    );
+  }, [
+    tileSystem,
+    extWidthMM,
+    extProjectionMM,
+    slope_mm,
+    pitchDeg,
+    eaves_overhang_mm,
+    left_exposed,
+    right_exposed,
+    waste_pct,
+    gauge_mm,
+    cover_w,
+    tileColour,
+    m,
+  ]);
+
+  const fasciaSoffit = useMemo(
+    () =>
+      computeFasciaSoffitLeanTo(
+        {
+          run_mm: extWidthMM,
+          pitch_deg: pitchDeg,
+          soffit_requested_mm: soff,
+          left_exposed,
+          right_exposed,
+          slope_mm,
+          projection_mm: extProjectionMM,
+          finish: plastics_finish,
+          vent_method,
+        },
+        m
+      ),
+    [
+      extWidthMM,
+      pitchDeg,
+      soff,
+      left_exposed,
+      right_exposed,
+      slope_mm,
+      extProjectionMM,
+      plastics_finish,
+      vent_method,
+      m,
+    ]
+  );
+
+  // Gutters
+  const gutters = useMemo(
+    () =>
+      computeGuttersLeanTo(
+        {
+          run_mm: extWidthMM,
+          profile: gutter_profile,
+          outlet: gutter_outlet,
+          color: gutter_color,
+        },
+        m
+      ),
+    [extWidthMM, gutter_profile, gutter_outlet, gutter_color, m]
+  );
+
+  // Edge trims (adds LiteSlate dry verge when sides are open)
+  const finishValue = plastics_finish === "white" ? "white" : "foiled";
+
+  const edgeTrims = useMemo(
+    () =>
+      computeEdgeTrimsLeanTo(
+        {
+          ext_width_mm: extWidthMM,
+          ext_projection_mm: extProjectionMM,
+          pitch_deg: pitchDeg,
+          leftSide: left_exposed ? "exposed" : "wall",
+          rightSide: right_exposed ? "exposed" : "wall",
+          tileSystem: tileSystem,
+          finish: finishValue,
+        },
+        m
+      ),
+    [
+      extWidthMM,
+      extProjectionMM,
+      pitchDeg,
+      left_exposed,
+      right_exposed,
+      tileSystem,
+      finishValue,
+      m,
+    ]
+  );
+
+  // ---- Map calc lines → Idiot List rows (Item / Notes / Qty / Units) ----
+  const rowsTiles    = (bom?.lines || []).map((r) => mapBOMRow(r, tileSystem));
+  const rowsPlastics = (fasciaSoffit?.lines || []).map((r) => mapPlasticsRow(r));
+  const rowsEdge     = (edgeTrims?.lines || []).map((r) => mapEdgeRow(r));
+  const rowsGutters  = (gutters?.lines || []).map((r) => mapGutterRow(r));
+
+  // ✅ Combined single table
+  const allRows = [...rowsTiles, ...rowsPlastics, ...rowsEdge, ...rowsGutters];
+
+  // Header bits
+  const dateStr = new Date().toLocaleDateString();
+
+  return (
+    <div
+      style={{
+        maxWidth: 980,
+        margin: "0 auto",
+        padding: 16,
+        fontFamily: "Inter, system-ui, Arial",
+      }}
+    >
+      {/* header links */}
+      <div className="print:hidden" style={{ marginBottom: 10, display: "flex", gap: 8 }}>
+        <Link
+          to="/quote/lean-to"
+          onClick={() => localStorage.setItem("auto_show_quote", "1")}
+          style={{ textDecoration: "underline" }}
+        >
+          ← Back
+        </Link>
+        <button onClick={() => window.print()} style={{ textDecoration: "underline" }}>
+          Print
+        </button>
+      </div>
+
+      {/* Header */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 8 }}>
+        <div>
+          <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Idiot List — Manufacture</h1>
+          <div style={{ color: "#555" }}>
+            <div>Date: <b>{dateStr}</b></div>
+            <div>
+              Lean-to · Pitch <b>{pitchDeg}°</b> · Finish <b>{plastics_finish}</b> · Vent <b>{vent_method}</b>
+            </div>
+            <div>
+              External: width <b>{round(extWidthMM)}</b> mm · projection <b>{round(extProjectionMM)}</b> mm · slope <b>{round(slope_mm)}</b> mm
+            </div>
+            <div>Exposed ends: <b>{[left_exposed ? "Left" : null, right_exposed ? "Right" : null].filter(Boolean).join(" & ") || "None"}</b></div>
+            <div>Tiles: <b>{tileSystem === "liteslate" ? "LiteSlate" : "Britmet"}</b>{tileColour ? <> — <b>{tileColour}</b></> : null}</div>
+          </div>
+        </div>
+        <div style={{ display: "grid", gap: 6, alignContent: "start" }}>
+          <Tick label="Checked — Timber/Framing" />
+          <Tick label="Checked — Plastics" />
+          <Tick label="Checked — Tiles & Ancillaries" />
+          <Tick label="Checked — Insulation/Membranes" />
+        </div>
+      </div>
+
+      {/* Single combined table */}
+      <ListSection title="All items" rows={allRows} />
+
+      <style>{`
+        .table {
+          width: 100%;
+          border-collapse: collapse;
+        }
+        .table th, .table td {
+          border: 1px solid #ddd;
+          padding: 6px 8px;
+          vertical-align: top;
+        }
+        .table thead th {
+          background: #f3f4f6;
+          text-align: left;
+        }
+        .section-title {
+          font-size: 16px;
+          font-weight: 600;
+          margin: 14px 0 6px;
+        }
+        .screen-only { display: table-cell; }
+        @media print {
+          @page { size: A4 portrait; margin: 6mm; }
+          .print\\:hidden { display: none !important; }
+          .screen-only { display: none !important; }
+          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          h1 { break-after: avoid; }
+          table { break-inside: avoid; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+/* ---------- presentation components ---------- */
+
+function Tick({ label }) {
+  return (
+    <label style={{ display: "flex", gap: 8, alignItems: "center", userSelect: "none" }}>
+      <span style={{ width: 16, height: 16, border: "1px solid #333", display: "inline-block" }} />
+      <span>{label}</span>
+    </label>
+  );
+}
+
+function ListSection({ title, rows }) {
+  return (
+    <div style={{ margin: "10px 0" }}>
+      <div className="section-title">{title}</div>
+      <table className="table">
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Notes / Spec</th>
+            <th>Qty</th>
+            <th>Units</th>
+            {/* visible on screen, hidden on print */}
+            <th className="screen-only">Unit £</th>
+            <th className="screen-only">Line £</th>
+          </tr>
+        </thead>
+        <tbody>
+          {(rows || []).map((r, idx) => (
+            <tr key={r.key || `${title}-${idx}`}>
+              <td>{r.item}</td>
+              <td>{r.notes}</td>
+              <td>{r.qty}</td>
+              <td>{r.units}</td>
+              <td className="screen-only">£{Number(r.unit || 0).toFixed(2)}</td>
+              <td className="screen-only">£{Number(r.line || 0).toFixed(2)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/* ---------- row mappers: calculators → list format ---------- */
+
+function mapBOMRow(r, tileSystem) {
+  const safeLabel = String(r?.label ?? "");
+  const def = {
+    item: safeLabel,
+    notes: "",
+    qty: r?.qtyDisplay ?? r?.qty,
+    units: "Ea",
+    unit: r?.unit,
+    line: r?.line,
+    key: r?.key,
+  };
+
+  switch (r?.key) {
+    // Tiles row (rename based on selected system)
+    case "tiles":
+    case "tiles_britmet":
+      return tileSystem === "liteslate"
+        ? { ...def, item: "LiteSlate tiles", units: "pcs" }
+        : { ...def, item: "Britmet shingles (tiles)", units: "pcs" };
+
+    // LiteSlate-specific (from liteslateCalc)
+    case "slate_tiles":
+      return { ...def, item: "LiteSlate tiles", units: "pcs" };
+    case "ridge_tile":
+      return { ...def, item: "LiteSlate ridge tiles", units: "pcs" };
+    case "ridge_end_cap":
+      return { ...def, item: "Ridge end cap", units: "Ea" };
+    case "hip_end_cap_90":
+      return { ...def, item: "Hip end cap 90°", units: "Ea" };
+    case "hip_end_cap_135":
+      return { ...def, item: "Hip end cap 135°", units: "Ea" };
+    case "three_way_adaptor":
+      return { ...def, item: "3-way ridge/hip adaptor", units: "Ea" };
+
+    // Shared ancillaries from existing calc
+    case "eaves":
+      return { ...def, item: "Timberlite Eaves guard", units: "pcs", notes: "Front only (3.0 m pcs)" };
+    case "verge":
+      // For LiteSlate, show “dry verge”; else keep Britmet wording
+      return tileSystem === "liteslate"
+        ? { ...def, item: "LiteSlate dry verge 2.0 m", units: "Lengths" }
+        : { ...def, item: "2-Part Barge trim (verges)", units: "pcs", notes: "1.25 m pcs" };
+    case "watercourse":
+      return { ...def, item: "Watercourse (wall abutment)", units: "pcs", notes: "2.95 m pcs" };
+    case "chamfer":
+      return { ...def, item: "Chamfered lath (front)", units: "m" };
+    case "fixings":
+      return { ...def, item: "Fixings pack (per course)", units: "packs" };
+    case "touchup":
+      return { ...def, item: "Touch-Up kit", units: "Ea" };
+
+    default:
+      return def;
+  }
+}
+
+function mapPlasticsRow(r) {
+  const def = { item: r.label, notes: "", qty: r.qtyDisplay ?? r.qty, units: "Ea", unit: r.unit, line: r.line, key: r.key };
+
+  if (r.key === "fascia") {
+    const mmMatch = r.label.match(/Fascia board (\d+)\s*mm/i);
+    const height = mmMatch ? mmMatch[1] : "";
+    return { ...def, item: `Fascia ${height} mm`, notes: "5.0 m length", qty: r.qty, units: "Lengths" };
+  }
+  if (r.key === "soffit") {
+    const mmMatch = r.label.match(/Soffit board (\d+)\s*mm/i);
+    const width = mmMatch ? mmMatch[1] : "";
+    return { ...def, item: `Soffit ${width} mm`, notes: "5.0 m length", qty: r.qty, units: "Lengths" };
+  }
+  if (r.key === "vent") {
+    if (/DISCS/i.test(r.label)) {
+      return { ...def, item: "Vent discs", qty: r.qty, units: "Ea" };
+    }
+    return { ...def, item: "Vent fascia", qty: r.qty, units: "m" };
+  }
+  if (r.key === "end_fascia_left" || r.key === "end_fascia_right") {
+    const side = /left/i.test(r.key) ? "Left" : "Right";
+    const mmMatch = r.label.match(/(\d+)\s*mm/);
+    const height = mmMatch ? mmMatch[1] : "300";
+    return { ...def, item: `End fascia (${side}) ${height} mm`, notes: "5.0 m length", qty: r.qty, units: "Lengths" };
+  }
+  if (r.key === "fascia_corners") {
+    return { ...def, item: "Fascia 90° corners", qty: r.qty, units: "Ea" };
+  }
+  if (r.key === "fascia_joints") {
+    return { ...def, item: "Fascia straight joints", qty: r.qty, units: "Ea" };
+  }
+  return def;
+}
+
+function mapEdgeRow(r) {
+  const def = { item: r.label, notes: "", qty: r.qtyDisplay ?? r.qty, units: "Ea", unit: r.unit, line: r.line, key: r.key };
+
+  if (r.key === "tile_starter") {
+    return { ...def, item: "Tile starter", notes: "3.0 m length", qty: r.qty, units: "Lengths" };
+  }
+  if (r.key === "j_section") {
+    return { ...def, item: "J-Section", notes: "5.0 m length", qty: r.qty, units: "Lengths" };
+  }
+  if (r.key === "membrane") {
+    return { ...def, item: "Breather membrane", notes: "1 m × 50 m", qty: r.qty, units: "Roll" };
+  }
+  // LiteSlate dry verge keys we add in edgeTrimsCalc
+  if (r.key === "ls_verge_left") {
+    return { ...def, item: "LiteSlate dry verge (left)", notes: "2.0 m lengths", qty: r.qty, units: "Lengths" };
+  }
+  if (r.key === "ls_verge_right") {
+    return { ...def, item: "LiteSlate dry verge (right)", notes: "2.0 m lengths", qty: r.qty, units: "Lengths" };
+  }
+  return def;
+}
+
+function mapGutterRow(r) {
+  const def = { item: r.label, notes: "", qty: r.qtyDisplay ?? r.qty, units: "Ea", unit: r.unit, line: r.line, key: r.key };
+
+  // Common gutter parts (keys may vary by your guttersCalc)
+  if (/gutter.*length/i.test(r.label) || /4\.0 m/i.test(r.label)) {
+    return { ...def, item: "Gutter", notes: "4.0 m length", qty: r.qty, units: "Lengths" };
+  }
+  if (/union/i.test(r.label)) {
+    return { ...def, item: "Gutter union", qty: r.qty, units: "Ea" };
+  }
+  if (/bracket/i.test(r.label)) {
+    return { ...def, item: "Gutter bracket", qty: r.qty, units: "Ea" };
+  }
+  if (/stop end/i.test(r.label)) {
+    return { ...def, item: "Stop end", qty: r.qty, units: "Ea" };
+  }
+  if (/outlet/i.test(r.label)) {
+    return { ...def, item: "Outlet", qty: r.qty, units: "Ea" };
+  }
+  if (/pipe.*2\.0 m/i.test(r.label)) {
+    return { ...def, item: "Downpipe", notes: "2.0 m length", qty: r.qty, units: "Lengths" };
+  }
+  if (/pipe.*clip/i.test(r.label)) {
+    return { ...def, item: "Downpipe clip", qty: r.qty, units: "Ea" };
+  }
+  return def;
+}

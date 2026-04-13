@@ -20,6 +20,14 @@ export default function GeometryPage() {
   const [hookLength, setHookLength] = useState(125);
   const [pricePerMeter, setPricePerMeter] = useState(initialState.pricePerMeter ?? 6.12);
 
+  // --- NEW: Lean-to geometry & roof build-up inputs (kept simple, with sensible defaults)
+  const [wallplateThk, setWallplateThk] = useState(63);   // t_wp
+  const [hangerAllowance, setHangerAllowance] = useState(2); // t_h
+  const [rafterDepth, setRafterDepth] = useState(220);    // d
+  const [membraneThk, setMembraneThk] = useState(1);
+  const [lathThk, setLathThk] = useState(25);
+  const [tileThk, setTileThk] = useState(15);
+
   // Calculated states
   const [externalWidth, setExternalWidth] = useState(0);
   const [externalProjection, setExternalProjection] = useState(0);
@@ -35,6 +43,13 @@ export default function GeometryPage() {
   const [hipPitch, setHipPitch] = useState(0);
   const [footCutLength, setFootCutLength] = useState(0);
 
+  // --- NEW: expose lean-to metrics you asked for
+  const [ltA, setLtA] = useState(0); // underside length A
+  const [ltB, setLtB] = useState(0); // top-edge length B
+  const [ltDOuter, setLtDOuter] = useState(0); // top of rafter @ wall (outer ref)
+  const [ltFinishedOuter, setLtFinishedOuter] = useState(0); // finished to top of tiles (outer ref)
+  const [ltFinishedInner, setLtFinishedInner] = useState(0); // finished to top of tiles (inner ref)
+
   // Constants
   const sparHookCutAngle = 19;
   const ridgeCapHeight = 60;
@@ -46,6 +61,7 @@ export default function GeometryPage() {
   const calculateTrussLength = (extWidth, pitchDegrees) => {
     const theta = toRad(pitchDegrees);
     return (extWidth / 2) / Math.cos(theta);
+    // Note: this "truss" bit is your existing gable/hip scratch logic; left intact.
   };
 
   const calculateVerticalTrussHeight = (trussLength, pitchDegrees) => {
@@ -87,16 +103,14 @@ export default function GeometryPage() {
 
     const horizontalRun = Math.sqrt(
       Math.pow(internalProjection + frameThickness - ridgeLength, 2) +
-        Math.pow(externalWidth / 2, 2)
+      Math.pow(externalWidth / 2, 2)
     );
 
     const hipPitchDegrees = calculateHipPitch(roofPitchDegrees);
     const hipPitchRad = toRad(hipPitchDegrees);
 
     const hipLen = horizontalRun / Math.cos(hipPitchRad);
-
     const footCut = calculateFootCutLength(ringBeamThickness + soffitSize, soffitSize, hipPitchDegrees);
-
     const finalHipLength = hipLen + footCut + hookLength;
 
     return { finalHipLength, hipPitchDegrees, footCut };
@@ -145,13 +159,13 @@ export default function GeometryPage() {
       rafterSpacing > 0 &&
       trussThickness > 0
     ) {
+      // Existing scratch calcs
       const tLength = calculateTrussLength(externalWidth, roofPitch);
       const vHeight = calculateVerticalTrussHeight(tLength, roofPitch);
       const fHeight = vHeight + ringBeamThickness + frameThickness + ridgeCapHeight;
       const rLength = calculateRidgeLength(internalProjection, internalWidth);
       const nTrusses = calculateNumTrusses(rLength, trussThickness, rafterSpacing);
-      const totalMeters =
-        nTrusses * (tLength / 1000) + 5 + 10; // placeholder for hips and jack rafters
+      const totalMeters = nTrusses * (tLength / 1000) + 5 + 10; // placeholder kept
       const stocks = Math.ceil(totalMeters / 12);
       const cost = totalMeters * pricePerMeter;
 
@@ -176,6 +190,37 @@ export default function GeometryPage() {
       setHipLength(finalHipLength);
       setHipPitch(hipPitchDegrees);
       setFootCutLength(footCut);
+
+      // --- NEW: Lean-to finished-height patch (outer & inner refs)
+      // Matches the lean-to math we’re using elsewhere:
+      // A = (internalProjection - t_wp - t_h) / cosθ
+      // B = (internalProjection + soffit + frame_on) / cosθ
+      // D_outer = 39 + (internalProjection - t_wp - t_h) * tanθ + d * cosθ
+      // Finished_outer = D_outer + (membrane + lath + tile) * cosθ
+      // Finished_inner = Finished_outer + frame_on * tanθ
+      const theta = toRad(roofPitch);
+      const cosT = Math.cos(theta);
+      const tanT = Math.tan(theta);
+
+      const R_under = internalProjection - wallplateThk - hangerAllowance;
+      const A_mm = R_under / cosT;
+      const R_top = internalProjection + soffitSize + frameThickness; // ext projection per your page
+      const B_mm = R_top / cosT;
+
+      const D_outer =
+        39 + R_under * tanT + rafterDepth * Math.cos(theta);
+
+      const buildUpVertical =
+        (membraneThk + lathThk + tileThk) * Math.cos(theta);
+
+      const finishedOuter = D_outer + buildUpVertical;
+      const finishedInner = finishedOuter + frameThickness * tanT;
+
+      setLtA(A_mm);
+      setLtB(B_mm);
+      setLtDOuter(D_outer);
+      setLtFinishedOuter(finishedOuter);
+      setLtFinishedInner(finishedInner);
     } else {
       setExternalWidth(0);
       setExternalProjection(0);
@@ -190,6 +235,13 @@ export default function GeometryPage() {
       setHipLength(0);
       setHipPitch(0);
       setFootCutLength(0);
+
+      // reset lean-to readouts too
+      setLtA(0);
+      setLtB(0);
+      setLtDOuter(0);
+      setLtFinishedOuter(0);
+      setLtFinishedInner(0);
     }
   }, [
     internalWidth,
@@ -202,6 +254,14 @@ export default function GeometryPage() {
     soffitSize,
     trussThickness,
     hookLength,
+    // NEW deps:
+    wallplateThk,
+    hangerAllowance,
+    rafterDepth,
+    membraneThk,
+    lathThk,
+    tileThk,
+    externalWidth,
   ]);
 
   return (
@@ -363,6 +423,68 @@ export default function GeometryPage() {
         </label>
       </div>
 
+      {/* --- NEW: Lean-to specific inputs (kept compact) --- */}
+      <hr />
+      <h4 style={{ marginTop: 16, marginBottom: 8 }}>Lean-To Geometry & Roof Build-up</h4>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10 }}>
+        <label>
+          Wallplate t<sub>wp</sub> (mm)
+          <input
+            type="number"
+            value={wallplateThk}
+            onChange={(e) => setWallplateThk(parseInt(e.target.value) || 0)}
+            style={{ width: "100%", marginTop: 4 }}
+          />
+        </label>
+        <label>
+          Hanger t<sub>h</sub> (mm)
+          <input
+            type="number"
+            value={hangerAllowance}
+            onChange={(e) => setHangerAllowance(parseInt(e.target.value) || 0)}
+            style={{ width: "100%", marginTop: 4 }}
+          />
+        </label>
+        <label>
+          Rafter depth d (mm)
+          <input
+            type="number"
+            value={rafterDepth}
+            onChange={(e) => setRafterDepth(parseInt(e.target.value) || 0)}
+            style={{ width: "100%", marginTop: 4 }}
+          />
+        </label>
+
+        <label>
+          Membrane (mm)
+          <input
+            type="number"
+            value={membraneThk}
+            onChange={(e) => setMembraneThk(parseInt(e.target.value) || 0)}
+            style={{ width: "100%", marginTop: 4 }}
+          />
+        </label>
+        <label>
+          Lath (mm)
+          <input
+            type="number"
+            value={lathThk}
+            onChange={(e) => setLathThk(parseInt(e.target.value) || 0)}
+            style={{ width: "100%", marginTop: 4 }}
+          />
+        </label>
+        <label>
+          Tile (mm)
+          <input
+            type="number"
+            value={tileThk}
+            onChange={(e) => setTileThk(parseInt(e.target.value) || 0)}
+            style={{ width: "100%", marginTop: 4 }}
+          />
+        </label>
+      </div>
+
       <hr />
 
       {/* Display Results */}
@@ -380,6 +502,24 @@ export default function GeometryPage() {
         <p>Hip Pitch: {hipPitch.toFixed(2)}°</p>
         <p>Hip Length (adjusted for foot cut & hook): {hipLength.toFixed(0)} mm</p>
         <p>Fixed Spar Hook Cut Angle (fabrication): {sparHookCutAngle}°</p>
+
+        {/* --- NEW: lean-to readout you asked for --- */}
+        <div style={{ marginTop: 12, paddingTop: 8, borderTop: "1px solid #ddd" }}>
+          <h4>Lean-To Derived (for verification & insulation/tile planning)</h4>
+          <p>A (underside length): {ltA.toFixed(0)} mm</p>
+          <p>B (top-edge length): {ltB.toFixed(0)} mm</p>
+          <p>D (top of rafter @ wall, outer ref): {ltDOuter.toFixed(0)} mm</p>
+          <p>
+            Finished @ wall (to top of tiles, outer ref): {ltFinishedOuter.toFixed(0)} mm
+            {" "}
+            <span style={{ color: "#666" }}>
+              (build-up {membraneThk}+{lathThk}+{tileThk} mm)
+            </span>
+          </p>
+          <p style={{ color: "#666" }}>
+            Finished @ wall (inner ref): {ltFinishedInner.toFixed(0)} mm
+          </p>
+        </div>
       </div>
     </div>
   );
