@@ -104,12 +104,14 @@ export default function QuoteWizard() {
         ))}
       </div>
 
-      <Link
-        to="/geometry"
-        style={{ display: "block", marginTop: 30, textAlign: "center" }}
-      >
-        Go to Geometry & Material Calculator
-      </Link>
+      {/*
+<Link
+  to="/geometry"
+  style={{ display: "block", marginTop: 30, textAlign: "center" }}
+>
+  Go to Geometry & Material Calculator
+</Link>
+*/}
     </div>
   );
 }
