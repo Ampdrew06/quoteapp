@@ -6,7 +6,7 @@ const round = (v, dp = 0) => {
   return Math.round((Number(v) || 0) * p) / p;
 };
 
-export default function PlanDiagramLeanToManufacture({
+export default function PlanDiagramLeanTo({
   iw, ip,
   sft, lip,
   soffit, frameOn,
@@ -23,15 +23,19 @@ export default function PlanDiagramLeanToManufacture({
   const L_OH = Number(leftOH) || 0;
   const R_OH = Number(rightOH) || 0;
 
-  // Manufacture Book should always show the true overall roof width
-  const leftDelta  = FT + (L_OH > 0 ? L_OH : LIP);
-  const rightDelta = FT + (R_OH > 0 ? R_OH : LIP);
+  const leftDelta = leftWall
+    ? 0
+    : (L_OH > 0 ? FT + L_OH : FT + LIP);
+
+  const rightDelta = rightWall
+    ? 0
+    : (R_OH > 0 ? FT + R_OH : FT + LIP);
 
   const extW = iw + leftDelta + rightDelta;
   const extP = ip + (Number(frameOn) || 70) + (Number(soffit) || 150);
 
   return { extW, extP, leftDelta, rightDelta };
-}, [iw, ip, sft, lip, soffit, frameOn, leftOH, rightOH]);
+}, [iw, ip, sft, lip, soffit, frameOn, leftOH, rightOH, leftWall, rightWall]);
 
   // --- drawing area setup ---
   const VB_W = 900, VB_H = 520;

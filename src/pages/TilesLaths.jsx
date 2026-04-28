@@ -1,10 +1,10 @@
 // src/pages/TilesLaths.jsx
 import React, { useMemo, useState } from "react";
 import { getMaterials } from "../lib/materials";
-import { computeTilesLathsBOM } from "../lib/tilesLathsCalc";
-import { computeInternalLining } from "../lib/internalCalc";
-import { computeFasciaSoffitLeanTo } from "../lib/fasciaSoffitCalc";
-import { computeEdgeTrimsLeanTo } from "../lib/edgeTrimsCalc";
+import { computeTilesLathsBOM } from "../lib/Calculations/tilesLathsCalc";
+import { computeInternalLining } from "../lib/Calculations/internalCalc";
+import { computeFasciaSoffitLeanTo } from "../lib/Calculations/fasciaSoffitCalc";
+import { computeEdgeTrimsLeanTo } from "../lib/Calculations/edgeTrimsCalc";
 import NavTabs from "../components/NavTabs";
 
 // ---------- helpers ----------

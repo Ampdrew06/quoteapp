@@ -1,16 +1,20 @@
 // src/pages/Summary.jsx
-
 import React, { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { getMaterials } from "../lib/materials";
-import { computeTilesLathsBOM } from "../lib/tilesLathsCalc";
+import { computeTilesLathsBOM } from "../lib/Calculations/tilesLathsCalc";
 import { computeLiteSlateLeanTo } from "../lib/Calculations/liteslateCalc";
-import { computeFasciaSoffitLeanTo } from "../lib/fasciaSoffitCalc";
-import { computeEdgeTrimsLeanTo } from "../lib/edgeTrimsCalc";
-import { computeGuttersLeanTo } from "../lib/guttersCalc";
+import { computeFasciaSoffitLeanTo } from "../lib/Calculations/fasciaSoffitCalc";
+import { computeEdgeTrimsLeanTo } from "../lib/Calculations/edgeTrimsCalc";
+import { computeGuttersLeanTo } from "../lib/Calculations/guttersCalc";
 import { computeMiscLeanTo } from "../lib/Calculations/miscCalc";
 import NavTabs from "../components/NavTabs"; 
-import { computePricing } from "../lib/pricing";    // 👈 NEW
+import {
+  computePricing,
+  computeLabourPricing,
+  getLabourPricingConfig,
+  saveLabourPricingConfig,
+} from "../lib/pricing";
 import { computeTotalWeightKg, applyWeightsToLines } from "../lib/utils/weights";
 import { buildLeanToTotals, buildLeanToQuoteBase } from "../lib/leanToTotals";
 import { calculateLeanToGeometry } from "../lib/geometry/leanToGeometry";
@@ -201,6 +205,14 @@ const loadInputs = () => {
 // ---------- main component ----------
 
 export default function Summary() {
+  const [labourConfig, setLabourConfig] = useState(() =>
+  getLabourPricingConfig()
+);
+const updateLabourConfig = (patch) => {
+  const next = { ...labourConfig, ...patch };
+  setLabourConfig(next);
+  saveLabourPricingConfig(next);
+};
   // ---- react to Materials changes ----
   const [materialsTick, setMaterialsTick] = useState(0);
 
@@ -2772,8 +2784,24 @@ const overallWeight =
 // Only timber is chargeable (waste uplift). Lean-to materials pricing comes straight from totals.
 const quoteBase = buildLeanToQuoteBase(inputs, exclusions);
 
-const pricing = computePricing(quoteBase.materialsCostForPricing, m);
-console.log("PRICING_COMPARE", {
+const labourFeatures = {
+  roofVent: false,
+  fixedUnit: false,
+  reinforcedRingBeam: false,
+};
+
+const labour = computeLabourPricing({
+  widthMM: totalsInput?.widthMM,
+  projectionMM: totalsInput?.projMM,
+  tileSystem: totalsInput?.tileSystem,
+  config: labourConfig,
+  features: labourFeatures,
+});
+
+const pricing = computePricing(quoteBase.materialsCostForPricing, m, {
+  labourCost: labour.labourCost,
+});
+/*console.log("PRICING_COMPARE", {
   page: "Summary",
   materialsCostForPricing: quoteBase?.materialsCostForPricing,
   delivery_flat: m?.delivery_flat,
@@ -2797,6 +2825,7 @@ console.log("PRICING_COMPARE", {
   gutterOutlet: totalsInput?.gutterOutlet,
   gutterColor: totalsInput?.gutterColor,
 });
+*/
 
 const pricingMaterialsCost = pricing.materialsCost;
 const delivery = pricing.delivery;
@@ -2807,6 +2836,8 @@ const vatRate = pricing.vatRate;
 const vat = pricing.vat;
 const gross = pricing.gross;
 const marginPct = pricing.marginPct;
+
+
 
 const pricingAdjustment = (pricingMaterialsCost ?? 0) - (overallCost ?? 0);
 const showPricingAdjustment = Math.abs(pricingAdjustment) > 0.01;
@@ -2943,6 +2974,11 @@ return (
             <b>Materials used for pricing (incl. waste):</b>{" "}
             {fmtMoney(pricingMaterialsCost)}
           </p>
+           
+           <p style={{ margin: 0, fontSize: 13 }}>
+           <b>Labour:</b>{" "}
+           {fmtMoney(labour.labourCost)}
+           </p>
 
           <p style={{ margin: 0, fontSize: 13 }}>
             <b>Delivery:</b>{" "}
@@ -2975,7 +3011,154 @@ return (
           </p>
         </div>
       </div>
+      <div
+  style={{
+    marginTop: 20,
+    padding: 14,
+    border: "1px solid #d1d5db",
+    borderRadius: 8,
+    background: "#eef2ff",
+  }}
+>
+  <h2 style={{ marginTop: 0 }}>Labour Controls (Editable)</h2>
 
+  <div style={{ display: "grid", gap: 8, gridTemplateColumns: "1fr 1fr" }}>
+
+    <label>
+      Day Rate (£)
+      <input
+        type="number"
+        value={labourConfig.dayRate}
+        onChange={(e) =>
+          updateLabourConfig({ dayRate: Number(e.target.value) })
+        }
+      />
+    </label>
+
+    <label>
+      Average Roof Size (m²)
+      <input
+        type="number"
+        value={labourConfig.averageAreaM2}
+        onChange={(e) =>
+          updateLabourConfig({ averageAreaM2: Number(e.target.value) })
+        }
+      />
+    </label>
+
+    <label>
+      Minimum Days
+      <input
+        type="number"
+        step="0.1"
+        value={labourConfig.minimumDays}
+        onChange={(e) =>
+          updateLabourConfig({ minimumDays: Number(e.target.value) })
+        }
+      />
+    </label>
+
+    <label>
+      Lean-To Factor
+      <input
+        type="number"
+        step="0.1"
+        value={labourConfig.roofTypeFactor}
+        onChange={(e) =>
+          updateLabourConfig({ roofTypeFactor: Number(e.target.value) })
+        }
+      />
+    </label>
+<div>
+  Roof Vent Factor:{" "}
+  <input
+    type="number"
+    step="0.1"
+    value={labourConfig.roofVentFactor}
+    onChange={(e) =>
+      updateLabourConfig({ roofVentFactor: Number(e.target.value),
+      })
+    }
+  />
+</div>
+
+<div>
+  Fixed Unit Factor:{" "}
+  <input
+    type="number"
+    step="0.1"
+    value={labourConfig.fixedUnitFactor}
+    onChange={(e) =>
+      updateLabourConfig({ fixedUnitFactor: Number(e.target.value),
+      })
+    }
+  />
+</div>
+
+<div>
+  Reinforced Ring Beam:{" "}
+  <input
+    type="number"
+    step="0.1"
+    value={labourConfig.reinforcedRingBeamFactor}
+    onChange={(e) =>
+      updateLabourConfig({ reinforcedRingBeamFactor: Number(e.target.value),
+      })
+    }
+  />
+</div>
+    <label>
+      Britmet Factor
+      <input
+        type="number"
+        step="0.1"
+        value={labourConfig.britmetFactor}
+        onChange={(e) =>
+          updateLabourConfig({ britmetFactor: Number(e.target.value) })
+        }
+      />
+    </label>
+
+    <label>
+      Liteslate Factor
+      <input
+        type="number"
+        step="0.1"
+        value={labourConfig.liteslateFactor}
+        onChange={(e) =>
+          updateLabourConfig({ liteslateFactor: Number(e.target.value) })
+        }
+      />
+    </label>
+
+  </div>
+</div>
+
+<div
+  style={{
+    marginTop: 20,
+    padding: 14,
+    border: "1px solid #d1d5db",
+    borderRadius: 8,
+    background: "#f9fafb",
+  }}
+>
+  <h2 style={{ marginTop: 0 }}>Labour Pricing Test</h2>
+
+  <div style={{ display: "grid", gap: 6, fontSize: 14 }}>
+    <div>Roof area: <b>{labour.areaM2.toFixed(2)} m²</b></div>
+    <div>Average roof area: <b>{labour.averageAreaM2.toFixed(2)} m²</b></div>
+    <div>Area factor: <b>{labour.areaFactor.toFixed(2)}</b></div>
+    <div>Complexity factor: <b>{labour.complexity.toFixed(2)}</b></div>
+    <div>Raw labour days: <b>{labour.rawDays.toFixed(2)}</b></div>
+    <div>Minimum labour days: <b>{labour.minimumDays.toFixed(2)}</b></div>
+    <div>Final labour days: <b>{labour.labourDays.toFixed(2)}</b></div>
+    <div>Day rate: <b>£{labour.dayRate.toFixed(2)}</b></div>
+    <div style={{ fontSize: 16 }}>
+      Labour cost: <b>£{labour.labourCost.toFixed(2)}</b>
+    </div>
+  </div>
+</div>
       <p
         style={{
           color: "#6b7280",

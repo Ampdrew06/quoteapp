@@ -1,18 +1,17 @@
 // src/pages/lean-to/LeanToLanding.jsx
 import React, { useMemo, useState, useEffect } from "react";
 import { getMaterials } from "../../lib/materials";
-import { computeTilesLathsBOM } from "../../lib/tilesLathsCalc";
+import { computeTilesLathsBOM } from "../../lib/Calculations/tilesLathsCalc";
 //import { computeFasciaSoffitLeanTo } from "../../lib/fasciaSoffitCalc";
 //import { computeEdgeTrimsLeanTo } from "../../lib/edgeTrimsCalc";
 //import { computeGuttersLeanTo } from "../../lib/guttersCalc";
 import PlanDiagramLeanTo from "../../components/PlanDiagramLeanTo";
-import { computeLiteSlateLeanTo as computeLiteSlate } from "../../lib/liteslateCalc";
+import { computeLiteSlateLeanTo as computeLiteSlate } from "../../lib/Calculations/liteslateCalc";
 //import { computeMiscLeanTo } from "../../lib/miscCalc"; 
 import { useLocation, useNavigate } from "react-router-dom";
 import NavTabs from "../../components/NavTabs";
-//import { buildLeanToTotals, buildLeanToQuoteBase } from "../../lib/leanToTotals";
-import { computePricing } from "../../lib/pricing";
-import { buildLeanToQuoteBase } from "../../lib/leanToTotals";
+import { buildLeanToTotals, buildLeanToQuoteBase } from "../../lib/leanToTotals";
+import { computePricing, computeLabourPricing, getLabourPricingConfig,} from "../../lib/pricing";
 //import { computeLeanToManufactureGeometry } from "../../lib/leanToManufactureGeometry";
 
 // adjust path if file structure differs
@@ -423,11 +422,37 @@ const quoteBase = useMemo(
   () => buildLeanToQuoteBase(totalsInput, exclusions),
   [totalsInput, exclusions]
 );
-
-const pricing = useMemo(
-  () => computePricing(quoteBase.materialsCostForPricing, m),
-  [quoteBase.materialsCostForPricing, m]
+const totals = useMemo(
+  () => buildLeanToTotals(totalsInput, exclusions),
+  [totalsInput, exclusions]
 );
+const pricing = useMemo(() => {
+  const labourConfig = getLabourPricingConfig();
+
+  const labourFeatures = {
+    roofVent: false,
+    fixedUnit: false,
+    reinforcedRingBeam: false,
+  };
+
+  const labour = computeLabourPricing({
+    widthMM: Number(widthMM || 0),
+    projectionMM: Number(projMM || 0),
+    tileSystem,
+    config: labourConfig,
+    features: labourFeatures,
+  });
+
+  return computePricing(quoteBase.materialsCostForPricing, m, {
+    labourCost: labour.labourCost,
+  });
+}, [
+  quoteBase.materialsCostForPricing,
+  m,
+  widthMM,
+  projMM,
+  tileSystem,
+]);
 /*console.log("PRICING_COMPARE", {
   page: "LeanToLanding",
   materialsCostForPricing: quoteBase?.materialsCostForPricing,
@@ -870,33 +895,45 @@ const demoGross = demoNet + demoVat;
 </div>
 
             <label>Overhang at eaves (mm)
-              <input
-                type="number"
-                value={eavesOverhangMM}
-                onChange={(e) => setEavesOverhang(num(e.target.value, 0))}
-                className="border rounded px-2 py-1 w-full"
-              />
-            </label>
+  <input
+    type="number"
+    value={eavesOverhangMM}
+    onChange={(e) => {
+      const v = num(e.target.value, 0);
+      setEavesOverhang(v);
+      persist({ soffit_mm: v });
+    }}
+    className="border rounded px-2 py-1 w-full"
+  />
+</label>
 
             <label>Overhang at left side (mm)
-              <input
-                type="number"
-                placeholder="e.g. 150"
-                value={leftOverhangMM}
-                onChange={(e) => setLeftOverhang(e.target.value)}
-                className="border rounded px-2 py-1 w-full"
-              />
-            </label>
+  <input
+    type="number"
+    placeholder="e.g. 150"
+    value={leftOverhangMM}
+    onChange={(e) => {
+      const v = e.target.value;
+      setLeftOverhang(v);
+      persist({ left_overhang_mm: Number(v || 0) });
+    }}
+    className="border rounded px-2 py-1 w-full"
+  />
+</label>
 
             <label>Overhang at right side (mm)
-              <input
-                type="number"
-                placeholder="e.g. 150"
-                value={rightOverhangMM}
-                onChange={(e) => setRightOverhang(e.target.value)}
-                className="border rounded px-2 py-1 w-full"
-              />
-            </label>
+  <input
+    type="number"
+    placeholder="e.g. 150"
+    value={rightOverhangMM}
+    onChange={(e) => {
+      const v = e.target.value;
+      setRightOverhang(v);
+      persist({ right_overhang_mm: Number(v || 0) });
+    }}
+    className="border rounded px-2 py-1 w-full"
+  />
+</label>
 
             {/* Tile system + colour */}
             <label>Tile system
@@ -970,11 +1007,15 @@ const demoGross = demoNet + demoVat;
             </label>
 
             <label>Gutter outlet position
-              <select
-                value={gutterOutlet}
-                onChange={(e) => setGutterOutlet(e.target.value)}
-                className="border rounded px-2 py-1 w-full"
-              >
+  <select
+    value={gutterOutlet}
+    onChange={(e) => {
+      const v = e.target.value;
+      setGutterOutlet(v);
+      persist({ gutter_outlet: v });
+    }}
+    className="border rounded px-2 py-1 w-full"
+  >
                 <option value="left">Left</option>
                 <option value="right">Right</option>
                 <option value="center">Center</option>
@@ -1075,16 +1116,18 @@ const demoGross = demoNet + demoVat;
 <div style={card}>
   <h2 style={h2}>Your price</h2>
   <div style={{ display: "grid", gap: 6, fontSize: 16 }}>
-    <div>Indicative roof price (net): <b>£{demoNet.toFixed(2)}</b></div>
     <div>
-      VAT ({((pricing.vatRate ?? 0) * 100).toFixed(0)}%): £{demoVat.toFixed(2)}
+      Materials subtotal (net): <b>£{(pricing.net ?? 0).toFixed(2)}</b>
+    </div>
+    <div>
+      VAT ({((pricing.vatRate ?? 0) * 100).toFixed(0)}%): £{(pricing.vat ?? 0).toFixed(2)}
     </div>
     <div style={{ fontSize: 18 }}>
-      Guide price (gross): <b>£{demoGross.toFixed(2)}</b>
+      Total (gross): <b>£{(pricing.gross ?? 0).toFixed(2)}</b>
     </div>
   </div>
   <div style={{ color: "#6b7280", fontSize: 12, marginTop: 8 }}>
-    Indicative roof price for demo purposes. Final quotation may vary depending on labour, delivery and project details.
+    Includes tiles & ancillaries, fascia/soffit, gutters, tile starter, J-Section and membrane.
   </div>
 </div>
           </div>

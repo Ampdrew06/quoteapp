@@ -1,1 +1,1 @@
-export { default as LeanToPlanDiagram } from "./diagrams/LeanToPlanDiagram";
+export { default as LeanToPlanDiagram } from "./Diagrams/PlanDiagramLeanTo";

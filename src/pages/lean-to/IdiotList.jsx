@@ -2,10 +2,10 @@
 import React, { useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import { getMaterials } from "../../lib/materials";
-import { computeTilesLathsBOM } from "../../lib/tilesLathsCalc";
-import { computeEdgeTrimsLeanTo } from "../../lib/edgeTrimsCalc";
-import { computeGuttersLeanTo } from "../../lib/guttersCalc";
-import { computeLiteSlateLeanTo } from "../../lib/liteslateCalc";
+import { computeTilesLathsBOM } from "../../lib/Calculations/tilesLathsCalc";
+import { computeEdgeTrimsLeanTo } from "../../lib/Calculations/edgeTrimsCalc";
+import { computeGuttersLeanTo } from "../../lib/Calculations/guttersCalc";
+import { computeLiteSlateLeanTo } from "../../lib/Calculations/liteslateCalc";
 import { computeTotalWeightKg } from "../../lib/utils/weights";
 import NavTabs from "../../components/NavTabs";
 import { buildLeanToTotals } from "../../lib/leanToTotals";

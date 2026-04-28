@@ -1,4 +1,4 @@
-// src/components/PlanDiagramLeanTo.jsx
+// src/components/PlanDiagramLeanToManufacture.jsx
 import React, { useMemo } from "react";
 
 const round = (v, dp = 0) => {
@@ -18,20 +18,24 @@ export default function PlanDiagramLeanToManufacture({
 }) {
   // --- compute per-side deltas (full rule set) ---
   const { extW, extP, leftDelta, rightDelta } = useMemo(() => {
-  const FT  = Number(sft) || 70;     // frame thickness
-  const LIP = Number(lip) || 25;     // fascia lip
-  const L_OH = Number(leftOH) || 0;  // left overhang
-  const R_OH = Number(rightOH) || 0; // right overhang
+  const FT  = Number(sft) || 70;
+  const LIP = Number(lip) || 25;
+  const L_OH = Number(leftOH) || 0;
+  const R_OH = Number(rightOH) || 0;
 
-  // Manufacture Book should always show the true overall roof width
-  const leftDelta = FT + (L_OH > 0 ? L_OH : LIP);
-  const rightDelta = FT + (R_OH > 0 ? R_OH : LIP);
+  const leftDelta = leftWall
+    ? 0
+    : (L_OH > 0 ? FT + L_OH : FT + LIP);
+
+  const rightDelta = rightWall
+    ? 0
+    : (R_OH > 0 ? FT + R_OH : FT + LIP);
 
   const extW = iw + leftDelta + rightDelta;
   const extP = ip + (Number(frameOn) || 70) + (Number(soffit) || 150);
 
   return { extW, extP, leftDelta, rightDelta };
-}, [iw, ip, sft, lip, soffit, frameOn, leftOH, rightOH]);
+}, [iw, ip, sft, lip, soffit, frameOn, leftOH, rightOH, leftWall, rightWall]);
 
   // --- drawing area setup ---
   const VB_W = 900, VB_H = 520;

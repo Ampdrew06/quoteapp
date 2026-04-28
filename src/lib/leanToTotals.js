@@ -1,10 +1,10 @@
 
 // src/lib/leanToTotals.js
 import { getMaterials } from "./materials";
-import { computeTilesLathsBOM } from "./tilesLathsCalc";
-import { computeFasciaSoffitLeanTo } from "./fasciaSoffitCalc";
-import { computeEdgeTrimsLeanTo } from "./edgeTrimsCalc";
-import { computeGuttersLeanTo } from "./guttersCalc";
+import { computeTilesLathsBOM } from "./Calculations/tilesLathsCalc";
+import { computeFasciaSoffitLeanTo } from "./Calculations/fasciaSoffitCalc";
+import { computeEdgeTrimsLeanTo } from "./Calculations/edgeTrimsCalc";
+import { computeGuttersLeanTo } from "./Calculations/guttersCalc";
 import { computeLiteSlateLeanTo } from "./Calculations/liteslateCalc";
 import { computeMiscLeanTo } from "./Calculations/miscCalc";
 import { calculateLeanToGeometry } from "./geometry/leanToGeometry";

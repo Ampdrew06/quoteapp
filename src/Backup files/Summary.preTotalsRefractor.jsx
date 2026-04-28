@@ -6,9 +6,9 @@ import { Link } from "react-router-dom";
 import { getMaterials } from "../lib/materials";
 import { computeTilesLathsBOM } from "../lib/tilesLathsCalc";
 import { computeLiteSlateLeanTo } from "../lib/Calculations/liteslateCalc";
-import { computeFasciaSoffitLeanTo } from "../lib/fasciaSoffitCalc";
-import { computeEdgeTrimsLeanTo } from "../lib/edgeTrimsCalc";
-import { computeGuttersLeanTo } from "../lib/guttersCalc";
+import { computeFasciaSoffitLeanTo } from "../lib/Calculations/fasciaSoffitCalc";
+import { computeEdgeTrimsLeanTo } from "../lib/Calculations/edgeTrimsCalc";
+import { computeGuttersLeanTo } from "../lib/Calculations/guttersCalc";
 import { computeMiscLeanTo } from "../lib/Calculations/miscCalc";
 import NavTabs from "../components/NavTabs"; 
 import { computePricing } from "../lib/pricing";    // 👈 NEW
