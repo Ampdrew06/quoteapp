@@ -11,7 +11,13 @@ import { computeLiteSlateLeanTo as computeLiteSlate } from "../../lib/Calculatio
 import { useLocation, useNavigate } from "react-router-dom";
 import NavTabs from "../../components/NavTabs";
 import { buildLeanToTotals, buildLeanToQuoteBase } from "../../lib/leanToTotals";
-import { computePricing, computeLabourPricing, getLabourPricingConfig,} from "../../lib/pricing";
+import {
+  computePricing,
+  computeLabourPricing,
+  computeDeliveryPricing,
+  getLabourPricingConfig,
+  getDeliveryPricingConfig,
+} from "../../lib/pricing";
 //import { computeLeanToManufactureGeometry } from "../../lib/leanToManufactureGeometry";
 
 // adjust path if file structure differs
@@ -234,6 +240,10 @@ useEffect(() => {
   // Quote UI
   const [showQuote, setShowQuote] = useState(false);
   const [quoteRef, setQuoteRef] = useState("");
+  const [deliveryPostcode, setDeliveryPostcode] = useState("");
+const [deliveryDistanceMiles, setDeliveryDistanceMiles] = useState(0);
+const [deliveryLoading, setDeliveryLoading] = useState(false);
+const [deliveryError, setDeliveryError] = useState("");
 
   // ---- tile colour lists (per system) ----
   const britmetColours = [
@@ -443,15 +453,24 @@ const pricing = useMemo(() => {
     features: labourFeatures,
   });
 
-  return computePricing(quoteBase.materialsCostForPricing, m, {
-    labourCost: labour.labourCost,
-  });
+  const deliveryConfig = getDeliveryPricingConfig();
+
+const deliveryResult = computeDeliveryPricing(
+  deliveryDistanceMiles,
+  deliveryConfig
+);
+
+return computePricing(quoteBase.materialsCostForPricing, m, {
+  labourCost: labour.labourCost,
+  deliveryCost: deliveryResult.deliveryCost,
+});
 }, [
   quoteBase.materialsCostForPricing,
   m,
   widthMM,
   projMM,
   tileSystem,
+  deliveryDistanceMiles,
 ]);
 /*console.log("PRICING_COMPARE", {
   page: "LeanToLanding",
@@ -683,7 +702,47 @@ const misc = React.useMemo(() => {
 // Can we generate a quote yet?
 const canQuote = Number(widthMM) > 0 && Number(projMM) > 0;
 
-  const onGetQuote = () => {
+const lookupDeliveryDistance = async () => {
+  const postcode = String(deliveryPostcode || "").trim();
+
+  if (!postcode) {
+    setDeliveryDistanceMiles(0);
+    setDeliveryError("");
+    return;
+  }
+
+  setDeliveryLoading(true);
+  setDeliveryError("");
+
+  try {
+    const res = await fetch("/api/delivery-distance", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        destinationPostcode: postcode,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data?.error || "Could not calculate delivery distance");
+    }
+
+    setDeliveryDistanceMiles(Number(data.distanceMiles || 0));
+  } catch (err) {
+    setDeliveryDistanceMiles(0);
+    setDeliveryError(err.message || "Delivery lookup failed");
+  } finally {
+    setDeliveryLoading(false);
+  }
+};
+
+  const onGetQuote = async () => {
+  await lookupDeliveryDistance();
+
   // Save inputs AND the fact that the quote/diagram is visible
   persistInputs({ overrideShowQuote: true });
   setShowQuote(true);
@@ -848,6 +907,37 @@ const demoGross = demoNet + demoVat;
                 className="border rounded px-2 py-1 w-full"
               />
             </label>
+
+ <label>Delivery postcode
+  <input
+    type="text"
+    value={deliveryPostcode}
+    placeholder="e.g. HU5 3AB"
+    onChange={(e) => setDeliveryPostcode(e.target.value.toUpperCase())}
+    onBlur={lookupDeliveryDistance}
+onKeyDown={(e) => {
+  if (e.key === "Enter") {
+    lookupDeliveryDistance();
+  }
+}}
+    className="border rounded px-2 py-1 w-full"
+  />
+  {deliveryLoading && (
+    <div style={{ color: "#6b7280", fontSize: 12, marginTop: 4 }}>
+      Checking delivery distance...
+    </div>
+  )}
+  {deliveryDistanceMiles > 0 && !deliveryLoading && (
+    <div style={{ color: "#047857", fontSize: 12, marginTop: 4 }}>
+      Delivery distance found: {deliveryDistanceMiles.toFixed(2)} miles one-way
+    </div>
+  )}
+  {deliveryError && (
+    <div style={{ color: "#b91c1c", fontSize: 12, marginTop: 4 }}>
+      {deliveryError}
+    </div>
+  )}
+</label>
 
             <label>Pitch (degrees)
               <input

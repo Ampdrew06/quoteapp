@@ -12,8 +12,11 @@ import NavTabs from "../components/NavTabs";
 import {
   computePricing,
   computeLabourPricing,
+  computeDeliveryPricing,
   getLabourPricingConfig,
   saveLabourPricingConfig,
+  getDeliveryPricingConfig,
+  saveDeliveryPricingConfig,
 } from "../lib/pricing";
 import { computeTotalWeightKg, applyWeightsToLines } from "../lib/utils/weights";
 import { buildLeanToTotals, buildLeanToQuoteBase } from "../lib/leanToTotals";
@@ -212,6 +215,15 @@ const updateLabourConfig = (patch) => {
   const next = { ...labourConfig, ...patch };
   setLabourConfig(next);
   saveLabourPricingConfig(next);
+};
+const [deliveryConfig, setDeliveryConfig] = useState(() =>
+  getDeliveryPricingConfig()
+);
+
+const updateDeliveryConfig = (patch) => {
+  const next = { ...deliveryConfig, ...patch };
+  setDeliveryConfig(next);
+  saveDeliveryPricingConfig(next);
 };
   // ---- react to Materials changes ----
   const [materialsTick, setMaterialsTick] = useState(0);
@@ -2797,9 +2809,19 @@ const labour = computeLabourPricing({
   config: labourConfig,
   features: labourFeatures,
 });
+// TEMP: test distance (replace later with real postcode distance)
+const testDistanceMiles = 3.47;
 
-const pricing = computePricing(quoteBase.materialsCostForPricing, m, {
+const deliveryResult = computeDeliveryPricing(
+  testDistanceMiles,
+  deliveryConfig
+);
+
+const deliveryCost = deliveryResult.deliveryCost;
+
+const pricing = computePricing(quoteBase?.materialsCostForPricing ?? 0, m, {
   labourCost: labour.labourCost,
+  deliveryCost,
 });
 /*console.log("PRICING_COMPARE", {
   page: "Summary",
@@ -2980,10 +3002,30 @@ return (
            {fmtMoney(labour.labourCost)}
            </p>
 
-          <p style={{ margin: 0, fontSize: 13 }}>
-            <b>Delivery:</b>{" "}
-            {fmtMoney(delivery)}
-          </p>
+          <div
+  style={{
+    margin: "6px 0",
+    padding: "8px 10px",
+    background: "#f9fafb",
+    border: "1px solid #e5e7eb",
+    borderRadius: 6,
+    fontSize: 13,
+  }}
+>
+  <p style={{ margin: 0 }}>
+    <b>Delivery:</b> {fmtMoney(delivery)}
+  </p>
+
+  <p style={{ margin: "4px 0 0", color: "#6b7280" }}>
+    One-way distance: {deliveryResult.oneWayMiles.toFixed(2)} miles
+    {" "} | Return distance: {deliveryResult.returnMiles.toFixed(2)} miles
+  </p>
+
+  <p style={{ margin: "4px 0 0", color: "#6b7280" }}>
+    Time cost: {fmtMoney(deliveryResult.timeCost)}
+    {" "} | Fuel cost: {fmtMoney(deliveryResult.fuelCost)}
+  </p>
+</div>
 
           <p style={{ margin: 0, fontSize: 13 }}>
             <b>Profit markup:</b>{" "}
@@ -2994,6 +3036,7 @@ return (
             <b>Net price (before VAT):</b>{" "}
             {fmtMoney(net)}
           </p>
+
 
           <p style={{ margin: 0, fontSize: 13 }}>
             <b>VAT ({(vatRate * 100).toFixed(0)}%):</b>{" "}
@@ -3132,6 +3175,57 @@ return (
     </label>
 
   </div>
+  <div
+  style={{
+    marginTop: 20,
+    padding: 14,
+    border: "1px solid #d1d5db",
+    borderRadius: 8,
+    background: "#fff7ed",
+  }}
+>
+  <h2 style={{ marginTop: 0 }}>Delivery Controls (Editable)</h2>
+
+  <div style={{ display: "grid", gap: 8, gridTemplateColumns: "1fr 1fr" }}>
+    <label>
+      Hourly Rate (£)
+      <input
+        type="number"
+        step="0.01"
+        value={deliveryConfig.hourlyRate}
+        onChange={(e) =>
+          updateDeliveryConfig({ hourlyRate: Number(e.target.value) })
+        }
+      />
+    </label>
+
+    <label>
+      Van MPG
+      <input
+        type="number"
+        step="0.1"
+        value={deliveryConfig.vanMpg}
+        onChange={(e) =>
+          updateDeliveryConfig({ vanMpg: Number(e.target.value) })
+        }
+      />
+    </label>
+
+    <label>
+      Fuel Price Per Litre (£)
+      <input
+        type="number"
+        step="0.01"
+        value={deliveryConfig.fuelPricePerLitre}
+        onChange={(e) =>
+          updateDeliveryConfig({
+            fuelPricePerLitre: Number(e.target.value),
+          })
+        }
+      />
+    </label>
+  </div>
+</div>
 </div>
 
 <div

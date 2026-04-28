@@ -3,27 +3,29 @@
 /**
  * Central pricing helper.
  *
- * Inputs:
- *   - materialsCost: number (already includes waste / stock rounding etc.)
- *   - m: materials object from getMaterials()
+ * Correct pricing flow:
  *
- * Reads:
- *   - m.delivery_flat  (optional flat £)
- *   - m.profit_pct     (optional % markup on materials)
- *   - m.vat_rate       (0–1, e.g. 0.2) OR m.vat_pct (0–100, e.g. 20)
+ * materials + labour
+ * + markup
+ * + delivery
+ * = net
+ *
+ * + VAT
+ * = gross
  */
 export function computePricing(materialsCost, m = {}, extras = {}) {
   const safeM = m || {};
   const cost = Number(materialsCost) || 0;
 
   const labourCost = Number(extras.labourCost ?? 0);
-const delivery  = Number(safeM.delivery_flat ?? 0);
-const profitPct = Number(safeM.profit_pct ?? 0);
+  const delivery = Number(extras.deliveryCost ?? safeM.delivery_flat ?? 0);
+  const profitPct = Number(safeM.profit_pct ?? 0);
 
-const baseCost = cost + labourCost + delivery;
-const profit = baseCost * (profitPct / 100);
+  const baseCost = cost + labourCost;
+  const profit = baseCost * (profitPct / 100);
 
-const net = baseCost + profit;
+  const netBeforeDelivery = baseCost + profit;
+  const net = netBeforeDelivery + delivery;
 
   // Support either vat_rate (decimal) or vat_pct (percentage)
   let vatRate;
@@ -34,7 +36,7 @@ const net = baseCost + profit;
     vatRate = pct / 100;
   }
 
-  const vat   = net * vatRate;
+  const vat = net * vatRate;
   const gross = net + vat;
 
   const marginPct = net > 0 ? (profit / net) * 100 : 0;
@@ -43,16 +45,79 @@ const net = baseCost + profit;
     materialsCost: cost,
     labourCost,
     delivery,
-    baseCost, 
+
+    baseCost,
     profitPct,
     profit,
+
+    netBeforeDelivery,
     net,
+
     vatRate,
     vat,
     gross,
     marginPct,
   };
 }
+
+/**
+ * Delivery pricing helper.
+ *
+ * Google returns one-way miles.
+ * Your spreadsheet formula uses return miles.
+ */
+export function computeDeliveryPricing(distanceMilesOneWay, config = {}) {
+  const oneWayMiles = Number(distanceMilesOneWay) || 0;
+
+  const hourlyRate = Number(config.hourlyRate ?? 17.96);
+  const vanMpg = Number(config.vanMpg ?? 26);
+  const fuelPricePerLitre = Number(config.fuelPricePerLitre ?? 1.89);
+
+  const returnMiles = oneWayMiles * 2;
+
+  const timeCost = ((returnMiles / 50) + 1) * hourlyRate;
+
+  const fuelCost =
+    vanMpg > 0 ? (returnMiles / vanMpg) * 4.54 * fuelPricePerLitre : 0;
+
+  const deliveryCost = timeCost + fuelCost;
+
+  return {
+    oneWayMiles,
+    returnMiles,
+    hourlyRate,
+    vanMpg,
+    fuelPricePerLitre,
+    timeCost,
+    fuelCost,
+    deliveryCost,
+  };
+}
+
+export const DELIVERY_PRICING_KEY = "delivery_pricing_v1";
+
+export const defaultDeliveryPricingConfig = {
+  hourlyRate: 17.96,
+  vanMpg: 26,
+  fuelPricePerLitre: 1.89,
+};
+
+export function getDeliveryPricingConfig() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(DELIVERY_PRICING_KEY) || "{}");
+    return { ...defaultDeliveryPricingConfig, ...saved };
+  } catch {
+    return defaultDeliveryPricingConfig;
+  }
+}
+
+export function saveDeliveryPricingConfig(config) {
+  localStorage.setItem(
+    DELIVERY_PRICING_KEY,
+    JSON.stringify({ ...defaultDeliveryPricingConfig, ...(config || {}) })
+  );
+}
+
 export function computeLabourPricing({
   widthMM,
   projectionMM,
@@ -111,6 +176,7 @@ export function computeLabourPricing({
     minimumDays,
   };
 }
+
 export const LABOUR_PRICING_KEY = "labour_pricing_v1";
 
 export const defaultLabourPricingConfig = {
