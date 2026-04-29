@@ -2809,7 +2809,6 @@ const labour = computeLabourPricing({
   config: labourConfig,
   features: labourFeatures,
 });
-const deliveryConfig = getDeliveryPricingConfig();
 
 // Get saved delivery distance from D/O page
 let savedInputs = {};
