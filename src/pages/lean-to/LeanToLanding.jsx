@@ -241,9 +241,10 @@ useEffect(() => {
   const [showQuote, setShowQuote] = useState(false);
   const [quoteRef, setQuoteRef] = useState("");
   const [deliveryPostcode, setDeliveryPostcode] = useState("");
-const [deliveryDistanceMiles, setDeliveryDistanceMiles] = useState(0);
-const [deliveryLoading, setDeliveryLoading] = useState(false);
-const [deliveryError, setDeliveryError] = useState("");
+  const [deliveryDistanceMiles, setDeliveryDistanceMiles] = useState(0);
+  const [deliveryLoading, setDeliveryLoading] = useState(false);
+  const [deliveryError, setDeliveryError] = useState("");
+  const [quoteError, setQuoteError] = useState("");
 
   // ---- tile colour lists (per system) ----
   const britmetColours = [
@@ -713,12 +714,21 @@ const misc = React.useMemo(() => {
 */
 
 // Can we generate a quote yet?
-const hasDeliveryPostcode = String(deliveryPostcode || "").trim().length > 0;
+const missingWidth = !Number(widthMM);
+const missingProjection = !Number(projMM);
+const missingPostcode = !String(deliveryPostcode || "").trim();
+
+const hasDeliveryPostcode = !missingPostcode;
 
 const canQuote =
-  Number(widthMM) > 0 &&
-  Number(projMM) > 0 &&
+  !missingWidth &&
+  !missingProjection &&
   hasDeliveryPostcode;
+
+const requiredInputStyle = {
+  borderColor: "#b91c1c",
+  background: "#fef2f2",
+};
 
 const lookupDeliveryDistance = async () => {
   const postcode = String(deliveryPostcode || "").trim();
@@ -765,6 +775,18 @@ persistInputs({
 };
 
   const onGetQuote = async () => {
+  setQuoteError("");
+
+  if (!Number(widthMM) || !Number(projMM)) {
+    setQuoteError("Please enter both width and projection before getting a quote.");
+    return;
+  }
+
+  if (!String(deliveryPostcode || "").trim()) {
+    setQuoteError("Please enter a delivery postcode before getting a quote.");
+    return;
+  }
+
   await lookupDeliveryDistance();
 
   // Save inputs AND the fact that the quote/diagram is visible
@@ -923,6 +945,7 @@ const demoGross = demoNet + demoVat;
                 placeholder="e.g. 3500"
                 onChange={(e) => setWidth(e.target.value)}
                 className="border rounded px-2 py-1 w-full"
+                style={missingWidth && quoteError ? requiredInputStyle : undefined}
               />
             </label>
 
@@ -933,6 +956,7 @@ const demoGross = demoNet + demoVat;
                 placeholder="e.g. 2500"
                 onChange={(e) => setProj(e.target.value)}
                 className="border rounded px-2 py-1 w-full"
+                style={missingProjection && quoteError ? requiredInputStyle : undefined}
               />
             </label>
 
@@ -940,6 +964,7 @@ const demoGross = demoNet + demoVat;
   <input
     type="text"
     value={deliveryPostcode}
+    style={missingPostcode && quoteError ? requiredInputStyle : undefined}
     onChange={(e) => setDeliveryPostcode(e.target.value.toUpperCase())}
     onBlur={lookupDeliveryDistance}
 onKeyDown={(e) => {
@@ -1142,8 +1167,6 @@ onKeyDown={(e) => {
             <button
               onClick={onGetQuote}
               style={primaryBtn}
-              disabled={!canQuote}
-              aria-disabled={!canQuote}
               title={
   !Number(widthMM) || !Number(projMM)
     ? "Enter width & projection first"
@@ -1154,6 +1177,11 @@ onKeyDown={(e) => {
             >
               Get Quote
             </button>
+            {quoteError && (
+  <div style={{ color: "#b91c1c", fontSize: 13, marginTop: 6 }}>
+    {quoteError}
+  </div>
+)}
 
             {/* Save with reference */}
             <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
