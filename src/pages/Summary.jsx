@@ -2809,11 +2809,18 @@ const labour = computeLabourPricing({
   config: labourConfig,
   features: labourFeatures,
 });
-// TEMP: test distance (replace later with real postcode distance)
-const testDistanceMiles = 3.47;
+// Get saved delivery distance from D/O page
+let savedInputs = {};
+try {
+  savedInputs = JSON.parse(localStorage.getItem("leanToInputs") || "{}");
+} catch {}
+
+const deliveryDistanceMiles = Number(savedInputs.deliveryDistanceMiles || 0);
+
+const deliveryConfig = getDeliveryPricingConfig();
 
 const deliveryResult = computeDeliveryPricing(
-  testDistanceMiles,
+  deliveryDistanceMiles,
   deliveryConfig
 );
 
