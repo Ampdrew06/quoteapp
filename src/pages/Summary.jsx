@@ -2809,15 +2809,17 @@ const labour = computeLabourPricing({
   config: labourConfig,
   features: labourFeatures,
 });
+const deliveryConfig = getDeliveryPricingConfig();
 // Get saved delivery distance from D/O page
 let savedInputs = {};
-try {
-  savedInputs = JSON.parse(localStorage.getItem("leanToInputs") || "{}");
-} catch {}
+
+if (typeof window !== "undefined") {
+  try {
+    savedInputs = JSON.parse(window.localStorage.getItem("leanToInputs") || "{}");
+  } catch {}
+}
 
 const deliveryDistanceMiles = Number(savedInputs.deliveryDistanceMiles || 0);
-
-const deliveryConfig = getDeliveryPricingConfig();
 
 const deliveryResult = computeDeliveryPricing(
   deliveryDistanceMiles,
