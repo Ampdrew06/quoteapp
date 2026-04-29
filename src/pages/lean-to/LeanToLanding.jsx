@@ -312,12 +312,17 @@ const persistInputs = (opts = {}) => {
     gutter_color: gutterColor,
 
     // cosmetic choices
-    tile_system: tileSystem,
-    tile_color: tileColor,
-    plastics_color: plasticsColor,
+tile_system: tileSystem,
+tile_color: tileColor,
+plastics_color: plasticsColor,
 
-    // NEW: whether the quote/plan panel is currently shown
-    showQuote: opts.overrideShowQuote ?? showQuote,
+// delivery
+deliveryPostcode: opts.deliveryPostcode ?? deliveryPostcode,
+deliveryDistanceMiles:
+  opts.deliveryDistanceMiles ?? Number(deliveryDistanceMiles || 0),
+
+// NEW: whether the quote/plan panel is currently shown
+showQuote: opts.overrideShowQuote ?? showQuote,
   };
 
   localStorage.setItem("leanToInputs", JSON.stringify(payload));
@@ -362,6 +367,14 @@ if ("right_wall_present" in q) {
         if (q.tile_system)                  setTileSystem(String(q.tile_system));
         if (q.tile_color)                   setTileColor(String(q.tile_color));
         if (q.plastics_color)               setPlasticsColor(String(q.plastics_color));
+
+        // delivery
+        if (q.deliveryPostcode) { setDeliveryPostcode(String(q.deliveryPostcode));
+}
+
+if (q.deliveryDistanceMiles != null) {
+  setDeliveryDistanceMiles(Number(q.deliveryDistanceMiles || 0));
+}
       }
     } catch (e) {
       console.warn("Failed to load leanToInputs", e);
@@ -700,7 +713,14 @@ const misc = React.useMemo(() => {
 */
 
 // Can we generate a quote yet?
-const canQuote = Number(widthMM) > 0 && Number(projMM) > 0;
+const hasDeliveryPostcode = String(deliveryPostcode || "").trim().length > 0;
+const hasDeliveryDistance = Number(deliveryDistanceMiles || 0) > 0;
+
+const canQuote =
+  Number(widthMM) > 0 &&
+  Number(projMM) > 0 &&
+  hasDeliveryPostcode &&
+  hasDeliveryDistance;
 
 const lookupDeliveryDistance = async () => {
   const postcode = String(deliveryPostcode || "").trim();
@@ -731,7 +751,13 @@ const lookupDeliveryDistance = async () => {
       throw new Error(data?.error || "Could not calculate delivery distance");
     }
 
-    setDeliveryDistanceMiles(Number(data.distanceMiles || 0));
+    const miles = Number(data.distanceMiles || 0);
+setDeliveryDistanceMiles(miles);
+
+persistInputs({
+  deliveryPostcode: postcode,
+  deliveryDistanceMiles: miles,
+});
   } catch (err) {
     setDeliveryDistanceMiles(0);
     setDeliveryError(err.message || "Delivery lookup failed");
@@ -777,6 +803,10 @@ const lookupDeliveryDistance = async () => {
 
     setQuoteRef("");
     setShowQuote(false);
+
+    setDeliveryPostcode("");
+    setDeliveryDistanceMiles(0);
+    setDeliveryError("");
 
     // clear stored in-progress quote
     localStorage.removeItem("leanToInputs");
@@ -912,7 +942,6 @@ const demoGross = demoNet + demoVat;
   <input
     type="text"
     value={deliveryPostcode}
-    placeholder="e.g. HU5 3AB"
     onChange={(e) => setDeliveryPostcode(e.target.value.toUpperCase())}
     onBlur={lookupDeliveryDistance}
 onKeyDown={(e) => {
@@ -927,11 +956,7 @@ onKeyDown={(e) => {
       Checking delivery distance...
     </div>
   )}
-  {deliveryDistanceMiles > 0 && !deliveryLoading && (
-    <div style={{ color: "#047857", fontSize: 12, marginTop: 4 }}>
-      Delivery distance found: {deliveryDistanceMiles.toFixed(2)} miles one-way
-    </div>
-  )}
+  
   {deliveryError && (
     <div style={{ color: "#b91c1c", fontSize: 12, marginTop: 4 }}>
       {deliveryError}
@@ -1121,7 +1146,15 @@ onKeyDown={(e) => {
               style={primaryBtn}
               disabled={!canQuote}
               aria-disabled={!canQuote}
-              title={!canQuote ? "Enter width & projection first" : "Generate price & plan"}
+              title={
+  !Number(widthMM) || !Number(projMM)
+    ? "Enter width & projection first"
+    : !hasDeliveryPostcode
+    ? "Enter delivery postcode first"
+    : !hasDeliveryDistance
+    ? "Check delivery distance first"
+    : "Generate price & plan"
+}
             >
               Get Quote
             </button>
