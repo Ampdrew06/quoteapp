@@ -714,13 +714,11 @@ const misc = React.useMemo(() => {
 
 // Can we generate a quote yet?
 const hasDeliveryPostcode = String(deliveryPostcode || "").trim().length > 0;
-const hasDeliveryDistance = Number(deliveryDistanceMiles || 0) > 0;
 
 const canQuote =
   Number(widthMM) > 0 &&
   Number(projMM) > 0 &&
-  hasDeliveryPostcode &&
-  hasDeliveryDistance;
+  hasDeliveryPostcode;
 
 const lookupDeliveryDistance = async () => {
   const postcode = String(deliveryPostcode || "").trim();
@@ -1151,8 +1149,6 @@ onKeyDown={(e) => {
     ? "Enter width & projection first"
     : !hasDeliveryPostcode
     ? "Enter delivery postcode first"
-    : !hasDeliveryDistance
-    ? "Check delivery distance first"
     : "Generate price & plan"
 }
             >
