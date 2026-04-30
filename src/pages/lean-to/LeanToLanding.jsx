@@ -169,9 +169,11 @@ useEffect(() => {
   // Reset Lean-To inputs when arriving from Welcome page with { state: { fresh: true } }
   useEffect(() => {
     if (location.state?.fresh) {
-      try {
-        // Clear saved inputs so the page starts at defaults
-        localStorage.removeItem("leanToInputs");
+  try {
+    // Clear saved inputs so the page starts at defaults
+    localStorage.removeItem("leanToInputs");
+    localStorage.removeItem("summary_exclusions");
+    window.dispatchEvent(new Event("summary_exclusions_updated"));
 
         // Reset local state (blank/default form)
         setWidth("");
@@ -851,6 +853,7 @@ persistInputs({
     // clear stored in-progress quote
     localStorage.removeItem("leanToInputs");
     localStorage.removeItem("summary_exclusions");
+    window.dispatchEvent(new Event("summary_exclusions_updated"));
   };
 
   const saveQuote = () => {

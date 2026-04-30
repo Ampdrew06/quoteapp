@@ -193,6 +193,7 @@ const loadExclusions = () => {
 const saveExclusions = (obj) => {
   try {
     localStorage.setItem("summary_exclusions", JSON.stringify(obj || {}));
+    window.dispatchEvent(new Event("summary_exclusions_updated"));
   } catch {
     // ignore
   }
@@ -616,6 +617,18 @@ return 0;
 
   // ---- exclusions (unchanged behaviour) ----
   const [ex, setEx] = useState(loadExclusions());
+
+  useEffect(() => {
+  const refreshExclusions = () => {
+    setEx(loadExclusions());
+  };
+
+  window.addEventListener("summary_exclusions_updated", refreshExclusions);
+
+  return () => {
+    window.removeEventListener("summary_exclusions_updated", refreshExclusions);
+  };
+}, []);
 
   const toggle = (key) => {
     const k = String(key || "");
