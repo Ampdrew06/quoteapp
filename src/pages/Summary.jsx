@@ -17,6 +17,8 @@ import {
   saveLabourPricingConfig,
   getDeliveryPricingConfig,
   saveDeliveryPricingConfig,
+  getMarkupPricingConfig,
+  saveMarkupPricingConfig,
 } from "../lib/pricing";
 import { computeTotalWeightKg, applyWeightsToLines } from "../lib/utils/weights";
 import { buildLeanToTotals, buildLeanToQuoteBase } from "../lib/leanToTotals";
@@ -215,6 +217,15 @@ const updateLabourConfig = (patch) => {
   const next = { ...labourConfig, ...patch };
   setLabourConfig(next);
   saveLabourPricingConfig(next);
+};
+const [markupConfig, setMarkupConfig] = useState(() =>
+  getMarkupPricingConfig()
+);
+
+const updateMarkupConfig = (patch) => {
+  const next = { ...markupConfig, ...patch };
+  setMarkupConfig(next);
+  saveMarkupPricingConfig(next);
 };
 const [deliveryConfig, setDeliveryConfig] = useState(() =>
   getDeliveryPricingConfig()
@@ -2828,10 +2839,17 @@ const deliveryResult = computeDeliveryPricing(
 
 const deliveryCost = deliveryResult.deliveryCost;
 
-const pricing = computePricing(quoteBase?.materialsCostForPricing ?? 0, m, {
-  labourCost: labour.labourCost,
-  deliveryCost,
-});
+const pricing = computePricing(
+  quoteBase?.materialsCostForPricing ?? 0,
+  {
+    ...m,
+    profit_pct: markupConfig.profitPct,
+  },
+  {
+    labourCost: labour.labourCost,
+    deliveryCost,
+  }
+);
 /*console.log("PRICING_COMPARE", {
   page: "Summary",
   materialsCostForPricing: quoteBase?.materialsCostForPricing,
@@ -3236,32 +3254,32 @@ return (
   </div>
 </div>
 </div>
-
 <div
   style={{
     marginTop: 20,
     padding: 14,
     border: "1px solid #d1d5db",
     borderRadius: 8,
-    background: "#f9fafb",
+    background: "#ecfdf5",
   }}
 >
-  <h2 style={{ marginTop: 0 }}>Labour Pricing Test</h2>
+  <h2 style={{ marginTop: 0 }}>Markup Controls (Editable)</h2>
 
-  <div style={{ display: "grid", gap: 6, fontSize: 14 }}>
-    <div>Roof area: <b>{labour.areaM2.toFixed(2)} m²</b></div>
-    <div>Average roof area: <b>{labour.averageAreaM2.toFixed(2)} m²</b></div>
-    <div>Area factor: <b>{labour.areaFactor.toFixed(2)}</b></div>
-    <div>Complexity factor: <b>{labour.complexity.toFixed(2)}</b></div>
-    <div>Raw labour days: <b>{labour.rawDays.toFixed(2)}</b></div>
-    <div>Minimum labour days: <b>{labour.minimumDays.toFixed(2)}</b></div>
-    <div>Final labour days: <b>{labour.labourDays.toFixed(2)}</b></div>
-    <div>Day rate: <b>£{labour.dayRate.toFixed(2)}</b></div>
-    <div style={{ fontSize: 16 }}>
-      Labour cost: <b>£{labour.labourCost.toFixed(2)}</b>
-    </div>
+  <div style={{ display: "grid", gap: 8, gridTemplateColumns: "1fr 1fr" }}>
+    <label>
+      Markup (%)
+      <input
+        type="number"
+        step="1"
+        value={markupConfig.profitPct}
+        onChange={(e) =>
+          updateMarkupConfig({ profitPct: Number(e.target.value) })
+        }
+      />
+    </label>
   </div>
 </div>
+
       <p
         style={{
           color: "#6b7280",

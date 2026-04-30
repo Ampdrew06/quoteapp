@@ -17,6 +17,7 @@ import {
   computeDeliveryPricing,
   getLabourPricingConfig,
   getDeliveryPricingConfig,
+  getMarkupPricingConfig,
 } from "../../lib/pricing";
 //import { computeLeanToManufactureGeometry } from "../../lib/leanToManufactureGeometry";
 
@@ -279,6 +280,14 @@ useEffect(() => {
     localStorage.setItem("tl_tile_system", String(tileSystem).toLowerCase());
   }, [tileSystem]);
 
+  const loadSummaryExclusions = () => {
+  try {
+    return JSON.parse(localStorage.getItem("summary_exclusions") || "{}");
+  } catch {
+    return {};
+  }
+};
+
   // ——— Persist to match the rest of the app ———
 const persistInputs = (opts = {}) => {
   const payload = {
@@ -442,13 +451,15 @@ const totalsInput = useMemo(
   [totalsInput, exclusions]
 );
 */
+const summaryExclusions = loadSummaryExclusions();
+
 const quoteBase = useMemo(
-  () => buildLeanToQuoteBase(totalsInput, exclusions),
-  [totalsInput, exclusions]
+  () => buildLeanToQuoteBase(totalsInput, summaryExclusions),
+  [totalsInput, summaryExclusions]
 );
 const totals = useMemo(
-  () => buildLeanToTotals(totalsInput, exclusions),
-  [totalsInput, exclusions]
+  () => buildLeanToTotals(totalsInput, summaryExclusions),
+  [totalsInput, summaryExclusions]
 );
 const pricing = useMemo(() => {
   const labourConfig = getLabourPricingConfig();
@@ -474,10 +485,19 @@ const deliveryResult = computeDeliveryPricing(
   deliveryConfig
 );
 
-return computePricing(quoteBase.materialsCostForPricing, m, {
-  labourCost: labour.labourCost,
-  deliveryCost: deliveryResult.deliveryCost,
-});
+const markupConfig = getMarkupPricingConfig();
+
+return computePricing(
+  quoteBase.materialsCostForPricing,
+  {
+    ...m,
+    profit_pct: markupConfig.profitPct,
+  },
+  {
+    labourCost: labour.labourCost,
+    deliveryCost: deliveryResult.deliveryCost,
+  }
+);
 }, [
   quoteBase.materialsCostForPricing,
   m,
@@ -830,6 +850,7 @@ persistInputs({
 
     // clear stored in-progress quote
     localStorage.removeItem("leanToInputs");
+    localStorage.removeItem("summary_exclusions");
   };
 
   const saveQuote = () => {

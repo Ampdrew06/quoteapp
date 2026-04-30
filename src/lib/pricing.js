@@ -209,3 +209,24 @@ export function saveLabourPricingConfig(config) {
     JSON.stringify({ ...defaultLabourPricingConfig, ...(config || {}) })
   );
 }
+export const MARKUP_PRICING_KEY = "markup_pricing_v1";
+
+export const defaultMarkupPricingConfig = {
+  profitPct: 50,
+};
+
+export function getMarkupPricingConfig() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(MARKUP_PRICING_KEY) || "{}");
+    return { ...defaultMarkupPricingConfig, ...saved };
+  } catch {
+    return defaultMarkupPricingConfig;
+  }
+}
+
+export function saveMarkupPricingConfig(config) {
+  localStorage.setItem(
+    MARKUP_PRICING_KEY,
+    JSON.stringify({ ...defaultMarkupPricingConfig, ...(config || {}) })
+  );
+}
