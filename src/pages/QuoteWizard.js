@@ -36,10 +36,10 @@ export default function QuoteWizard() {
 
     // Send Lean-To to its page and pass a "fresh" flag so it resets inputs
     if (slug === "lean-to") {
-    // Just go to the route – no fresh flag
-    navigate("/quote/lean-to");
-    return;
-  }
+  // Send fresh flag so Lean-To page resets properly
+  navigate("/quote/lean-to", { state: { fresh: true } });
+  return;
+}
 
     // Other designs use the placeholder route for now
     navigate(`/design/${slug}`);
