@@ -80,7 +80,7 @@ export default function TradeLogin({ onLogin }) {
       {showLogin && (
         <form onSubmit={handleSubmit}>
           <input
-            type="email"
+            type="text"
             placeholder="Username"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
