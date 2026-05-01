@@ -11,6 +11,7 @@ import TilesLaths from "../pages/TilesLaths"; // ✅ NEW: Tiles & Laths manual c
 import IdiotList from "../pages/IdiotList";
 import Quotes from "../pages/Quotes";
 import Summary from "../pages/Summary";
+import Customers from "../pages/Customers";
 //import { Link } from "react-router-dom";
 
 // Simple inline placeholder so /design/:design won't 404 while we build pages
@@ -34,6 +35,7 @@ export default function AppRoutes() {
 
         <Route path="/summary" element={<Summary />} />
 
+        <Route path="/customers" element={<Customers />} />
 
         {/* Quote style grid */}
         <Route path="/quote" element={<QuoteWizard />} />

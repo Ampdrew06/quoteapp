@@ -77,11 +77,6 @@ export default function QuoteWizard() {
 
       <TradeLogin onLogin={handleLogin} />
 
-      {tradeDiscount !== null && (
-        <p style={{ textAlign: "center", fontWeight: "bold" }}>
-          Trade discount active: {(tradeDiscount * 100).toFixed(0)}%
-        </p>
-      )}
 
       <h2>Select a Roof Design</h2>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
