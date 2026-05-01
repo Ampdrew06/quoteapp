@@ -1,10 +1,15 @@
 // src/components/NavTabs.jsx
 import React from "react";
 import { NavLink } from "react-router-dom";
+import { isAdminUser } from "../lib/userRole";
 
-const tabsLeft = [
+const publicTabsLeft = [
   { to: "/quote", label: "Home", exact: true },
-   { to: "/quote/lean-to", label: "Design/Options", exact: true },
+  { to: "/quote/lean-to", label: "Design/Options", exact: true },
+];
+
+const adminTabsLeft = [
+  ...publicTabsLeft,
   { to: "/quote/lean-to/plan-manufacture", label: "Manufacture Book" },
   // { to: "/quote/lean-to/tiles-laths", label: "Tiles & Laths" },
   { to: "/idiot-list", label: "Idiot List" },
@@ -13,6 +18,7 @@ const tabsLeft = [
 ];
 
 export default function NavTabs() {
+  const tabsLeft = isAdminUser() ? adminTabsLeft : publicTabsLeft;
   return (
     <div className="print:hidden nav-strip">
       <div className="nav-inner">
@@ -32,25 +38,27 @@ export default function NavTabs() {
           ))}
         </div>
 
-        {/* Right-side: Print + Materials */}
-        <div className="nav-tabs-right">
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="nav-tab nav-tab-ghost"
-          >
-            Print
-          </button>
+        {/* Right-side: Print + Materials (Admin only) */}
+{isAdminUser() && (
+  <div className="nav-tabs-right">
+    <button
+      type="button"
+      onClick={() => window.print()}
+      className="nav-tab nav-tab-ghost"
+    >
+      Print
+    </button>
 
-          <NavLink
-            to="/materials"
-            className={({ isActive }) =>
-              "nav-tab" + (isActive ? " nav-tab-active" : "")
-            }
-          >
-            Materials
-          </NavLink>
-        </div>
+    <NavLink
+      to="/materials"
+      className={({ isActive }) =>
+        "nav-tab" + (isActive ? " nav-tab-active" : "")
+      }
+    >
+      Materials
+    </NavLink>
+  </div>
+)}
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 // src/pages/lean-to/LeanToLanding.jsx
+import { isAdminUser } from "../../lib/userRole";
 import React, { useMemo, useState, useEffect } from "react";
 import { getMaterials } from "../../lib/materials";
 import { computeTilesLathsBOM } from "../../lib/Calculations/tilesLathsCalc";
@@ -736,9 +737,11 @@ const misc = React.useMemo(() => {
 */
 
 // Can we generate a quote yet?
+const isAdmin = isAdminUser();
+
 const missingWidth = !Number(widthMM);
 const missingProjection = !Number(projMM);
-const missingPostcode = !String(deliveryPostcode || "").trim();
+const missingPostcode = !isAdmin && !String(deliveryPostcode || "").trim();
 
 const hasDeliveryPostcode = !missingPostcode;
 
@@ -788,6 +791,7 @@ persistInputs({
   deliveryPostcode: postcode,
   deliveryDistanceMiles: miles,
 });
+return miles;
   } catch (err) {
     setDeliveryDistanceMiles(0);
     setDeliveryError(err.message || "Delivery lookup failed");
@@ -804,16 +808,25 @@ persistInputs({
     return;
   }
 
-  if (!String(deliveryPostcode || "").trim()) {
-    setQuoteError("Please enter a delivery postcode before getting a quote.");
-    return;
-  }
+  let miles = Number(deliveryDistanceMiles || 0);
 
-  await lookupDeliveryDistance();
+if (!isAdmin && !String(deliveryPostcode || "").trim()) {
+  setQuoteError("Please enter a delivery postcode before getting a quote.");
+  return;
+}
 
-  // Save inputs AND the fact that the quote/diagram is visible
-  persistInputs({ overrideShowQuote: true });
-  setShowQuote(true);
+if (String(deliveryPostcode || "").trim()) {
+  miles = await lookupDeliveryDistance();
+}
+
+// Save inputs AND the fact that the quote/diagram is visible
+persistInputs({
+  overrideShowQuote: true,
+  deliveryPostcode: String(deliveryPostcode || "").trim(),
+  deliveryDistanceMiles: miles,
+});
+
+setShowQuote(true);
 
   setTimeout(() => {
     const el = document.getElementById("quote-result");
@@ -984,7 +997,7 @@ const demoGross = demoNet + demoVat;
               />
             </label>
 
- <label>Delivery postcode
+ <label> Delivery postcode {isAdmin ? "(optional)" : ""}
   <input
     type="text"
     value={deliveryPostcode}

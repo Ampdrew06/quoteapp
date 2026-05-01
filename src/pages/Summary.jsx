@@ -2965,7 +2965,7 @@ return (
       {/* Overall Totals Summary */}
       <div
         style={{
-          marginTop: 16,
+          marginTop: 12,
           borderTop: "2px solid #e5e7eb",
           paddingTop: 12,
         }}
@@ -3025,7 +3025,7 @@ return (
           <h4
             style={{
               margin: "0 0 6px",
-              fontSize: 14,
+              fontSize: 16,
               fontWeight: 600,
             }}
           >
@@ -3068,228 +3068,166 @@ return (
 </div>
 
           <p style={{ margin: 0, fontSize: 13 }}>
-            <b>Profit markup:</b>{" "}
-            {profitPct.toFixed(1)}% → {fmtMoney(profit)}
-          </p>
-
-          <p style={{ margin: 0, fontSize: 13 }}>
-            <b>Net price (before VAT):</b>{" "}
+            <b>Net price:</b>{" "}
             {fmtMoney(net)}
           </p>
-
 
           <p style={{ margin: 0, fontSize: 13 }}>
             <b>VAT ({(vatRate * 100).toFixed(0)}%):</b>{" "}
             {fmtMoney(vat)}
           </p>
 
-          <p style={{ margin: 0, fontSize: 13 }}>
+          <p style={{ margin: 0, fontSize: 14 }}>
             <b>Gross price:</b>{" "}
             {fmtMoney(gross)}
           </p>
-
+           
+           <p style={{ margin: 0, fontSize: 13 }}>
+            <b>Profit markup:</b>{" "}
+            {profitPct.toFixed(1)}% → {fmtMoney(profit)}
+          </p>
+          
           <p style={{ margin: 0, fontSize: 13 }}>
             <b>Margin on net (profit / net):</b>{" "}
             {Number.isFinite(marginPct) ? `${marginPct.toFixed(1)}%` : "—"}
           </p>
+
         </div>
       </div>
-      <div
+     <div
   style={{
     marginTop: 20,
     padding: 14,
     border: "1px solid #d1d5db",
     borderRadius: 8,
-    background: "#eef2ff",
+    background: "#f9fafb",
   }}
 >
-  <h2 style={{ marginTop: 0 }}>Labour Controls (Editable)</h2>
+  <h3 style={{ marginTop: 0, marginBottom: 12, fontSize: 15, fontWeight: 700 }}>
+    Controls
+  </h3>
 
-  <div style={{ display: "grid", gap: 8, gridTemplateColumns: "1fr 1fr" }}>
+  <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr 1fr" }}>
+    {/* Labour */}
+    <div
+      style={{
+        padding: 12,
+        border: "1px solid #d1d5db",
+        borderRadius: 8,
+        background: "#ffffff",
+      }}
+    >
+      <h4 style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 600 }}>
+        Labour
+      </h4>
 
-    <label>
-      Day Rate (£)
-      <input
-        type="number"
-        value={labourConfig.dayRate}
-        onChange={(e) =>
-          updateLabourConfig({ dayRate: Number(e.target.value) })
-        }
-      />
-    </label>
+      <div style={{ display: "grid", gap: 8 }}>
+        <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
+          Day Rate (£)
+          <input
+            type="number"
+            value={labourConfig.dayRate}
+            onChange={(e) =>
+              updateLabourConfig({ dayRate: Number(e.target.value) })
+            }
+          />
+        </label>
 
-    <label>
-      Average Roof Size (m²)
-      <input
-        type="number"
-        value={labourConfig.averageAreaM2}
-        onChange={(e) =>
-          updateLabourConfig({ averageAreaM2: Number(e.target.value) })
-        }
-      />
-    </label>
+        <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
+          Days
+          <input
+            type="number"
+            step="0.1"
+            value={labourConfig.minimumDays}
+            onChange={(e) =>
+              updateLabourConfig({ minimumDays: Number(e.target.value) })
+            }
+          />
+        </label>
+      </div>
+    </div>
 
-    <label>
-      Minimum Days
-      <input
-        type="number"
-        step="0.1"
-        value={labourConfig.minimumDays}
-        onChange={(e) =>
-          updateLabourConfig({ minimumDays: Number(e.target.value) })
-        }
-      />
-    </label>
+    {/* Delivery */}
+    <div
+      style={{
+        padding: 12,
+        border: "1px solid #d1d5db",
+        borderRadius: 8,
+        background: "#ffffff",
+      }}
+    >
+      <h4 style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 600 }}>
+        Delivery
+      </h4>
 
-    <label>
-      Lean-To Factor
-      <input
-        type="number"
-        step="0.1"
-        value={labourConfig.roofTypeFactor}
-        onChange={(e) =>
-          updateLabourConfig({ roofTypeFactor: Number(e.target.value) })
-        }
-      />
-    </label>
-<div>
-  Roof Vent Factor:{" "}
-  <input
-    type="number"
-    step="0.1"
-    value={labourConfig.roofVentFactor}
-    onChange={(e) =>
-      updateLabourConfig({ roofVentFactor: Number(e.target.value),
-      })
-    }
-  />
-</div>
+      <div style={{ display: "grid", gap: 8 }}>
+        <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
+          Hourly Rate (£)
+          <input
+            type="number"
+            step="0.01"
+            value={deliveryConfig.hourlyRate}
+            onChange={(e) =>
+              updateDeliveryConfig({ hourlyRate: Number(e.target.value) })
+            }
+          />
+        </label>
 
-<div>
-  Fixed Unit Factor:{" "}
-  <input
-    type="number"
-    step="0.1"
-    value={labourConfig.fixedUnitFactor}
-    onChange={(e) =>
-      updateLabourConfig({ fixedUnitFactor: Number(e.target.value),
-      })
-    }
-  />
-</div>
+        <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
+          Van MPG
+          <input
+            type="number"
+            step="0.1"
+            value={deliveryConfig.vanMpg}
+            onChange={(e) =>
+              updateDeliveryConfig({ vanMpg: Number(e.target.value) })
+            }
+          />
+        </label>
 
-<div>
-  Reinforced Ring Beam:{" "}
-  <input
-    type="number"
-    step="0.1"
-    value={labourConfig.reinforcedRingBeamFactor}
-    onChange={(e) =>
-      updateLabourConfig({ reinforcedRingBeamFactor: Number(e.target.value),
-      })
-    }
-  />
-</div>
-    <label>
-      Britmet Factor
-      <input
-        type="number"
-        step="0.1"
-        value={labourConfig.britmetFactor}
-        onChange={(e) =>
-          updateLabourConfig({ britmetFactor: Number(e.target.value) })
-        }
-      />
-    </label>
+        <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
+          Fuel Price Per Litre (£)
+          <input
+            type="number"
+            step="0.01"
+            value={deliveryConfig.fuelPricePerLitre}
+            onChange={(e) =>
+              updateDeliveryConfig({
+                fuelPricePerLitre: Number(e.target.value),
+              })
+            }
+          />
+        </label>
+      </div>
+    </div>
 
-    <label>
-      Liteslate Factor
-      <input
-        type="number"
-        step="0.1"
-        value={labourConfig.liteslateFactor}
-        onChange={(e) =>
-          updateLabourConfig({ liteslateFactor: Number(e.target.value) })
-        }
-      />
-    </label>
+    {/* Markup */}
+    <div
+      style={{
+        padding: 12,
+        border: "1px solid #d1d5db",
+        borderRadius: 8,
+        background: "#ffffff",
+      }}
+    >
+      <h4 style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 600 }}>
+        Markup
+      </h4>
 
-  </div>
-  <div
-  style={{
-    marginTop: 20,
-    padding: 14,
-    border: "1px solid #d1d5db",
-    borderRadius: 8,
-    background: "#fff7ed",
-  }}
->
-  <h2 style={{ marginTop: 0 }}>Delivery Controls (Editable)</h2>
-
-  <div style={{ display: "grid", gap: 8, gridTemplateColumns: "1fr 1fr" }}>
-    <label>
-      Hourly Rate (£)
-      <input
-        type="number"
-        step="0.01"
-        value={deliveryConfig.hourlyRate}
-        onChange={(e) =>
-          updateDeliveryConfig({ hourlyRate: Number(e.target.value) })
-        }
-      />
-    </label>
-
-    <label>
-      Van MPG
-      <input
-        type="number"
-        step="0.1"
-        value={deliveryConfig.vanMpg}
-        onChange={(e) =>
-          updateDeliveryConfig({ vanMpg: Number(e.target.value) })
-        }
-      />
-    </label>
-
-    <label>
-      Fuel Price Per Litre (£)
-      <input
-        type="number"
-        step="0.01"
-        value={deliveryConfig.fuelPricePerLitre}
-        onChange={(e) =>
-          updateDeliveryConfig({
-            fuelPricePerLitre: Number(e.target.value),
-          })
-        }
-      />
-    </label>
-  </div>
-</div>
-</div>
-<div
-  style={{
-    marginTop: 20,
-    padding: 14,
-    border: "1px solid #d1d5db",
-    borderRadius: 8,
-    background: "#ecfdf5",
-  }}
->
-  <h2 style={{ marginTop: 0 }}>Markup Controls (Editable)</h2>
-
-  <div style={{ display: "grid", gap: 8, gridTemplateColumns: "1fr 1fr" }}>
-    <label>
-      Markup (%)
-      <input
-        type="number"
-        step="1"
-        value={markupConfig.profitPct}
-        onChange={(e) =>
-          updateMarkupConfig({ profitPct: Number(e.target.value) })
-        }
-      />
-    </label>
+      <div style={{ display: "grid", gap: 8 }}>
+        <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
+          Markup (%)
+          <input
+            type="number"
+            step="1"
+            value={markupConfig.profitPct}
+            onChange={(e) =>
+              updateMarkupConfig({ profitPct: Number(e.target.value) })
+            }
+          />
+        </label>
+      </div>
+    </div>
   </div>
 </div>
 
