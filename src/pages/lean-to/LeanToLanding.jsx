@@ -1,5 +1,6 @@
 // src/pages/lean-to/LeanToLanding.jsx
 import { isAdminUser } from "../../lib/userRole";
+import { getCustomers } from "../../lib/customers";
 import React, { useMemo, useState, useEffect } from "react";
 import { getMaterials } from "../../lib/materials";
 import { computeTilesLathsBOM } from "../../lib/Calculations/tilesLathsCalc";
@@ -12,6 +13,7 @@ import { computeLiteSlateLeanTo as computeLiteSlate } from "../../lib/Calculatio
 import { useLocation, useNavigate } from "react-router-dom";
 import NavTabs from "../../components/NavTabs";
 import { buildLeanToTotals, buildLeanToQuoteBase } from "../../lib/leanToTotals";
+import { getCurrentCustomer } from "../../lib/customers";
 import {
   computePricing,
   computeLabourPricing,
@@ -249,7 +251,17 @@ useEffect(() => {
   const [deliveryLoading, setDeliveryLoading] = useState(false);
   const [deliveryError, setDeliveryError] = useState("");
   const [quoteError, setQuoteError] = useState("");
+  const [selectedCustomerId, setSelectedCustomerId] = useState("retail");
 
+const customers = getCustomers();
+const isAdmin = isAdminUser();
+const selectedCustomer =
+  selectedCustomerId !== "retail"
+    ? customers.find((c) => c.id === selectedCustomerId) || null
+    : null;
+    const discountPct = selectedCustomer
+  ? Number(selectedCustomer.discountPct || 0)
+  : 0;
   // ---- tile colour lists (per system) ----
   const britmetColours = [
     "Titanium",
@@ -298,6 +310,7 @@ const persistInputs = (opts = {}) => {
     internalWidthMM: widthMM === "" ? null : Number(widthMM),
     internalProjectionMM: projMM === "" ? null : Number(projMM),
     pitchDeg: Number(pitchDeg),
+    selectedCustomerId,
 
     // fascia/soffit + overhangs
     soffit_mm: Number(eavesOverhangMM),
@@ -339,6 +352,7 @@ showQuote: opts.overrideShowQuote ?? showQuote,
   };
 
   localStorage.setItem("leanToInputs", JSON.stringify(payload));
+  window.dispatchEvent(new Event("leanToInputs_updated"));
 };
 
 
@@ -370,19 +384,24 @@ if ("right_wall_present" in q) {
   setRightWall(!q.right_exposed);
 }
 
+// gutters
+if (q.gutter_profile) setGutterProfile(String(q.gutter_profile));
+if (q.gutter_outlet) setGutterOutlet(String(q.gutter_outlet));
+if (q.gutter_color) setGutterColor(String(q.gutter_color));
 
-        // gutters
-        if (q.gutter_profile)               setGutterProfile(String(q.gutter_profile));
-        if (q.gutter_outlet)                setGutterOutlet(String(q.gutter_outlet));
-        if (q.gutter_color)                 setGutterColor(String(q.gutter_color));
+// cosmetics
+if (q.tile_system) setTileSystem(String(q.tile_system));
+if (q.tile_color) setTileColor(String(q.tile_color));
+if (q.plastics_color) setPlasticsColor(String(q.plastics_color));
 
-        // cosmetics
-        if (q.tile_system)                  setTileSystem(String(q.tile_system));
-        if (q.tile_color)                   setTileColor(String(q.tile_color));
-        if (q.plastics_color)               setPlasticsColor(String(q.plastics_color));
+// customer
+if (q.selectedCustomerId) {
+  setSelectedCustomerId(String(q.selectedCustomerId));
+}
 
-        // delivery
-        if (q.deliveryPostcode) { setDeliveryPostcode(String(q.deliveryPostcode));
+// delivery
+if (q.deliveryPostcode) {
+  setDeliveryPostcode(String(q.deliveryPostcode));
 }
 
 if (q.deliveryDistanceMiles != null) {
@@ -483,8 +502,12 @@ const pricing = useMemo(() => {
 
   const deliveryConfig = getDeliveryPricingConfig();
 
+const deliveryMilesForPricing =
+  Number(deliveryDistanceMiles || 0) ||
+  Number(selectedCustomer?.defaultDeliveryMilesOneWay || 0);
+
 const deliveryResult = computeDeliveryPricing(
-  deliveryDistanceMiles,
+  deliveryMilesForPricing,
   deliveryConfig
 );
 
@@ -497,9 +520,10 @@ return computePricing(
     profit_pct: markupConfig.profitPct,
   },
   {
-    labourCost: labour.labourCost,
-    deliveryCost: deliveryResult.deliveryCost,
-  }
+  labourCost: labour.labourCost,
+  deliveryCost: deliveryResult.deliveryCost,
+  discountPct,
+}
 );
 }, [
   quoteBase.materialsCostForPricing,
@@ -737,7 +761,6 @@ const misc = React.useMemo(() => {
 */
 
 // Can we generate a quote yet?
-const isAdmin = isAdminUser();
 
 const missingWidth = !Number(widthMM);
 const missingProjection = !Number(projMM);
@@ -756,7 +779,7 @@ const requiredInputStyle = {
 };
 
 const lookupDeliveryDistance = async () => {
-  const postcode = String(deliveryPostcode || "").trim();
+  const postcode = String(deliveryPostcode || "").trim(); 
 
   if (!postcode) {
     setDeliveryDistanceMiles(0);
@@ -810,13 +833,19 @@ return miles;
 
   let miles = Number(deliveryDistanceMiles || 0);
 
-if (!isAdmin && !String(deliveryPostcode || "").trim()) {
+const customerDefaultMiles = Number(
+  selectedCustomer?.defaultDeliveryMilesOneWay || 0
+);
+
+if (!isAdmin && !String(deliveryPostcode || "").trim() && !customerDefaultMiles) {
   setQuoteError("Please enter a delivery postcode before getting a quote.");
   return;
 }
 
 if (String(deliveryPostcode || "").trim()) {
   miles = await lookupDeliveryDistance();
+} else if (customerDefaultMiles) {
+  miles = customerDefaultMiles;
 }
 
 // Save inputs AND the fact that the quote/diagram is visible
@@ -1199,7 +1228,26 @@ onKeyDown={(e) => {
               </select>
             </label>
           </div>
+{isAdmin && (
+  <div style={{ marginTop: 12 }}>
+    <label>
+      Customer
+      <select
+        value={selectedCustomerId}
+        onChange={(e) => setSelectedCustomerId(e.target.value)}
+        style={{ marginLeft: 10, padding: 6 }}
+      >
+        <option value="retail">Retail (No Discount)</option>
 
+        {customers.map((c) => (
+          <option key={c.id} value={c.id}>
+            {c.name} ({Number(c.discountPct || 0)}%)
+          </option>
+        ))}
+      </select>
+    </label>
+  </div>
+)}
           <div style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <button
               onClick={onGetQuote}
@@ -1211,7 +1259,8 @@ onKeyDown={(e) => {
     ? "Enter delivery postcode first"
     : "Generate price & plan"
 }
-            >
+        
+        >
               Get Quote
             </button>
             {quoteError && (

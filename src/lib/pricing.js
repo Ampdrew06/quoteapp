@@ -27,6 +27,11 @@ export function computePricing(materialsCost, m = {}, extras = {}) {
   const netBeforeDelivery = baseCost + profit;
   const net = netBeforeDelivery + delivery;
 
+  // 🔹 Customer discount
+const discountPct = Number(extras.discountPct ?? 0);
+const discountAmount = net * (discountPct / 100);
+const netAfterDiscount = net - discountAmount;
+
   // Support either vat_rate (decimal) or vat_pct (percentage)
   let vatRate;
   if (safeM.vat_rate != null) {
@@ -36,28 +41,34 @@ export function computePricing(materialsCost, m = {}, extras = {}) {
     vatRate = pct / 100;
   }
 
-  const vat = net * vatRate;
-  const gross = net + vat;
+  const vat = netAfterDiscount * vatRate;
+const gross = netAfterDiscount + vat;
 
   const marginPct = net > 0 ? (profit / net) * 100 : 0;
 
   return {
-    materialsCost: cost,
-    labourCost,
-    delivery,
+  materialsCost: cost,
+  labourCost,
+  delivery,
 
-    baseCost,
-    profitPct,
-    profit,
+  baseCost,
+  profitPct,
+  profit,
 
-    netBeforeDelivery,
-    net,
+  netBeforeDelivery,
 
-    vatRate,
-    vat,
-    gross,
-    marginPct,
-  };
+  // 🔹 retail vs discounted
+  retailNet: net,
+  discountPct,
+  discountAmount,
+  net: netAfterDiscount,
+
+  vatRate,
+  vat,
+  gross,
+
+  marginPct,
+};
 }
 
 /**

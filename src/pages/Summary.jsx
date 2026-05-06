@@ -9,6 +9,7 @@ import { computeEdgeTrimsLeanTo } from "../lib/Calculations/edgeTrimsCalc";
 import { computeGuttersLeanTo } from "../lib/Calculations/guttersCalc";
 import { computeMiscLeanTo } from "../lib/Calculations/miscCalc";
 import NavTabs from "../components/NavTabs"; 
+import { getCurrentCustomer, getCustomers } from "../lib/customers";
 import {
   computePricing,
   computeLabourPricing,
@@ -245,6 +246,8 @@ const updateDeliveryConfig = (patch) => {
 
     // Fired when Materials page saves
     window.addEventListener("materials_updated", bump);
+    window.addEventListener("leanToInputs_updated", bump);
+    
 
     // Fired when localStorage changes (other tabs)
     const onStorage = (e) => {
@@ -256,6 +259,7 @@ const updateDeliveryConfig = (patch) => {
 
     return () => {
       window.removeEventListener("materials_updated", bump);
+      window.removeEventListener("leanToInputs_updated", bump);
       window.removeEventListener("storage", onStorage);
     };
   }, []);
@@ -2819,6 +2823,12 @@ const overallWeight =
 
 // Only timber is chargeable (waste uplift). Lean-to materials pricing comes straight from totals.
 const quoteBase = buildLeanToQuoteBase(inputs, exclusions);
+console.log("SUMMARY_GUTTER_DEBUG", {
+  gutterProfile: inputs?.gutterProfile || inputs?.gutter_profile,
+  overallCost,
+  quoteBaseMaterialsCostForPricing: quoteBase?.materialsCostForPricing,
+  quoteBase,
+});
 
 const labourFeatures = {
   roofVent: false,
@@ -2851,7 +2861,15 @@ const deliveryResult = computeDeliveryPricing(
 );
 
 const deliveryCost = deliveryResult.deliveryCost;
+const selectedCustomerId = savedInputs.selectedCustomerId || "retail";
 
+let discountPct = 0;
+
+if (selectedCustomerId !== "retail") {
+  const customers = getCustomers();
+  const selected = customers.find((c) => c.id === selectedCustomerId);
+  discountPct = Number(selected?.discountPct || 0);
+}
 const pricing = computePricing(
   quoteBase?.materialsCostForPricing ?? 0,
   {
@@ -2859,9 +2877,10 @@ const pricing = computePricing(
     profit_pct: markupConfig.profitPct,
   },
   {
-    labourCost: labour.labourCost,
-    deliveryCost,
-  }
+  labourCost: labour.labourCost,
+  deliveryCost,
+  discountPct,
+}
 );
 /*console.log("PRICING_COMPARE", {
   page: "Summary",
@@ -3085,6 +3104,12 @@ return (
            <p style={{ margin: 0, fontSize: 13 }}>
             <b>Profit markup:</b>{" "}
             {profitPct.toFixed(1)}% → {fmtMoney(profit)}
+            {pricing.discountPct > 0 && (
+  <p style={{ margin: 0, fontSize: 13 }}>
+    <b>Customer discount:</b>{" "}
+    {pricing.discountPct.toFixed(1)}% → -{fmtMoney(pricing.discountAmount)}
+  </p>
+)}
           </p>
           
           <p style={{ margin: 0, fontSize: 13 }}>

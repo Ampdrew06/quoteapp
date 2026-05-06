@@ -6,13 +6,23 @@ export default function Customers() {
   const [customers, setCustomers] = useState(() => getCustomers());
 
   const [form, setForm] = useState({
-    id: "",
-    name: "",
-    loginCode: "",
-    role: "trade",
-    discountPct: 0,
-    defaultSpec: "top",
-  });
+  id: "",
+  name: "",
+  loginCode: "",
+  role: "trade",
+  discountPct: 0,
+  defaultSpec: "top",
+
+  email: "",
+  phone: "",
+  address1: "",
+  address2: "",
+  town: "",
+  county: "",
+  postcode: "",
+
+  defaultDeliveryMilesOneWay: 0,
+});
 
   const updateForm = (patch) => {
     setForm((prev) => ({ ...prev, ...patch }));
@@ -33,14 +43,25 @@ export default function Customers() {
     }
 
     const nextCustomer = {
-      id,
-      name: form.name.trim(),
-      loginCode: form.loginCode.trim(),
-      role: form.role,
-      discountPct: Number(form.discountPct || 0),
-      defaultSpec: form.defaultSpec,
-      defaultExclusions: {},
-    };
+  id,
+  name: form.name.trim(),
+  loginCode: form.loginCode.trim(),
+  role: form.role,
+  discountPct: Number(form.discountPct || 0),
+  defaultSpec: form.defaultSpec,
+
+  email: form.email,
+  phone: form.phone,
+  address1: form.address1,
+  address2: form.address2,
+  town: form.town,
+  county: form.county,
+  postcode: form.postcode,
+
+  defaultDeliveryMilesOneWay: Number(form.defaultDeliveryMilesOneWay || 0),
+
+  defaultExclusions: {},
+};
 
     const next = customers.filter((c) => c.id !== id);
     next.push(nextCustomer);
@@ -59,15 +80,26 @@ export default function Customers() {
   };
 
   const editCustomer = (customer) => {
-    setForm({
-      id: customer.id || "",
-      name: customer.name || "",
-      loginCode: customer.loginCode || "",
-      role: customer.role || "trade",
-      discountPct: Number(customer.discountPct || 0),
-      defaultSpec: customer.defaultSpec || "top",
-    });
-  };
+  setForm({
+    id: customer.id || "",
+    name: customer.name || "",
+    loginCode: customer.loginCode || "",
+    role: customer.role || "trade",
+    discountPct: Number(customer.discountPct || 0),
+    defaultSpec: customer.defaultSpec || "top",
+
+    email: customer.email || "",
+    phone: customer.phone || "",
+    address1: customer.address1 || "",
+    address2: customer.address2 || "",
+    town: customer.town || "",
+    county: customer.county || "",
+    postcode: customer.postcode || "",
+
+    defaultDeliveryMilesOneWay:
+      Number(customer.defaultDeliveryMilesOneWay || 0),
+  });
+};
 
   const deleteCustomer = (id) => {
     if (!window.confirm("Delete this customer?")) return;
@@ -148,6 +180,72 @@ export default function Customers() {
                 <option value="usual">Usual Spec</option>
               </select>
             </label>
+            <label>
+  Email
+  <input
+    value={form.email}
+    onChange={(e) => updateForm({ email: e.target.value })}
+  />
+</label>
+
+<label>
+  Phone
+  <input
+    value={form.phone}
+    onChange={(e) => updateForm({ phone: e.target.value })}
+  />
+</label>
+
+<label>
+  Address Line 1
+  <input
+    value={form.address1}
+    onChange={(e) => updateForm({ address1: e.target.value })}
+  />
+</label>
+
+<label>
+  Address Line 2
+  <input
+    value={form.address2}
+    onChange={(e) => updateForm({ address2: e.target.value })}
+  />
+</label>
+
+<label>
+  Town
+  <input
+    value={form.town}
+    onChange={(e) => updateForm({ town: e.target.value })}
+  />
+</label>
+
+<label>
+  County
+  <input
+    value={form.county}
+    onChange={(e) => updateForm({ county: e.target.value })}
+  />
+</label>
+
+<label>
+  Postcode
+  <input
+    value={form.postcode}
+    onChange={(e) => updateForm({ postcode: e.target.value.toUpperCase() })}
+  />
+</label>
+
+<label>
+  Default Delivery Miles (one-way)
+  <input
+    type="number"
+    value={form.defaultDeliveryMilesOneWay}
+    onChange={(e) =>
+      updateForm({ defaultDeliveryMilesOneWay: Number(e.target.value) })
+    }
+  />
+</label>
           </div>
 
           <button

@@ -95,10 +95,26 @@ if (typeof window !== "undefined") {
   console.log("🟥 DBG buildLeanToTotals resolved tileSystem:", tileSystem);
 }
 
-  const plasticsColor = inputs.plasticsColor || "white";
-  const gutterProfile = inputs.gutterProfile || "square";
-  const gutterOutlet = inputs.gutterOutlet || "left";
-  const gutterColor = inputs.gutterColor || "black";
+  const plasticsColor =
+  inputs.plasticsColor ||
+  inputs.plastics_color ||
+  inputs.fasciaColor ||
+  inputs.fascia_color ||
+  "white";
+  const gutterProfile =
+  inputs.gutterProfile ||
+  inputs.gutter_profile ||
+  inputs.gutter_profile_type ||
+  "square";
+  const gutterOutlet =
+  inputs.gutterOutlet ||
+  inputs.gutter_outlet ||
+  "left";
+
+const gutterColor =
+  inputs.gutterColor ||
+  inputs.gutter_color ||
+  "black";
 
   // ---- derive externals (same “intent” as LeanToLanding) ----
 const SFT = num(m.side_frame_thickness_mm ?? 70);
@@ -373,6 +389,21 @@ export function buildLeanToQuoteBase(inputs = {}, exclusions = {}) {
   const m = totals?.m || getMaterials();
 
   const leanToMaterialsCost = Number(totals?.totals?.materialsCost ?? 0);
+  console.log("QUOTE_BASE_GUTTER_DEBUG", {
+  gutterProfile:
+    inputs?.gutterProfile ||
+    inputs?.gutter_profile ||
+    inputs?.gutterProfile,
+  guttersCost: totals?.totals?.guttersCost,
+  gutterLines: (totals?.sections?.gutters || []).map((r) => ({
+    key: r.key,
+    label: r.label,
+    qty: r.qty,
+    unit: r.unit,
+    line: r.line,
+  })),
+  leanToMaterialsCost,
+});
 
   // ---------- replicate Summary's "manual" timber + ply + laths costing ----------
   const iw = Number(inputs.internalWidthMM || inputs.widthMM || 0);

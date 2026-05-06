@@ -156,11 +156,25 @@ const totalGutterWeightKg = +(length_m * gutterWeightPerM).toFixed(2);
 
 
   // gutter unit prices (pull from materials, else defaults above)
-  const unit_len     = P(K("length_4m_price"),      def.len);
-  const unit_union   = P(K("union_price"),          def.union);
-  const unit_bracket = P(K("bracket_price"),        def.brkt);
-  const unit_outlet  = P(K("running_outlet_price"), def.outlet);
-  const unit_stopend = P(K("stop_end_price"),       def.stop);
+const unit_len =
+  materials[K("length_4m_price")] ??
+  def.len;
+
+const unit_union =
+  materials[K("union_price")] ??
+  def.union;
+
+const unit_bracket =
+  materials[K("bracket_price")] ??
+  def.brkt;
+
+const unit_outlet =
+  materials[K("running_outlet_price")] ??
+  def.outlet;
+
+const unit_stopend =
+  materials[K("stop_end_price")] ??
+  def.stop;
 
   // downpipe unit prices (flat, independent of color/profile; you can key by color later if needed)
   const unit_pipeLen = P("downpipe_length_price", 6.25);       // per 2.5 m piece
