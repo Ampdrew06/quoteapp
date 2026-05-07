@@ -100,13 +100,15 @@ export async function saveCustomers(customers) {
   // Only send id if it is already a real Supabase UUID.
   // Do not send old localStorage ids like "test_trade" or "admin_andrew".
   if (
-    customer.id &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-      customer.id
-    )
-  ) {
-    row.id = customer.id;
-  }
+  customer.id &&
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+    customer.id
+  )
+) {
+  row.id = customer.id;
+} else {
+  row.id = crypto.randomUUID();
+}
 
   return row;
 });
