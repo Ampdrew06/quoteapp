@@ -31,10 +31,10 @@ export default function TradeLogin({ onLogin }) {
     setError('');
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
   e.preventDefault();
 
-  const customer = findCustomerByLoginCode(password); // using password field as code
+  const customer = await findCustomerByLoginCode(password);
 
   if (customer) {
     setLoggedInUser({
@@ -44,7 +44,9 @@ export default function TradeLogin({ onLogin }) {
 
     setCurrentCustomer(customer);
 
-    if (onLogin) onLogin(customer.discountPct || 0);
+    if (onLogin) {
+      onLogin(customer.discountPct || 0);
+    }
 
     setError("");
     setShowLogin(false);

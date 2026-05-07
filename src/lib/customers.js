@@ -1,5 +1,11 @@
-export const CUSTOMERS_KEY = "quoteapp_customers_v1";
+import { supabase } from "./supabaseClient";
+
 export const CURRENT_CUSTOMER_KEY = "quoteapp_current_customer_v1";
+
+/*
+  Default fallback customers.
+  These are ONLY used if Supabase fails completely.
+*/
 
 export const defaultCustomers = [
   {
@@ -31,36 +37,139 @@ export const defaultCustomers = [
   },
 ];
 
-export function getCustomers() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(CUSTOMERS_KEY) || "null");
+/*
+  LOAD CUSTOMERS
+*/
 
-    if (Array.isArray(saved)) {
-      return saved;
+export async function getCustomers() {
+  try {
+    const { data, error } = await supabase
+      .from("customers")
+      .select("*")
+      .order("name", { ascending: true });
+
+    if (error) {
+      console.error("SUPABASE GET CUSTOMERS ERROR", error);
+      return defaultCustomers;
     }
 
-    return defaultCustomers;
-  } catch {
+    return Array.isArray(data)
+  ? data.map((customer) => ({
+      id: customer.id,
+      name: customer.name || "",
+      username: customer.username || "",
+      loginCode: customer.login_code || "",
+      role: customer.role || "trade",
+      discountPct: Number(customer.discount_pct || 0),
+    }))
+  : [];
+  } catch (err) {
+    console.error("GET CUSTOMERS FAILED", err);
     return defaultCustomers;
   }
 }
 
-export function saveCustomers(customers) {
+/*
+  SAVE ALL CUSTOMERS
+  (simple replace strategy for now)
+*/
+
+export async function saveCustomers(customers) {
   try {
-    localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(customers || []));
+    // Delete existing
+    const { error: deleteError } = await supabase
+  .from("customers")
+  .delete()
+  .not("id", "is", null);
+
+    if (deleteError) {
+      console.error("DELETE CUSTOMERS ERROR", deleteError);
+      return false;
+    }
+
+    // Insert new
+    const rowsToInsert = (customers || []).map((customer) => {
+  const row = {
+  name: customer.name || "",
+  username: customer.username || customer.name || "",
+  login_code: customer.loginCode || "",
+  role: customer.role || "trade",
+  discount_pct: Number(customer.discountPct || 0),
+};
+
+  // Only send id if it is already a real Supabase UUID.
+  // Do not send old localStorage ids like "test_trade" or "admin_andrew".
+  if (
+    customer.id &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      customer.id
+    )
+  ) {
+    row.id = customer.id;
+  }
+
+  return row;
+});
+
+const { error: insertError } = await supabase
+  .from("customers")
+  .insert(rowsToInsert);
+
+    if (insertError) {
+      console.error("INSERT CUSTOMERS ERROR", insertError);
+      return false;
+    }
+
     window.dispatchEvent(new Event("quoteapp_customers_updated"));
-  } catch {}
+
+    return true;
+  } catch (err) {
+    console.error("SAVE CUSTOMERS FAILED", err);
+    return false;
+  }
 }
 
-export function findCustomerByLoginCode(code) {
+/*
+  FIND CUSTOMER BY LOGIN CODE
+*/
+
+export async function findCustomerByLoginCode(code) {
   const cleanCode = String(code || "").trim();
 
   if (!cleanCode) return null;
 
-  return getCustomers().find(
-    (customer) => String(customer.loginCode || "").trim() === cleanCode
-  );
+  try {
+    const { data, error } = await supabase
+      .from("customers")
+      .select("*")
+      .eq("login_code", cleanCode)
+      .maybeSingle();
+
+    if (error) {
+      console.error("LOGIN LOOKUP ERROR", error);
+      return null;
+    }
+
+    return data
+  ? {
+      id: data.id,
+      name: data.name || "",
+      username: data.username || "",
+      loginCode: data.login_code || "",
+      role: data.role || "trade",
+      discountPct: Number(data.discount_pct || 0),
+    }
+  : null;
+  } catch (err) {
+    console.error("LOGIN LOOKUP FAILED", err);
+    return null;
+  }
 }
+
+/*
+  CURRENT CUSTOMER
+  (still localStorage)
+*/
 
 export function getCurrentCustomer() {
   try {
@@ -82,19 +191,28 @@ export function setCurrentCustomer(customer) {
   try {
     if (!customer) {
       localStorage.removeItem(CURRENT_CUSTOMER_KEY);
+
       const existingRole = localStorage.getItem("quoteapp_user_role");
 
-localStorage.setItem(
-  "quoteapp_user_role",
-  existingRole === "admin" ? "admin" : customer.role || "public"
-);
+      localStorage.setItem(
+        "quoteapp_user_role",
+        existingRole === "admin"
+          ? "admin"
+          : customer?.role || "public"
+      );
+
       window.dispatchEvent(new Event("quoteapp_customer_updated"));
       window.dispatchEvent(new Event("quoteapp_user_role_updated"));
+
       return;
     }
 
     localStorage.setItem(CURRENT_CUSTOMER_KEY, JSON.stringify(customer));
-    localStorage.setItem("quoteapp_user_role", customer.role || "public");
+
+    localStorage.setItem(
+      "quoteapp_user_role",
+      customer.role || "public"
+    );
 
     window.dispatchEvent(new Event("quoteapp_customer_updated"));
     window.dispatchEvent(new Event("quoteapp_user_role_updated"));
@@ -103,14 +221,11 @@ localStorage.setItem(
 
 export function logoutCustomer() {
   try {
-    // Remove current logged-in customer
     localStorage.removeItem(CURRENT_CUSTOMER_KEY);
 
-    // Check if this device is marked as admin
     const isAdminDevice =
       localStorage.getItem("quoteapp_admin_device") === "true";
 
-    // Restore correct role
     localStorage.setItem(
       "quoteapp_user_role",
       isAdminDevice ? "admin" : "public"

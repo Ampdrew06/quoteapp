@@ -1,9 +1,28 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { getCustomers, saveCustomers } from "../lib/customers";
 import NavTabs from "../components/NavTabs";
+import { supabase } from "../lib/supabaseClient";
 
 export default function Customers() {
-  const [customers, setCustomers] = useState(() => getCustomers());
+  const [customers, setCustomers] = useState([]);
+
+useEffect(() => {
+  let alive = true;
+
+  async function loadCustomers() {
+    const loadedCustomers = await getCustomers();
+
+    if (alive) {
+      setCustomers(Array.isArray(loadedCustomers) ? loadedCustomers : []);
+    }
+  }
+
+  loadCustomers();
+
+  return () => {
+    alive = false;
+  };
+}, []);
 
   const [form, setForm] = useState({
   id: "",
@@ -27,7 +46,13 @@ export default function Customers() {
   const updateForm = (patch) => {
     setForm((prev) => ({ ...prev, ...patch }));
   };
+const testSupabase = async () => {
+  const { data, error } = await supabase
+    .from("customers")
+    .select("*");
 
+  console.log("SUPABASE TEST", { data, error });
+};
   const saveCustomer = () => {
     const id =
       form.id.trim() ||
@@ -67,7 +92,11 @@ export default function Customers() {
     next.push(nextCustomer);
 
     setCustomers(next);
-    saveCustomers(next);
+    saveCustomers(next).then((ok) => {
+  if (!ok) {
+    alert("Customer did not save to Supabase. Check the browser console.");
+  }
+});
 
     setForm({
       id: "",
@@ -106,7 +135,11 @@ export default function Customers() {
 
     const next = customers.filter((c) => c.id !== id);
     setCustomers(next);
-    saveCustomers(next);
+    saveCustomers(next).then((ok) => {
+  if (!ok) {
+    alert("Customer did not save to Supabase. Check the browser console.");
+  }
+});
   };
 
   return (
@@ -115,6 +148,9 @@ export default function Customers() {
 
       <div style={{ maxWidth: 1000, margin: "0 auto", padding: 16 }}>
         <h1>Customers</h1>
+        <button onClick={testSupabase}>
+  Test Supabase
+</button>
 
         <div
           style={{

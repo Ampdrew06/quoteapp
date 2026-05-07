@@ -253,7 +253,28 @@ useEffect(() => {
   const [quoteError, setQuoteError] = useState("");
   const [selectedCustomerId, setSelectedCustomerId] = useState("retail");
 
-const customers = getCustomers();
+const [customers, setCustomers] = useState([]);
+
+useEffect(() => {
+  let alive = true;
+
+  async function loadCustomers() {
+    const loadedCustomers = await getCustomers();
+
+    if (alive) {
+      setCustomers(Array.isArray(loadedCustomers) ? loadedCustomers : []);
+    }
+  }
+
+  loadCustomers();
+
+  window.addEventListener("quoteapp_customers_updated", loadCustomers);
+
+  return () => {
+    alive = false;
+    window.removeEventListener("quoteapp_customers_updated", loadCustomers);
+  };
+}, []);
 const isAdmin = isAdminUser();
 const selectedCustomer =
   selectedCustomerId !== "retail"
