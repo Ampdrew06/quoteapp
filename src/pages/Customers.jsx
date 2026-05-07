@@ -167,7 +167,7 @@ const testSupabase = async () => {
             <label>
               Customer Name
               <input
-                value={form.name}
+                value={form.name || ""}
                 onChange={(e) => updateForm({ name: e.target.value })}
                 style={{ width: "100%", padding: 8 }}
               />
@@ -176,7 +176,7 @@ const testSupabase = async () => {
             <label>
               Login Code
               <input
-                value={form.loginCode}
+                value={form.loginCode || ""}
                 onChange={(e) => updateForm({ loginCode: e.target.value })}
                 style={{ width: "100%", padding: 8 }}
               />
@@ -185,7 +185,7 @@ const testSupabase = async () => {
             <label>
               Role
               <select
-                value={form.role}
+                value={form.role || ""}
                 onChange={(e) => updateForm({ role: e.target.value })}
                 style={{ width: "100%", padding: 8 }}
               >
@@ -199,7 +199,7 @@ const testSupabase = async () => {
               Discount (%)
               <input
                 type="number"
-                value={form.discountPct}
+                value={form.discountPct || ""}
                 onChange={(e) => updateForm({ discountPct: e.target.value })}
                 style={{ width: "100%", padding: 8 }}
               />
@@ -208,7 +208,7 @@ const testSupabase = async () => {
             <label>
               Default Spec
               <select
-                value={form.defaultSpec}
+                value={form.defaultSpec || ""}
                 onChange={(e) => updateForm({ defaultSpec: e.target.value })}
                 style={{ width: "100%", padding: 8 }}
               >
@@ -219,7 +219,7 @@ const testSupabase = async () => {
             <label>
   Email
   <input
-    value={form.email}
+    value={form.email || ""}
     onChange={(e) => updateForm({ email: e.target.value })}
   />
 </label>
@@ -227,7 +227,7 @@ const testSupabase = async () => {
 <label>
   Phone
   <input
-    value={form.phone}
+    value={form.phone || ""}
     onChange={(e) => updateForm({ phone: e.target.value })}
   />
 </label>
@@ -235,7 +235,7 @@ const testSupabase = async () => {
 <label>
   Address Line 1
   <input
-    value={form.address1}
+    value={form.address1 || ""}
     onChange={(e) => updateForm({ address1: e.target.value })}
   />
 </label>
@@ -243,7 +243,7 @@ const testSupabase = async () => {
 <label>
   Address Line 2
   <input
-    value={form.address2}
+    value={form.address2 || ""}
     onChange={(e) => updateForm({ address2: e.target.value })}
   />
 </label>
@@ -251,7 +251,7 @@ const testSupabase = async () => {
 <label>
   Town
   <input
-    value={form.town}
+    value={form.town || ""}
     onChange={(e) => updateForm({ town: e.target.value })}
   />
 </label>
@@ -259,7 +259,7 @@ const testSupabase = async () => {
 <label>
   County
   <input
-    value={form.county}
+    value={form.county || ""}
     onChange={(e) => updateForm({ county: e.target.value })}
   />
 </label>
@@ -267,7 +267,7 @@ const testSupabase = async () => {
 <label>
   Postcode
   <input
-    value={form.postcode}
+    value={form.postcode || ""}
     onChange={(e) => updateForm({ postcode: e.target.value.toUpperCase() })}
   />
 </label>
@@ -276,7 +276,7 @@ const testSupabase = async () => {
   Default Delivery Miles (one-way)
   <input
     type="number"
-    value={form.defaultDeliveryMilesOneWay}
+    value={form.defaultDeliveryMilesOneWay || ""}
     onChange={(e) =>
       updateForm({ defaultDeliveryMilesOneWay: Number(e.target.value) })
     }
