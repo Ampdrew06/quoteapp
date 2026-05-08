@@ -86,7 +86,21 @@ useEffect(() => {
   };
 }, []);
 */
-const m = getMaterials();
+const [materialsVersion, setMaterialsVersion] = useState(0);
+
+useEffect(() => {
+  const handleMaterialsUpdated = () => {
+    setMaterialsVersion((v) => v + 1);
+  };
+
+  window.addEventListener("materials_updated", handleMaterialsUpdated);
+
+  return () => {
+    window.removeEventListener("materials_updated", handleMaterialsUpdated);
+  };
+}, []);
+
+const m = useMemo(() => getMaterials(), [materialsVersion]);
 
 
     // Restore saved Lean-To inputs (if any) when landing on this page
