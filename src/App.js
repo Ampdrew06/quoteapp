@@ -15,6 +15,20 @@ export default function App() {
     }
 
     syncMaterials();
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        syncMaterials();
+      }
+    };
+
+    window.addEventListener("focus", syncMaterials);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("focus", syncMaterials);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, []);
 
   return <AppRoutes />;
