@@ -1,7 +1,13 @@
 // src/lib/materials.js
 // Stores editable material prices in localStorage and provides sane defaults.
 
+// src/lib/materials.js
+// Stores editable material prices and provides sane defaults.
+
+import { supabase } from "./supabaseClient";
+
 const STORAGE_KEY = "materials_v1";
+const CLOUD_SETTINGS_KEY = "materials_v1";
 
 export const defaultMaterials = {
   // --- uPVC colour price multipliers ---
@@ -528,6 +534,56 @@ downpipe_weight_kg_per_m: 1.65,
  * - tiles/accessories flat keys (tile_britmet_*, eaves_guard_*, verge_trim_*, etc.)
  * - plus a few aliases for older names (…_each, …_per_m_kg) for compatibility
  */
+export async function loadMaterialsFromCloud() {
+  try {
+    const { data, error } = await supabase
+      .from("app_settings")
+      .select("value")
+      .eq("key", CLOUD_SETTINGS_KEY)
+      .maybeSingle();
+
+    if (error) {
+      console.error("LOAD MATERIALS FROM CLOUD ERROR", error);
+      return false;
+    }
+
+    if (data?.value && typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data.value));
+      window.dispatchEvent(new Event("materials_updated"));
+      return true;
+    }
+
+    return false;
+  } catch (err) {
+    console.error("LOAD MATERIALS FROM CLOUD FAILED", err);
+    return false;
+  }
+}
+
+export async function saveMaterialsToCloud(materials) {
+  try {
+    const { error } = await supabase
+      .from("app_settings")
+      .upsert(
+        {
+          key: CLOUD_SETTINGS_KEY,
+          value: materials || {},
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "key" }
+      );
+
+    if (error) {
+      console.error("SAVE MATERIALS TO CLOUD ERROR", error);
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    console.error("SAVE MATERIALS TO CLOUD FAILED", err);
+    return false;
+  }
+}
 export function getMaterials() {
   // ✅ Ensure materials_v1 exists (seed defaults if user cleared localStorage)
   if (typeof window !== "undefined") {
@@ -1845,8 +1901,16 @@ export function saveMaterials(m) {
 
   localStorage.setItem(STORAGE_KEY, JSON.stringify(out));
 
-  try {
-    window.dispatchEvent(new Event("materials_updated"));
-  } catch {}
+// Save globally to Supabase as well.
+// We do not await this, so the app stays fast and local pricing updates immediately.
+saveMaterialsToCloud(out).then((ok) => {
+  if (!ok) {
+    console.warn("Materials saved locally but failed to save to cloud.");
+  }
+});
+
+try {
+  window.dispatchEvent(new Event("materials_updated"));
+} catch {}
 }
 

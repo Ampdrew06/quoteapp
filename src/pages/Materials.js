@@ -4,7 +4,12 @@
 // src/pages/Materials.js
 import React, { useState, useEffect, useMemo } from "react";
 import NavTabs from "../components/NavTabs";
-import { defaultMaterials, getMaterials, saveMaterials } from "../lib/materials";
+import {
+  defaultMaterials,
+  getMaterials,
+  saveMaterials,
+  loadMaterialsFromCloud,
+} from "../lib/materials";
 
 // Simple card wrapper to keep layout neat & consistent
 const Section = ({ title, children }) => (
@@ -26,7 +31,21 @@ export default function Materials() {
   const [m, setM] = useState(getMaterials());
 const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 useEffect(() => {
-  setM(getMaterials()); // load once on mount
+  async function initMaterials() {
+    // Try cloud first
+    const loadedFromCloud = await loadMaterialsFromCloud();
+
+    // Then hydrate UI from whichever source is now current
+    setM(getMaterials());
+
+    console.log(
+      loadedFromCloud
+        ? "Materials loaded from Supabase"
+        : "Using local materials fallback"
+    );
+  }
+
+  initMaterials();
 }, []);
   // local UI state bag (currently used only for Pricing box)
   const [state, setState] = useState({
