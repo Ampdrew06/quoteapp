@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import NavTabs from "../components/NavTabs"; 
+import { getQuotes, deleteQuote } from "../lib/quotes";
 // adjust path if file structure differs
 
 
@@ -28,14 +29,6 @@ const activeTabStyle = {
   fontWeight: 600,
 };
 
-function loadQuotes() {
-  try {
-    return JSON.parse(localStorage.getItem("quotes") || "[]");
-  } catch {
-    return [];
-  }
-}
-
 const fmt = (n) => `£${Number(n || 0).toFixed(2)}`;
 const niceDate = (iso) => {
   try {
@@ -47,12 +40,40 @@ const niceDate = (iso) => {
 
 export default function Quotes() {
   const nav = useNavigate();
-  const [q, setQ] = useState(loadQuotes());
+  const [q, setQ] = useState([]);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    setQ(loadQuotes());
-  }, []);
+  let alive = true;
+
+  async function loadAllQuotes() {
+    const loaded = await getQuotes();
+
+    if (alive) {
+      setQ(Array.isArray(loaded) ? loaded : []);
+    }
+  }
+
+  loadAllQuotes();
+
+  const refresh = () => {
+    loadAllQuotes();
+  };
+
+  window.addEventListener(
+    "quoteapp_quotes_updated",
+    refresh
+  );
+
+  return () => {
+    alive = false;
+
+    window.removeEventListener(
+      "quoteapp_quotes_updated",
+      refresh
+    );
+  };
+}, []);
 
   const filtered = useMemo(() => {
     const s = (search || "").toLowerCase().trim();
@@ -60,24 +81,38 @@ export default function Quotes() {
     return q.filter((r) => (r?.ref || "").toLowerCase().includes(s));
   }, [q, search]);
 
-  const loadRef = (ref) => {
-    const item = (q || []).find((r) => r?.ref === ref);
+  const loadRef = (quoteNumber) => {
+  const item = (q || []).find(
+    (r) => r?.quote_number === quoteNumber
+  );
     if (!item) return;
     // Write this quote’s inputs as the current “leanToInputs”
-    if (item.inputs) {
-      localStorage.setItem("leanToInputs", JSON.stringify(item.inputs));
-    }
+    if (item.inputs_json) {
+  localStorage.setItem(
+    "leanToInputs",
+    JSON.stringify(item.inputs_json)
+  );
+}
     // Ask the landing page to auto-show the plan/price on next mount
     localStorage.setItem("auto_show_quote", "1");
     nav("/quote/lean-to");
   };
 
-  const delRef = (ref) => {
-    if (!window.confirm(`Delete quote "${ref}"? This cannot be undone.`)) return;
-    const remaining = (q || []).filter((r) => r?.ref !== ref);
-    setQ(remaining);
-    localStorage.setItem("quotes", JSON.stringify(remaining));
-  };
+  const delRef = async (id, ref) => {
+  if (
+    !window.confirm(
+      `Delete quote "${ref}"? This cannot be undone.`
+    )
+  ) {
+    return;
+  }
+
+  const ok = await deleteQuote(id);
+
+  if (!ok) {
+    alert("Failed to delete quote.");
+  }
+};
 
  return (
   <div style={{ fontFamily: "Inter, system-ui, Arial" }}>
@@ -155,12 +190,12 @@ export default function Quotes() {
             {filtered.map((r) => {
               const s = r.summary || {};
               return (
-                <tr key={r.ref}>
+                <tr key={r.quote_number}>
                   <td style={td}>
-                    <b>{r.ref}</b>
+                    <b>{r.quote_number}</b>
                   </td>
                   <td style={td}>
-                    {niceDate(r.createdAt)}
+                    {niceDate(r.created_at)}
                   </td>
                   <td style={td}>
                     {s.internalWidthMM
@@ -211,7 +246,7 @@ export default function Quotes() {
                     >
                       <button
                         onClick={() =>
-                          loadRef(r.ref)
+                          loadRef(r.quote_number)
                         }
                         className="border rounded px-2 py-1"
                         title="Open in Lean-To"
@@ -219,9 +254,7 @@ export default function Quotes() {
                         Load
                       </button>
                       <button
-                        onClick={() =>
-                          delRef(r.ref)
-                        }
+                        onClick={() => delRef(r.id, r.quote_number)}
                         className="border rounded px-2 py-1"
                         style={{
                           borderColor:

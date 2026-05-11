@@ -22,6 +22,7 @@ import {
   getDeliveryPricingConfig,
   getMarkupPricingConfig,
 } from "../../lib/pricing";
+import { saveQuote as saveQuoteToCloud } from "../../lib/quotes";
 //import { computeLeanToManufactureGeometry } from "../../lib/leanToManufactureGeometry";
 
 // adjust path if file structure differs
@@ -567,6 +568,8 @@ return computePricing(
   projMM,
   tileSystem,
   deliveryDistanceMiles,
+  discountPct,
+  selectedCustomer,
 ]);
 /*console.log("PRICING_COMPARE", {
   page: "LeanToLanding",
@@ -922,6 +925,7 @@ setShowQuote(true);
 
     setQuoteRef("");
     setShowQuote(false);
+    setSelectedCustomerId("retail");
 
     setDeliveryPostcode("");
     setDeliveryDistanceMiles(0);
@@ -933,67 +937,83 @@ setShowQuote(true);
     window.dispatchEvent(new Event("summary_exclusions_updated"));
   };
 
-  const saveQuote = () => {
-    const ref = (quoteRef || "").trim();
-    if (!ref) {
-      alert("Please enter a quote reference first.");
-      return;
-    }
-    if (!canQuote) {
-      alert("Please enter width and projection before saving.");
-      return;
-    }
+  const saveQuote = async () => {
+  const ref = (quoteRef || "").trim();
 
-    // make sure we’ve written the latest inputs
-    persistInputs();
-    let payload = {};
-    try {
-      payload = JSON.parse(localStorage.getItem("leanToInputs") || "{}");
-    } catch {}
+  if (!ref) {
+    alert("Please enter a quote reference first.");
+    return;
+  }
 
-    // compact summary to save alongside the raw inputs
-    const record = {
-      ref,
-      createdAt: new Date().toISOString(),
-      inputs: payload,
-      summary: {
-        internalWidthMM: Number(widthMM),
-        internalProjectionMM: Number(projMM),
-        pitchDeg,
-        leftWall,
-        rightWall,
-        eavesOverhangMM: Number(eavesOverhangMM),
-        leftOverhangMM: Number(leftOverhangMM || 0),
-        rightOverhangMM: Number(rightOverhangMM || 0),
-        tileSystem,
-        tileColor,
-        plasticsColor,
-        gutterProfile,
-        gutterColor,
-        gutterOutlet,
-        extWidthMM: Math.round(extWidthMM),
-        extProjectionMM: Math.round(extProjectionMM),
-        riseMM: Math.round(riseMM),
-        net: Number((pricing.net ?? 0).toFixed(2)),
-        gross: Number((pricing.gross ?? 0).toFixed(2)),
-      },
-    };
+  if (!canQuote) {
+    alert("Please enter width and projection before saving.");
+    return;
+  }
 
-    const KEY = "quotes";
-    let list = [];
-    try { list = JSON.parse(localStorage.getItem(KEY) || "[]"); } catch {}
+  persistInputs();
 
-    const idx = list.findIndex((q) => (q && q.ref) === ref);
-    if (idx >= 0) {
-      const overwrite = window.confirm(`A quote with ref "${ref}" already exists. Overwrite it?`);
-      if (!overwrite) return;
-      list[idx] = record;
-    } else {
-      list.push(record);
-    }
-    localStorage.setItem(KEY, JSON.stringify(list));
-    alert("Quote saved.");
+  let payload = {};
+  try {
+    payload = JSON.parse(localStorage.getItem("leanToInputs") || "{}");
+  } catch {}
+
+  const customerForQuote = selectedCustomer || getCurrentCustomer();
+
+  const isUuid = (value) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      String(value || "")
+    );
+
+  const summary = {
+    internalWidthMM: Number(widthMM),
+    internalProjectionMM: Number(projMM),
+    pitchDeg,
+    leftWall,
+    rightWall,
+    eavesOverhangMM: Number(eavesOverhangMM),
+    leftOverhangMM: Number(leftOverhangMM || 0),
+    rightOverhangMM: Number(rightOverhangMM || 0),
+    tileSystem,
+    tileColor,
+    plasticsColor,
+    gutterProfile,
+    gutterColor,
+    gutterOutlet,
+    extWidthMM: Math.round(extWidthMM),
+    extProjectionMM: Math.round(extProjectionMM),
+    riseMM: Math.round(riseMM),
+    net: Number((pricing.net ?? 0).toFixed(2)),
+    gross: Number((pricing.gross ?? 0).toFixed(2)),
   };
+
+  const record = {
+    quote_number: ref,
+    customer_id:
+      customerForQuote && isUuid(customerForQuote.id)
+        ? customerForQuote.id
+        : null,
+    customer_name: customerForQuote?.name || "",
+    roof_style: "lean-to",
+    status: "quote",
+    inputs_json: payload,
+    pricing_json: {
+      net: Number((pricing.net ?? 0).toFixed(2)),
+      vat: Number((pricing.vat ?? 0).toFixed(2)),
+      gross: Number((pricing.gross ?? 0).toFixed(2)),
+      summary,
+    },
+    materials_snapshot_json: getMaterials(),
+  };
+
+  const saved = await saveQuoteToCloud(record);
+
+  if (!saved) {
+    alert("Quote was not saved. Check the console for details.");
+    return;
+  }
+
+  alert(`Quote ${ref} saved.`);
+};
   /*
 const manufactureGeom = useMemo(
   () =>

@@ -212,6 +212,25 @@ const loadInputs = () => {
 // ---------- main component ----------
 
 export default function Summary() {
+  const [customers, setCustomers] = useState([]);
+
+useEffect(() => {
+  let alive = true;
+
+  async function loadCustomers() {
+    const loadedCustomers = await getCustomers();
+
+    if (alive) {
+      setCustomers(Array.isArray(loadedCustomers) ? loadedCustomers : []);
+    }
+  }
+
+  loadCustomers();
+
+  return () => {
+    alive = false;
+  };
+}, []);
   const [labourConfig, setLabourConfig] = useState(() =>
   getLabourPricingConfig()
 );
@@ -2866,7 +2885,7 @@ const selectedCustomerId = savedInputs.selectedCustomerId || "retail";
 let discountPct = 0;
 
 if (selectedCustomerId !== "retail") {
-  const customers = getCustomers();
+ 
   const selected = customers.find((c) => c.id === selectedCustomerId);
   discountPct = Number(selected?.discountPct || 0);
 }
