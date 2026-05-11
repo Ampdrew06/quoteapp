@@ -22,7 +22,10 @@ import {
   getDeliveryPricingConfig,
   getMarkupPricingConfig,
 } from "../../lib/pricing";
-import { saveQuote as saveQuoteToCloud } from "../../lib/quotes";
+import {
+  saveQuote as saveQuoteToCloud,
+  getNextQuoteNumber,
+} from "../../lib/quotes";
 //import { computeLeanToManufactureGeometry } from "../../lib/leanToManufactureGeometry";
 
 // adjust path if file structure differs
@@ -266,7 +269,10 @@ useEffect(() => {
   const [deliveryLoading, setDeliveryLoading] = useState(false);
   const [deliveryError, setDeliveryError] = useState("");
   const [quoteError, setQuoteError] = useState("");
-  const [selectedCustomerId, setSelectedCustomerId] = useState("retail");
+  const [selectedCustomerId, setSelectedCustomerId] = useState(() => {
+  const current = getCurrentCustomer();
+  return current?.id || "retail";
+});
 
 const [customers, setCustomers] = useState([]);
 
@@ -938,12 +944,12 @@ setShowQuote(true);
   };
 
   const saveQuote = async () => {
-  const ref = (quoteRef || "").trim();
-
-  if (!ref) {
-    alert("Please enter a quote reference first.");
-    return;
-  }
+  const manualReference = (quoteRef || "").trim();
+const nextQuoteNumber = await getNextQuoteNumber();
+if (!isAdmin && !manualReference) {
+  alert("Please enter a customer reference before saving.");
+  return;
+}
 
   if (!canQuote) {
     alert("Please enter width and projection before saving.");
@@ -987,7 +993,8 @@ setShowQuote(true);
   };
 
   const record = {
-    quote_number: ref,
+    quote_number: nextQuoteNumber,
+manual_reference: manualReference,
     customer_id:
       customerForQuote && isUuid(customerForQuote.id)
         ? customerForQuote.id
@@ -1012,7 +1019,7 @@ setShowQuote(true);
     return;
   }
 
-  alert(`Quote ${ref} saved.`);
+  alert(`Quote ${nextQuoteNumber} saved.`);
 };
   /*
 const manufactureGeom = useMemo(
@@ -1319,19 +1326,19 @@ onKeyDown={(e) => {
               Get Quote
             </button>
             {quoteError && (
-  <div style={{ color: "#b91c1c", fontSize: 13, marginTop: 6 }}>
+            <div style={{ color: "#b91c1c", fontSize: 13, marginTop: 6 }}>
     {quoteError}
   </div>
 )}
 
             {/* Save with reference */}
             <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ fontSize: 13, color: "#374151" }}>Quote ref</span>
+              <span style={{ fontSize: 13, color: "#374151" }}>Customer Reference</span>
               <input
                 type="text"
                 value={quoteRef}
                 onChange={(e) => setQuoteRef(e.target.value)}
-                placeholder="e.g. SMITH-0725"
+                placeholder="e.g. SMITH"
                 className="border rounded px-2 py-1"
                 style={{ minWidth: 160 }}
               />
@@ -1340,8 +1347,14 @@ onKeyDown={(e) => {
             <button
               onClick={saveQuote}
               style={{ ...primaryBtn, background: "#10b981", borderColor: "#10b981" }}
-              disabled={!canQuote || !quoteRef.trim()}
-              title={!quoteRef.trim() ? "Enter a quote ref to save" : "Save this quote"}
+              disabled={!canQuote || (!isAdmin && !quoteRef.trim())}
+title={
+  !canQuote
+    ? "Enter the required roof details first"
+    : !isAdmin && !quoteRef.trim()
+    ? "Please enter a customer reference"
+    : "Save this quotation"
+}
             >
               Save Quote
             </button>

@@ -88,15 +88,28 @@ export async function deleteQuote(id) {
   }
 }
 
-export function generateQuoteNumber() {
-  const now = new Date();
+export async function getNextQuoteNumber() {
+  try {
+    const { data, error } = await supabase
+      .from("quotes")
+      .select("quote_number");
 
-  const yyyy = now.getFullYear();
-  const mm = String(now.getMonth() + 1).padStart(2, "0");
-  const dd = String(now.getDate()).padStart(2, "0");
-  const hh = String(now.getHours()).padStart(2, "0");
-  const min = String(now.getMinutes()).padStart(2, "0");
-  const sec = String(now.getSeconds()).padStart(2, "0");
+    if (error) {
+      console.error("GET NEXT QUOTE NUMBER ERROR", error);
+      return "1";
+    }
 
-  return `Q-${yyyy}${mm}${dd}-${hh}${min}${sec}`;
+    const numbers = (data || [])
+      .map((q) => Number(q.quote_number))
+      .filter((n) => Number.isFinite(n));
+
+    const next = numbers.length
+      ? Math.max(...numbers) + 1
+      : 1;
+
+    return String(next);
+  } catch (err) {
+    console.error("GET NEXT QUOTE NUMBER FAILED", err);
+    return "1";
+  }
 }
