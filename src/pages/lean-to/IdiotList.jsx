@@ -6,7 +6,7 @@ import { computeTilesLathsBOM } from "../../lib/Calculations/tilesLathsCalc";
 import { computeEdgeTrimsLeanTo } from "../../lib/Calculations/edgeTrimsCalc";
 import { computeGuttersLeanTo } from "../../lib/Calculations/guttersCalc";
 import { computeLiteSlateLeanTo } from "../../lib/Calculations/liteslateCalc";
-import { computeTotalWeightKg } from "../../lib/utils/weights";
+import { computeTotalWeightKg } from "../../lib/weightUtils";
 import NavTabs from "../../components/NavTabs";
 import { buildLeanToTotals } from "../../lib/leanToTotals";
 

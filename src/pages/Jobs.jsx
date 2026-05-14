@@ -50,9 +50,11 @@ export default function Quotes() {
   const filtered = useMemo(() => {
     const s = (search || "").toLowerCase().trim();
 
-    if (!s) return q;
+    const jobsOnly = (q || []).filter((r) => r.status === "converted_to_job");
 
-    return q.filter((r) => {
+if (!s) return jobsOnly;
+
+    return jobsOnly.filter((r) => {
       return (
         String(r?.quote_number || "").toLowerCase().includes(s) ||
         String(r?.customer_name || "").toLowerCase().includes(s) ||
@@ -120,7 +122,7 @@ const convertToJob = async (quote) => {
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: 16 }}>
         <h1 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 10px" }}>
-          Quotations
+          Jobs
         </h1>
 
         <div
@@ -149,11 +151,11 @@ const convertToJob = async (quote) => {
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ background: "#f3f4f6" }}>
+                <th style={th}>Job No</th>
                 <th style={th}>Quote No</th>
                 <th style={th}>Customer</th>
                 <th style={th}>Reference</th>
-                <th style={th}>Date</th>
-                <th style={th}>Status</th>
+                <th style={th}>Delivery Date</th>
                 <th style={th}>Actions</th>
               </tr>
             </thead>
@@ -165,14 +167,18 @@ const convertToJob = async (quote) => {
                 return (
                   <tr key={r.id || r.quote_number}>
                     <td style={td}>
-                      <b>{r.quote_number || "—"}</b>
-                    </td>
+  <b>{r.job_number || "—"}</b>
+</td>
 
-                    <td style={td}>{r.customer_name || "Retail Customer"}</td>
+<td style={td}>{r.quote_number || "—"}</td>
 
-                    <td style={td}>{r.manual_reference || "—"}</td>
+<td style={td}>{r.customer_name || "Retail Customer"}</td>
 
-                    <td style={td}>{created}</td>
+<td style={td}>{r.manual_reference || "—"}</td>
+
+<td style={td}>
+  {r.requested_delivery_date || "—"}
+</td>
 
                     <td style={td}>
                       <span
@@ -198,11 +204,14 @@ const convertToJob = async (quote) => {
                     <td style={td}>
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                         <button
-                          onClick={() => loadRef(r.quote_number)}
+                          onClick={() => {
+  localStorage.setItem("active_job_id", r.id);
+  loadRef(r.quote_number);
+}}
                           className="border rounded px-2 py-1"
                           title="Edit this quotation"
                         >
-                          Edit
+                          Open Manufacture Book
                         </button>
 {r.status !== "converted_to_job" && (
   <button

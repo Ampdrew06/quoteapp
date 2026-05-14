@@ -1,5 +1,25 @@
 import { supabase } from "./supabaseClient";
 
+export async function getQuoteById(id) {
+  try {
+    const { data, error } = await supabase
+      .from("quotes")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (error) {
+      console.error("GET QUOTE BY ID ERROR", error);
+      return null;
+    }
+
+    return data || null;
+  } catch (err) {
+    console.error("GET QUOTE BY ID FAILED", err);
+    return null;
+  }
+}
+
 export async function getQuotes() {
   try {
     const { data, error } = await supabase
@@ -110,6 +130,33 @@ export async function getNextQuoteNumber() {
     return String(next);
   } catch (err) {
     console.error("GET NEXT QUOTE NUMBER FAILED", err);
+    return "1";
+  }
+}
+
+export async function getNextJobNumber() {
+  try {
+    const { data, error } = await supabase
+      .from("quotes")
+      .select("job_number")
+      .not("job_number", "is", null);
+
+    if (error) {
+      console.error("GET NEXT JOB NUMBER ERROR", error);
+      return "1";
+    }
+
+    const numbers = (data || [])
+      .map((q) => Number(q.job_number))
+      .filter((n) => Number.isFinite(n));
+
+    const next = numbers.length
+      ? Math.max(...numbers) + 1
+      : 1;
+
+    return String(next);
+  } catch (err) {
+    console.error("GET NEXT JOB NUMBER FAILED", err);
     return "1";
   }
 }

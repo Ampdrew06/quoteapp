@@ -223,6 +223,7 @@ export function computeMiscLeanTo(q = {}, m = {}) {
         key: "breather_membrane",
         name: "Breather membrane",
         label: `Breather membrane ${bWidth}×${bLen} m`,
+        weightPerUnitKg: m.breather_roll_weight_kg || 0,
         note: `(${bWidth}×${bLen} m)`,
         qty: rolls,
         uom: "Roll",
@@ -559,6 +560,7 @@ for (const r of mix) {
   items.push({
     key: "superquilt",
     name: "SuperQuilt",
+    weightPerUnitKg: m.superquilt_roll_weight_kg || 0,
     label: r.label,                // e.g. “SuperQuilt 15 m² roll”
     note: `(${r.size_m2} m²)`,     // adds visible size info
     qty: r.count,

@@ -1,10 +1,13 @@
 // src/pages/lean-to/LeanToPlanManufacture.jsx
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { getMaterials } from "../../lib/materials";
 import PlanDiagramLeanToManufacture from "../../components/PlanDiagramLeanToManufacture";
 import { computeLeanToManufactureGeometry } from "../../lib/leanToManufactureGeometry";
 import NavTabs from "../../components/NavTabs";
 import IdiotList from "./IdiotList";
+import { getQuoteById, updateQuote } from "../../lib/quotes";
+
+
 
 const num = (v, f = 0) => (Number.isFinite(Number(v)) ? Number(v) : f);
 const round = (v, dp = 0) => {
@@ -159,6 +162,77 @@ function RafterDetailDiagram({
   );
 }
 export default function LeanToPlanManufacture() {
+  const [activeJob, setActiveJob] = useState(null);
+const [jobDetails, setJobDetails] = useState({
+  requested_delivery_date: "",
+  deliveryType: "Delivery",
+  deliveryAddress: "",
+  contactName: "",
+  contactPhone: "",
+  notes: "",
+});
+useEffect(() => {
+  let alive = true;
+
+  async function loadActiveJob() {
+    const activeJobId = localStorage.getItem("active_job_id");
+    if (!activeJobId) return;
+
+    const job = await getQuoteById(activeJobId);
+    if (!alive) return;
+
+    if (job) {
+      setActiveJob(job);
+
+      setJobDetails({
+        requested_delivery_date: job.requested_delivery_date || "",
+        deliveryType: job.delivery_address_json?.deliveryType || "Delivery",
+        deliveryAddress: job.delivery_address_json?.deliveryAddress || "",
+        contactName: job.delivery_address_json?.contactName || "",
+        contactPhone: job.delivery_address_json?.contactPhone || "",
+        notes: job.order_notes || "",
+      });
+
+      if (job.inputs_json) {
+        localStorage.setItem(
+          "leanToInputs",
+          JSON.stringify(job.inputs_json)
+        );
+      }
+    }
+  }
+
+  loadActiveJob();
+
+  return () => {
+    alive = false;
+  };
+}, []);
+
+const saveJobDetails = async () => {
+  if (!activeJob?.id) return;
+
+  const updated = await updateQuote(activeJob.id, {
+    requested_delivery_date: jobDetails.requested_delivery_date || null,
+    delivery_address_json: {
+      deliveryType: jobDetails.deliveryType,
+      deliveryAddress: jobDetails.deliveryAddress,
+      contactName: jobDetails.contactName,
+      contactPhone: jobDetails.contactPhone,
+    },
+    order_notes: jobDetails.notes,
+  });
+
+  if (!updated) {
+    alert("Job details were not saved.");
+    return;
+  }
+
+  setActiveJob(updated);
+  alert("Job details saved.");
+};
+
+const jobInputs = activeJob?.inputs_json || {};
   const m = getMaterials();
   const q = loadInputs();
 
@@ -357,10 +431,22 @@ const overallBlankLengthMM = round(
           </tr>
           {/* Row 1 values */}
           <tr>
-            <td style={td}>{jobNo || "—"}</td>
-            <td style={td}>{customer || "—"}</td>
-            <td style={td}>{customerRef || "—"}</td>
-            <td style={td}>{deliveryDate || "—"}</td>
+            <td style={td}>{activeJob?.job_number || jobNo || "—"}</td>
+            <td style={td}>{activeJob?.customer_name || customer || "—"}</td>
+            <td style={td}>{activeJob?.manual_reference || customerRef || "—"}</td>
+            <td style={td}>
+  <input
+    type="date"
+    value={jobDetails.requested_delivery_date}
+    onChange={(e) =>
+      setJobDetails((p) => ({
+        ...p,
+        requested_delivery_date: e.target.value,
+      }))
+    }
+    style={{ width: "100%" }}
+  />
+</td>
           </tr>
 
           {/* Row 2 headers */}
@@ -372,7 +458,22 @@ const overallBlankLengthMM = round(
           </tr>
           {/* Row 2 values */}
           <tr>
-            <td style={td}>{deliveryType || "—"}</td>
+            <td style={td}>
+  <select
+    value={jobDetails.deliveryType}
+    onChange={(e) =>
+      setJobDetails((p) => ({
+        ...p,
+        deliveryType: e.target.value,
+      }))
+    }
+    style={{ width: "100%" }}
+  >
+    <option value="Delivery">Delivery</option>
+    <option value="Install">Install</option>
+    <option value="Collection">Collection</option>
+  </select>
+</td>
             <td style={td}>{roofStyle || "—"}</td>
             <td style={td}>{frameColour || "—"}</td>
             <td style={td}>{sft ? `${sft} mm` : "—"}</td>
@@ -388,11 +489,18 @@ const overallBlankLengthMM = round(
           {/* Row 3 values */}
           <tr>
             <td style={td}>{pitchDeg ? `${pitchDeg}°` : "—"}</td>
-            <td style={td}>{tileType || "—"}</td>
-            <td style={td}>{tileColour || "—"}</td>
             <td style={td}>
-              {[fasciaColour, soffitColour].filter(Boolean).join(" / ") || "—"}
-            </td>
+  {(
+    jobInputs.tileSystem ||
+    tileType ||
+    "—"
+  )
+    .toString()
+    .replace(/^./, (c) => c.toUpperCase())}
+</td>
+            <td style={td}>{jobInputs.tileColor || tileColour || "—"}</td>
+            <td style={td}>
+            {jobInputs.plasticsColor || [fasciaColour, soffitColour].filter(Boolean).join(" / ") || "—"}</td>
           </tr>
 
           {/* Row 4 headers */}
@@ -404,8 +512,18 @@ const overallBlankLengthMM = round(
           </tr>
           {/* Row 4 values */}
           <tr>
-            <td style={td}>{gutterProfile || "—"}</td>
-            <td style={td}>{downpipeColour || "—"}</td>
+            <td style={td}>
+  {[jobInputs.gutterColor, jobInputs.gutterProfile]
+    .filter(Boolean)
+    .map((v) => String(v).charAt(0).toUpperCase() + String(v).slice(1))
+    .join(" ") || gutterProfile || "—"}
+</td>
+
+<td style={td}>
+  {jobInputs.gutterColor
+    ? `${String(jobInputs.gutterColor).charAt(0).toUpperCase()}${String(jobInputs.gutterColor).slice(1)} Round`
+    : downpipeColour || "—"}
+</td>
             <td style={td}>{boxGutterDetails || "—"}</td>
             <td style={td}>{q.glazed_options || q.glazedOptions || "—"}</td>
           </tr>
@@ -427,16 +545,112 @@ const overallBlankLengthMM = round(
       <div
   style={{
     flex: 1,
-    whiteSpace: "pre-wrap",
-    color: "#111827",
-    fontSize: 13,
-    lineHeight: 1.6,
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+    marginTop: 10,
   }}
 >
-        {deliveryAddress || "—"}
-        {(deliveryAddress || notes) ? "\n\n" : ""}
-        {notes || ""}
-      </div>
+  <div
+    style={{
+      flex: 2,
+      display: "flex",
+      flexDirection: "column",
+    }}
+  >
+    <div
+      style={{
+        fontSize: 12,
+        fontWeight: 700,
+        marginBottom: 6,
+        color: "#374151",
+      }}
+    >
+      Delivery Address
+    </div>
+
+    <textarea
+      value={jobDetails.deliveryAddress}
+      onChange={(e) =>
+        setJobDetails((p) => ({
+          ...p,
+          deliveryAddress: e.target.value,
+        }))
+      }
+      style={{
+        flex: 1,
+        width: "100%",
+        minHeight: 140,
+        padding: 8,
+        resize: "none",
+        border: "1px solid #cbd5e1",
+        borderRadius: 6,
+      }}
+    />
+  </div>
+
+  <div
+    style={{
+      flex: 1,
+      display: "flex",
+      flexDirection: "column",
+    }}
+  >
+    <div
+      style={{
+        fontSize: 12,
+        fontWeight: 700,
+        marginBottom: 6,
+        color: "#374151",
+      }}
+    >
+      Special Instructions
+    </div>
+
+    <textarea
+      value={jobDetails.notes}
+      onChange={(e) =>
+        setJobDetails((p) => ({
+          ...p,
+          notes: e.target.value,
+        }))
+      }
+      style={{
+        flex: 1,
+        width: "100%",
+        minHeight: 70,
+        padding: 8,
+        resize: "none",
+        border: "1px solid #cbd5e1",
+        borderRadius: 6,
+      }}
+    />
+  </div>
+
+  <div
+    className="mb-nav-hide-on-print"
+    style={{
+      display: "flex",
+      justifyContent: "flex-end",
+      marginTop: 4,
+    }}
+  >
+    <button
+      onClick={saveJobDetails}
+      style={{
+        padding: "8px 14px",
+        background: "#2563eb",
+        color: "white",
+        border: 0,
+        borderRadius: 6,
+        cursor: "pointer",
+        fontWeight: 600,
+      }}
+    >
+      Save Job Details
+    </button>
+  </div>
+</div>
     </div>
 
     {/* Authorisation boxes */}
@@ -602,6 +816,7 @@ const overallBlankLengthMM = round(
           </div>
         </section>
         {/* ===== PAGE 3: MANUFACTURE LIST ===== */}
+       
         <section className="pm-page">
           <div style={panel}>
             <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 10, color: "#111827" }}>

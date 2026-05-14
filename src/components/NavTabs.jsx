@@ -15,6 +15,7 @@ const adminTabsLeft = [
   { to: "/idiot-list", label: "Idiot List" },
   { to: "/summary", label: "Summary" },
   { to: "/quotes", label: "Quotes" },
+  { to: "/jobs", label: "Jobs" },
   { to: "/customers", label: "Customers" },
 ];
 

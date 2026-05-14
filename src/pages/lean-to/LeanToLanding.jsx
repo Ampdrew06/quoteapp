@@ -956,12 +956,34 @@ if (!isAdmin && !manualReference) {
     return;
   }
 
-  persistInputs();
+  const payload = {
+  widthMM,
+  projMM,
+  pitchDeg,
 
-  let payload = {};
-  try {
-    payload = JSON.parse(localStorage.getItem("leanToInputs") || "{}");
-  } catch {}
+  leftWall,
+  rightWall,
+
+  eavesOverhangMM,
+  leftOverhangMM,
+  rightOverhangMM,
+
+  tileSystem,
+  tileColor,
+
+  plasticsColor,
+
+  gutterProfile,
+  gutterColor,
+  gutterOutlet,
+
+  selectedCustomerId,
+
+  deliveryPostcode,
+  deliveryDistanceMiles,
+
+  quoteRef: manualReference,
+};
 
   const customerForQuote = selectedCustomer || getCurrentCustomer();
 

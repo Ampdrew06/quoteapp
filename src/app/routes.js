@@ -12,6 +12,7 @@ import IdiotList from "../pages/IdiotList";
 import Quotes from "../pages/Quotes";
 import Summary from "../pages/Summary";
 import Customers from "../pages/Customers";
+import Jobs from "../pages/Jobs";
 //import { Link } from "react-router-dom";
 
 // Simple inline placeholder so /design/:design won't 404 while we build pages
@@ -65,6 +66,8 @@ export default function AppRoutes() {
         <Route path="*" element={<Navigate to="/quote" replace />} />
         <Route path="/quotes" element={<Quotes />} />
 
+        <Route path="/jobs" element={<Jobs />} />
+        
       </Routes>
     </BrowserRouter>
   );

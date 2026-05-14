@@ -21,7 +21,8 @@ import {
   getMarkupPricingConfig,
   saveMarkupPricingConfig,
 } from "../lib/pricing";
-import { computeTotalWeightKg, applyWeightsToLines } from "../lib/utils/weights";
+import { applyWeightsToLines } from "../lib/utils/weights";
+import { computeTotalWeightKg } from "../lib/weightUtils";
 import { buildLeanToTotals, buildLeanToQuoteBase } from "../lib/leanToTotals";
 import { calculateLeanToGeometry } from "../lib/geometry/leanToGeometry";
 
@@ -234,6 +235,9 @@ useEffect(() => {
   const [labourConfig, setLabourConfig] = useState(() =>
   getLabourPricingConfig()
 );
+
+const [labourDaysOverride, setLabourDaysOverride] = useState("");
+
 const updateLabourConfig = (patch) => {
   const next = { ...labourConfig, ...patch };
   setLabourConfig(next);
@@ -2837,8 +2841,39 @@ const overallCost =
 
 const overallWeight =
   timberTotals.weight +
+  tilesTotals.weight +
+  plasticsTotals.weight +
   metalTotals.weight +
-  (leanToWeightTotals.weight ?? 0);
+  gutterTotals.weight +
+  miscTotals.weight;
+
+// --- Plasterboard calculation ---
+const roofAreaM2 =
+  (totalsInput?.widthMM || 0) *
+  (totalsInput?.projMM || 0) /
+  1_000_000;
+
+// Board size (2.4m x 1.2m)
+const boardAreaM2 = 2.88;
+
+// Number of boards (rounded up)
+const plasterboardQty = Math.ceil(roofAreaM2 / boardAreaM2);
+
+// Weight per m²
+const plasterboardKgPerM2 = 8.5;
+
+// Total plasterboard weight
+const plasterboardWeight = roofAreaM2 * plasterboardKgPerM2;
+
+// Installed total weight
+const installedWeight = overallWeight + plasterboardWeight;
+console.log("SUMMARY_WEIGHT_DEBUG", {
+  timberWeight: timberTotals.weight,
+  metalWeight: metalTotals.weight,
+  leanToWeight: leanToWeightTotals.weight,
+  overallWeight,
+  allLinesCount: totals.allLines?.length,
+});
 
 // Only timber is chargeable (waste uplift). Lean-to materials pricing comes straight from totals.
 const quoteBase = buildLeanToQuoteBase(inputs, exclusions);
@@ -2855,13 +2890,24 @@ const labourFeatures = {
   reinforcedRingBeam: false,
 };
 
-const labour = computeLabourPricing({
+const labourBase = computeLabourPricing({
   widthMM: totalsInput?.widthMM,
   projectionMM: totalsInput?.projMM,
   tileSystem: totalsInput?.tileSystem,
   config: labourConfig,
   features: labourFeatures,
 });
+
+const overrideDays = Number(labourDaysOverride);
+
+const labour =
+  Number.isFinite(overrideDays) && overrideDays > 0
+    ? {
+        ...labourBase,
+        days: overrideDays,
+        labourCost: overrideDays * Number(labourConfig.dayRate || 0),
+      }
+    : labourBase;
 
 // Get saved delivery distance from D/O page
 let savedInputs = {};
@@ -3026,7 +3072,13 @@ return (
           <b>Total Weight (all items):</b>{" "}
           {fmtKg(overallWeight)}
         </p>
-
+<p style={{ margin: 0, fontSize: 13 }}>
+  <b>Installed Weight (incl. plasterboard):</b>{" "}
+  {installedWeight.toFixed(2)} kg{" "}
+  <span style={{ color: "#666" }}>
+    (Qty Required: {plasterboardQty} boards)
+  </span>
+</p>
         {showPricingAdjustment && (
           <div
             style={{
@@ -3178,7 +3230,7 @@ return (
         </label>
 
         <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
-          Days
+          Default Min Days
           <input
             type="number"
             step="0.1"
@@ -3188,6 +3240,17 @@ return (
             }
           />
         </label>
+        <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
+  Override Days (this quote only)
+  <input
+    type="number"
+    step="0.1"
+    min="0"
+    value={labourDaysOverride}
+    onChange={(e) => setLabourDaysOverride(e.target.value)}
+    placeholder="e.g. 1.5"
+  />
+</label>
       </div>
     </div>
 

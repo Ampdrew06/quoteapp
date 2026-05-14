@@ -374,7 +374,7 @@ if (typeof window !== "undefined") {
     // 🔽 LINES ENRICHED FOR SUMMARY / TILE ELEMENTS 🔽
     lines: [
       {
-  key: "tiles",
+  key: isLiteSlate ? "tile_liteslate" : "tile_britmet",
   label: isLiteSlate ? "LiteSlate tiles" : "Britmet tiles",
   group: "tiles",
   qty: tiles_total,

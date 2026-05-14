@@ -332,7 +332,7 @@ plaster_bead_foiled_price: 0,
 
   // --- LiteSlate (unit-priced by tile) ---
   liteslate_tile_price_each: 1.81,
-  liteslate_tile_weight_kg_each: 0.7,        // 🔹 adjustable in UI later
+  liteslate_tile_weight_kg_each: 0.575,        // 🔹 adjustable in UI later
 
   liteslate_density_12_25: 22,   // tiles per m² for 12°–24.99°
   liteslate_density_25_27: 20,   // 25°–27.49°

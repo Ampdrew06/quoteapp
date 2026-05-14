@@ -1,6 +1,7 @@
 // src/pages/PlanManufacture.jsx
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { getQuoteById } from "../../lib/quotes";
 
 /** ---------- helpers ---------- */
 const num = (v, f = 0) => {
@@ -117,8 +118,47 @@ function useInputsFromQuery() {
 
 /** ---------- main page ---------- */
 export default function PlanManufacture() {
+  const [activeJob, setActiveJob] = useState(null);
+  const [jobLoaded, setJobLoaded] = useState(false);
+
   const i = useInputsFromQuery();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    let alive = true;
+
+    async function loadActiveJob() {
+      const activeJobId = localStorage.getItem("active_job_id");
+
+      if (!activeJobId) {
+        setJobLoaded(true);
+        return;
+      }
+
+      const job = await getQuoteById(activeJobId);
+
+      if (!alive) return;
+
+      if (job) {
+        setActiveJob(job);
+
+        if (job.inputs_json) {
+          localStorage.setItem(
+            "leanToInputs",
+            JSON.stringify(job.inputs_json)
+          );
+        }
+      }
+
+      setJobLoaded(true);
+    }
+
+    loadActiveJob();
+
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   // Rafter layout across external width
   const layout = useMemo(() => computeRafterSlots(i.extWidthMM, 48, 685, 665), [i.extWidthMM]);
@@ -170,7 +210,30 @@ export default function PlanManufacture() {
         </button>
       </div>
 
-      <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>Lean-To — Plan & Manufacture</h1>
+      <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>Lean-To — Plan & Manufacture</h1> 
+          {activeJob && (
+  <div
+    style={{
+      marginBottom: 10,
+      padding: 10,
+      border: "1px solid #d1d5db",
+      borderRadius: 8,
+      background: "#f9fafb",
+      fontSize: 14,
+    }}
+  >
+    <b>Job No:</b> {activeJob.job_number || "—"}{" "}
+    <span style={{ marginLeft: 16 }}>
+      <b>Quote No:</b> {activeJob.quote_number || "—"}
+    </span>
+    <span style={{ marginLeft: 16 }}>
+      <b>Customer:</b> {activeJob.customer_name || "—"}
+    </span>
+    <span style={{ marginLeft: 16 }}>
+      <b>Reference:</b> {activeJob.manual_reference || "—"}
+    </span>
+  </div>
+)}
       <div style={{ color: "#555", marginBottom: 6 }}>
         Internal: <b>{round(i.internalWidthMM)} × {round(i.internalProjectionMM)} mm</b> &nbsp;·&nbsp;
         External (derived): <b>{round(i.extWidthMM)} × {round(i.extProjectionMM)} mm</b> &nbsp;·&nbsp;
