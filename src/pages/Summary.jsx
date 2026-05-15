@@ -2877,12 +2877,6 @@ console.log("SUMMARY_WEIGHT_DEBUG", {
 
 // Only timber is chargeable (waste uplift). Lean-to materials pricing comes straight from totals.
 const quoteBase = buildLeanToQuoteBase(inputs, exclusions);
-console.log("SUMMARY_GUTTER_DEBUG", {
-  gutterProfile: inputs?.gutterProfile || inputs?.gutter_profile,
-  overallCost,
-  quoteBaseMaterialsCostForPricing: quoteBase?.materialsCostForPricing,
-  quoteBase,
-});
 
 const labourFeatures = {
   roofVent: false,
@@ -2890,11 +2884,25 @@ const labourFeatures = {
   reinforcedRingBeam: false,
 };
 
+const areaM2 =
+  ((totalsInput?.widthMM || 0) * (totalsInput?.projMM || 0)) / 1_000_000;
+
+let baseDays = 1;
+
+if (areaM2 > 10) baseDays = 1.5;
+if (areaM2 > 18) baseDays = 2;
+if (areaM2 > 25) baseDays = 2.5;
+
+const labourConfigAdjusted = {
+  ...labourConfig,
+  minimumDays: Math.max(Number(labourConfig.minimumDays || 1), baseDays),
+};
+
 const labourBase = computeLabourPricing({
   widthMM: totalsInput?.widthMM,
   projectionMM: totalsInput?.projMM,
   tileSystem: totalsInput?.tileSystem,
-  config: labourConfig,
+  config: labourConfigAdjusted,
   features: labourFeatures,
 });
 
