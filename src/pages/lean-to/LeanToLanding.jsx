@@ -44,6 +44,15 @@ const grid2 = {
   gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
   gap: 10,
 };
+const inputStyle = {
+  width: "100%",
+  height: 34,
+  padding: "5px 8px",
+  fontSize: 13,
+  border: "1px solid #d1d5db",
+  borderRadius: 8,
+  boxSizing: "border-box",
+};
 const h2 = { fontSize: 18, fontWeight: 600, margin: "0 0 8px" };
 const primaryBtn = {
   padding: "10px 14px",
@@ -70,6 +79,16 @@ const round = (v, dp = 0) => {
 };
 
   export default function LeanToLanding() {
+const isMobile = window.innerWidth < 600;
+
+const grid2Responsive = {
+  display: "grid",
+  gridTemplateColumns: isMobile
+    ? "1fr 1fr"
+    : "repeat(auto-fit, minmax(180px, 1fr))",
+  gap: isMobile ? 8 : 10,
+};
+
  // console.log("LEAN_TO_LANDING: RENDERED");
 
   // Router hooks must be inside the component
@@ -1146,7 +1165,7 @@ const demoGross = demoNet + demoVat;
 
         {/* Inputs card */}
         <div style={card}>
-          <div style={grid2}>
+          <div style={grid2Responsive}>
             <label>Width (internal, mm)
               <input
                 type="number"
@@ -1156,8 +1175,10 @@ const demoGross = demoNet + demoVat;
   setWidth(e.target.value);
   persist({ width: e.target.value });
 }}
-                className="border rounded px-2 py-1 w-full"
-                style={missingWidth && quoteError ? requiredInputStyle : undefined}
+                style={{
+  ...inputStyle,
+  ...(missingWidth && quoteError ? requiredInputStyle : {}),
+}}
               />
             </label>
 
@@ -1169,40 +1190,104 @@ const demoGross = demoNet + demoVat;
                 onChange={(e) => {setProj(e.target.value);
   persist({ projectionMM: e.target.value });
 }}
-                className="border rounded px-2 py-1 w-full"
-                style={missingProjection && quoteError ? requiredInputStyle : undefined}
+                style={{
+  ...inputStyle,
+  ...(missingProjection && quoteError ? requiredInputStyle : {}),
+}}
               />
-            </label>
 
- <label> Delivery postcode {isAdmin ? "(optional)" : ""}
-  <input
-    type="text"
-    value={deliveryPostcode}
-    style={missingPostcode && quoteError ? requiredInputStyle : undefined}
-    onChange={(e) => {setDeliveryPostcode(e.target.value.toUpperCase());
+            </label>
+{/* Tile system + colour */}
+            <label>Tile system
+              <select
+                value={tileSystem}
+                onChange={(e) => {setTileSystem(e.target.value);
   persist({ projectionMM: e.target.value });
 }}
-    onBlur={lookupDeliveryDistance}
-onKeyDown={(e) => {
-  if (e.key === "Enter") {
-    lookupDeliveryDistance();
-  }
-}}
-    className="border rounded px-2 py-1 w-full"
-  />
-  {deliveryLoading && (
-    <div style={{ color: "#6b7280", fontSize: 12, marginTop: 4 }}>
-      Checking delivery distance...
-    </div>
-  )}
-  
-  {deliveryError && (
-    <div style={{ color: "#b91c1c", fontSize: 12, marginTop: 4 }}>
-      {deliveryError}
-    </div>
-  )}
-</label>
+                style={inputStyle}
+              >
+                <option value="britmet">Britmet</option>
+                <option value="liteslate">LiteSlate</option>
+              </select>
+            </label>
 
+            <label>Tile colour
+              <select
+                value={tileColor}
+                onChange={(e) => {setTileColor(e.target.value);
+  persist({ projectionMM: e.target.value });
+}}
+                style={inputStyle}
+              >
+                {(tileSystem === "liteslate" ? liteslateColours : britmetColours).map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </label>
+            {/* Fascia/Soffit colour (cosmetic) */}
+            <label>Fascia / Soffit colour
+              <select
+                value={plasticsColor}
+                onChange={(e) => {setPlasticsColor(e.target.value);
+  persist({ projectionMM: e.target.value });
+}}
+                style={inputStyle}
+              >
+                <option value="White">White</option>
+                <option value="Rosewood">Rosewood</option>
+                <option value="Black">Black</option>
+                <option value="Anthracite">Anthracite</option>
+                <option value="Light Oak">Light Oak</option>
+                <option value="Cream">Cream</option>
+              </select>
+              {plasticsColor === "Cream" && (
+                <div style={{ color: "#b45309", fontSize: 12, marginTop: 4 }}>
+                  Cream: Priced on request
+                </div>
+              )}
+            </label>
+            <label>Soffit to Front (mm)
+  <input
+    type="number"
+    value={eavesOverhangMM}
+    onChange={(e) => {
+      const v = num(e.target.value, 0);
+      setEavesOverhang(v);
+      persist({ soffit_mm: v });
+    }}
+    style={inputStyle}
+  />
+</label>
+{/* Gutter style + colour */}
+            <label>Gutter profile
+              <select
+                value={gutterProfile}
+                onChange={(e) => {setGutterProfile(e.target.value);
+  persist({ projectionMM: e.target.value });
+}}
+                style={inputStyle}
+              >
+                <option value="square">Square</option>
+                <option value="round">Round</option>
+                <option value="ogee">Ogee</option>
+              </select>
+            </label>
+
+            <label>Gutter colour
+              <select
+                value={gutterColor}
+                onChange={(e) => {setGutterColor(e.target.value);
+  persist({ projectionMM: e.target.value });
+}}
+                style={inputStyle}
+              >
+                <option value="black">Black</option>
+                <option value="white">White</option>
+                <option value="anthracite">Anthracite</option>
+                <option value="brown">Brown</option>
+              </select>
+            </label>
+ 
             <label>Pitch (degrees)
               <input
                 type="number"
@@ -1211,7 +1296,7 @@ onKeyDown={(e) => {
                 onChange={(e) => {setPitch(num(e.target.value, 0));
   persist({ projectionMM: e.target.value });
 }}
-                className="border rounded px-2 py-1 w-full"
+                style={inputStyle}
               />
               {pitchDeg < 15 && (
                 <div style={{ color: "#b45309", fontSize: 12, marginTop: 4 }}>
@@ -1250,18 +1335,7 @@ onKeyDown={(e) => {
   </label>
 </div>
 
-            <label>Overhang at eaves (mm)
-  <input
-    type="number"
-    value={eavesOverhangMM}
-    onChange={(e) => {
-      const v = num(e.target.value, 0);
-      setEavesOverhang(v);
-      persist({ soffit_mm: v });
-    }}
-    className="border rounded px-2 py-1 w-full"
-  />
-</label>
+            
 
             <label>Overhang at left side (mm)
   <input
@@ -1273,7 +1347,7 @@ onKeyDown={(e) => {
       setLeftOverhang(v);
       persist({ left_overhang_mm: Number(v || 0) });
     }}
-    className="border rounded px-2 py-1 w-full"
+    style={inputStyle}
   />
 </label>
 
@@ -1287,92 +1361,41 @@ onKeyDown={(e) => {
       setRightOverhang(v);
       persist({ right_overhang_mm: Number(v || 0) });
     }}
-    className="border rounded px-2 py-1 w-full"
+    style={inputStyle}
   />
 </label>
 
-            {/* Tile system + colour */}
-            <label>Tile system
-              <select
-                value={tileSystem}
-                onChange={(e) => {setTileSystem(e.target.value);
+      <label> Delivery postcode {isAdmin ? "(optional)" : ""}
+  <input
+    type="text"
+    value={deliveryPostcode}
+    style={missingPostcode && quoteError ? requiredInputStyle : undefined}
+    onChange={(e) => {setDeliveryPostcode(e.target.value.toUpperCase());
   persist({ projectionMM: e.target.value });
 }}
-                className="border rounded px-2 py-1 w-full"
-              >
-                <option value="britmet">Britmet</option>
-                <option value="liteslate">LiteSlate</option>
-              </select>
-            </label>
-
-            <label>Tile colour
-              <select
-                value={tileColor}
-                onChange={(e) => {setTileColor(e.target.value);
-  persist({ projectionMM: e.target.value });
+    onBlur={lookupDeliveryDistance}
+onKeyDown={(e) => {
+  if (e.key === "Enter") {
+    lookupDeliveryDistance();
+  }
 }}
-                className="border rounded px-2 py-1 w-full"
-              >
-                {(tileSystem === "liteslate" ? liteslateColours : britmetColours).map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-            </label>
-
-            {/* Fascia/Soffit colour (cosmetic) */}
-            <label>Fascia / Soffit colour
-              <select
-                value={plasticsColor}
-                onChange={(e) => {setPlasticsColor(e.target.value);
-  persist({ projectionMM: e.target.value });
-}}
-                className="border rounded px-2 py-1 w-full"
-              >
-                <option value="White">White</option>
-                <option value="Rosewood">Rosewood</option>
-                <option value="Black">Black</option>
-                <option value="Anthracite">Anthracite</option>
-                <option value="Light Oak">Light Oak</option>
-                <option value="Cream">Cream</option>
-              </select>
-              {plasticsColor === "Cream" && (
-                <div style={{ color: "#b45309", fontSize: 12, marginTop: 4 }}>
-                  Cream: Priced on request
-                </div>
-              )}
-            </label>
-
-            {/* Gutter style + colour */}
-            <label>Gutter profile
-              <select
-                value={gutterProfile}
-                onChange={(e) => {setGutterProfile(e.target.value);
-  persist({ projectionMM: e.target.value });
-}}
-                className="border rounded px-2 py-1 w-full"
-              >
-                <option value="square">Square</option>
-                <option value="round">Round</option>
-                <option value="ogee">Ogee</option>
-              </select>
-            </label>
-
-            <label>Gutter colour
-              <select
-                value={gutterColor}
-                onChange={(e) => {setGutterColor(e.target.value);
-  persist({ projectionMM: e.target.value });
-}}
-                className="border rounded px-2 py-1 w-full"
-              >
-                <option value="black">Black</option>
-                <option value="white">White</option>
-                <option value="anthracite">Anthracite</option>
-                <option value="brown">Brown</option>
-              </select>
-            </label>
-
-            <label>Gutter outlet position
+    style={inputStyle}
+  />
+  {deliveryLoading && (
+    <div style={{ color: "#6b7280", fontSize: 12, marginTop: 4 }}>
+      Checking delivery distance...
+    </div>
+  )}
+  
+  {deliveryError && (
+    <div style={{ color: "#b91c1c", fontSize: 12, marginTop: 4 }}>
+      {deliveryError}
+    </div>
+  )}
+</label>
+    {/* TEMP HIDDEN – Gutter outlet not needed for now */}
+{false && (
+         <label>Gutter outlet position
   <select
     value={gutterOutlet}
     onChange={(e) => {
@@ -1380,7 +1403,7 @@ onKeyDown={(e) => {
       setGutterOutlet(v);
       persist({ gutter_outlet: v });
     }}
-    className="border rounded px-2 py-1 w-full"
+    style={inputStyle}
   >
                 <option value="left">Left</option>
                 <option value="right">Right</option>
@@ -1389,7 +1412,9 @@ onKeyDown={(e) => {
                 <option value="none">None</option>
               </select>
             </label>
+)}
           </div>
+          
 {isAdmin && (
   <div style={{ marginTop: 12 }}>
     <label>
@@ -1441,7 +1466,7 @@ onKeyDown={(e) => {
                 value={quoteRef}
                 onChange={(e) => setQuoteRef(e.target.value)}
                 placeholder="e.g. SMITH"
-                className="border rounded px-2 py-1"
+                style={inputStyle}
                 style={{ minWidth: 160 }}
               />
             </label>
