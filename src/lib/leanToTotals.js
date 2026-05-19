@@ -1,13 +1,16 @@
 
 // src/lib/leanToTotals.js
 import { getMaterials } from "./materials";
-import { computeTilesLathsBOM } from "./Calculations/tilesLathsCalc";
 import { computeFasciaSoffitLeanTo } from "./Calculations/fasciaSoffitCalc";
 import { computeEdgeTrimsLeanTo } from "./Calculations/edgeTrimsCalc";
 import { computeGuttersLeanTo } from "./Calculations/guttersCalc";
 import { computeLiteSlateLeanTo } from "./Calculations/liteslateCalc";
 import { computeMiscLeanTo } from "./Calculations/miscCalc";
 import { calculateLeanToGeometry } from "./geometry/leanToGeometry";
+import { computeTilesLathsBOM } from "./Calculations/tilesLathsCalc";
+
+const BRITMET_WASTE = 1.1;
+const LITESLATE_WASTE = 5;
 
 // -------- helpers --------
 const num = (v, f = 0) => (Number.isFinite(Number(v)) ? Number(v) : f);
@@ -172,7 +175,7 @@ const tilesBom =
           eaves_overhang_mm: 50,
           leftSide: leftSideExposed ? "exposed" : "wall",
           rightSide: rightSideExposed ? "exposed" : "wall",
-          waste_pct: tileSystem === "liteslate" ? 5 : 1.1,
+          waste_pct: tileSystem === "liteslate" ? LITESLATE_WASTE : BRITMET_WASTE,
           gauge_mm: m.tile_britmet_gauge_mm ?? 250,
           cover_width_mm: m.tile_britmet_cover_w_mm ?? 1231,
         },

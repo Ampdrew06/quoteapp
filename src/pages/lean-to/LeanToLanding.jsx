@@ -33,8 +33,17 @@ import {
 //const LEAN_TO_STORAGE_KEY = "leanToInputs";
 
 /* ——— styles ——— */
-const card = { background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 16 };
-const grid2 = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 };
+const card = {
+  background: "#fff",
+  border: "1px solid #e5e7eb",
+  borderRadius: 12,
+  padding: 12,
+};
+const grid2 = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+  gap: 10,
+};
 const h2 = { fontSize: 18, fontWeight: 600, margin: "0 0 8px" };
 const primaryBtn = {
   padding: "10px 14px",
