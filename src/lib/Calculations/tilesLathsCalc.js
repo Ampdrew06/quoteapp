@@ -58,7 +58,7 @@ export function computeTilesLathsBOM(inputs = {}, materials = {}) {
     eaves_overhang_mm = 50,
     leftSide = "exposed",
     rightSide = "wall",
-    waste_pct = 5,
+    waste_pct,
 
     eaves_guard_waste_pct = 0,
     tile_starter_waste_pct = 0,
@@ -144,8 +144,10 @@ const tiles_no_waste = Math.ceil(area_m2_ext * tiles_per_m2);
 
   // Waste % (default using inputs.waste_pct if provided; otherwise 5)
   const waste_pct_tiles = Number.isFinite(Number(waste_pct))
-    ? Number(waste_pct)
-    : 5;
+  ? Number(waste_pct)
+  : isLiteSlate
+    ? 10
+    : 10;
 
   // Final tiles incl. waste, rounded up
   const tiles_total = Math.ceil(
@@ -165,7 +167,14 @@ const tiles_no_waste = Math.ceil(area_m2_ext * tiles_per_m2);
         (1 + (Number(tile_starter_waste_pct) || 0) / 100) *
         2
     ) / 2;
-
+console.log("TILE WASTE DEBUG", {
+  tileSystem,
+  isLiteSlate,
+  inputWastePct: waste_pct,
+  waste_pct_tiles,
+  tiles_no_waste,
+  tiles_total,
+});
   // Side trims run **up the slope** — reuse the same slope value
   const left  = sideEdgeParts({ sideType: leftSide,  slope_mm: slope_mm_effective, covers });
 const right = sideEdgeParts({ sideType: rightSide, slope_mm: slope_mm_effective, covers });

@@ -193,8 +193,12 @@ useEffect(() => {
   try {
     // Clear saved inputs so the page starts at defaults
     localStorage.removeItem("leanToInputs");
-    localStorage.removeItem("summary_exclusions");
-    window.dispatchEvent(new Event("summary_exclusions_updated"));
+
+localStorage.removeItem("summary_exclusions");
+window.dispatchEvent(new Event("summary_exclusions_updated"));
+
+localStorage.removeItem("summary_adjustments");
+window.dispatchEvent(new Event("summary_adjustments_updated"));
 
         // Reset local state (blank/default form)
         setWidth("");
@@ -213,13 +217,27 @@ useEffect(() => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ---- persist helper ----
-  const persist = (patch) => {
+// ---- clear summary adjustments ----
+const clearSummaryAdjustments = () => {
+  localStorage.removeItem("summary_adjustments");
+  window.dispatchEvent(new Event("summary_adjustments_updated"));
+};
 
+  // ---- persist helper ----
+const persist = (patch) => {
   let cur = {};
-  try { cur = JSON.parse(localStorage.getItem("leanToInputs")) || {}; } catch {}
+  try {
+    cur = JSON.parse(localStorage.getItem("leanToInputs")) || {};
+  } catch {}
+
+  const hasChanged = Object.keys(patch || {}).some(
+    (key) => cur[key] !== patch[key]
+  );
+
   const next = { ...cur, ...patch };
   localStorage.setItem("leanToInputs", JSON.stringify(next));
+
+  if (hasChanged) clearSummaryAdjustments();
 };
 
   const [eavesOverhangMM, setEavesOverhang] = useState(150); // soffit depth (front)
@@ -344,7 +362,13 @@ const selectedCustomer =
     return {};
   }
 };
-
+const loadSummaryAdjustments = () => {
+  try {
+    return JSON.parse(localStorage.getItem("summary_adjustments") || "{}");
+  } catch {
+    return {};
+  }
+};
   // ——— Persist to match the rest of the app ———
 const persistInputs = (opts = {}) => {
   const payload = {
@@ -521,10 +545,33 @@ const quoteBase = useMemo(
   () => buildLeanToQuoteBase(totalsInput, summaryExclusions),
   [totalsInput, summaryExclusions]
 );
+
 const totals = useMemo(
   () => buildLeanToTotals(totalsInput, summaryExclusions),
   [totalsInput, summaryExclusions]
 );
+
+const summaryAdjustments = loadSummaryAdjustments();
+
+const adjustmentDelta = Object.entries(summaryAdjustments).reduce(
+  (sum, [key, adj]) => {
+    const line = (totals?.allLines || []).find((r) => r.key === key);
+    if (!line) return sum;
+
+    const qty = Number(line.qty ?? line.quantity ?? line.count ?? 0);
+    const cost = Number(line.line ?? line.total ?? line.cost ?? 0);
+    const adjustment = Number(adj);
+
+    if (!Number.isFinite(qty) || qty <= 0) return sum;
+    if (!Number.isFinite(cost)) return sum;
+    if (!Number.isFinite(adjustment)) return sum;
+
+    return sum + (cost / qty) * adjustment;
+  },
+  0
+);
+
+
 const pricing = useMemo(() => {
   const labourConfig = getLabourPricingConfig();
 
@@ -556,7 +603,7 @@ const deliveryResult = computeDeliveryPricing(
 const markupConfig = getMarkupPricingConfig();
 
 return computePricing(
-  quoteBase.materialsCostForPricing,
+  quoteBase.materialsCostForPricing + adjustmentDelta,
   {
     ...m,
     profit_pct: markupConfig.profitPct,
@@ -569,6 +616,7 @@ return computePricing(
 );
 }, [
   quoteBase.materialsCostForPricing,
+  adjustmentDelta,
   m,
   widthMM,
   projMM,
@@ -941,6 +989,8 @@ setShowQuote(true);
     localStorage.removeItem("leanToInputs");
     localStorage.removeItem("summary_exclusions");
     window.dispatchEvent(new Event("summary_exclusions_updated"));
+    localStorage.removeItem("summary_adjustments");
+    window.dispatchEvent(new Event("summary_adjustments_updated"));
   };
 
   const saveQuote = async () => {
@@ -1093,7 +1143,10 @@ const demoGross = demoNet + demoVat;
                 type="number"
                 value={widthMM}
                 placeholder="e.g. 3500"
-                onChange={(e) => setWidth(e.target.value)}
+                onChange={(e) => {
+  setWidth(e.target.value);
+  persist({ width: e.target.value });
+}}
                 className="border rounded px-2 py-1 w-full"
                 style={missingWidth && quoteError ? requiredInputStyle : undefined}
               />
@@ -1104,7 +1157,9 @@ const demoGross = demoNet + demoVat;
                 type="number"
                 value={projMM}
                 placeholder="e.g. 2500"
-                onChange={(e) => setProj(e.target.value)}
+                onChange={(e) => {setProj(e.target.value);
+  persist({ projectionMM: e.target.value });
+}}
                 className="border rounded px-2 py-1 w-full"
                 style={missingProjection && quoteError ? requiredInputStyle : undefined}
               />
@@ -1115,7 +1170,9 @@ const demoGross = demoNet + demoVat;
     type="text"
     value={deliveryPostcode}
     style={missingPostcode && quoteError ? requiredInputStyle : undefined}
-    onChange={(e) => setDeliveryPostcode(e.target.value.toUpperCase())}
+    onChange={(e) => {setDeliveryPostcode(e.target.value.toUpperCase());
+  persist({ projectionMM: e.target.value });
+}}
     onBlur={lookupDeliveryDistance}
 onKeyDown={(e) => {
   if (e.key === "Enter") {
@@ -1142,7 +1199,9 @@ onKeyDown={(e) => {
                 type="number"
                 step="0.1"
                 value={pitchDeg}
-                onChange={(e) => setPitch(num(e.target.value, 0))}
+                onChange={(e) => {setPitch(num(e.target.value, 0));
+  persist({ projectionMM: e.target.value });
+}}
                 className="border rounded px-2 py-1 w-full"
               />
               {pitchDeg < 15 && (
@@ -1227,7 +1286,9 @@ onKeyDown={(e) => {
             <label>Tile system
               <select
                 value={tileSystem}
-                onChange={(e) => setTileSystem(e.target.value)}
+                onChange={(e) => {setTileSystem(e.target.value);
+  persist({ projectionMM: e.target.value });
+}}
                 className="border rounded px-2 py-1 w-full"
               >
                 <option value="britmet">Britmet</option>
@@ -1238,7 +1299,9 @@ onKeyDown={(e) => {
             <label>Tile colour
               <select
                 value={tileColor}
-                onChange={(e) => setTileColor(e.target.value)}
+                onChange={(e) => {setTileColor(e.target.value);
+  persist({ projectionMM: e.target.value });
+}}
                 className="border rounded px-2 py-1 w-full"
               >
                 {(tileSystem === "liteslate" ? liteslateColours : britmetColours).map((c) => (
@@ -1251,7 +1314,9 @@ onKeyDown={(e) => {
             <label>Fascia / Soffit colour
               <select
                 value={plasticsColor}
-                onChange={(e) => setPlasticsColor(e.target.value)}
+                onChange={(e) => {setPlasticsColor(e.target.value);
+  persist({ projectionMM: e.target.value });
+}}
                 className="border rounded px-2 py-1 w-full"
               >
                 <option value="White">White</option>
@@ -1272,7 +1337,9 @@ onKeyDown={(e) => {
             <label>Gutter profile
               <select
                 value={gutterProfile}
-                onChange={(e) => setGutterProfile(e.target.value)}
+                onChange={(e) => {setGutterProfile(e.target.value);
+  persist({ projectionMM: e.target.value });
+}}
                 className="border rounded px-2 py-1 w-full"
               >
                 <option value="square">Square</option>
@@ -1284,7 +1351,9 @@ onKeyDown={(e) => {
             <label>Gutter colour
               <select
                 value={gutterColor}
-                onChange={(e) => setGutterColor(e.target.value)}
+                onChange={(e) => {setGutterColor(e.target.value);
+  persist({ projectionMM: e.target.value });
+}}
                 className="border rounded px-2 py-1 w-full"
               >
                 <option value="black">Black</option>
@@ -1318,7 +1387,9 @@ onKeyDown={(e) => {
       Customer
       <select
         value={selectedCustomerId}
-        onChange={(e) => setSelectedCustomerId(e.target.value)}
+        onChange={(e) => {setSelectedCustomerId(e.target.value);
+  persist({ projectionMM: e.target.value });
+}}
         style={{ marginLeft: 10, padding: 6 }}
       >
         <option value="retail">Retail (No Discount)</option>

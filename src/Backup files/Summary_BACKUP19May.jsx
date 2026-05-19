@@ -2757,24 +2757,6 @@ const miscLinesAdjusted = applyAdjustmentsToLines(miscLinesWithUsedWeights, adju
   const metalTotals    = sectionTotals(metalLinesAdjusted, false);
   const gutterTotals   = sectionTotals(gutterLinesAdjusted, false);
   
-  const pirOrder = ["pir50_cradle", "slab100"];
-
-const miscLinesForSection = [...(miscLinesWithUsedWeights || [])].sort((a, b) => {
-  const ai = pirOrder.indexOf(a.key);
-  const bi = pirOrder.indexOf(b.key);
-
-  if (ai !== -1 && bi !== -1) return ai - bi;
-  if (ai !== -1) return -1;
-  if (bi !== -1) return 1;
-
-  return 0;
-});
-const miscLinesForSectionAdjusted = applyAdjustmentsToLines(
-  miscLinesForSection,
-  adjustments
-);
-const miscTotals = sectionTotals(miscLinesForSectionAdjusted, false);
-  
 
   
   // Decide what to show in the Units column
@@ -3077,50 +3059,17 @@ if (selectedCustomerId !== "retail") {
   const selected = customers.find((c) => c.id === selectedCustomerId);
   discountPct = Number(selected?.discountPct || 0);
 }
-const allOriginalSectionLines = [
-  ...(timberLines || []),
-  ...(tilesLines || []),
-  ...(plasticsLinesWithUsedWeights || []),
-  ...(metalLines || []),
-  ...(gutterLinesFinal || []),
-  ...(miscLinesForSection || []),
-];
-
-const pricingAdjustmentDelta = Object.entries(adjustments || {}).reduce(
-  (sum, [key, adj]) => {
-    const line = allOriginalSectionLines.find((r) => r.key === key);
-    if (!line) return sum;
-
-    const qty = asQty(line);
-    const adjustment = Number(adj);
-
-    if (!Number.isFinite(qty) || qty <= 0) return sum;
-    if (!Number.isFinite(adjustment)) return sum;
-
-    const lineCost =
-      key && timberLines.some((r) => r.key === key)
-        ? lineChargeableCost(line)
-        : asCost(line);
-
-    return sum + (lineCost / qty) * adjustment;
-  },
-  0
-);
-
-const adjustedMaterialsCostForPricing =
-  (quoteBase?.materialsCostForPricing ?? 0) + pricingAdjustmentDelta;
-
 const pricing = computePricing(
-  adjustedMaterialsCostForPricing,
+  quoteBase?.materialsCostForPricing ?? 0,
   {
     ...m,
     profit_pct: markupConfig.profitPct,
   },
   {
-    labourCost: labour.labourCost,
-    deliveryCost,
-    discountPct,
-  }
+  labourCost: labour.labourCost,
+  deliveryCost,
+  discountPct,
+}
 );
 /*console.log("PRICING_COMPARE", {
   page: "Summary",
@@ -3148,7 +3097,7 @@ const pricing = computePricing(
 });
 */
 
-const pricingMaterialsCost = adjustedMaterialsCostForPricing;
+const pricingMaterialsCost = pricing.materialsCost;
 const delivery = pricing.delivery;
 const profitPct = pricing.profitPct;
 const profit = pricing.profit;
@@ -3163,7 +3112,23 @@ const marginPct = pricing.marginPct;
 const pricingAdjustment = (pricingMaterialsCost ?? 0) - (overallCost ?? 0);
 const showPricingAdjustment = Math.abs(pricingAdjustment) > 0.01;
 
+const pirOrder = ["pir50_cradle", "slab100"];
 
+const miscLinesForSection = [...(miscLinesWithUsedWeights || [])].sort((a, b) => {
+  const ai = pirOrder.indexOf(a.key);
+  const bi = pirOrder.indexOf(b.key);
+
+  if (ai !== -1 && bi !== -1) return ai - bi;
+  if (ai !== -1) return -1;
+  if (bi !== -1) return 1;
+
+  return 0;
+});
+const miscLinesForSectionAdjusted = applyAdjustmentsToLines(
+  miscLinesForSection,
+  adjustments
+);
+const miscTotals = sectionTotals(miscLinesForSectionAdjusted, false);
 if (typeof window !== "undefined") {
   window.__SUMMARY_MISC_FOR_SECTION__ = miscLinesForSection;
   window.__SUMMARY_MISC_RENDER_ORDER__ = miscLinesForSection.map((r) => r.key);
