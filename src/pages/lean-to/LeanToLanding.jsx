@@ -1250,11 +1250,21 @@ const demoGross = demoNet + demoVat;
   <input
     type="number"
     value={eavesOverhangMM}
-    onChange={(e) => {
-      const v = num(e.target.value, 0);
-      setEavesOverhang(v);
-      persist({ soffit_mm: v });
-    }}
+onChange={(e) => {
+  const v = e.target.value;
+
+  // Allow empty input
+  if (v === "") {
+    setEavesOverhang("");
+    return;
+  }
+
+  const numVal = Number(v);
+  if (!Number.isNaN(numVal)) {
+    setEavesOverhang(numVal);
+    persist({ soffit_mm: numVal });
+  }
+}}
     style={inputStyle}
   />
 </label>
@@ -1293,8 +1303,19 @@ const demoGross = demoNet + demoVat;
                 type="number"
                 step="0.1"
                 value={pitchDeg}
-                onChange={(e) => {setPitch(num(e.target.value, 0));
-  persist({ projectionMM: e.target.value });
+onChange={(e) => {
+  const v = e.target.value;
+
+  if (v === "") {
+    setPitch("");
+    return;
+  }
+
+  const numVal = Number(v);
+  if (!Number.isNaN(numVal)) {
+    setPitch(numVal);
+    persist({ pitch: numVal });
+  }
 }}
                 style={inputStyle}
               />
@@ -1451,10 +1472,17 @@ onKeyDown={(e) => {
     </label>
   </div>
 )}
-          <div style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <div
+  style={{
+    marginTop: 14,
+    display: "grid",
+    gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+    gap: 10,
+  }}
+>
             <button
               onClick={onGetQuote}
-              style={primaryBtn}
+              style={{ ...primaryBtn, width: "100%" }}
               title={
   !Number(widthMM) || !Number(projMM)
     ? "Enter width & projection first"
@@ -1464,7 +1492,7 @@ onKeyDown={(e) => {
 }
         
         >
-              Get Quote
+              Quote
             </button>
             {quoteError && (
             <div style={{ color: "#b91c1c", fontSize: 13, marginTop: 6 }}>
@@ -1476,7 +1504,7 @@ onKeyDown={(e) => {
 
             <button
               onClick={saveQuote}
-              style={{ ...primaryBtn, background: "#10b981", borderColor: "#10b981" }}
+              style={{ ...primaryBtn, width: "100%", background: "#10b981", borderColor: "#10b981" }}
               disabled={!canQuote || (!isAdmin && !quoteRef.trim())}
 title={
   !canQuote
@@ -1491,7 +1519,7 @@ title={
 
             <button
               onClick={resetAll}
-              style={{ ...primaryBtn, background: "#64748b", borderColor: "#64748b" }}
+              style={{ ...primaryBtn, width: "100%", background: "#64748b", borderColor: "#64748b" }}
               title="Clear all fields and current stored quote"
             >
               Reset
