@@ -1393,6 +1393,20 @@ onKeyDown={(e) => {
     </div>
   )}
 </label>
+{/* Save with reference */}
+            <label>
+  Customer Reference
+  <input
+    type="text"
+    value={quoteRef}
+    onChange={(e) => setQuoteRef(e.target.value)}
+    placeholder="e.g. SMITH"
+    style={{
+      ...inputStyle,
+      minWidth: 160,
+    }}
+  />
+</label>
     {/* TEMP HIDDEN – Gutter outlet not needed for now */}
 {false && (
          <label>Gutter outlet position
@@ -1458,18 +1472,7 @@ onKeyDown={(e) => {
   </div>
 )}
 
-            {/* Save with reference */}
-            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ fontSize: 13, color: "#374151" }}>Customer Reference</span>
-              <input
-                type="text"
-                value={quoteRef}
-                onChange={(e) => setQuoteRef(e.target.value)}
-                placeholder="e.g. SMITH"
-                style={inputStyle}
-                style={{ minWidth: 160 }}
-              />
-            </label>
+            
 
             <button
               onClick={saveQuote}
