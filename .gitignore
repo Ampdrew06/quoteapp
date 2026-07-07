@@ -8,6 +8,10 @@
 # testing
 /coverage
 
+/Images & Reference/
+
+/Example Jobs/
+
 # production
 /build
 
@@ -23,3 +27,9 @@ yarn-debug.log*
 yarn-error.log*
 
 .vercel
+*.xlsm
+/Images
+Images/23 deg Edwardian Hip.jpg
+Images/90ddeg Ring-Beam plan.jpg
+Images/Boss Terminal.jpg
+/Images
