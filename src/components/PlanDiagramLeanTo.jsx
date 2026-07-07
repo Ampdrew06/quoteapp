@@ -72,7 +72,8 @@ export default function PlanDiagramLeanTo({
         <line
           x1={x1} y1={y} x2={x2} y2={y}
           stroke="#374151" strokeWidth="1.5"
-          markerStart={`url(#${arrId})`} markerEnd={`url(#${arrId})`}
+          markerStart={`url(#${arrId}-start)`}
+          markerEnd={`url(#${arrId}-end)`}
         />
         <text x={mid} y={y - 6} textAnchor="middle"
           style={{ font: labelFont }} fill="#111827">{text}</text>
@@ -87,7 +88,8 @@ export default function PlanDiagramLeanTo({
         <line
           x1={x} y1={y1} x2={x} y2={y2}
           stroke="#374151" strokeWidth="1.5"
-          markerStart={`url(#${arrYId})`} markerEnd={`url(#${arrYId})`}
+          markerStart={`url(#${arrYId}-start)`}
+          markerEnd={`url(#${arrYId}-end)`}
         />
         <text
           x={x - 6} y={mid} textAnchor="end"
@@ -106,13 +108,52 @@ export default function PlanDiagramLeanTo({
   return (
     <svg width="100%" height="360" viewBox={`0 0 ${VB_W} ${VB_H}`}>
       <defs>
-        <marker id={arrId} markerWidth="10" markerHeight="10" refX="5" refY="3" orient="auto">
-          <path d="M0,0 L6,3 L0,6" fill="none" stroke="#374151" strokeWidth="1.5" />
-        </marker>
-        <marker id={arrYId} markerWidth="10" markerHeight="10" refX="5" refY="3" orient="auto">
-          <path d="M0,0 L6,3 L0,6" fill="none" stroke="#374151" strokeWidth="1.5" />
-        </marker>
-      </defs>
+  {/* Horizontal arrows */}
+  <marker
+    id={`${arrId}-start`}
+    markerWidth="10"
+    markerHeight="10"
+    refX="1"
+    refY="3"
+    orient="auto"
+  >
+    <path d="M6,0 L0,3 L6,6" fill="none" stroke="#374151" strokeWidth="1.5" />
+  </marker>
+
+  <marker
+    id={`${arrId}-end`}
+    markerWidth="10"
+    markerHeight="10"
+    refX="5"
+    refY="3"
+    orient="auto"
+  >
+    <path d="M0,0 L6,3 L0,6" fill="none" stroke="#374151" strokeWidth="1.5" />
+  </marker>
+
+  {/* Vertical arrows */}
+  <marker
+    id={`${arrYId}-start`}
+    markerWidth="10"
+    markerHeight="10"
+    refX="1"
+    refY="3"
+    orient="auto"
+  >
+    <path d="M6,0 L0,3 L6,6" fill="none" stroke="#374151" strokeWidth="1.5" />
+  </marker>
+
+  <marker
+    id={`${arrYId}-end`}
+    markerWidth="10"
+    markerHeight="10"
+    refX="5"
+    refY="3"
+    orient="auto"
+  >
+    <path d="M0,0 L6,3 L0,6" fill="none" stroke="#374151" strokeWidth="1.5" />
+  </marker>
+</defs>
 
       {/* --- external rectangle (wall = top, eaves = bottom) --- */}
       <rect x={ox} y={oy} width={ow} height={oh} fill="#f8fafc" stroke="#111827" strokeWidth="2" />

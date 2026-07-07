@@ -83,8 +83,38 @@ export function computeLeanToManufactureGeometry(inputs = {}) {
   const cosT = Math.cos(theta || 0);
   const tanT = Math.tan(theta || 0);
 
+  // --- Simple trig geometry checks ---
+const wallplateThicknessMM = num(inputs.wallplateThicknessMM, 63);
+const ringBeamHeightMM = num(inputs.ringBeamHeightMM, 40);
+const rafterDepthMM = num(inputs.rafterDepthMM, 220);
+const roofBuildUpMM = num(inputs.roofBuildUpMM, 260); // rafter + laths + tiles approx.
+
+const pureRiseMM = internalProjectionMM * tanT;
+
+const internalWallPlateHeightMM =
+  pureRiseMM + ringBeamHeightMM;
+
+const simpleInternalCutRunMM =
+  Math.max(0, internalProjectionMM - wallplateThicknessMM);
+
+const simpleInternalCutLengthMM =
+  cosT > 0 ? simpleInternalCutRunMM / cosT : 0;
+
+const simpleExternalExtensionLengthMM =
+  cosT > 0 ? (frameThicknessMM + effectiveSoffitMM) / cosT : 0;
+
+const simpleTotalCutLengthMM =
+  simpleInternalCutLengthMM + simpleExternalExtensionLengthMM;
+
+const externalFinishedHeightMM =
+  internalWallPlateHeightMM +
+  (roofBuildUpMM / cosT);
   // 1) Internal structural rafter length
-  const internalRafterLengthMM = cosT > 0 ? internalProjectionMM / cosT : 0;
+  const fullProjectionRafterLengthMM =
+  cosT > 0 ? internalProjectionMM / cosT : 0;
+
+const internalRafterLengthMM =
+  simpleInternalCutLengthMM;
 
   // 2) External horizontal extension from inside face of frame to fascia face
   const horizontalExtensionMM = frameThicknessMM + effectiveSoffitMM;
@@ -129,6 +159,7 @@ export function computeLeanToManufactureGeometry(inputs = {}) {
     horizontalExtensionMM: Number(horizontalExtensionMM.toFixed(2)),
     externalRafterExtensionMM: Number(externalRafterExtensionMM.toFixed(2)),
     totalRafterLengthMM: Number(totalRafterLengthMM.toFixed(2)),
+    fullProjectionRafterLengthMM: Number(fullProjectionRafterLengthMM.toFixed(2)),
 
     verticalDropMM: Number(verticalDropMM.toFixed(2)),
     plumbCutHeightMM: Number(plumbCutHeightMM.toFixed(2)),
@@ -140,5 +171,18 @@ export function computeLeanToManufactureGeometry(inputs = {}) {
 
     plumbCutBaseConstantMM: Number(plumbCutBaseConstantMM.toFixed(2)),
     fasciaOffsetMM: Number(fasciaOffsetMM.toFixed(2)),
+
+    wallplateThicknessMM: Number(wallplateThicknessMM.toFixed(2)),
+ringBeamHeightMM: Number(ringBeamHeightMM.toFixed(2)),
+rafterDepthMM: Number(rafterDepthMM.toFixed(2)),
+roofBuildUpMM: Number(roofBuildUpMM.toFixed(2)),
+
+pureRiseMM: Number(pureRiseMM.toFixed(2)),
+internalWallPlateHeightMM: Number(internalWallPlateHeightMM.toFixed(2)),
+simpleInternalCutRunMM: Number(simpleInternalCutRunMM.toFixed(2)),
+simpleInternalCutLengthMM: Number(simpleInternalCutLengthMM.toFixed(2)),
+simpleExternalExtensionLengthMM: Number(simpleExternalExtensionLengthMM.toFixed(2)),
+simpleTotalCutLengthMM: Number(simpleTotalCutLengthMM.toFixed(2)),
+externalFinishedHeightMM: Number(externalFinishedHeightMM.toFixed(2)),
   };
 }

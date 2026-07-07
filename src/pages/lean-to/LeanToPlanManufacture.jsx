@@ -193,12 +193,12 @@ useEffect(() => {
         notes: job.order_notes || "",
       });
 
-      if (job.inputs_json) {
-        localStorage.setItem(
-          "leanToInputs",
-          JSON.stringify(job.inputs_json)
-        );
-      }
+     // if (job.inputs_json) {
+     //   localStorage.setItem(
+       //   "leanToInputs",
+      //    JSON.stringify(job.inputs_json)
+     //   );
+     // }
     }
   }
 
@@ -237,9 +237,10 @@ const jobInputs = activeJob?.inputs_json || {};
   const q = loadInputs();
 
   // Core quote inputs
-  const iw = num(q.internalWidthMM, 3500);
-  const ip = num(q.internalProjectionMM, 2500);
+  const iw = num(q.internalWidthMM ?? q.widthMM ?? q.width, 0);
+  const ip = num(q.internalProjectionMM ?? q.projectionMM ?? q.projMM, 0);
   const pitchDeg = num(q.pitchDeg, 15);
+  const hasRoofDimensions = iw > 0 && ip > 0;
 
   const sft = num(q.side_frame_thickness_mm ?? m.side_frame_thickness_mm ?? 70);
   const lip = num(q.fascia_lip_mm ?? m.fascia_lip_mm ?? 25);
@@ -308,27 +309,36 @@ const rightWall =
   const wallplateLengthMM = round(extWidthMM);
   const ringBeamLengthMM = round(extWidthMM);
 
-     const internalSlopeMM = manufactureGeom.internalRafterLengthMM;
-  const externalSlopeMM = manufactureGeom.totalRafterLengthMM;
-  const rawBlankLengthMM = manufactureGeom.totalRafterLengthMM;
-  const plumbCutMM = manufactureGeom.plumbCutHeightMM;
+     const internalSlopeMM = Math.floor(
+  manufactureGeom.simpleInternalCutLengthMM
+);
+
+const externalSlopeMM = Math.floor(
+  manufactureGeom.totalRafterLengthMM
+);
+
+const rawBlankLengthMM = Math.floor(
+  manufactureGeom.totalRafterLengthMM
+);
+
+const plumbCutMM = Math.round(
+  manufactureGeom.plumbCutHeightMM
+);
 
   const topAngleDeg = round(pitchDeg, 1);
   const bottomAngleDeg = round(pitchDeg, 1);
 
   const rafterDepthMM = 220;
-  const wallplateFaceCutMM = round(
-    rafterDepthMM / Math.cos((topAngleDeg * Math.PI) / 180),
-    1
-  );
+  const wallplateFaceCutMM = Math.round(
+  rafterDepthMM / Math.cos((topAngleDeg * Math.PI) / 180)
+);
 const stockExtraEachEndMM = round(
   rafterDepthMM * Math.tan((topAngleDeg * Math.PI) / 180),
   1
 );
 
-const overallBlankLengthMM = round(
-  externalSlopeMM + stockExtraEachEndMM * 2,
-  1
+const overallBlankLengthMM = Math.floor(
+  externalSlopeMM + stockExtraEachEndMM * 2
 );
   const seatCutLengthMM = round(
     manufactureGeom.horizontalExtensionMM ?? (soffit + sft)
@@ -348,30 +358,107 @@ const overallBlankLengthMM = round(
   const pirSheetCount = Math.max(1, Math.ceil(roofAreaM2 / pirAreaPerSheetM2));
 
   const gutterLengthMM = ringBeamLengthMM;
+const customer =
+  q.customerName ||
+  q.customer ||
+  q.customer_name ||
+  q.selectedCustomerName ||
+  activeJob?.customer_name ||
+  "";
 
-  const customer = q.customerName || q.customer || q.customer_name || "";
-  const customerRef = q.customerRef || q.customer_ref || q.reference || "";
-  const jobNo = q.quoteNumber || q.jobNumber || q.job_no || "";
-  const deliveryDate = q.deliveryDate || q.delivery_date || "";
-  const deliveryType = q.delivery_install || q.deliveryInstall || "Deliver";
-  const roofStyle = "Lean-To";
-  const frameColour = q.frame_colour || q.frameColor || "";
-  const tileType = q.tileType || q.tile_type || "";
-  const tileColour = q.tileColour || q.tile_colour || "";
-  const fasciaColour = q.fasciaColour || q.fascia_colour || "";
-  const soffitColour = q.soffitColour || q.soffit_colour || "";
-  const gutterProfile = q.gutter_profile || "";
-  const gutterColour = q.gutter_color || q.gutter_colour || "";
-  const downpipeColour = q.downpipe_colour || q.downpipeColor || gutterColour || "";
-  //const roofVentDetails = q.vent_spec || q.ventSpec || q.roof_vent_details || "N/A";
-  const boxGutterDetails = q.box_gutter_details || "N/A";
-  const deliveryAddress = q.deliveryAddress || q.site_address || q.address || "";
-  //const distanceMiles = q.distance_miles || q.distance || "";
-  //const invoiceDate = q.invoice_date || "";
-  //const invoiceNo = q.invoice_no || "";
-  const notes = q.notes || q.specialInstructions || q.special_instructions || "";
-  //const roofWeightKg = q.total_weight_kg || q.weight_kg || q.roofWeightKg || "";
-  const gutterOutlet = q.gutter_outlet || q.gutterOutlet || q.outlet || "left";
+const customerRef =
+  q.quoteRef ||
+  q.customerReference ||
+  q.customer_reference ||
+  q.manual_reference ||
+  q.customerRef ||
+  q.customer_ref ||
+  q.reference ||
+  activeJob?.manual_reference ||
+  "";
+
+const jobNo =
+  q.quoteNumber ||
+  q.quote_number ||
+  q.jobNumber ||
+  q.job_number ||
+  q.job_no ||
+  "";
+
+const roofStyle = "Lean-To";
+
+const frameColour =
+  q.frameColour ||
+  q.frame_colour ||
+  "";
+
+const tileType =
+  q.tileSystem ||
+  q.tile_system ||
+  q.tileType ||
+  q.tile_type ||
+  "";
+
+const tileColour =
+  q.tile_color ||
+  q.tileColor ||
+  q.tileColour ||
+  q.tile_colour ||
+  "";
+
+const fasciaColour =
+  q.plastics_color ||
+  q.plasticsColor ||
+  q.plasticsColour ||
+  q.plastics_colour ||
+  q.fasciaColor ||
+  q.fasciaColour ||
+  q.fascia_colour ||
+  "";
+
+const soffitColour =
+  q.plasticsColor ||
+  q.plastics_colour ||
+  q.soffitColour ||
+  q.soffit_colour ||
+  "";
+
+const soffitDisplay =
+  Number(soffit || 0) > 0 ? `${soffit} mm` : "No Soffit";
+
+const gutterProfile =
+  q.gutterProfile ||
+  q.gutter_profile ||
+  "";
+
+const gutterColour =
+  q.gutterColor ||
+  q.gutter_color ||
+  q.gutter_colour ||
+  "";
+
+const capFirst = (v) =>
+  v ? String(v).charAt(0).toUpperCase() + String(v).slice(1) : "";
+
+const gutterDisplay =
+  [gutterColour, gutterProfile]
+    .filter(Boolean)
+    .map(capFirst)
+    .join(" ");
+
+const downpipeDisplay =
+  gutterColour ? `${capFirst(gutterColour)} Round` : "Round";
+
+const downpipeColour =
+  q.downpipe_colour ||
+  q.downpipeColor ||
+  gutterColour ||
+  "";
+
+const boxGutterDetails = q.box_gutter_details || "N/A";
+const deliveryAddress = q.deliveryAddress || q.site_address || q.address || "";
+const notes = q.notes || q.specialInstructions || q.special_instructions || "";
+const gutterOutlet = q.gutter_outlet || q.gutterOutlet || q.outlet || "left";
 
   //const roofSizeDisplay = `${round(iw)} × ${round(ip)} mm int / ${round(extWidthMM)} × ${round(extProjectionMM)} mm ext`;
 
@@ -452,9 +539,9 @@ const overallBlankLengthMM = round(
           {/* Row 2 headers */}
           <tr>
             <td style={th}>Delivery / Install</td>
-            <td style={th}>Style</td>
-            <td style={th}>Type</td>
-            <td style={th}>Frame Thickness</td>
+<td style={th}>Style</td>
+<td style={th}>Roof Pitch</td>
+<td style={th}>Frame Thickness</td>
           </tr>
           {/* Row 2 values */}
           <tr>
@@ -474,33 +561,29 @@ const overallBlankLengthMM = round(
     <option value="Collection">Collection</option>
   </select>
 </td>
-            <td style={td}>{roofStyle || "—"}</td>
-            <td style={td}>{frameColour || "—"}</td>
-            <td style={td}>{sft ? `${sft} mm` : "—"}</td>
+<td style={td}>{roofStyle || "—"}</td>
+<td style={td}>{pitchDeg ? `${pitchDeg}°` : "—"}</td>
+<td style={td}>{sft ? `${sft} mm` : "—"}</td>
           </tr>
 
           {/* Row 3 headers */}
           <tr>
-            <td style={th}>Roof Pitch</td>
             <td style={th}>Tile Type</td>
-            <td style={th}>Tile Colour</td>
-            <td style={th}>Fascias / Soffits</td>
+<td style={th}>Tile Colour</td>
+<td style={th}>Fascia</td>
+<td style={th}>Soffit</td>
           </tr>
           {/* Row 3 values */}
           <tr>
-            <td style={td}>{pitchDeg ? `${pitchDeg}°` : "—"}</td>
             <td style={td}>
-  {(
-    jobInputs.tileSystem ||
-    tileType ||
-    "—"
-  )
-    .toString()
-    .replace(/^./, (c) => c.toUpperCase())}
+  {(tileType || "—").toString().replace(/^./, (c) => c.toUpperCase())}
 </td>
-            <td style={td}>{jobInputs.tileColor || tileColour || "—"}</td>
-            <td style={td}>
-            {jobInputs.plasticsColor || [fasciaColour, soffitColour].filter(Boolean).join(" / ") || "—"}</td>
+
+<td style={td}>{tileColour || "—"}</td>
+
+<td style={td}>{fasciaColour || "—"}</td>
+
+<td style={td}>{soffitDisplay}</td>
           </tr>
 
           {/* Row 4 headers */}
@@ -512,18 +595,8 @@ const overallBlankLengthMM = round(
           </tr>
           {/* Row 4 values */}
           <tr>
-            <td style={td}>
-  {[jobInputs.gutterColor, jobInputs.gutterProfile]
-    .filter(Boolean)
-    .map((v) => String(v).charAt(0).toUpperCase() + String(v).slice(1))
-    .join(" ") || gutterProfile || "—"}
-</td>
-
-<td style={td}>
-  {jobInputs.gutterColor
-    ? `${String(jobInputs.gutterColor).charAt(0).toUpperCase()}${String(jobInputs.gutterColor).slice(1)} Round`
-    : downpipeColour || "—"}
-</td>
+            <td style={td}>{gutterDisplay || "—"}</td>
+            <td style={td}>{downpipeDisplay || "—"}</td>
             <td style={td}>{boxGutterDetails || "—"}</td>
             <td style={td}>{q.glazed_options || q.glazedOptions || "—"}</td>
           </tr>
@@ -737,22 +810,28 @@ const overallBlankLengthMM = round(
   }}
 >
 
-                <PlanDiagramLeanToManufacture
-  iw={iw}
-  ip={ip}
-  sft={sft}
-  lip={lip}
-  soffit={soffit}
-  frameOn={frameOn}
-  leftOH={L}
-  rightOH={R}
-  leftWall={leftWall}
-  rightWall={rightWall}
-  rafterSpacing={spacing}
-  firstCentre={first}
-  pitchDeg={pitchDeg}
-  outlet={gutterOutlet}
-/>
+                {hasRoofDimensions ? (
+  <PlanDiagramLeanToManufacture
+    iw={iw}
+    ip={ip}
+    sft={sft}
+    lip={lip}
+    soffit={soffit}
+    frameOn={frameOn}
+    leftOH={L}
+    rightOH={R}
+    leftWall={leftWall}
+    rightWall={rightWall}
+    rafterSpacing={spacing}
+    firstCentre={first}
+    pitchDeg={pitchDeg}
+    outlet={gutterOutlet}
+  />
+) : (
+  <div style={{ color: "#6b7280", fontSize: 16, fontWeight: 600 }}>
+    No roof dimensions loaded
+  </div>
+)}
               </div>
 
               <div
@@ -784,7 +863,7 @@ const overallBlankLengthMM = round(
                 padding: 8,
                 display: "flex",
                 flexDirection: "column",
-                overflow: "hidden",
+                overflow: "auto",
               }}
             >
               <div
@@ -800,17 +879,49 @@ const overallBlankLengthMM = round(
                 Rafter Detail
               </div>
 
-              <RafterDetailDiagram
-  externalSlopeMM={externalSlopeMM}
-  internalSlopeMM={internalSlopeMM}
-  plumbCutMM={plumbCutMM}
-  seatCutLengthMM={seatCutLengthMM}
-  wallplateFaceCutMM={wallplateFaceCutMM}
-  overallBlankLengthMM={overallBlankLengthMM}
-  topAngleDeg={topAngleDeg}
-  bottomAngleDeg={bottomAngleDeg}
-/>
+              {hasRoofDimensions ? (
+  <RafterDetailDiagram
+    externalSlopeMM={externalSlopeMM}
+    internalSlopeMM={internalSlopeMM}
+    plumbCutMM={plumbCutMM}
+    seatCutLengthMM={seatCutLengthMM}
+    wallplateFaceCutMM={wallplateFaceCutMM}
+    overallBlankLengthMM={overallBlankLengthMM}
+    topAngleDeg={topAngleDeg}
+    bottomAngleDeg={bottomAngleDeg}
+  />
+) : (
+  <div style={{ color: "#6b7280", fontSize: 14 }}>
+    Rafter detail will appear once roof dimensions are loaded.
+  </div>
+)}
+<div
+  style={{
+    marginTop: 12,
+    padding: 12,
+    border: "1px solid #ddd",
+    borderRadius: 8,
+    background: "#fafafa",
+    fontSize: 13,
+  }}
+>
+  <h3 style={{ margin: "0 0 8px 0" }}>Simple Trig Check</h3>
 
+  <div><b>Pure Rise</b>: {Math.round(manufactureGeom.pureRiseMM)} mm</div>
+  <div><b>Internal Wall-Plate Height</b>: {Math.round(manufactureGeom.internalWallPlateHeightMM)} mm</div>
+  <div><b>Simple Internal Cut Run</b>: {Math.round(manufactureGeom.simpleInternalCutRunMM)} mm</div>
+  <div><b>Simple Internal Cut Length</b>: {Math.round(manufactureGeom.simpleInternalCutLengthMM)} mm</div>
+  <div><b>Simple External Extension</b>: {Math.round(manufactureGeom.simpleExternalExtensionLengthMM)} mm</div>
+  <div><b>Simple Total Cut Length</b>: {Math.round(manufactureGeom.simpleTotalCutLengthMM)} mm</div>
+  <div>
+  <b>Simple Overall Blank Length</b>:{" "}
+  {Math.round(
+    manufactureGeom.simpleInternalCutLengthMM +
+      (220 * Math.tan((pitchDeg * Math.PI) / 180) * 2)
+  )} mm
+</div>
+  <div><b>External Finished Height</b>: {Math.round(manufactureGeom.externalFinishedHeightMM)} mm</div>
+</div>
               
             </div>
           </div>

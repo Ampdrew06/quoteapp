@@ -25,6 +25,8 @@ import { applyWeightsToLines } from "../lib/utils/weights";
 import { computeTotalWeightKg } from "../lib/weightUtils";
 import { buildLeanToTotals, buildLeanToQuoteBase } from "../lib/leanToTotals";
 import { calculateLeanToGeometry } from "../lib/geometry/leanToGeometry";
+import { buildHippedLeanToTotals } from "../lib/hippedLeanToTotals";
+import { calculateHippedLeanToGeometry } from "../lib/geometry/hippedLeanToGeometry";
 
 // adjust relative path if needed
 
@@ -231,6 +233,24 @@ const saveExclusions = (obj) => {
     // ignore
   }
 };
+
+const loadExclusionValues = () => {
+  try {
+    return JSON.parse(localStorage.getItem("summary_exclusion_values") || "{}");
+  } catch {
+    return {};
+  }
+};
+
+const saveExclusionValues = (obj) => {
+  try {
+    localStorage.setItem("summary_exclusion_values", JSON.stringify(obj || {}));
+    window.dispatchEvent(new Event("summary_exclusions_updated"));
+  } catch {
+    // ignore
+  }
+};
+
 const loadAdjustments = () => {
   try {
     return JSON.parse(localStorage.getItem("summary_adjustments") || "{}");
@@ -247,6 +267,24 @@ const saveAdjustments = (obj) => {
     // ignore
   }
 };
+
+const loadAdjustmentValues = () => {
+  try {
+    return JSON.parse(localStorage.getItem("summary_adjustment_values") || "{}");
+  } catch {
+    return {};
+  }
+};
+
+const saveAdjustmentValues = (obj) => {
+  try {
+    localStorage.setItem("summary_adjustment_values", JSON.stringify(obj || {}));
+    window.dispatchEvent(new Event("summary_adjustments_updated"));
+  } catch {
+    // ignore
+  }
+};
+
 // lean-to inputs (same key used by LeanToLanding / Quotes)
 const loadInputs = () => {
   try {
@@ -282,7 +320,10 @@ useEffect(() => {
   getLabourPricingConfig()
 );
 
-const [labourDaysOverride, setLabourDaysOverride] = useState("");
+const [labourDaysOverride, setLabourDaysOverride] = useState(() => {
+  const saved = loadInputs();
+  return saved?.labourDaysOverride ?? "";
+});
 
 const updateLabourConfig = (patch) => {
   const next = { ...labourConfig, ...patch };
@@ -717,16 +758,23 @@ useEffect(() => {
   };
 }, []);
 
-  const toggle = (key) => {
-    const k = String(key || "");
-    const next = { ...(ex || {}) };
+  const toggle = (key, rowValue = 0) => {
+  const k = String(key || "");
+  const next = { ...(ex || {}) };
+  const nextValues = loadExclusionValues();
 
-    if (next[k]) delete next[k];
-    else next[k] = true;
+  if (next[k]) {
+    delete next[k];
+    delete nextValues[k];
+  } else {
+    next[k] = true;
+    nextValues[k] = -Math.abs(Number(rowValue) || 0);
+  }
 
-    setEx(next);
-    saveExclusions(next);
-  };
+  setEx(next);
+  saveExclusions(next);
+  saveExclusionValues(nextValues);
+};
 
 
   const isExcluded = (key) => !!(ex && ex[String(key || "")]);
@@ -826,6 +874,21 @@ const thetaRad = (pitchDeg * Math.PI) / 180 || 0;
 
 // 🔥 CRITICAL: use shared geometry for rafter length
 const timberRafterLenMM = Number(sharedGeom.rafterExternalLength ?? 0);
+const isHippedLeanToEarly =
+  (inputs.roofStyle ?? inputs.roof_style ?? "leanTo") === "hippedLeanTo";
+
+const hippedGeomEarly = isHippedLeanToEarly
+  ? calculateHippedLeanToGeometry({
+      widthMM: iw,
+      projectionMM: ip,
+      pitchDeg,
+      soffitDepthMM: Number(inputs.eavesOverhangMM ?? inputs.soffit_mm ?? 150),
+      materials: m,
+      hippedSides: inputs.hippedSides ?? "both",
+      leftHipWidthMM: Number(inputs.leftHipWidthMM ?? inputs.left_hip_width_mm ?? 0),
+      rightHipWidthMM: Number(inputs.rightHipWidthMM ?? inputs.right_hip_width_mm ?? 0),
+    })
+  : null;
   const timberSpacing   = Number(m.rafter_spacing_mm ?? 665);
   const timberFirstCtr  = Number(m.rafter_first_center_mm ?? 690);
 
@@ -886,7 +949,15 @@ const wallplate_m = (iw + 2 * (sftForSteico + lipForSteico)) / 1000;
 const raftersTotal_m = (raftersCount * timberRafterLenMM) / 1000;
 
 // Total Steico length = rafters + wallplate
-const steicoTotal_m = raftersTotal_m + wallplate_m;
+let steicoTotal_m = raftersTotal_m + wallplate_m;
+
+if (isHippedLeanToEarly && hippedGeomEarly) {
+
+
+  steicoTotal_m +=
+    (Number(hippedGeomEarly.leftHipManufacturingLengthMM || 0) +
+      Number(hippedGeomEarly.rightHipManufacturingLengthMM || 0)) / 1000;
+}
 
 // Pull price & weight per metre from materials
 const steicoPricePerM = Number(m.steico?.price_per_m ?? 0);
@@ -1037,7 +1108,7 @@ const lathWeightPerM = Number(m.chamferLath?.weight_kg_per_m ?? 0);
   const timberManualLines = [
     {
       key: "steico_220_total_m",
-      label: "Steico 220 I-Joists (rafters + wallplate)",
+      label: "Steico 220 I-Joists",
       qty: Number(steicoTotal_m.toFixed(2)), // total metres
       units: "m",
       order_qty: steicoOrderQty, // number of 12m bars
@@ -1224,9 +1295,15 @@ const metalManualLines = [
 // Map whatever is in localStorage(leanToInputs) into the canonical shape
 // that buildLeanToTotals() expects (same as LeanToLanding).
 const totalsInput = {
+  roofStyle: inputs.roofStyle ?? inputs.roof_style ?? "leanTo",
+hippedSides: inputs.hippedSides ?? "both",
+leftHipWidthMM: Number(inputs.leftHipWidthMM ?? inputs.left_hip_width_mm ?? 0),
+rightHipWidthMM: Number(inputs.rightHipWidthMM ?? inputs.right_hip_width_mm ?? 0),
+
   widthMM: Number(inputs.internalWidthMM ?? inputs.widthMM ?? inputs.widthMM ?? 0),
   projMM: Number(inputs.internalProjectionMM ?? inputs.projMM ?? inputs.projectionMM ?? 0),
   pitchDeg: Number(inputs.pitchDeg ?? inputs.pitch_deg ?? 15),
+
 
   // Prefer explicit wall flags if present, otherwise invert exposed flags
   leftWall:  typeof inputs.leftWall === "boolean"
@@ -1254,9 +1331,24 @@ const totalsInput = {
   gutterColor:    inputs.gutterColor    ?? inputs.gutter_color    ?? "black",
 };
 
-const totals = buildLeanToTotals(totalsInput, exclusions);
+const isHippedLeanTo = totalsInput.roofStyle === "hippedLeanTo";
 
+const hippedGeom = isHippedLeanTo
+  ? calculateHippedLeanToGeometry({
+      widthMM: totalsInput.widthMM,
+      projectionMM: totalsInput.projMM,
+      pitchDeg: totalsInput.pitchDeg,
+      soffitDepthMM: totalsInput.eavesOverhangMM,
+      materials: m,
+      hippedSides: totalsInput.hippedSides,
+      leftHipWidthMM: totalsInput.leftHipWidthMM,
+      rightHipWidthMM: totalsInput.rightHipWidthMM,
+    })
+  : null;
 
+const totals = isHippedLeanTo
+  ? buildHippedLeanToTotals(totalsInput, exclusions)
+  : buildLeanToTotals(totalsInput, exclusions);
 
 // This is the canonical calculator output list (tiles+plastics+edge+gutters+misc)
 // This is the canonical calculator output list (tiles+plastics+edge+gutters+misc)
@@ -1800,9 +1892,15 @@ const lineChargeableCost = (r) => {
 
 // Combine manual timber geometry lines + any existing timber items from calculators
 const timberFilteredLines = baseLinesPriced.filter((r) => isTimber(r._k));
-const timberLines = [...timberManualLines, ...timberFilteredLines].map(
-  patchUnitPricesFromMaterials
-);
+
+const hipTimberLines = [];
+
+const timberLines = [
+  ...timberManualLines,
+  ...hipTimberLines,
+  ...timberFilteredLines,
+].map(patchUnitPricesFromMaterials);
+
 if (typeof window !== "undefined") {
   window.__SUMMARY_TIMBER_LINES__ = timberLines;
 }
@@ -1971,6 +2069,29 @@ if (typeof window !== "undefined") {
     }))
   );
 }
+    if (isHippedLeanTo) {
+    out.push(
+      {
+        key: "boss_rafter_terminal",
+        label: "Boss / Rafter Terminal",
+        qty: 2,
+        order_qty: 2,
+        units: "Ea",
+        weight_kg: 1,
+        line: 0,
+      },
+      {
+        key: "spar_hook",
+        label: "Spar Hook",
+        qty: 4,
+        order_qty: 4,
+        units: "Ea",
+        weight_kg: 1,
+        line: 0,
+      }
+    );
+  }
+
   return out;
 })();
 
@@ -2856,7 +2977,22 @@ const w = lineWeightKg(r);
 const excluded = isExcluded(r.key);
 const baseCost = asCost(r);
 const chargeable = lineChargeableCost(r);
+const rowCostForManualChanges =
+  Number.isFinite(chargeable) && chargeable !== 0
+    ? chargeable
+    : baseCost;
 
+    if (String(r.key || "").includes("steico")) {
+  console.log("STEICO ROW DEBUG", {
+    key: r.key,
+    label: r.label || r.name || r.item,
+    qty,
+    baseCost,
+    chargeable,
+    rowCostForManualChanges,
+    rawRow: r,
+  });
+}
     return (
       <tr
   key={(r.key || r.label || r.name || "row") + "-" + idx}
@@ -2875,7 +3011,7 @@ const chargeable = lineChargeableCost(r);
     <input
       type="checkbox"
       checked={isExcluded(r.key)}
-      onChange={() => toggle(r.key)}
+      onChange={() => toggle(r.key, rowCostForManualChanges)}
       title="Exclude cost (weight still included)"
     />
 
@@ -2896,14 +3032,29 @@ const chargeable = lineChargeableCost(r);
     const raw = e.target.value;
     const next = { ...adjustments };
 
-    if (raw === "" || Number(raw) === 0 || !Number.isFinite(Number(raw))) {
-      delete next[r.key];
-    } else {
-      next[r.key] = raw;
-    }
+    const nextValues = loadAdjustmentValues();
 
-    setAdjustments(next);
-    saveAdjustments(next);
+if (raw === "" || Number(raw) === 0 || !Number.isFinite(Number(raw))) {
+  delete next[r.key];
+  delete nextValues[r.key];
+} else {
+  const adjustmentQty = Number(raw);
+  const qty = asQty(r);
+
+  const lineCostForAdjustment = rowCostForManualChanges;
+
+  const unitCost =
+    Number.isFinite(qty) && qty > 0
+      ? lineCostForAdjustment / qty
+      : 0;
+
+  next[r.key] = raw;
+  nextValues[r.key] = unitCost * adjustmentQty;
+}
+
+setAdjustments(next);
+saveAdjustments(next);
+saveAdjustmentValues(nextValues);
   }}
   onKeyDown={(e) => {
     if (e.key === "Enter") {
@@ -3014,7 +3165,7 @@ const areaM2 =
 let baseDays = 1;
 
 if (areaM2 > 8.75) {
-  baseDays = 1 + ((areaM2 - 8.75) * 0.10);
+  baseDays = 1 + ((areaM2 - 8.75) * 0.15);
 }
 
 baseDays = Math.min(baseDays, 3);
@@ -3073,9 +3224,14 @@ const selectedCustomerId = savedInputs.selectedCustomerId || "retail";
 let discountPct = 0;
 
 if (selectedCustomerId !== "retail") {
- 
   const selected = customers.find((c) => c.id === selectedCustomerId);
-  discountPct = Number(selected?.discountPct || 0);
+
+  discountPct = Number(
+    selected?.discountPct ??
+    savedInputs?.discountPct ??
+    savedInputs?.discount_pct ??
+    0
+  );
 }
 const allOriginalSectionLines = [
   ...(timberLines || []),
@@ -3086,29 +3242,26 @@ const allOriginalSectionLines = [
   ...(miscLinesForSection || []),
 ];
 
-const pricingAdjustmentDelta = Object.entries(adjustments || {}).reduce(
-  (sum, [key, adj]) => {
-    const line = allOriginalSectionLines.find((r) => r.key === key);
-    if (!line) return sum;
+const adjustmentValues = loadAdjustmentValues();
+const exclusionValues = loadExclusionValues();
 
-    const qty = asQty(line);
-    const adjustment = Number(adj);
-
-    if (!Number.isFinite(qty) || qty <= 0) return sum;
-    if (!Number.isFinite(adjustment)) return sum;
-
-    const lineCost =
-      key && timberLines.some((r) => r.key === key)
-        ? lineChargeableCost(line)
-        : asCost(line);
-
-    return sum + (lineCost / qty) * adjustment;
-  },
-  0
-);
+const pricingAdjustmentDelta = [
+  ...Object.values(adjustmentValues),
+  ...Object.values(exclusionValues),
+].reduce((sum, value) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? sum + n : sum;
+}, 0);
 
 const adjustedMaterialsCostForPricing =
   (quoteBase?.materialsCostForPricing ?? 0) + pricingAdjustmentDelta;
+console.log("SUMMARY_PRICE_DEBUG", {
+  discountPct,
+  adjustedMaterialsCostForPricing,
+  deliveryCost,
+  labourCost: labour.labourCost,
+});
+
 
 const pricing = computePricing(
   adjustedMaterialsCostForPricing,
@@ -3122,6 +3275,7 @@ const pricing = computePricing(
     discountPct,
   }
 );
+
 /*console.log("PRICING_COMPARE", {
   page: "Summary",
   materialsCostForPricing: quoteBase?.materialsCostForPricing,
@@ -3420,7 +3574,19 @@ return (
     step="0.1"
     min="0"
     value={labourDaysOverride}
-    onChange={(e) => setLabourDaysOverride(e.target.value)}
+    onChange={(e) => {
+  const value = e.target.value;
+  setLabourDaysOverride(value);
+
+  const saved = loadInputs() || {};
+  localStorage.setItem(
+    "leanToInputs",
+    JSON.stringify({
+      ...saved,
+      labourDaysOverride: value,
+    })
+  );
+}}
     placeholder="e.g. 1.5"
   />
 </label>

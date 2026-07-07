@@ -1,4 +1,7 @@
 // src/pages/lean-to/LeanToLanding.jsx
+import PlanDiagramHippedLeanTo from "../../components/PlanDiagramHippedLeanTo";
+import { calculateHippedLeanToGeometry } from "../../lib/geometry/hippedLeanToGeometry";
+import HippedLeanToOptions from "../../components/HippedLeanToOptions";
 import { isAdminUser } from "../../lib/userRole";
 import { getCustomers } from "../../lib/customers";
 import React, { useMemo, useState, useEffect } from "react";
@@ -102,6 +105,34 @@ const grid2Responsive = {
   const [inputsRestored, setInputsRestored] = useState(false);
   const [leftWall, setLeftWall] = useState(false);
   const [rightWall, setRightWall] = useState(false);
+  const [roofStyle, setRoofStyle] = useState(location.state?.roofStyle || "leanTo");
+  const [hippedSides, setHippedSides] = useState(location.state?.hippedSides || "both");
+  const [leftHip, setLeftHip] = useState(true);
+  const [rightHip, setRightHip] = useState(true);
+  const [leftHipWidthMM, setLeftHipWidthMM] = useState("1000");
+  const [rightHipWidthMM, setRightHipWidthMM] = useState("1000");
+  const [leftHipWidthManual, setLeftHipWidthManual] = useState(false);
+  const [rightHipWidthManual, setRightHipWidthManual] = useState(false);
+  const activeHippedSides =
+  leftHip && rightHip ? "both" : leftHip ? "left" : rightHip ? "right" : "none";
+  const getDefaultHipWidth = (projection) => {
+  const p = Number(projection) || 0;
+  if (!p) return 1000;
+  return Math.round(p * 0.5);
+};
+const degToRad = (deg) => (Number(deg) * Math.PI) / 180;
+const radToDeg = (rad) => (Number(rad) * 180) / Math.PI;
+
+const calcSidePitchDeg = ({ frontPitchDeg, projectionMM, hipWidthMM }) => {
+  const projection = Number(projectionMM) || 0;
+  const hipWidth = Number(hipWidthMM) || 0;
+
+  if (!projection || !hipWidth) return 0;
+
+  return radToDeg(
+    Math.atan(Math.tan(degToRad(frontPitchDeg)) * (projection / hipWidth))
+  );
+};
 
         // ---- react to Materials changes ----
 /*const [materialsTick, setMaterialsTick] = useState(0);
@@ -164,7 +195,29 @@ useEffect(() => {
     if (saved.pitchDeg !== undefined) {
       setPitch(saved.pitchDeg);
     }
+if (saved.roofStyle) {
+  setRoofStyle(saved.roofStyle);
+}
 
+if (saved.hippedSides) {
+  setHippedSides(saved.hippedSides);
+}
+
+if (typeof saved.leftHip === "boolean") {
+  setLeftHip(saved.leftHip);
+}
+
+if (typeof saved.rightHip === "boolean") {
+  setRightHip(saved.rightHip);
+}
+
+if (saved.leftHipWidthMM !== undefined) {
+  setLeftHipWidthMM(saved.leftHipWidthMM);
+}
+
+if (saved.rightHipWidthMM !== undefined) {
+  setRightHipWidthMM(saved.rightHipWidthMM);
+}
     // Walls: your stored shape uses left_exposed/right_exposed
     if (typeof saved.left_exposed === "boolean") {
       setLeftWall(!saved.left_exposed);
@@ -198,22 +251,59 @@ useEffect(() => {
     const existing = raw ? JSON.parse(raw) : {};
 
     const merged = {
-      ...existing,
-      internalWidthMM:
-        widthMM === "" ? undefined : Number(widthMM),
-      internalProjectionMM:
-        projMM === "" ? undefined : Number(projMM),
-      pitchDeg,
-      // store exposed flags (invert wall flags)
-      left_exposed: !leftWall,
-      right_exposed: !rightWall,
-    };
+  ...existing,
+  internalWidthMM:
+    widthMM === "" ? undefined : Number(widthMM),
+  internalProjectionMM:
+    projMM === "" ? undefined : Number(projMM),
+
+  pitchDeg,
+
+  roofStyle,
+  hippedSides: activeHippedSides,
+
+  leftHip,
+  rightHip,
+  leftHipWidthMM,
+  rightHipWidthMM,
+
+  left_exposed: !leftWall,
+  right_exposed: !rightWall,
+};
 
     localStorage.setItem("leanToInputs", JSON.stringify(merged));
   } catch (e) {
     console.warn("Failed to save leanToInputs", e);
   }
-}, [inputsRestored, widthMM, projMM, pitchDeg, leftWall, rightWall]);
+}, [
+  inputsRestored,
+  widthMM,
+  projMM,
+  pitchDeg,
+  leftWall,
+  rightWall,
+  roofStyle,
+  activeHippedSides,
+  leftHip,
+  rightHip,
+  leftHipWidthMM,
+  rightHipWidthMM,
+]);
+useEffect(() => {
+  const defaultHip = getDefaultHipWidth(projMM);
+
+  if (!leftHipWidthManual) {
+    setLeftHipWidthMM(String(defaultHip));
+  }
+
+  if (!rightHipWidthManual) {
+    setRightHipWidthMM(String(defaultHip));
+  }
+}, [
+  projMM,
+  leftHipWidthManual,
+  rightHipWidthManual,
+]);
 
   // Reset Lean-To inputs when arriving from Welcome page with { state: { fresh: true } }
   useEffect(() => {
@@ -234,6 +324,12 @@ window.dispatchEvent(new Event("summary_adjustments_updated"));
         setPitch(15);
         setLeftWall(false);
         setRightWall(false);
+        setRoofStyle(location.state?.roofStyle || "leanTo");
+        setHippedSides(location.state?.hippedSides || "both");
+        setLeftHipWidthManual(false);
+        setRightHipWidthManual(false);
+        setLeftHip(true);
+        setRightHip(true);
       } catch (err) {
         console.warn("Could not reset Lean-To inputs:", err);
       }
@@ -271,7 +367,7 @@ const persist = (patch) => {
   const [eavesOverhangMM, setEavesOverhang] = useState(150); // soffit depth (front)
   const [leftOverhangMM, setLeftOverhang] = useState("");    // optional side overhangs
   const [rightOverhangMM, setRightOverhang] = useState("");
-
+const [summaryAdjustmentTick, setSummaryAdjustmentTick] = useState(0);
   // Gutters
   const [gutterProfile, setGutterProfile] = useState("square"); // 'square' | 'round' | 'ogee'
   const [gutterOutlet,  setGutterOutlet]  = useState("left");   // 'left' | 'right' | 'center' | 'both' | 'none'
@@ -282,6 +378,31 @@ const persist = (patch) => {
   const [tileSystem, setTileSystem] = useState(() => {
     return localStorage.getItem("tl_tile_system") ?? "britmet";
   });
+  const minTilePitchDeg = tileSystem === "liteslate" ? 12 : 15;
+
+const leftSidePitchDeg = calcSidePitchDeg({
+  frontPitchDeg: pitchDeg,
+  projectionMM: projMM,
+  hipWidthMM: leftHipWidthMM,
+});
+
+const rightSidePitchDeg = calcSidePitchDeg({
+  frontPitchDeg: pitchDeg,
+  projectionMM: projMM,
+  hipWidthMM: rightHipWidthMM,
+});
+
+const leftHipPitchTooLow =
+  roofStyle === "hippedLeanTo" &&
+  leftHip &&
+  leftSidePitchDeg > 0 &&
+  leftSidePitchDeg < minTilePitchDeg;
+
+const rightHipPitchTooLow =
+  roofStyle === "hippedLeanTo" &&
+  rightHip &&
+  rightSidePitchDeg > 0 &&
+  rightSidePitchDeg < minTilePitchDeg;
   const [tileColor, setTileColor]   = useState("Titanium");
   const [plasticsColor, setPlasticsColor] = useState("White");
 
@@ -397,14 +518,60 @@ const loadSummaryAdjustments = () => {
     return {};
   }
 };
+
+const loadSummaryExclusionValues = () => {
+  try {
+    return JSON.parse(localStorage.getItem("summary_exclusion_values") || "{}");
+  } catch {
+    return {};
+  }
+};
+
+const loadSummaryAdjustmentValues = () => {
+  try {
+    return JSON.parse(localStorage.getItem("summary_adjustment_values") || "{}");
+  } catch {
+    return {};
+  }
+};
+useEffect(() => {
+  const handleSummaryAdjustmentsUpdated = () => {
+    setSummaryAdjustmentTick((v) => v + 1);
+  };
+
+  window.addEventListener(
+    "summary_adjustments_updated",
+    handleSummaryAdjustmentsUpdated
+  );
+
+  return () => {
+    window.removeEventListener(
+      "summary_adjustments_updated",
+      handleSummaryAdjustmentsUpdated
+    );
+  };
+}, []);
+
   // ——— Persist to match the rest of the app ———
 const persistInputs = (opts = {}) => {
   const payload = {
+
     // core sizes
     internalWidthMM: widthMM === "" ? null : Number(widthMM),
     internalProjectionMM: projMM === "" ? null : Number(projMM),
     pitchDeg: Number(pitchDeg),
     selectedCustomerId,
+    roofStyle,
+    hippedSides,
+
+    leftHipWidthMM: Number(leftHipWidthMM || 0),
+    rightHipWidthMM: Number(rightHipWidthMM || 0),
+
+
+    // customer / reference
+    quoteRef,
+    customerName: selectedCustomerId === "retail" ? "Retail" : selectedCustomer?.name || "",
+    discountPct,
 
     // fascia/soffit + overhangs
     soffit_mm: Number(eavesOverhangMM),
@@ -425,6 +592,8 @@ const persistInputs = (opts = {}) => {
     side_frame_thickness_mm: m.side_frame_thickness_mm ?? 70,
     fascia_lip_mm: m.fascia_lip_mm ?? 25,
     frame_on_mm: m.frame_on_mm ?? 70,
+
+   
 
     // gutters
     gutter_profile: gutterProfile,
@@ -492,6 +661,7 @@ if (q.plastics_color) setPlasticsColor(String(q.plastics_color));
 if (q.selectedCustomerId) {
   setSelectedCustomerId(String(q.selectedCustomerId));
 }
+if (q.quoteRef) setQuoteRef(String(q.quoteRef));
 
 // delivery
 if (q.deliveryPostcode) {
@@ -580,24 +750,16 @@ const totals = useMemo(
 );
 
 const summaryAdjustments = loadSummaryAdjustments();
+const summaryAdjustmentValues = loadSummaryAdjustmentValues();
+const summaryExclusionValues = loadSummaryExclusionValues();
 
-const adjustmentDelta = Object.entries(summaryAdjustments).reduce(
-  (sum, [key, adj]) => {
-    const line = (totals?.allLines || []).find((r) => r.key === key);
-    if (!line) return sum;
-
-    const qty = Number(line.qty ?? line.quantity ?? line.count ?? 0);
-    const cost = Number(line.line ?? line.total ?? line.cost ?? 0);
-    const adjustment = Number(adj);
-
-    if (!Number.isFinite(qty) || qty <= 0) return sum;
-    if (!Number.isFinite(cost)) return sum;
-    if (!Number.isFinite(adjustment)) return sum;
-
-    return sum + (cost / qty) * adjustment;
-  },
-  0
-);
+const adjustmentDelta = [
+  ...Object.values(summaryAdjustmentValues),
+  ...Object.values(summaryExclusionValues),
+].reduce((sum, value) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? sum + n : sum;
+}, 0);
 
 
 const pricing = useMemo(() => {
@@ -608,12 +770,42 @@ const pricing = useMemo(() => {
     fixedUnit: false,
     reinforcedRingBeam: false,
   };
+const areaM2 =
+  (Number(widthMM || 0) * Number(projMM || 0)) / 1_000_000;
 
+let baseDays = 1;
+
+if (areaM2 > 8.75) {
+  baseDays = 1 + ((areaM2 - 8.75) * 0.15);
+}
+
+baseDays = Math.min(baseDays, 3);
+baseDays = Math.ceil(baseDays * 10) / 10;
+
+const savedInputs = (() => {
+  try {
+    return JSON.parse(localStorage.getItem("leanToInputs") || "{}");
+  } catch {
+    return {};
+  }
+})();
+
+const labourDaysOverride = Number(savedInputs.labourDaysOverride);
+
+const effectiveMinimumDays =
+  Number.isFinite(labourDaysOverride) && labourDaysOverride > 0
+    ? labourDaysOverride
+    : Math.max(Number(labourConfig.minimumDays || 1), baseDays);
+
+const labourConfigAdjusted = {
+  ...labourConfig,
+  minimumDays: effectiveMinimumDays,
+};
   const labour = computeLabourPricing({
     widthMM: Number(widthMM || 0),
     projectionMM: Number(projMM || 0),
     tileSystem,
-    config: labourConfig,
+    config: labourConfigAdjusted,
     features: labourFeatures,
   });
 
@@ -629,7 +821,14 @@ const deliveryResult = computeDeliveryPricing(
 );
 
 const markupConfig = getMarkupPricingConfig();
-
+console.log("DO_PRICE_DEBUG", {
+  selectedCustomerId,
+  selectedCustomer,
+  discountPct,
+  materialsCostForPricing: quoteBase.materialsCostForPricing,
+  adjustmentDelta,
+  deliveryDistanceMiles,
+});
 return computePricing(
   quoteBase.materialsCostForPricing + adjustmentDelta,
   {
@@ -645,6 +844,7 @@ return computePricing(
 }, [
   quoteBase.materialsCostForPricing,
   adjustmentDelta,
+  summaryAdjustmentTick,
   m,
   widthMM,
   projMM,
@@ -732,6 +932,14 @@ const extWidthMM = useMemo(() => {
   const theta = (num(pitchDeg) * Math.PI) / 180;
   const slopeMM = extProjectionMM / Math.cos(theta);
   const riseMM = extProjectionMM * Math.tan(theta);
+
+const ringBeamHeightMM = 40;
+const roofBuildUpMM = 260;
+
+const externalFinishedHeightMM =
+  riseMM +
+  ringBeamHeightMM +
+  (roofBuildUpMM / Math.cos(theta));
 
   // ——— Minimal BOMs ———
 
@@ -991,6 +1199,16 @@ setShowQuote(true);
     setPitch(15);
     setLeftWall(false);
     setRightWall(false);
+
+    setRoofStyle(location.state?.roofStyle || roofStyle || "leanTo");
+    setHippedSides(location.state?.hippedSides || "both");
+
+    setLeftHip(true);
+    setRightHip(true);
+    setLeftHipWidthManual(false);
+    setRightHipWidthManual(false);
+    setLeftHipWidthMM("1000");
+    setRightHipWidthMM("1000");
     setEavesOverhang(150);
     setLeftOverhang("");
     setRightOverhang("");
@@ -1146,7 +1364,30 @@ const demoProfit = demoBase + (pricing.net ?? 0) * demoPct;
 const demoNet = (pricing.net ?? 0) + demoProfit;
 const demoVat = demoNet * (pricing.vatRate ?? 0);
 const demoGross = demoNet + demoVat;
+const hippedGeom =
+  roofStyle === "hippedLeanTo"
+    ? calculateHippedLeanToGeometry({
+        widthMM: num(widthMM),
+        projectionMM: num(projMM),
+        pitchDeg: num(pitchDeg, 15),
+        soffitDepthMM: num(eavesOverhangMM),
+        materials: m,
+        hippedSides: activeHippedSides,
+        leftHipWidthMM: num(leftHipWidthMM, 1000),
+        rightHipWidthMM: num(rightHipWidthMM, 1000),
+      })
+    : null;
 
+const displayExtWidthMM =
+  roofStyle === "hippedLeanTo" && hippedGeom
+    ? hippedGeom.externalWidthMM
+    : extWidthMM;
+
+const displayExtProjectionMM =
+  roofStyle === "hippedLeanTo" && hippedGeom
+    ? hippedGeom.externalProjectionMM
+    : extProjectionMM;
+    
   return (
     <div className="min-h-screen" style={{ fontFamily: "Inter, system-ui, Arial" }}>
 <NavTabs />
@@ -1157,10 +1398,13 @@ const demoGross = demoNet + demoVat;
         {/* Logo */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "12px 0 8px" }}>
           <img src="/logo.png" alt="Timberlite" style={{ height: 38 }} onError={(e) => { e.currentTarget.style.display = "none"; }} />
-          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Timberlite Lean-To</h1>
+          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>
+  Timberlite {roofStyle === "hippedLeanTo" ? "Hipped Lean-To" : "Lean-To"}
+</h1>
         </div>
         <p style={{ color: "#555", marginTop: 0, marginBottom: 14 }}>
-          Enter your sizes and options below. We’ll show a plan preview and your price.
+          Enter your sizes and options below. We’ll show a plan preview and your price. 
+          Frame thickness is defaulted to 70mm, please confirm this when ordering.
         </p>
 
         {/* Inputs card */}
@@ -1326,65 +1570,97 @@ onChange={(e) => {
               )}
             </label>
 
-<div style={{ display: "grid", gap: 8 }}>
-  <label className="flex items-center gap-2">
-    <input
-  type="checkbox"
-  checked={leftWall}
-  onChange={(e) => {
-    const v = e.target.checked;
-    setLeftWall(v);
-    persist({ left_wall_present: v, left_exposed: !v });
-  }}
-/>
+{roofStyle !== "hippedLeanTo" && (
+  <div style={{ display: "grid", gap: 8 }}>
+    <label className="flex items-center gap-2">
+      <input
+        type="checkbox"
+        checked={leftWall}
+        onChange={(e) => {
+          const v = e.target.checked;
+          setLeftWall(v);
+          persist({ left_wall_present: v, left_exposed: !v });
+        }}
+      />
 
-    Left side wall present
-  </label>
+      Left side wall present
+    </label>
 
-  <label className="flex items-center gap-2">
-    <input
-  type="checkbox"
-  checked={rightWall}
-  onChange={(e) => {
-    const v = e.target.checked;
-    setRightWall(v);
-    persist({ right_wall_present: v, right_exposed: !v });
-  }}
-/>
+    <label className="flex items-center gap-2">
+      <input
+        type="checkbox"
+        checked={rightWall}
+        onChange={(e) => {
+          const v = e.target.checked;
+          setRightWall(v);
+          persist({ right_wall_present: v, right_exposed: !v });
+        }}
+      />
 
-    Right side wall present
-  </label>
-</div>
-
+      Right side wall present
+    </label>
+  </div>
+)}
+{roofStyle === "hippedLeanTo" && (
+  <div style={{ gridColumn: "1 / -1" }}>
+    <HippedLeanToOptions
+    leftHip={leftHip}
+    setLeftHip={setLeftHip}
+    rightHip={rightHip}
+    setRightHip={setRightHip}
+    leftHipWidthMM={leftHipWidthMM}
+    setLeftHipWidthMM={setLeftHipWidthMM}
+    rightHipWidthMM={rightHipWidthMM}
+    setRightHipWidthMM={setRightHipWidthMM}
+    setLeftHipWidthManual={setLeftHipWidthManual}
+    setRightHipWidthManual={setRightHipWidthManual}
+    leftWall={leftWall}
+    setLeftWall={setLeftWall}
+    rightWall={rightWall}
+    setRightWall={setRightWall}
+    tileSystem={tileSystem}
+    minTilePitchDeg={minTilePitchDeg}
+    leftSidePitchDeg={leftSidePitchDeg}
+    rightSidePitchDeg={rightSidePitchDeg}
+    leftHipPitchTooLow={leftHipPitchTooLow}
+    rightHipPitchTooLow={rightHipPitchTooLow}
+    persist={persist}
+      />
+  </div>
+)}
             
 
-            <label>Overhang at left side (mm)
-  <input
-    type="number"
-    placeholder="e.g. 150"
-    value={leftOverhangMM}
-    onChange={(e) => {
-      const v = e.target.value;
-      setLeftOverhang(v);
-      persist({ left_overhang_mm: Number(v || 0) });
-    }}
-    style={inputStyle}
-  />
-</label>
+            {(roofStyle !== "hippedLeanTo" || (!leftHip && !leftWall)) && (
+  <label>Left Overhang? (mm)
+    <input
+      type="number"
+      placeholder="e.g. 150"
+      value={leftOverhangMM}
+      onChange={(e) => {
+        const v = e.target.value;
+        setLeftOverhang(v);
+        persist({ left_overhang_mm: Number(v || 0) });
+      }}
+      style={inputStyle}
+    />
+  </label>
+)}
 
-            <label>Overhang at right side (mm)
-  <input
-    type="number"
-    placeholder="e.g. 150"
-    value={rightOverhangMM}
-    onChange={(e) => {
-      const v = e.target.value;
-      setRightOverhang(v);
-      persist({ right_overhang_mm: Number(v || 0) });
-    }}
-    style={inputStyle}
-  />
-</label>
+            {(roofStyle !== "hippedLeanTo" || (!rightHip && !rightWall)) && (
+  <label>Right Overhang? (mm)
+    <input
+      type="number"
+      placeholder="e.g. 150"
+      value={rightOverhangMM}
+      onChange={(e) => {
+        const v = e.target.value;
+        setRightOverhang(v);
+        persist({ right_overhang_mm: Number(v || 0) });
+      }}
+      style={inputStyle}
+    />
+  </label>
+)}
 
       <label> Delivery postcode {isAdmin ? "(optional)" : ""}
   <input
@@ -1420,7 +1696,11 @@ onKeyDown={(e) => {
   <input
     type="text"
     value={quoteRef}
-    onChange={(e) => setQuoteRef(e.target.value)}
+    onChange={(e) => {
+  const v = e.target.value;
+  setQuoteRef(v);
+  persist({ quoteRef: v });
+}}
     placeholder="e.g. SMITH"
     style={{
       ...inputStyle,
@@ -1456,8 +1736,17 @@ onKeyDown={(e) => {
       Customer
       <select
         value={selectedCustomerId}
-        onChange={(e) => {setSelectedCustomerId(e.target.value);
-  persist({ projectionMM: e.target.value });
+        onChange={(e) => {
+  const id = e.target.value;
+  setSelectedCustomerId(id);
+
+  const selected = customers.find((c) => c.id === id);
+
+  persist({
+    selectedCustomerId: id,
+    customerName: id === "retail" ? "Retail" : selected?.name || "",
+    discountPct: id === "retail" ? 0 : Number(selected?.discountPct || 0),
+  });
 }}
         style={{ marginLeft: 10, padding: 6 }}
       >
@@ -1534,34 +1823,133 @@ title={
             <div style={card}>
               <h2 style={h2}>Plan preview</h2>
               <div style={{ border: "1px solid #e5e7eb", borderRadius: 8, padding: 12 }}>
-                <PlanDiagramLeanTo
-                  iw={num(widthMM)}
-                  ip={num(projMM)}
-                  sft={num(m.side_frame_thickness_mm ?? 70)}
-                  lip={num(m.fascia_lip_mm ?? 25)}
-                  soffit={num(eavesOverhangMM)}
-                  frameOn={num(m.frame_on_mm ?? 70)}
-                  leftOH={num(leftOverhangMM, 0)}
-                  rightOH={num(rightOverhangMM, 0)}
-                  leftWall={leftWall}
-                  rightWall={rightWall}
-                  rafterSpacing={num(m.rafter_spacing_mm ?? 665)}
-                  firstCentre={num(m.rafter_first_center_mm ?? 690)}
-                  outlet={gutterOutlet}
-                  gutterColor={gutterColor}
-                />
+                {roofStyle === "hippedLeanTo" ? (
+  <PlanDiagramHippedLeanTo
+  iw={num(widthMM)}
+  ip={num(projMM)}
+  leftHipWidth={num(leftHipWidthMM, 1000)}
+  rightHipWidth={num(rightHipWidthMM, 1000)}
+  hippedSides={activeHippedSides}
+  pitchDeg={num(pitchDeg, 15)}
+  soffitDepthMM={num(eavesOverhangMM)}
+  rafterSpacing={num(m.rafter_spacing_mm ?? 665)}
+  firstCentre={num(m.rafter_first_center_mm ?? 690)}
+  tileSystem={tileSystem}
+/>
+) : (
+  <PlanDiagramLeanTo
+    iw={num(widthMM)}
+    ip={num(projMM)}
+    sft={num(m.side_frame_thickness_mm ?? 70)}
+    lip={num(m.fascia_lip_mm ?? 25)}
+    soffit={num(eavesOverhangMM)}
+    frameOn={num(m.frame_on_mm ?? 70)}
+    leftOH={num(leftOverhangMM, 0)}
+    rightOH={num(rightOverhangMM, 0)}
+    leftWall={leftWall}
+    rightWall={rightWall}
+    rafterSpacing={num(m.rafter_spacing_mm ?? 665)}
+    firstCentre={num(m.rafter_first_center_mm ?? 690)}
+    outlet={gutterOutlet}
+    gutterColor={gutterColor}
+  />
+)}
               </div>
 
               <div style={{ marginTop: 10, color: "#444", display: "grid", gap: 4 }}>
                 <div>
-                  <b>Internal width</b>: {round(widthMM)} mm · <b>External width</b>: {round(extWidthMM)} mm
+                  <b>Internal width</b>: {round(widthMM)} mm · <b>External width</b>: {round(displayExtWidthMM)} mm
                 </div>
                 <div>
-                  <b>External projection</b>: {round(extProjectionMM)} mm · <b>Internal projection</b>: {round(projMM)} mm
+                  <b>Internal projection</b>: {round(projMM)} mm · <b>External projection</b>: {round(displayExtProjectionMM)} mm
                 </div>
                 <div>
-                  <b>Back height (rise)</b>: {round(riseMM)} mm · <b>Pitch</b>: {pitchDeg}°
+                  <b>Internal Wall-Plate Height</b>: {round(riseMM)} mm · <b>Pitch</b>: {pitchDeg}°
                 </div>
+                <div>
+  <b>External Finished Height</b>: {round(externalFinishedHeightMM)} mm
+</div>
+                {roofStyle === "hippedLeanTo" && hippedGeom && (
+  <>
+ <div>
+  <b>Front Soffit</b>: {Math.round(hippedGeom?.frontSoffitMM ?? 0)} mm
+</div>
+
+    <div>
+      <b>Left Hip</b>: {leftHipWidthMM} mm ·
+      <b> Right Hip</b>: {rightHipWidthMM} mm ·
+      <b> Left Pitch</b>: {round(leftSidePitchDeg, 1)}° ·
+      <b> Right Pitch</b>: {round(rightSidePitchDeg, 1)}°
+    </div>
+    <div>
+  <b>Left Hip Pitch</b>: {Number(hippedGeom?.leftHipPitchDeg ?? 0).toFixed(1)}° ·{" "}
+  <b>Right Hip Pitch</b>: {Number(hippedGeom?.rightHipPitchDeg ?? 0).toFixed(1)}°
+</div>
+<div>
+  <b>Left Hip Theoretical</b>: {round(hippedGeom.leftHipTrueLengthMM)} mm ·
+  <b> Right Hip Theoretical</b>: {round(hippedGeom.rightHipTrueLengthMM)} mm
+</div>
+
+<div>
+  <b>Left Hip Cut Length</b>: {round(hippedGeom.leftHipManufacturingLengthMM)} mm ·
+  <b> Right Hip Cut Length</b>: {round(hippedGeom.rightHipManufacturingLengthMM)} mm
+</div>
+
+<div>
+  <b>Left Timberlite Hip Cut</b>: {Math.round(hippedGeom?.leftHipTimberliteCutLengthMM ?? 0)} mm ·{" "}
+  <b>Right Timberlite Hip Cut</b>: {Math.round(hippedGeom?.rightHipTimberliteCutLengthMM ?? 0)} mm
+</div>
+
+<div>
+  <b>Pitch-based Hip Cut</b>: {Math.round(hippedGeom?.leftHipPitchBasedCutMM ?? 0)} mm
+</div>
+
+<div>
+  <b>Hip Manufacture Test</b>:{" "}
+  {Math.round(hippedGeom?.leftHipManufactureTest?.pitchBasedTimberliteCutMM ?? 0)} mm
+</div>
+
+<div>
+  <b>Bosses</b>: {hippedGeom.bossQty} ·
+  <b> Spar Hooks</b>: {hippedGeom.sparHookQty} ·
+  <b> Hip Top Cut</b>: {hippedGeom.hipTopCutDeg}°
+</div>
+
+<div>
+  <b>Plain Rafter Zone</b>: {round(hippedGeom.plainRafterZoneStartMM)} mm →{" "}
+  {round(hippedGeom.plainRafterZoneEndMM)} mm ·
+  <b> Width</b>: {round(hippedGeom.plainRafterZoneWidthMM)} mm
+</div>
+
+<div>
+  <b>Left Jacks</b>: {hippedGeom.leftJackRafterCount} ·
+  <b> Plain Rafters</b>: {hippedGeom.plainRafterCount} ·
+  <b> Right Jacks</b>: {hippedGeom.rightJackRafterCount}
+</div>
+
+<div>
+  <b>Top Allowance</b>: {hippedGeom.hipTopCutFaceOffsetMM} mm ·
+  <b> Boss/Spar Hook</b>: {hippedGeom.sparHookToBossOffsetMM} mm
+</div>
+<div>
+  <b>Left Boss Position</b>: {round(hippedGeom.leftBossXMM)} mm ·
+  <b> Right Boss Position</b>: {round(hippedGeom.rightBossXMM)} mm ·
+  <b> Wallplate Between Bosses</b>: {round(hippedGeom.centreWidthMM)} mm
+</div>
+    {hippedGeom.frontSoffitAutoAdjusted && (
+      <div style={{ color: "#b45309" }}>
+        ⚠ Front soffit automatically increased to maintain equal fascia sizes.
+      </div>
+    )}
+  </>
+)}
+{roofStyle === "hippedLeanTo" &&
+ !leftHipWidthManual &&
+ !rightHipWidthManual && (
+  <div style={{ color: "#666", fontSize: 13 }}>
+    Default hip position based on projection ÷ 2.
+  </div>
+)}
                 <div>
                   <b>Tile</b>: {tileSystem === "britmet" ? "Britmet" : "LiteSlate"} — <b>{tileColor}</b>
                 </div>
@@ -1569,6 +1957,7 @@ title={
                   <b>Fascia/Soffit</b>: <b>{plasticsColor}</b> · <b>Gutter</b>: {gutterProfile} / {gutterColor}, outlet {gutterOutlet}
                 </div>
               </div>
+              
             </div>
 
             {/* Price summary */}
@@ -1578,6 +1967,18 @@ title={
     <div>
       Materials subtotal (net): <b>£{(pricing.net ?? 0).toFixed(2)}</b>
     </div>
+    <div style={{ color: "#b45309", fontSize: 13 }}>
+  Adjustment delta: £{adjustmentDelta.toFixed(2)}
+</div>
+<div style={{ color: "#6b7280", fontSize: 12 }}>
+  Adjustment keys: {Object.keys(summaryAdjustments).join(", ")}
+</div>
+<div style={{ color: "#6b7280", fontSize: 12 }}>
+  Available keys:
+  {(totals?.allLines || [])
+    .map((r) => r.key)
+    .join(", ")}
+</div>
     <div>
       VAT ({((pricing.vatRate ?? 0) * 100).toFixed(0)}%): £{(pricing.vat ?? 0).toFixed(2)}
     </div>

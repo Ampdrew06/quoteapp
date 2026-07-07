@@ -8,10 +8,12 @@ import logo from "../timberlite-logo-small.jpg";  // path adjusted
 const roofDesigns = [
   "Lean-To",
   "Hipped Lean-To",
-  "Double Hipped Lean-To",
   "Gable",
   "Edwardian",
   "Victorian",
+  "Double Hipped Edwardian",
+  "Edwardian P-Shape",
+  "Victorian P-Shape"
 ];
 
 export default function QuoteWizard() { 
@@ -32,23 +34,32 @@ export default function QuoteWizard() {
 
 
   const handleRoofSelect = (design) => {
-    const slug = design.toLowerCase().replace(/\s+/g, "-");
+  const slug = design.toLowerCase().replace(/\s+/g, "-");
 
-    // Send Lean-To to its page and pass a "fresh" flag so it resets inputs
-    if (slug === "lean-to") {
-  // Send fresh flag so Lean-To page resets properly
-  navigate("/quote/lean-to", { state: { fresh: true } });
-  return;
-}
+  if (slug === "lean-to") {
+    navigate("/quote/lean-to", {
+      state: { fresh: true, roofStyle: "leanTo" },
+    });
+    return;
+  }
 
-    // Other designs use the placeholder route for now
-    navigate(`/design/${slug}`);
-  };
+  if (slug === "hipped-lean-to") {
+    navigate("/quote/lean-to", {
+      state: {
+        fresh: true,
+        roofStyle: "hippedLeanTo",
+        hippedSides: "both",
+      },
+    });
+    return;
+  }
 
-  const handleLogin = (discount) => {
-    setTradeDiscount(discount);
-  };
-
+  // Other designs use the placeholder route for now
+  navigate(`/design/${slug}`);
+};
+const handleLogin = (discount) => {
+  setTradeDiscount(discount);
+};
   return (
     <div
       style={{
