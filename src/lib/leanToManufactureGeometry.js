@@ -80,8 +80,9 @@ export function computeLeanToManufactureGeometry(inputs = {}) {
   const fasciaAllowanceMM = num(inputs.fasciaAllowanceMM, 10);
 
   const theta = deg2rad(pitchDeg);
-  const cosT = Math.cos(theta || 0);
-  const tanT = Math.tan(theta || 0);
+const cosT = Math.cos(theta || 0);
+const sinT = Math.sin(theta || 0);
+const tanT = Math.tan(theta || 0);
 
   // --- Simple trig geometry checks ---
 const wallplateThicknessMM = num(inputs.wallplateThicknessMM, 63);
@@ -89,6 +90,51 @@ const ringBeamHeightMM = num(inputs.ringBeamHeightMM, 40);
 const rafterDepthMM = num(inputs.rafterDepthMM, 220);
 const roofBuildUpMM = num(inputs.roofBuildUpMM, 260); // rafter + laths + tiles approx.
 
+// Local rafter-template coordinates.
+//
+// Datum:
+// The internal corner of the front foot cut is treated as 0,0.
+// This is the point the workshop aligns when placing one
+// rafter template directly on top of another.
+//
+// Coordinate directions:
+// +x = outward towards the fascia
+// +y = vertically upward
+//
+// The rafter slopes downward as x moves outward.
+const footTemplate = {
+  datumName: "internal-foot-cut-corner",
+
+  pitchDeg,
+  rafterDepthMM,
+
+  internalFootCutPoint: {
+    xMM: 0,
+    yMM: 0,
+  },
+
+  // Direction along the rafter towards the fascia.
+  outwardSlopeUnit: {
+    x: cosT,
+    y: -sinT,
+  },
+
+  // Perpendicular direction from the lower rafter edge
+  // towards its upper edge.
+  lowerToUpperNormalUnit: {
+    x: sinT,
+    y: cosT,
+  },
+
+  // One known point on the upper rafter edge when the
+  // lower/internal foot-cut datum is located at 0,0.
+  upperEdgeReferencePoint: {
+    xMM: rafterDepthMM * sinT,
+    yMM: rafterDepthMM * cosT,
+  },
+
+  upperEdgeGradient: -tanT,
+};
 const pureRiseMM = internalProjectionMM * tanT;
 
 const internalWallPlateHeightMM =
@@ -105,6 +151,33 @@ const simpleExternalExtensionLengthMM =
 
 const simpleTotalCutLengthMM =
   simpleInternalCutLengthMM + simpleExternalExtensionLengthMM;
+
+  // Explicit manufacturing diagnostics.
+// These duplicate existing calculations under clearer names.
+// No existing output or calculation is being replaced yet.
+const internalHorizontalRunMM =
+  simpleInternalCutRunMM;
+
+const externalHorizontalRunMM =
+  frameThicknessMM + effectiveSoffitMM;
+
+const fullHorizontalRunMM =
+  internalHorizontalRunMM + externalHorizontalRunMM;
+
+const calculatedInternalCutLengthMM =
+  simpleInternalCutLengthMM;
+
+const calculatedExternalExtensionLengthMM =
+  simpleExternalExtensionLengthMM;
+
+const calculatedExternalCutLengthMM =
+  calculatedInternalCutLengthMM +
+  calculatedExternalExtensionLengthMM;
+
+// Difference between the top and bottom edges created by the
+// 220 mm-deep rafter and the two parallel angled end cuts.
+const rafterEdgeLengthDifferenceMM =
+  cosT > 0 ? rafterDepthMM / cosT : 0;
 
 const externalFinishedHeightMM =
   internalWallPlateHeightMM +
@@ -129,6 +202,18 @@ const internalRafterLengthMM =
 
   // 5) Vertical drop caused by the extension triangle
   const verticalDropMM = horizontalExtensionMM * tanT;
+
+  // Finished eaves-profile alignment datum.
+//
+// This includes the vertical projection of the complete roof profile
+// (220 mm rafter + approximately 40 mm lath/tile build-up)
+// and subtracts the vertical fall across the frame + soffit extension.
+//
+// It is used to align unequal-pitch facets to one common fascia line.
+// It does NOT replace the validated Lean-To rafter cut calculations.
+const finishedFasciaAlignmentDatumMM =
+  (cosT > 0 ? roofBuildUpMM / cosT : 0) -
+  verticalDropMM;
 
   // 6) Plumb cut height at fascia (ideal geometric result)
   const plumbCutHeightMM = plumbCutBaseConstantMM - verticalDropMM;
@@ -165,12 +250,62 @@ const internalRafterLengthMM =
     plumbCutHeightMM: Number(plumbCutHeightMM.toFixed(2)),
     finishedFasciaHeightMM: Number(finishedFasciaHeightMM.toFixed(2)),
 
+    finishedFasciaAlignmentDatumMM: Number(finishedFasciaAlignmentDatumMM.toFixed(2)),
+
     fasciaAllowanceMM: Number(fasciaAllowanceMM.toFixed(2)),
     fasciaOrderingReferenceMM: Number(fasciaOrderingReferenceMM.toFixed(2)),
     fasciaOrderSizeMM,
 
     plumbCutBaseConstantMM: Number(plumbCutBaseConstantMM.toFixed(2)),
     fasciaOffsetMM: Number(fasciaOffsetMM.toFixed(2)),
+
+    footTemplate: {
+  datumName: footTemplate.datumName,
+
+  pitchDeg: Number(
+    footTemplate.pitchDeg.toFixed(4)
+  ),
+
+  rafterDepthMM: Number(
+    footTemplate.rafterDepthMM.toFixed(2)
+  ),
+
+  internalFootCutPoint: {
+    xMM: 0,
+    yMM: 0,
+  },
+
+  outwardSlopeUnit: {
+    x: Number(
+      footTemplate.outwardSlopeUnit.x.toFixed(8)
+    ),
+    y: Number(
+      footTemplate.outwardSlopeUnit.y.toFixed(8)
+    ),
+  },
+
+  lowerToUpperNormalUnit: {
+    x: Number(
+      footTemplate.lowerToUpperNormalUnit.x.toFixed(8)
+    ),
+    y: Number(
+      footTemplate.lowerToUpperNormalUnit.y.toFixed(8)
+    ),
+  },
+
+  upperEdgeReferencePoint: {
+    xMM: Number(
+      footTemplate.upperEdgeReferencePoint.xMM.toFixed(4)
+    ),
+    yMM: Number(
+      footTemplate.upperEdgeReferencePoint.yMM.toFixed(4)
+    ),
+  },
+
+  upperEdgeGradient: Number(
+    footTemplate.upperEdgeGradient.toFixed(8)
+  ),
+},
 
     wallplateThicknessMM: Number(wallplateThicknessMM.toFixed(2)),
 ringBeamHeightMM: Number(ringBeamHeightMM.toFixed(2)),
@@ -183,6 +318,33 @@ simpleInternalCutRunMM: Number(simpleInternalCutRunMM.toFixed(2)),
 simpleInternalCutLengthMM: Number(simpleInternalCutLengthMM.toFixed(2)),
 simpleExternalExtensionLengthMM: Number(simpleExternalExtensionLengthMM.toFixed(2)),
 simpleTotalCutLengthMM: Number(simpleTotalCutLengthMM.toFixed(2)),
+internalHorizontalRunMM: Number(
+  internalHorizontalRunMM.toFixed(2)
+),
+
+externalHorizontalRunMM: Number(
+  externalHorizontalRunMM.toFixed(2)
+),
+
+fullHorizontalRunMM: Number(
+  fullHorizontalRunMM.toFixed(2)
+),
+
+calculatedInternalCutLengthMM: Number(
+  calculatedInternalCutLengthMM.toFixed(2)
+),
+
+calculatedExternalExtensionLengthMM: Number(
+  calculatedExternalExtensionLengthMM.toFixed(2)
+),
+
+calculatedExternalCutLengthMM: Number(
+  calculatedExternalCutLengthMM.toFixed(2)
+),
+
+rafterEdgeLengthDifferenceMM: Number(
+  rafterEdgeLengthDifferenceMM.toFixed(2)
+),
 externalFinishedHeightMM: Number(externalFinishedHeightMM.toFixed(2)),
   };
 }

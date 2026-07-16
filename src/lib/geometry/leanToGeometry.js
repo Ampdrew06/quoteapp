@@ -23,6 +23,7 @@ export function calculateLeanToGeometry({
     externalSlopeLength: geom.externalRafterExtensionMM,
     plumbCutHeight: geom.plumbCutHeightMM,
     fasciaHeight: geom.finishedFasciaHeightMM,
+    fasciaAlignmentDatum: geom.finishedFasciaAlignmentDatumMM,
     fasciaOrderSize: geom.fasciaOrderSizeMM,
     soffitDepthEffective: geom.effectiveSoffitMM,
 

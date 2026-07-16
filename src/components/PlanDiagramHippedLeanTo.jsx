@@ -31,6 +31,16 @@ export default function PlanDiagramHippedLeanTo({
   pitchDeg = 15,
   tileSystem = "britmet",
   soffitDepthMM = 150,
+  externalWidthMM,
+  externalProjectionMM,
+  leftExternalAllowanceMM,
+  rightExternalAllowanceMM,
+  leftSideRingBeamLayout,
+  rightSideRingBeamLayout,
+  leftBoundaryType,
+  rightBoundaryType,
+  leftWall,
+  rightWall,
 }) {
   const geom = calculateHippedLeanToGeometry({
     widthMM: iw,
@@ -63,9 +73,21 @@ export default function PlanDiagramHippedLeanTo({
     const end = hasRight ? width - rightHip : width;
 
     const list = [];
-    for (let c = firstCentre; c <= width; c += rafterSpacing) {
-      if (c > start && c < end) list.push(c);
-    }
+
+for (let c = firstCentre; c < width; c += rafterSpacing) {
+  let type = "plain";
+
+  if (hasLeft && c < start) {
+    type = "leftJack";
+  } else if (hasRight && c > end) {
+    type = "rightJack";
+  }
+
+  list.push({
+    centreMM: c,
+    type,
+  });
+}
 
     return {
       hasLeftHip: hasLeft,
@@ -119,11 +141,27 @@ const rightSidePitchDeg = calcSidePitchDeg({
   const x = (mm) => ox + mm * scale;
   const yFront = oy + oh;
   const yBack = oy;
+  const sidePositionY = (positionMM) =>
+  yBack + Math.max(0, Math.min(Number(ip) || 0, Number(positionMM) || 0)) * scale;
+const resolvedLeftAllowanceMM =
+  Number.isFinite(Number(leftExternalAllowanceMM))
+    ? Number(leftExternalAllowanceMM)
+    : Number(geom.leftCalculatedSoffitMM || 0);
 
-  const extLeft = ox - geom.leftCalculatedSoffitMM * scale;
-  const extRight = ox + ow + geom.rightCalculatedSoffitMM * scale;
-  const extFront = yFront + geom.frontSoffitMM * scale;
-  const extBack = yBack;
+const resolvedRightAllowanceMM =
+  Number.isFinite(Number(rightExternalAllowanceMM))
+    ? Number(rightExternalAllowanceMM)
+    : Number(geom.rightCalculatedSoffitMM || 0);
+
+const resolvedFrontAllowanceMM =
+  Number.isFinite(Number(externalProjectionMM))
+    ? Math.max(0, Number(externalProjectionMM) - Number(ip || 0))
+    : Number(geom.frontSoffitMM || 0);
+
+const extLeft = ox - resolvedLeftAllowanceMM * scale;
+const extRight = ox + ow + resolvedRightAllowanceMM * scale;
+const extFront = yFront + resolvedFrontAllowanceMM * scale;
+const extBack = yBack;
 
   const labelFont = "14px Inter, system-ui, Arial";
   const smallFont = "12px Inter, system-ui, Arial";
@@ -274,8 +312,15 @@ const rightSidePitchDeg = calcSidePitchDeg({
       {/* Left hip return */}
       {hasLeftHip && (
         <>
-          <line x1={ox} y1={yBack} x2={x(centreStart)} y2={yBack} stroke="#111827" strokeWidth="2" />
-          <line x1={ox} y1={yFront} x2={x(centreStart)} y2={yBack} stroke="#dc2626" strokeWidth="4" />
+          <line
+  x1={ox}
+  y1={yBack}
+  x2={x(centreStart)}
+  y2={yBack}
+  stroke="#2563eb"
+  strokeWidth={rafterStroke}
+/>
+          <line x1={ox} y1={yFront} x2={x(centreStart)} y2={yBack} stroke="#111827" strokeWidth="4" />
           <circle cx={x(centreStart)} cy={yBack} r="7" fill="#111827" />
           <text x={x(centreStart)} y={yBack - 12} textAnchor="middle" style={{ font: smallFont }}>
             BOSS
@@ -295,8 +340,15 @@ const rightSidePitchDeg = calcSidePitchDeg({
       {/* Right hip return */}
       {hasRightHip && (
         <>
-          <line x1={x(centreEnd)} y1={yBack} x2={ox + ow} y2={yBack} stroke="#111827" strokeWidth="2" />
-          <line x1={ox + ow} y1={yFront} x2={x(centreEnd)} y2={yBack} stroke="#dc2626" strokeWidth="4" />
+          <line
+  x1={x(centreEnd)}
+  y1={yBack}
+  x2={ox + ow}
+  y2={yBack}
+  stroke="#2563eb"
+  strokeWidth={rafterStroke}
+/>
+          <line x1={ox + ow} y1={yFront} x2={x(centreEnd)} y2={yBack} stroke="#111827" strokeWidth="4" />
           <circle cx={x(centreEnd)} cy={yBack} r="7" fill="#111827" />
           <text x={x(centreEnd)} y={yBack - 12} textAnchor="middle" style={{ font: smallFont }}>
             BOSS
@@ -312,50 +364,172 @@ const rightSidePitchDeg = calcSidePitchDeg({
 </text>
         </>
       )}
+{/* Left side-facet jack rafters */}
+{hasLeftHip &&
+  (leftSideRingBeamLayout?.intermediateJackRafters || []).map(
+    (jack, index) => {
+      const positionMM = Number(jack.centreMM) || 0;
+      const progress =
+        (Number(ip) || 0) > 0
+          ? Math.max(
+              0,
+              Math.min(1, positionMM / Number(ip))
+            )
+          : 0;
 
-      {/* Straight lean-to rafters */}
-      {rafters.map((mm, i) => {
-        const rx = x(mm);
-        return (
-          <g key={i}>
-            <line
-              x1={rx}
-              y1={yBack}
-              x2={rx}
-              y2={yFront}
-              stroke="#2563eb"
-              strokeWidth={rafterStroke}
-            />
-            <text
-              x={rx}
-              y={yFront + 22}
-              textAnchor="middle"
-              style={{ font: labelFont }}
-              fill="#111827"
-            >
-              {dim(mm)}
-            </text>
-          </g>
+      // Left hip runs from the boss at the wall
+      // to the front-left corner.
+      const hipIntersectionX =
+        x(centreStart * (1 - progress));
+
+      const jackY = sidePositionY(positionMM);
+
+      return (
+        <g key={`left-side-jack-${positionMM}-${index}`}>
+          <line
+            x1={ox}
+            y1={jackY}
+            x2={hipIntersectionX}
+            y2={jackY}
+            stroke="#2563eb"
+            strokeWidth={rafterStroke}
+          />
+        </g>
+      );
+    }
+  )}
+
+{/* Right side-facet jack rafters */}
+{hasRightHip &&
+  (rightSideRingBeamLayout?.intermediateJackRafters || []).map(
+    (jack, index) => {
+      const positionMM = Number(jack.centreMM) || 0;
+      const progress =
+        (Number(ip) || 0) > 0
+          ? Math.max(
+              0,
+              Math.min(1, positionMM / Number(ip))
+            )
+          : 0;
+
+      // Right hip runs from the boss at the wall
+      // to the front-right corner.
+      const hipIntersectionX =
+        x(
+          centreEnd +
+            (Number(iw) - centreEnd) * progress
         );
-      })}
 
-      {/* Simple jack rafter hints */}
-      {hasLeftHip && (
-        <>
-          <line x1={x(centreStart / 2)} y1={yFront} x2={x(centreStart)} y2={yBack} stroke="#2563eb" strokeWidth="3" strokeDasharray="7 5" />
-          
-        </>
-      )}
+      const jackY = sidePositionY(positionMM);
 
-      {hasRightHip && (
-        <>
-          <line x1={x((centreEnd + iw) / 2)} y1={yFront} x2={x(centreEnd)} y2={yBack} stroke="#2563eb" strokeWidth="3" strokeDasharray="7 5" />
-          
-        </>
-      )}
+      return (
+        <g key={`right-side-jack-${positionMM}-${index}`}>
+          <line
+            x1={hipIntersectionX}
+            y1={jackY}
+            x2={ox + ow}
+            y2={jackY}
+            stroke="#2563eb"
+            strokeWidth={rafterStroke}
+          />
+        </g>
+      );
+    }
+  )}
+      {/* Rafters and jack rafters */}
+{rafters.map((rafter, i) => {
+  const mm = Number(rafter.centreMM) || 0;
+  const rx = x(mm);
+
+  let rafterTopY = yBack;
+
+  // Left jack: terminate where this rafter intersects the left hip.
+  if (
+    rafter.type === "leftJack" &&
+    hasLeftHip &&
+    centreStart > 0
+  ) {
+    const progressAcrossHip = mm / centreStart;
+
+    rafterTopY =
+      yFront -
+      Math.max(0, Math.min(1, progressAcrossHip)) * oh;
+  }
+
+  // Right jack: terminate where this rafter intersects the right hip.
+  if (
+    rafter.type === "rightJack" &&
+    hasRightHip &&
+    iw > centreEnd
+  ) {
+    const progressAcrossHip =
+      (iw - mm) / (iw - centreEnd);
+
+    rafterTopY =
+      yFront -
+      Math.max(0, Math.min(1, progressAcrossHip)) * oh;
+  }
+
+  return (
+    <g key={`${rafter.type}-${mm}-${i}`}>
+      <line
+        x1={rx}
+        y1={rafterTopY}
+        x2={rx}
+        y2={yFront}
+        stroke="#2563eb"
+        strokeWidth={rafterStroke}
+      />
+
+      <text
+        x={rx}
+        y={yFront + 22}
+        textAnchor="middle"
+        style={{ font: labelFont }}
+        fill="#111827"
+      >
+        {dim(mm)}
+      </text>
+    </g>
+  );
+})}
 
       {/* Labels */}
     
+    {/* Non-hip side labels */}
+{leftBoundaryType !== "hipped" && (
+  <text
+    x={ox - 14}
+    y={oy + oh / 2}
+    textAnchor="middle"
+    dominantBaseline="middle"
+    transform={`rotate(-90 ${ox - 14} ${oy + oh / 2})`}
+    style={{
+      font: "12px Inter, system-ui, Arial",
+      fontWeight: 700,
+    }}
+    fill="#374151"
+  >
+    {leftBoundaryType === "wall" ? "WALL" : "END"}
+  </text>
+)}
+
+{rightBoundaryType !== "hipped" && (
+  <text
+    x={ox + ow + 14}
+    y={oy + oh / 2}
+    textAnchor="middle"
+    dominantBaseline="middle"
+    transform={`rotate(90 ${ox + ow + 14} ${oy + oh / 2})`}
+    style={{
+      font: "12px Inter, system-ui, Arial",
+      fontWeight: 700,
+    }}
+    fill="#374151"
+  >
+    {rightBoundaryType === "wall" ? "WALL" : "END"}
+  </text>
+)}
 
       {/* Internal dimensions */}
 <DimX x1={ox} x2={ox + ow} y={oy - 20} text={`${dim(iw)} int`} />
@@ -366,14 +540,22 @@ const rightSidePitchDeg = calcSidePitchDeg({
   x1={extLeft}
   x2={extRight}
   y={extFront + 35}
-  text={`${dim(geom.externalWidthMM)} ext`}
+  text={`${dim(
+    Number.isFinite(Number(externalWidthMM))
+      ? Number(externalWidthMM)
+      : geom.externalWidthMM
+  )} ext`}
 />
 
 <DimY
   x={extLeft - 50}
   y1={extBack}
   y2={extFront}
-  text={`${dim(geom.externalProjectionMM)} ext`}
+  text={`${dim(
+    Number.isFinite(Number(externalProjectionMM))
+      ? Number(externalProjectionMM)
+      : geom.externalProjectionMM
+  )} ext`}
 />
       {/* Front ring beam */}
 <line x1={ox} y1={yFront} x2={ox + ow} y2={yFront} stroke="#111827" strokeWidth="5" />

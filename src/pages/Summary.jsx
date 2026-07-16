@@ -902,6 +902,40 @@ const hippedGeomEarly = isHippedLeanToEarly
   // Edge rafters added (+2)
   const raftersCount = Math.max(2, timberCentresCount + 2);
 
+  const plainRafterQty = isHippedLeanToEarly
+  ? Number(hippedGeomEarly?.plainRafterCount ?? 0)
+  : raftersCount;
+
+const leftJackRafterQty = isHippedLeanToEarly
+  ? Number(hippedGeomEarly?.leftJackRafterCount ?? 0)
+  : 0;
+
+const rightJackRafterQty = isHippedLeanToEarly
+  ? Number(hippedGeomEarly?.rightJackRafterCount ?? 0)
+  : 0;
+
+const leftSideIntermediateJackQty = isHippedLeanToEarly
+  ? Number(
+      hippedGeomEarly?.leftSideIntermediateJackCount ?? 0
+    )
+  : 0;
+
+const rightSideIntermediateJackQty = isHippedLeanToEarly
+  ? Number(
+      hippedGeomEarly?.rightSideIntermediateJackCount ?? 0
+    )
+  : 0;
+
+const jackRafterQty =
+  leftJackRafterQty +
+  rightJackRafterQty +
+  leftSideIntermediateJackQty +
+  rightSideIntermediateJackQty;
+
+const joistHangerQty = isHippedLeanToEarly
+  ? plainRafterQty
+  : raftersCount;
+
   // Rafter length at pitch (to front)
 
 // ---------- PIR 50mm cradle on rafter webs (NOT baked into rafters) ----------
@@ -1257,16 +1291,41 @@ const metalManualLines = [
   key: "joist_hangers",
   _k: "joist_hangers",
   label: "Joist Hangers",
-    qty: raftersCount,
-    units: "Ea",
-    order_qty: raftersCount,
-    weight_kg: Number(
-      (raftersCount * joistHangerWeightEach).toFixed(2)
-    ),
-    line: Number(
-      (raftersCount * joistHangerPriceEach).toFixed(2)
-    ),
-  },
+  qty: joistHangerQty,
+  units: "Ea",
+  order_qty: joistHangerQty,
+  weight_kg: Number(
+    (joistHangerQty * joistHangerWeightEach).toFixed(2)
+  ),
+  line: Number(
+    (joistHangerQty * joistHangerPriceEach).toFixed(2)
+  ),
+},
+...(jackRafterQty > 0
+  ? [
+      {
+        key: "jack_rafter_hooks",
+        _k: "jack_rafter_hooks",
+        label: "Jack Rafter Hooks",
+        qty: jackRafterQty,
+        units: "Ea",
+        order_qty: jackRafterQty,
+        weight_kg: 0,
+        line: 0,
+      },
+      {
+        key: "jack_rafter_brackets",
+        _k: "jack_rafter_brackets",
+        label: "Jack Rafter Brackets",
+        qty: jackRafterQty,
+        units: "Ea",
+        order_qty: jackRafterQty,
+        weight_kg: 0,
+        line: 0,
+      },
+    ]
+  : []),
+
 ];
 
 
@@ -2069,28 +2128,34 @@ if (typeof window !== "undefined") {
     }))
   );
 }
-    if (isHippedLeanTo) {
-    out.push(
-      {
-        key: "boss_rafter_terminal",
-        label: "Boss / Rafter Terminal",
-        qty: 2,
-        order_qty: 2,
-        units: "Ea",
-        weight_kg: 1,
-        line: 0,
-      },
-      {
-        key: "spar_hook",
-        label: "Spar Hook",
-        qty: 4,
-        order_qty: 4,
-        units: "Ea",
-        weight_kg: 1,
-        line: 0,
-      }
-    );
+    if (isHippedLeanTo && hippedGeom) {
+  const bossQty = Number(hippedGeom.bossQty || 0);
+  const sparHookQty = Number(hippedGeom.sparHookQty || 0);
+
+  if (bossQty > 0) {
+    out.push({
+      key: "boss_rafter_terminal",
+      label: "Boss / Rafter Terminal",
+      qty: bossQty,
+      order_qty: bossQty,
+      units: "Ea",
+      weight_kg: bossQty * 0.5,
+      line: 0,
+    });
   }
+
+  if (sparHookQty > 0) {
+    out.push({
+      key: "spar_hook",
+      label: "Spar Hook",
+      qty: sparHookQty,
+      order_qty: sparHookQty,
+      units: "Ea",
+      weight_kg: sparHookQty * 0.25,
+      line: 0,
+    });
+  }
+}
 
   return out;
 })();

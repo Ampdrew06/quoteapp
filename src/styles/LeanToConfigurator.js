@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { getMaterials } from "../../lib/materials";
+import { buildRingBeam } from "../../lib/manufacturing/ringBeamBuilder";
 
 /**
  * Timberlite — Lean-To Configurator (internal→external)
@@ -464,6 +465,34 @@ const planQs = useMemo(() => {
     () => computeFrontRingbeamBOM({ extWidthMM: norm.extWidthMM }, prices, rafter.layout),
     [norm, prices, rafter.layout]
   );
+  const ringBeamBayWidthsMM = useMemo(() => {
+  const slots = rafter?.layout?.slots || [];
+
+  return slots.slice(0, -1).map((slot, index) => {
+    const nextSlot = slots[index + 1];
+
+    return Math.max(
+      0,
+      Number(nextSlot?.left || 0) - Number(slot?.right || 0)
+    );
+  });
+}, [rafter.layout]);
+
+const frontRingBeamV2 = useMemo(
+  () =>
+    buildRingBeam({
+      id: "lean-to-front",
+      label: "Front Ring-beam",
+      exists: true,
+      lengthMM: norm.extWidthMM,
+      baseWidthMM: 220,
+      bayWidthsMM: ringBeamBayWidthsMM,
+      upstandHeightMM: 195,
+      pirHeightMM: 185,
+      pirFacesPerBay: 2,
+    }),
+  [norm.extWidthMM, ringBeamBayWidthsMM]
+);
   const cradle = useMemo(() => computePIRCradleBOM(norm, rafter, prices), [norm, rafter, prices]);
 
   const pir100 = useMemo(() => {
@@ -687,6 +716,120 @@ return (
           </table>
           <div className="text-right text-sm mt-2">Front ring-beam ex-VAT: <b>£{round(frontRingbeam.costs.exVAT_total, 2).toFixed(2)}</b></div>
         </section>
+
+       {/* Temporary Ring-beam V2 comparison */}
+<section className="rounded-2xl shadow p-4 md:p-6 bg-white">
+  <h2 className="text-lg font-semibold">
+    Ring-beam Builder V2 — Comparison
+  </h2>
+
+  <table className="w-full text-sm mt-2 border">
+    <thead>
+      <tr className="bg-gray-100 text-left">
+        <th className="p-2">Item</th>
+        <th className="p-2">Existing</th>
+        <th className="p-2">V2 Builder</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      <tr>
+        <td className="p-2">Ring-beam length</td>
+        <td className="p-2">{round(frontRingbeam.L_m, 3)} m</td>
+        <td className="p-2">{round(frontRingBeamV2.lengthM, 3)} m</td>
+      </tr>
+
+      <tr>
+        <td className="p-2">Upstand count</td>
+        <td className="p-2">{frontRingbeam.upstandCount}</td>
+        <td className="p-2">{frontRingBeamV2.upstandCount}</td>
+      </tr>
+
+      <tr>
+        <td className="p-2">9 mm ply base</td>
+        <td className="p-2">
+          {round(frontRingbeam.soffit9_area_m2, 3)} m²
+        </td>
+        <td className="p-2">
+          {round(frontRingBeamV2.materials.ply9BaseAreaM2, 3)} m²
+        </td>
+      </tr>
+
+      <tr>
+        <td className="p-2">9 mm ply upstands</td>
+        <td className="p-2">
+          {round(
+            frontRingbeam.upstandCount *
+              frontRingbeam.upstandAreaPerPiece_m2,
+            3
+          )}{" "}
+          m²
+        </td>
+        <td className="p-2">
+          {round(frontRingBeamV2.materials.ply9UpstandAreaM2, 3)} m²
+        </td>
+      </tr>
+
+      <tr>
+        <td className="p-2">30×90 PSE</td>
+        <td className="p-2">
+          {round(frontRingbeam.pse90x30_m, 3)} m
+        </td>
+        <td className="p-2">
+          {round(frontRingBeamV2.materials.pse30x90LengthM, 3)} m
+        </td>
+      </tr>
+
+      <tr>
+        <td className="p-2">Outer 25×50 fixing lath</td>
+        <td className="p-2">
+          {round(frontRingbeam.lath50x25_m, 3)} m
+        </td>
+        <td className="p-2">
+          {round(
+            frontRingBeamV2.materials.outerFixingLath25x50LengthM,
+            3
+          )}{" "}
+          m
+        </td>
+      </tr>
+
+      <tr>
+        <td className="p-2">Upstand finishing lath</td>
+        <td className="p-2">
+          {round(frontRingbeam.finishLath25x50_m, 3)} m
+        </td>
+        <td className="p-2">
+          {round(
+            frontRingBeamV2.materials.finishingLath25x50LengthM,
+            3
+          )}{" "}
+          m
+        </td>
+      </tr>
+
+      <tr>
+        <td className="p-2">50 mm PIR</td>
+        <td className="p-2">
+          {round(
+            frontRingbeam.upstandCount *
+              frontRingbeam.pirAreaPerPiece_m2,
+            3
+          )}{" "}
+          m²
+        </td>
+        <td className="p-2">
+          {round(frontRingBeamV2.materials.pir50AreaM2, 3)} m²
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div className="text-xs text-gray-600 mt-2">
+    V2 clear bay widths:{" "}
+    {ringBeamBayWidthsMM.map((width) => Math.round(width)).join(", ")} mm
+  </div>
+</section> 
 
         {/* PIR Cradle (50 mm) */}
         {inputs.includeCradle && (

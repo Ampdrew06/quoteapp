@@ -907,6 +907,57 @@ const gutterOutlet = q.gutter_outlet || q.gutterOutlet || q.outlet || "left";
 >
   <h3 style={{ margin: "0 0 8px 0" }}>Simple Trig Check</h3>
 
+  <div>
+  <b>Input Projection</b>:{" "}
+  {Math.round(manufactureGeom.internalProjectionMM)} mm
+</div>
+
+<div>
+  <b>Wallplate Thickness</b>:{" "}
+  {Math.round(manufactureGeom.wallplateThicknessMM)} mm
+</div>
+
+<div>
+  <b>Internal Horizontal Run</b>:{" "}
+  {Math.round(manufactureGeom.internalHorizontalRunMM)} mm
+</div>
+
+<div>
+  <b>External Horizontal Run</b>:{" "}
+  {Math.round(manufactureGeom.externalHorizontalRunMM)} mm
+</div>
+
+<div>
+  <b>Full Horizontal Run</b>:{" "}
+  {Math.round(manufactureGeom.fullHorizontalRunMM)} mm
+</div>
+
+<div>
+  <b>Calculated Internal Cut</b>:{" "}
+  {Math.round(manufactureGeom.calculatedInternalCutLengthMM)} mm
+</div>
+
+<div>
+  <b>Calculated External Extension</b>:{" "}
+  {Math.round(
+    manufactureGeom.calculatedExternalExtensionLengthMM
+  )}{" "}
+  mm
+</div>
+
+<div>
+  <b>Calculated External Cut</b>:{" "}
+  {Math.round(manufactureGeom.calculatedExternalCutLengthMM)} mm
+</div>
+
+<div>
+  <b>Expected Top/Bottom Edge Difference</b>:{" "}
+  {Math.round(
+    manufactureGeom.rafterEdgeLengthDifferenceMM
+  )}{" "}
+  mm
+</div>
+
   <div><b>Pure Rise</b>: {Math.round(manufactureGeom.pureRiseMM)} mm</div>
   <div><b>Internal Wall-Plate Height</b>: {Math.round(manufactureGeom.internalWallPlateHeightMM)} mm</div>
   <div><b>Simple Internal Cut Run</b>: {Math.round(manufactureGeom.simpleInternalCutRunMM)} mm</div>

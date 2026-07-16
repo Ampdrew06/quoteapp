@@ -7,6 +7,7 @@ import { computeGuttersLeanTo } from "./Calculations/guttersCalc";
 import { computeLiteSlateLeanTo } from "./Calculations/liteslateCalc";
 import { computeMiscLeanTo } from "./Calculations/miscCalc";
 import { calculateLeanToGeometry } from "./geometry/leanToGeometry";
+import { calculateHippedLeanToGeometry } from "./geometry/hippedLeanToGeometry";
 import { computeTilesLathsBOM } from "./Calculations/tilesLathsCalc";
 
 const BRITMET_WASTE = 1.1;
@@ -440,6 +441,104 @@ export function buildLeanToQuoteBase(inputs = {}, exclusions = {}) {
 
 const timberRafterLenMM = geom.rafterExternalLength;
 
+const roofStyle =
+  inputs.roofStyle ??
+  inputs.roof_style ??
+  "leanTo";
+
+const isHippedLeanTo = roofStyle === "hippedLeanTo";
+
+const hippedGeom = isHippedLeanTo
+  ? calculateHippedLeanToGeometry({
+      widthMM: iw,
+      projectionMM: ip,
+      pitchDeg,
+      soffitDepthMM: soff,
+      materials: m,
+
+      hippedSides:
+        inputs.hippedSides ??
+        inputs.activeHippedSides ??
+        "both",
+
+      leftHipWidthMM: Number(
+        inputs.leftHipWidthMM ??
+        inputs.left_hip_width_mm ??
+        1000
+      ),
+
+      rightHipWidthMM: Number(
+        inputs.rightHipWidthMM ??
+        inputs.right_hip_width_mm ??
+        1000
+      ),
+
+      leftWall: Boolean(
+        inputs.leftWall ??
+        inputs.left_wall_present ??
+        false
+      ),
+
+      rightWall: Boolean(
+        inputs.rightWall ??
+        inputs.right_wall_present ??
+        false
+      ),
+
+      leftOverhangMM: Number(
+        inputs.leftOverhangMM ??
+        inputs.left_overhang_mm ??
+        0
+      ),
+
+      rightOverhangMM: Number(
+        inputs.rightOverhangMM ??
+        inputs.right_overhang_mm ??
+        0
+      ),
+    })
+  : null;
+
+const plainRafterQty = isHippedLeanTo
+  ? Number(hippedGeom?.plainRafterCount ?? 0)
+  : raftersCount;
+
+const leftJackRafterQty = isHippedLeanTo
+  ? Number(hippedGeom?.leftJackRafterCount ?? 0)
+  : 0;
+
+const rightJackRafterQty = isHippedLeanTo
+  ? Number(hippedGeom?.rightJackRafterCount ?? 0)
+  : 0;
+
+const leftSideIntermediateJackQty = isHippedLeanTo
+  ? Number(
+      hippedGeom?.leftSideIntermediateJackCount ?? 0
+    )
+  : 0;
+
+const rightSideIntermediateJackQty = isHippedLeanTo
+  ? Number(
+      hippedGeom?.rightSideIntermediateJackCount ?? 0
+    )
+  : 0;
+
+const jackRafterQty =
+  leftJackRafterQty +
+  rightJackRafterQty +
+  leftSideIntermediateJackQty +
+  rightSideIntermediateJackQty;
+
+const bossQty = isHippedLeanTo
+  ? Number(hippedGeom?.bossQty ?? 0)
+  : 0;
+
+const sparHookQty = isHippedLeanTo
+  ? Number(hippedGeom?.sparHookQty ?? 0)
+  : 0;
+
+
+
   // Steico (base cost)
   const wallplate_m = extWidthM;
   const raftersTotal_m = (raftersCount * timberRafterLenMM) / 1000;
@@ -541,10 +640,61 @@ const rightIsWall =
 
   const tileStarterCost = 1 * Number(m.tile_starter_price_each ?? m.metal?.tile_starter?.price_each ?? 0);
 
-  const joistHangerCost =
-    raftersCount * Number(m.joist_hanger_price_each ?? 0);
+  const joistHangerQty = plainRafterQty;
 
-  const metalCost = watercourseCost + tileStarterCost + joistHangerCost;
+const joistHangerCost =
+  joistHangerQty *
+  Number(
+    m.joist_hanger_price_each ??
+    m.metal?.joist_hanger?.price_each ??
+    0
+  );
+
+const jackRafterHookPriceEach = Number(
+  m.jack_rafter_hook_price_each ??
+  m.metal?.jack_rafter_hook?.price_each ??
+  0
+);
+
+const jackRafterBracketPriceEach = Number(
+  m.jack_rafter_bracket_price_each ??
+  m.metal?.jack_rafter_bracket?.price_each ??
+  0
+);
+
+const bossPriceEach = Number(
+  m.boss_price_each ??
+  m.boss_rafter_terminal_price_each ??
+  m.metal?.boss?.price_each ??
+  0
+);
+
+const sparHookPriceEach = Number(
+  m.spar_hook_price_each ??
+  m.metal?.spar_hook?.price_each ??
+  0
+);
+
+const jackRafterHookCost =
+  jackRafterQty * jackRafterHookPriceEach;
+
+const jackRafterBracketCost =
+  jackRafterQty * jackRafterBracketPriceEach;
+
+const bossCost =
+  bossQty * bossPriceEach;
+
+const sparHookCost =
+  sparHookQty * sparHookPriceEach;
+
+const metalCost =
+  watercourseCost +
+  tileStarterCost +
+  joistHangerCost +
+  jackRafterHookCost +
+  jackRafterBracketCost +
+  bossCost +
+  sparHookCost;
 
   const materialsCostForPricing = leanToMaterialsCost + timberChargeableCost + metalCost;
 
