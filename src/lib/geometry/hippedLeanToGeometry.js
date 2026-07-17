@@ -9,8 +9,8 @@ const degToRad = (deg) => (Number(deg) * Math.PI) / 180;
 const radToDeg = (rad) => (Number(rad) * 180) / Math.PI;
 
 const calcSidePitchDeg = ({ frontPitchDeg, projectionMM, hipWidthMM }) => {
-  const projection = Number(projectionMM) || 0;
-  const hipWidth = Number(hipWidthMM) || 0;
+const projection = Number(projectionMM) || 0;
+const hipWidth = Number(hipWidthMM) || 0;
 
   if (!projection || !hipWidth) return 0;
 
@@ -25,17 +25,6 @@ const HIP_TOP_CUT_FACE_OFFSET_MM = 140;
 const SPAR_HOOK_TO_BOSS_OFFSET_MM = 105;
 
 const SPAR_HOOK_TO_WALLPLATE_FACE_MM = 156;
-
-
-/**
- * Finds the soffit depth that produces a required vertical
- * rafter foot/plumb cut at a given pitch.
- *
- * This is the numerical equivalent of comparing two physical
- * rafter templates after aligning their internal foot-cut corners.
- *
- * It is not connected to the active roof calculation yet.
- */
 
 export function calculateHippedLeanToGeometry({
   widthMM,
@@ -780,35 +769,6 @@ leftFinishedFasciaHeightMM:
 rightFinishedFasciaHeightMM:
   hasRightHip
     ? facetEavesRule.commonFinishedFasciaHeightMM
-    : 0,
-
-frontFasciaAlignmentDatumMM:
-  Number(base?.fasciaAlignmentDatum ?? 0),
-
-leftFasciaAlignmentDatumMM:
-  hasLeftHip
-    ? Number(
-        calculateLeanToGeometry({
-          widthMM: 1000,
-          projectionMM: 1000,
-          pitchDeg: leftSidePitchDeg,
-          soffitDepthMM: leftCalculatedSoffitMM,
-          materials,
-        })?.fasciaAlignmentDatum ?? 0
-      )
-    : 0,
-
-rightFasciaAlignmentDatumMM:
-  hasRightHip
-    ? Number(
-        calculateLeanToGeometry({
-          widthMM: 1000,
-          projectionMM: 1000,
-          pitchDeg: rightSidePitchDeg,
-          soffitDepthMM: rightCalculatedSoffitMM,
-          materials,
-        })?.fasciaAlignmentDatum ?? 0
-      )
     : 0,
 
 frontFasciaOrderSizeMM:

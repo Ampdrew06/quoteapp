@@ -1929,12 +1929,6 @@ title={
   )} mm
 </div>
 
-<div>
-  <b>Front Alignment Datum:</b>{" "}
-  {Number(
-    hippedGeom.frontFasciaAlignmentDatumMM || 0
-  ).toFixed(2)} mm
-</div>
 <div style={{ marginTop: 8 }}>
   <b>Common Roof Fascia:</b>{" "}
   {Math.round(
@@ -2011,12 +2005,6 @@ title={
       )} mm
     </div>
 
-    <div>
-      <b>Left Alignment Datum:</b>{" "}
-      {Number(
-        hippedGeom.leftFasciaAlignmentDatumMM || 0
-      ).toFixed(2)} mm
-    </div>
   </>
 )}
 
@@ -2181,12 +2169,6 @@ title={
       )} mm
     </div>
 
-    <div>
-      <b>Right Alignment Datum:</b>{" "}
-      {Number(
-        hippedGeom.rightFasciaAlignmentDatumMM || 0
-      ).toFixed(2)} mm
-    </div>
   </>
 )}
 
