@@ -26,77 +26,7 @@ const SPAR_HOOK_TO_BOSS_OFFSET_MM = 105;
 
 const SPAR_HOOK_TO_WALLPLATE_FACE_MM = 156;
 
-const solveSoffitForTargetFasciaHeight = ({
-  targetFasciaHeightMM,
-  pitchDeg,
-  materials,
-}) => {
-  const MIN_SOFFIT_MM = 0;
-  const MAX_SOFFIT_MM = 1000;
-  const COARSE_STEP_MM = 20;
 
-  const getFasciaDifference = (soffitDepthMM) => {
-    const test = calculateLeanToGeometry({
-      widthMM: 1000,
-      projectionMM: 1000,
-      pitchDeg,
-      soffitDepthMM,
-      materials,
-    });
-
-    const fasciaAlignmentDatumMM = Number(
-  test.fasciaAlignmentDatum || 0
-);
-
-return Math.abs(
-  fasciaAlignmentDatumMM -
-    Number(targetFasciaHeightMM || 0)
-);
-  };
-
-  let bestSoffitMM = MIN_SOFFIT_MM;
-  let bestDifferenceMM = Infinity;
-
-  // First pass: quickly locate the best 20mm region.
-  for (
-    let soffitMM = MIN_SOFFIT_MM;
-    soffitMM <= MAX_SOFFIT_MM;
-    soffitMM += COARSE_STEP_MM
-  ) {
-    const differenceMM = getFasciaDifference(soffitMM);
-
-    if (differenceMM < bestDifferenceMM) {
-      bestDifferenceMM = differenceMM;
-      bestSoffitMM = soffitMM;
-    }
-  }
-
-  // Second pass: check every whole millimetre around the best region.
-  const fineStartMM = Math.max(
-    MIN_SOFFIT_MM,
-    bestSoffitMM - COARSE_STEP_MM
-  );
-
-  const fineEndMM = Math.min(
-    MAX_SOFFIT_MM,
-    bestSoffitMM + COARSE_STEP_MM
-  );
-
-  for (
-    let soffitMM = fineStartMM;
-    soffitMM <= fineEndMM;
-    soffitMM += 1
-  ) {
-    const differenceMM = getFasciaDifference(soffitMM);
-
-    if (differenceMM < bestDifferenceMM) {
-      bestDifferenceMM = differenceMM;
-      bestSoffitMM = soffitMM;
-    }
-  }
-
-  return bestSoffitMM;
-};
 /**
  * Finds the soffit depth that produces a required vertical
  * rafter foot/plumb cut at a given pitch.
@@ -106,485 +36,6 @@ return Math.abs(
  *
  * It is not connected to the active roof calculation yet.
  */
-const solveSoffitForTargetPlumbCut = ({
-  targetPlumbCutHeightMM,
-  pitchDeg,
-  materials,
-  minimumSoffitMM = MIN_OPEN_SIDE_SOFFIT_MM,
-  maximumSoffitMM = 1000,
-}) => {
-  const minSoffitMM = Math.max(
-    0,
-    Number(minimumSoffitMM) || 0
-  );
-
-  const maxSoffitMM = Math.max(
-    minSoffitMM,
-    Number(maximumSoffitMM) || 1000
-  );
-
-  const targetMM = Math.max(
-    0,
-    Number(targetPlumbCutHeightMM) || 0
-  );
-
-  const COARSE_STEP_MM = 20;
-
-  const evaluate = (soffitDepthMM) => {
-    const geometry = calculateLeanToGeometry({
-      widthMM: 1000,
-      projectionMM: 1000,
-      pitchDeg,
-      soffitDepthMM,
-      materials,
-    });
-
-    const plumbCutHeightMM = Number(
-      geometry?.plumbCutHeight ?? 0
-    );
-
-    return {
-      soffitDepthMM,
-      plumbCutHeightMM,
-      differenceMM: Math.abs(
-        plumbCutHeightMM - targetMM
-      ),
-      geometry,
-    };
-  };
-
-  let bestResult = evaluate(minSoffitMM);
-
-  // Coarse pass: locate the best 20 mm region.
-  for (
-    let soffitMM = minSoffitMM;
-    soffitMM <= maxSoffitMM;
-    soffitMM += COARSE_STEP_MM
-  ) {
-    const result = evaluate(soffitMM);
-
-    if (result.differenceMM < bestResult.differenceMM) {
-      bestResult = result;
-    }
-  }
-
-  // Fine pass: search every whole millimetre around that region.
-  const fineStartMM = Math.max(
-    minSoffitMM,
-    bestResult.soffitDepthMM - COARSE_STEP_MM
-  );
-
-  const fineEndMM = Math.min(
-    maxSoffitMM,
-    bestResult.soffitDepthMM + COARSE_STEP_MM
-  );
-
-  for (
-    let soffitMM = fineStartMM;
-    soffitMM <= fineEndMM;
-    soffitMM += 1
-  ) {
-    const result = evaluate(soffitMM);
-
-    if (result.differenceMM < bestResult.differenceMM) {
-      bestResult = result;
-    }
-  }
-
-  return bestResult;
-};
-
-const calculateLevelFasciaSoffits = ({
-  requestedFrontSoffitMM,
-  frontPitchDeg,
-  leftSidePitchDeg,
-  rightSidePitchDeg,
-  hasLeftHip,
-  hasRightHip,
-  materials,
-}) => {
-  let effectiveFrontSoffitMM = Number(requestedFrontSoffitMM) || 0;
-  let adjusted = false;
-
-  const getTarget = (frontSoffit) =>
-    calculateLeanToGeometry({
-      widthMM: 1000,
-      projectionMM: 1000,
-      pitchDeg: frontPitchDeg,
-      soffitDepthMM: frontSoffit,
-      materials,
-    }).fasciaAlignmentDatum;
-
-  const pitchesMatch = (a, b) =>
-  Math.abs(Number(a) - Number(b)) < 0.05;
-
-const getSideSoffits = (frontSoffit) => {
-  const targetFasciaHeightMM = getTarget(frontSoffit);
-
-  return {
-    left: hasLeftHip
-      ? pitchesMatch(leftSidePitchDeg, frontPitchDeg)
-        ? frontSoffit
-        : solveSoffitForTargetFasciaHeight({
-            targetFasciaHeightMM,
-            pitchDeg: leftSidePitchDeg,
-            materials,
-          })
-      : 0,
-
-    right: hasRightHip
-      ? pitchesMatch(rightSidePitchDeg, frontPitchDeg)
-        ? frontSoffit
-        : solveSoffitForTargetFasciaHeight({
-            targetFasciaHeightMM,
-            pitchDeg: rightSidePitchDeg,
-            materials,
-          })
-      : 0,
-  };
-};
-
-const evaluateFasciaSolution = (frontSoffitMM) => {
-  const sideSoffits = getSideSoffits(frontSoffitMM);
-
-  const frontGeometry = calculateLeanToGeometry({
-    widthMM: 1000,
-    projectionMM: 1000,
-    pitchDeg: frontPitchDeg,
-    soffitDepthMM: frontSoffitMM,
-    materials,
-  });
-
-  const leftGeometry = hasLeftHip
-    ? calculateLeanToGeometry({
-        widthMM: 1000,
-        projectionMM: 1000,
-        pitchDeg: leftSidePitchDeg,
-        soffitDepthMM: sideSoffits.left,
-        materials,
-      })
-    : null;
-
-  const rightGeometry = hasRightHip
-    ? calculateLeanToGeometry({
-        widthMM: 1000,
-        projectionMM: 1000,
-        pitchDeg: rightSidePitchDeg,
-        soffitDepthMM: sideSoffits.right,
-        materials,
-      })
-    : null;
-
-  const frontOrderSizeMM = Number(
-    frontGeometry?.fasciaOrderSize ?? 0
-  );
-
-  const leftOrderSizeMM = hasLeftHip
-    ? Number(leftGeometry?.fasciaOrderSize ?? 0)
-    : frontOrderSizeMM;
-
-  const rightOrderSizeMM = hasRightHip
-    ? Number(rightGeometry?.fasciaOrderSize ?? 0)
-    : frontOrderSizeMM;
-
-  const sideSoffitsValid =
-    (!hasLeftHip ||
-      sideSoffits.left >= MIN_OPEN_SIDE_SOFFIT_MM) &&
-    (!hasRightHip ||
-      sideSoffits.right >= MIN_OPEN_SIDE_SOFFIT_MM);
-
-  const fasciaSizesMatch =
-  frontOrderSizeMM > 0;
-
-  return {
-    frontSoffitMM,
-    sideSoffits,
-
-    frontGeometry,
-    leftGeometry,
-    rightGeometry,
-
-    frontOrderSizeMM,
-    leftOrderSizeMM,
-    rightOrderSizeMM,
-
-    sideSoffitsValid,
-    fasciaSizesMatch,
-
-    isValid:
-      sideSoffitsValid &&
-      fasciaSizesMatch,
-  };
-};
-
-  const requestedSoffitMM =
-  Math.max(0, Number(requestedFrontSoffitMM) || 0);
-
-// The requested front soffit is the master geometry.
-// Side soffits adapt to its finished fascia line.
-const selectedSolution =
-  evaluateFasciaSolution(requestedSoffitMM);
-
-effectiveFrontSoffitMM = requestedSoffitMM;
-
-const sideSoffits =
-  selectedSolution.sideSoffits;
-
-adjusted = false;
-
-  const frontGeometry =
-  selectedSolution.frontGeometry;
-
-const leftSideGeometry =
-  selectedSolution.leftGeometry;
-
-const rightSideGeometry =
-  selectedSolution.rightGeometry;
-
-  const leftPlumbCutMatch = hasLeftHip
-  ? solveSoffitForTargetPlumbCut({
-      targetPlumbCutHeightMM:
-        Number(frontGeometry?.plumbCutHeight ?? 0),
-      pitchDeg: leftSidePitchDeg,
-      materials,
-      minimumSoffitMM: MIN_OPEN_SIDE_SOFFIT_MM,
-    })
-  : null;
-
-const rightPlumbCutMatch = hasRightHip
-  ? solveSoffitForTargetPlumbCut({
-      targetPlumbCutHeightMM:
-        Number(frontGeometry?.plumbCutHeight ?? 0),
-      pitchDeg: rightSidePitchDeg,
-      materials,
-      minimumSoffitMM: MIN_OPEN_SIDE_SOFFIT_MM,
-    })
-  : null;
-
-  // At a 90° mitred corner, unequal-pitch rafter templates do not
-// finish at the same outer point.
-//
-// The steeper profile projects farther beyond the common vertical
-// foot-cut line. That triangular projection is cut off square at
-// the mitre and must be added to the theoretical matched soffit.
-const rafterDepthMM = Number(
-  materials?.rafter_depth_mm ??
-  frontGeometry?.raw?.rafterDepthMM ??
-  220
-);
-
-const frontPitchRad = degToRad(frontPitchDeg);
-
-const leftMitreTrimAllowanceMM = hasLeftHip
-  ? rafterDepthMM *
-    Math.abs(
-      Math.sin(degToRad(leftSidePitchDeg)) -
-      Math.sin(frontPitchRad)
-    )
-  : 0;
-
-const rightMitreTrimAllowanceMM = hasRightHip
-  ? rafterDepthMM *
-    Math.abs(
-      Math.sin(degToRad(rightSidePitchDeg)) -
-      Math.sin(frontPitchRad)
-    )
-  : 0;
-
-const leftRawManufacturedSoffitMM = hasLeftHip
-  ? Number(leftPlumbCutMatch?.soffitDepthMM ?? 0) +
-    leftMitreTrimAllowanceMM
-  : 0;
-
-const rightRawManufacturedSoffitMM = hasRightHip
-  ? Number(rightPlumbCutMatch?.soffitDepthMM ?? 0) +
-    rightMitreTrimAllowanceMM
-  : 0;
-
-// Temporary workshop rule:
-// round the manufactured side soffit upward to the nearest 5 mm.
-const leftRoundedManufacturedSoffitMM = hasLeftHip
-  ? Math.ceil(leftRawManufacturedSoffitMM / 5) * 5
-  : 0;
-
-const rightRoundedManufacturedSoffitMM = hasRightHip
-  ? Math.ceil(rightRawManufacturedSoffitMM / 5) * 5
-  : 0;
-
-  // The isolated front/side Lean-To values are diagnostic only.
-//
-// In the assembled hipped roof, all active facets meet on one
-// common vertical fascia line. The largest physical requirement
-// therefore determines the common finished fascia height.
-const activeFinishedFasciaHeightsMM = [
-  Number(frontGeometry?.fasciaHeight ?? 0),
-
-  ...(hasLeftHip
-    ? [Number(leftSideGeometry?.fasciaHeight ?? 0)]
-    : []),
-
-  ...(hasRightHip
-    ? [Number(rightSideGeometry?.fasciaHeight ?? 0)]
-    : []),
-].filter((value) => Number.isFinite(value) && value > 0);
-
-const commonFinishedFasciaHeightMM =
-  activeFinishedFasciaHeightsMM.length > 0
-    ? Math.max(...activeFinishedFasciaHeightsMM)
-    : 0;
-
-// Use the same physical fascia offset as the validated Lean-To
-// calculation to convert the assembled finished height back to
-// the common vertical rafter foot cut.
-const fasciaOffsetMM = Number(
-  frontGeometry?.raw?.fasciaOffsetMM ?? 61
-);
-
-const commonFootPlumbCutHeightMM = Math.max(
-  0,
-  commonFinishedFasciaHeightMM - fasciaOffsetMM
-);
-
-// Stock fascia is selected from the greatest requirement of all
-// active facets. This gives one fascia size around the whole roof.
-const activeFasciaOrderSizesMM = [
-  Number(frontGeometry?.fasciaOrderSize ?? 0),
-
-  ...(hasLeftHip
-    ? [Number(leftSideGeometry?.fasciaOrderSize ?? 0)]
-    : []),
-
-  ...(hasRightHip
-    ? [Number(rightSideGeometry?.fasciaOrderSize ?? 0)]
-    : []),
-].filter((value) => Number.isFinite(value) && value > 0);
-
-const commonFasciaOrderSizeMM =
-  activeFasciaOrderSizesMM.length > 0
-    ? Math.max(...activeFasciaOrderSizesMM)
-    : 0;
-
-return {
-  requestedFrontSoffitMM,
-  effectiveFrontSoffitMM,
-
-  leftCalculatedSoffitMM:
-    hasLeftHip ? sideSoffits.left : 0,
-
-  rightCalculatedSoffitMM:
-    hasRightHip ? sideSoffits.right : 0,
-
-  frontSoffitAutoAdjusted: adjusted,
-  minOpenSideSoffitMM: MIN_OPEN_SIDE_SOFFIT_MM,
-
-  commonFasciaOrderSizeMM,
-  commonFinishedFasciaHeightMM,
-  commonFootPlumbCutHeightMM,
-
-  fasciaOrderSizesMatch:
-  selectedSolution.fasciaSizesMatch,
-
-  // Actual finished Lean-To fascia results
-  frontFinishedFasciaHeightMM: Number(
-    frontGeometry?.fasciaHeight ?? 0
-  ),
-
-  leftFinishedFasciaHeightMM: Number(
-    leftSideGeometry?.fasciaHeight ?? 0
-  ),
-
-  rightFinishedFasciaHeightMM: Number(
-    rightSideGeometry?.fasciaHeight ?? 0
-  ),
-
-  // Pitch-dependent datum used by the reverse solver
-  frontFasciaAlignmentDatumMM: Number(
-    frontGeometry?.fasciaAlignmentDatum ?? 0
-  ),
-
-  leftFasciaAlignmentDatumMM: Number(
-    leftSideGeometry?.fasciaAlignmentDatum ?? 0
-  ),
-
-  rightFasciaAlignmentDatumMM: Number(
-    rightSideGeometry?.fasciaAlignmentDatum ?? 0
-  ),
-
-  // Practical ordered fascia board sizes
-  frontFasciaOrderSizeMM: Number(
-    frontGeometry?.fasciaOrderSize ?? 0
-  ),
-
-  leftFasciaOrderSizeMM: Number(
-    leftSideGeometry?.fasciaOrderSize ?? 0
-  ),
-
-  rightFasciaOrderSizeMM: Number(
-    rightSideGeometry?.fasciaOrderSize ?? 0
-  ),
-
-  // Rafter outer vertical foot/plumb cuts
-  frontPlumbCutHeightMM: Number(
-    frontGeometry?.plumbCutHeight ?? 0
-  ),
-
-  leftPlumbCutHeightMM: Number(
-    leftSideGeometry?.plumbCutHeight ?? 0
-  ),
-
-  rightPlumbCutHeightMM: Number(
-    rightSideGeometry?.plumbCutHeight ?? 0
-  ),
-
-  leftPlumbCutMatchedSoffitMM: Number(
-  leftPlumbCutMatch?.soffitDepthMM ?? 0
-),
-
-rightPlumbCutMatchedSoffitMM: Number(
-  rightPlumbCutMatch?.soffitDepthMM ?? 0
-),
-
-leftMatchedPlumbCutHeightMM: Number(
-  leftPlumbCutMatch?.plumbCutHeightMM ?? 0
-),
-
-rightMatchedPlumbCutHeightMM: Number(
-  rightPlumbCutMatch?.plumbCutHeightMM ?? 0
-),
-
-leftPlumbCutDifferenceMM: Number(
-  leftPlumbCutMatch?.differenceMM ?? 0
-),
-
-rightPlumbCutDifferenceMM: Number(
-  rightPlumbCutMatch?.differenceMM ?? 0
-),
-
-leftMitreTrimAllowanceMM: Number(
-  leftMitreTrimAllowanceMM.toFixed(2)
-),
-
-rightMitreTrimAllowanceMM: Number(
-  rightMitreTrimAllowanceMM.toFixed(2)
-),
-
-leftRawManufacturedSoffitMM: Number(
-  leftRawManufacturedSoffitMM.toFixed(2)
-),
-
-rightRawManufacturedSoffitMM: Number(
-  rightRawManufacturedSoffitMM.toFixed(2)
-),
-
-leftRoundedManufacturedSoffitMM: Number(
-  leftRoundedManufacturedSoffitMM.toFixed(2)
-),
-
-rightRoundedManufacturedSoffitMM: Number(
-  rightRoundedManufacturedSoffitMM.toFixed(2)
-),
-};
-};
 
 export function calculateHippedLeanToGeometry({
   widthMM,
@@ -706,15 +157,7 @@ const facetEavesRule = solveFacetEavesGeometry({
   manufacturingRoundIncrementMM: 5,
 });
 
-const soffitRule = calculateLevelFasciaSoffits({
-  requestedFrontSoffitMM,
-  frontPitchDeg: pitchDeg,
-  leftSidePitchDeg,
-  rightSidePitchDeg,
-  hasLeftHip,
-  hasRightHip,
-  materials,
-});
+
 
 // Live eaves dimensions now come from the universal,
 // physically validated facet-eaves solver.
@@ -876,7 +319,7 @@ const leftSideRingBeam = hasLeftHip
       sideSoffitMM: leftCalculatedSoffitMM,
       frameThicknessMM,
       frameOnMM,
-      minOpenSideSoffitMM: soffitRule.minOpenSideSoffitMM,
+      minOpenSideSoffitMM: MIN_OPEN_SIDE_SOFFIT_MM,
     }
   : {
       exists: false,
@@ -885,7 +328,7 @@ const leftSideRingBeam = hasLeftHip
       sideSoffitMM: 0,
       frameThicknessMM,
       frameOnMM,
-      minOpenSideSoffitMM: soffitRule.minOpenSideSoffitMM,
+      minOpenSideSoffitMM: MIN_OPEN_SIDE_SOFFIT_MM,
     };
 
 const rightSideRingBeam = hasRightHip
@@ -896,7 +339,7 @@ const rightSideRingBeam = hasRightHip
       sideSoffitMM: rightCalculatedSoffitMM,
       frameThicknessMM,
       frameOnMM,
-      minOpenSideSoffitMM: soffitRule.minOpenSideSoffitMM,
+      minOpenSideSoffitMM: MIN_OPEN_SIDE_SOFFIT_MM,
     }
   : {
       exists: false,
@@ -905,7 +348,7 @@ const rightSideRingBeam = hasRightHip
       sideSoffitMM: 0,
       frameThicknessMM,
       frameOnMM,
-      minOpenSideSoffitMM: soffitRule.minOpenSideSoffitMM,
+      minOpenSideSoffitMM: MIN_OPEN_SIDE_SOFFIT_MM,
     };
 
     const SIDE_RING_BEAM_SLOT_WIDTH_MM = 48;
@@ -1076,7 +519,7 @@ const leftFacet = buildFacet({
   pitchDeg: leftSidePitchDeg,
 
   soffitDepthMM:
-    leftCalculatedSoffitMM,
+  facetEavesRule.left.matchedSoffitMM,
 
   plumbCutHeightMM:
   facetEavesRule.left.matchedPlumbCutHeightMM,
@@ -1108,7 +551,7 @@ const rightFacet = buildFacet({
   pitchDeg: rightSidePitchDeg,
 
   soffitDepthMM:
-    rightCalculatedSoffitMM,
+  facetEavesRule.right.matchedSoffitMM,
 
   plumbCutHeightMM:
   facetEavesRule.right.matchedPlumbCutHeightMM,
@@ -1230,13 +673,13 @@ const frontRingBeamBayWidthsMM = frontRafterSlots
     effectiveFrontSoffitMM,
 
   plumbCutHeightMM:
-    soffitRule.frontPlumbCutHeightMM,
+    facetEavesRule.targetPlumbCutHeightMM,
 
-  finishedFasciaHeightMM:
-    soffitRule.frontFinishedFasciaHeightMM,
+finishedFasciaHeightMM:
+    facetEavesRule.commonFinishedFasciaHeightMM,
 
-  fasciaOrderSizeMM:
-    soffitRule.frontFasciaOrderSizeMM,
+fasciaOrderSizeMM:
+    facetEavesRule.commonFasciaOrderSizeMM,
 
   hasRingBeam: true,
   ringBeamLengthMM: externalWidthMM,
@@ -1322,8 +765,9 @@ rightWallJackCount:
   leftCalculatedSoffitMM,
   rightCalculatedSoffitMM,
 
-  requestedFrontSoffitMM: soffitRule.requestedFrontSoffitMM,
-  effectiveFrontSoffitMM: soffitRule.effectiveFrontSoffitMM,
+  requestedFrontSoffitMM,
+
+  effectiveFrontSoffitMM,
 
   frontFinishedFasciaHeightMM:
   facetEavesRule.commonFinishedFasciaHeightMM,
@@ -1339,13 +783,33 @@ rightFinishedFasciaHeightMM:
     : 0,
 
 frontFasciaAlignmentDatumMM:
-  soffitRule.frontFasciaAlignmentDatumMM,
+  Number(base?.fasciaAlignmentDatum ?? 0),
 
 leftFasciaAlignmentDatumMM:
-  soffitRule.leftFasciaAlignmentDatumMM,
+  hasLeftHip
+    ? Number(
+        calculateLeanToGeometry({
+          widthMM: 1000,
+          projectionMM: 1000,
+          pitchDeg: leftSidePitchDeg,
+          soffitDepthMM: leftCalculatedSoffitMM,
+          materials,
+        })?.fasciaAlignmentDatum ?? 0
+      )
+    : 0,
 
 rightFasciaAlignmentDatumMM:
-  soffitRule.rightFasciaAlignmentDatumMM,
+  hasRightHip
+    ? Number(
+        calculateLeanToGeometry({
+          widthMM: 1000,
+          projectionMM: 1000,
+          pitchDeg: rightSidePitchDeg,
+          soffitDepthMM: rightCalculatedSoffitMM,
+          materials,
+        })?.fasciaAlignmentDatum ?? 0
+      )
+    : 0,
 
 frontFasciaOrderSizeMM:
   facetEavesRule.commonFasciaOrderSizeMM,
@@ -1363,8 +827,7 @@ rightFasciaOrderSizeMM:
 commonFasciaOrderSizeMM:
   facetEavesRule.commonFasciaOrderSizeMM,
 
-fasciaOrderSizesMatch:
-  soffitRule.fasciaOrderSizesMatch,
+fasciaOrderSizesMatch: true,
 
 frontPlumbCutHeightMM:
   facetEavesRule.targetPlumbCutHeightMM,
@@ -1378,46 +841,47 @@ rightPlumbCutHeightMM:
   hasRightHip
     ? facetEavesRule.right.matchedPlumbCutHeightMM
     : 0,
-    
-  frontSoffitAutoAdjusted: soffitRule.frontSoffitAutoAdjusted,
-  minOpenSideSoffitMM: soffitRule.minOpenSideSoffitMM,
+
+  frontSoffitAutoAdjusted: false,
+
+minOpenSideSoffitMM:
+  MIN_OPEN_SIDE_SOFFIT_MM,
 
   leftPlumbCutMatchedSoffitMM:
-  soffitRule.leftPlumbCutMatchedSoffitMM,
+  facetEavesRule.left.matchedSoffitMM,
 
 rightPlumbCutMatchedSoffitMM:
-  soffitRule.rightPlumbCutMatchedSoffitMM,
+  facetEavesRule.right.matchedSoffitMM,
 
 leftMatchedPlumbCutHeightMM:
-  soffitRule.leftMatchedPlumbCutHeightMM,
+  facetEavesRule.left.matchedPlumbCutHeightMM,
 
 rightMatchedPlumbCutHeightMM:
-  soffitRule.rightMatchedPlumbCutHeightMM,
+  facetEavesRule.right.matchedPlumbCutHeightMM,
 
 leftPlumbCutDifferenceMM:
-  soffitRule.leftPlumbCutDifferenceMM,
+  facetEavesRule.left.plumbCutDifferenceMM,
 
 rightPlumbCutDifferenceMM:
-  soffitRule.rightPlumbCutDifferenceMM,
+  facetEavesRule.right.plumbCutDifferenceMM,
 
-  leftMitreTrimAllowanceMM:
-  soffitRule.leftMitreTrimAllowanceMM,
+leftMitreTrimAllowanceMM:
+  facetEavesRule.left.mitreTrimAllowanceMM,
 
 rightMitreTrimAllowanceMM:
-  soffitRule.rightMitreTrimAllowanceMM,
+  facetEavesRule.right.mitreTrimAllowanceMM,
 
 leftRawManufacturedSoffitMM:
-  soffitRule.leftRawManufacturedSoffitMM,
+  facetEavesRule.left.rawManufacturedSoffitMM,
 
 rightRawManufacturedSoffitMM:
-  soffitRule.rightRawManufacturedSoffitMM,
+  facetEavesRule.right.rawManufacturedSoffitMM,
 
 leftRoundedManufacturedSoffitMM:
-  soffitRule.leftRoundedManufacturedSoffitMM,
+  facetEavesRule.left.manufacturedSoffitMM,
 
 rightRoundedManufacturedSoffitMM:
-  soffitRule.rightRoundedManufacturedSoffitMM,
-
+  facetEavesRule.right.manufacturedSoffitMM,
   facetEavesReferenceSoffitMM:
   facetEavesRule.effectiveReferenceSoffitMM,
 
