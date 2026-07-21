@@ -10,11 +10,18 @@ export function calculateLeanToGeometry({
   materials,
 }) {
   const geom = computeLeanToManufactureGeometry({
-    internalProjectionMM: projectionMM,
-    pitchDeg,
-    soffitDepthMM,
-    frameThicknessMM: Number(materials?.side_frame_thickness_mm ?? 70),
-  });
+  internalProjectionMM: projectionMM,
+  pitchDeg,
+  soffitDepthMM,
+
+  frameThicknessMM: Number(
+    materials?.side_frame_thickness_mm ?? 70
+  ),
+
+  wallplateThicknessMM: Number(
+    materials?.wallplate_thickness_mm ?? 65
+  ),
+});
 
   return {
     // Standardised shared names for the rest of the app

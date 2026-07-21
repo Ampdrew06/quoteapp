@@ -8,14 +8,17 @@ import { solveFacetEavesGeometry } from "./facetEavesGeometry";
 const degToRad = (deg) => (Number(deg) * Math.PI) / 180;
 const radToDeg = (rad) => (Number(rad) * 180) / Math.PI;
 
-const calcSidePitchDeg = ({ frontPitchDeg, projectionMM, hipWidthMM }) => {
-const projection = Number(projectionMM) || 0;
-const hipWidth = Number(hipWidthMM) || 0;
+const calcSidePitchDeg = ({
+  riseMM,
+  hipWidthMM,
+}) => {
+  const rise = Number(riseMM) || 0;
+  const hipWidth = Number(hipWidthMM) || 0;
 
-  if (!projection || !hipWidth) return 0;
+  if (!rise || !hipWidth) return 0;
 
   return radToDeg(
-    Math.atan(Math.tan(degToRad(frontPitchDeg)) * (projection / hipWidth))
+    Math.atan2(rise, hipWidth)
   );
 };
 
@@ -79,16 +82,14 @@ const riseMM = base?.raw?.pureRiseMM ?? 0;
 // 4) Side roof plane pitches
 const leftSidePitchDeg = hasLeftHip
   ? calcSidePitchDeg({
-      frontPitchDeg: pitchDeg,
-      projectionMM: projection,
+      riseMM,
       hipWidthMM: leftHipWidth,
     })
   : 0;
 
 const rightSidePitchDeg = hasRightHip
   ? calcSidePitchDeg({
-      frontPitchDeg: pitchDeg,
-      projectionMM: projection,
+      riseMM,
       hipWidthMM: rightHipWidth,
     })
   : 0;

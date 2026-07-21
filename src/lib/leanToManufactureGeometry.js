@@ -135,13 +135,29 @@ const footTemplate = {
 
   upperEdgeGradient: -tanT,
 };
-const pureRiseMM = internalProjectionMM * tanT;
+// Overall architectural/internal roof projection.
+const overallProjectionMM =
+  internalProjectionMM;
+
+// Timberlite pitch datum:
+//
+// Pitch and structural rise are measured from the front face
+// of the wallplate, not from the rear wall datum.
+const effectivePitchRunMM = Math.max(
+  0,
+  overallProjectionMM - wallplateThicknessMM
+);
+
+const pureRiseMM =
+  effectivePitchRunMM * tanT;
 
 const internalWallPlateHeightMM =
   pureRiseMM + ringBeamHeightMM;
 
+// The internal rafter cut uses the same physical run datum.
 const simpleInternalCutRunMM =
-  Math.max(0, internalProjectionMM - wallplateThicknessMM);
+  effectivePitchRunMM;
+
 
 const simpleInternalCutLengthMM =
   cosT > 0 ? simpleInternalCutRunMM / cosT : 0;
@@ -236,6 +252,13 @@ const finishedFasciaAlignmentDatumMM =
   return {
     pitchDeg,
     internalProjectionMM,
+    overallProjectionMM: Number(
+  overallProjectionMM.toFixed(2)
+),
+
+effectivePitchRunMM: Number(
+  effectivePitchRunMM.toFixed(2)
+),
     userSoffitMM,
     effectiveSoffitMM,
     frameThicknessMM,
@@ -245,6 +268,8 @@ const finishedFasciaAlignmentDatumMM =
     externalRafterExtensionMM: Number(externalRafterExtensionMM.toFixed(2)),
     totalRafterLengthMM: Number(totalRafterLengthMM.toFixed(2)),
     fullProjectionRafterLengthMM: Number(fullProjectionRafterLengthMM.toFixed(2)),
+
+    
 
     verticalDropMM: Number(verticalDropMM.toFixed(2)),
     plumbCutHeightMM: Number(plumbCutHeightMM.toFixed(2)),

@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { getMaterials } from "../../lib/materials";
 import PlanDiagramLeanToManufacture from "../../components/PlanDiagramLeanToManufacture";
 import { computeLeanToManufactureGeometry } from "../../lib/leanToManufactureGeometry";
+import { calculateHippedLeanToGeometry } from "../../lib/geometry/hippedLeanToGeometry";
 import NavTabs from "../../components/NavTabs";
 import IdiotList from "./IdiotList";
 import { getQuoteById, updateQuote } from "../../lib/quotes";
@@ -232,8 +233,8 @@ const saveJobDetails = async () => {
   alert("Job details saved.");
 };
 
-const jobInputs = activeJob?.inputs_json || {};
-  const m = getMaterials();
+  const jobInputs = activeJob?.inputs_json || {};
+  const m = useMemo(() => getMaterials(), []);
   const q = loadInputs();
 
   // Core quote inputs
@@ -385,7 +386,21 @@ const jobNo =
   q.job_no ||
   "";
 
-const roofStyle = "Lean-To";
+const roofStyleKey =
+  q.roofStyle ||
+  jobInputs.roofStyle ||
+  "leanTo";
+
+const roofStyleLabel =
+  roofStyleKey === "hippedLeanTo"
+    ? "Hipped Lean-To"
+    : roofStyleKey === "leanTo"
+    ? "Lean-To"
+    : roofStyleKey === "edwardian"
+    ? "Edwardian"
+    : roofStyleKey === "victorian"
+    ? "Victorian"
+    : roofStyleKey;
 
 const frameColour =
   q.frameColour ||
@@ -459,6 +474,70 @@ const boxGutterDetails = q.box_gutter_details || "N/A";
 const deliveryAddress = q.deliveryAddress || q.site_address || q.address || "";
 const notes = q.notes || q.specialInstructions || q.special_instructions || "";
 const gutterOutlet = q.gutter_outlet || q.gutterOutlet || q.outlet || "left";
+const leftHip =
+  typeof q.leftHip === "boolean"
+    ? q.leftHip
+    : q.hippedSides === "left" || q.hippedSides === "both";
+
+const rightHip =
+  typeof q.rightHip === "boolean"
+    ? q.rightHip
+    : q.hippedSides === "right" || q.hippedSides === "both";
+
+const activeHippedSides =
+  leftHip && rightHip
+    ? "both"
+    : leftHip
+    ? "left"
+    : rightHip
+    ? "right"
+    : "none";
+
+const leftHipWidthMM = num(
+  q.leftHipWidthMM ?? q.left_hip_width_mm,
+  1000
+);
+
+const rightHipWidthMM = num(
+  q.rightHipWidthMM ?? q.right_hip_width_mm,
+  1000
+);
+const hippedGeom = useMemo(
+  () =>
+    roofStyleKey === "hippedLeanTo"
+      ? calculateHippedLeanToGeometry({
+          widthMM: iw,
+          projectionMM: ip,
+          pitchDeg,
+          soffitDepthMM: soffit,
+          materials: m,
+
+          hippedSides: activeHippedSides,
+          leftHipWidthMM,
+          rightHipWidthMM,
+
+          leftWall,
+          rightWall,
+          leftOverhangMM: L,
+          rightOverhangMM: R,
+        })
+      : null,
+  [
+    roofStyleKey,
+    iw,
+    ip,
+    pitchDeg,
+    soffit,
+    m,
+    activeHippedSides,
+    leftHipWidthMM,
+    rightHipWidthMM,
+    leftWall,
+    rightWall,
+    L,
+    R,
+  ]
+);
 
   //const roofSizeDisplay = `${round(iw)} × ${round(ip)} mm int / ${round(extWidthMM)} × ${round(extProjectionMM)} mm ext`;
 
@@ -561,7 +640,7 @@ const gutterOutlet = q.gutter_outlet || q.gutterOutlet || q.outlet || "left";
     <option value="Collection">Collection</option>
   </select>
 </td>
-<td style={td}>{roofStyle || "—"}</td>
+<td style={td}>{roofStyleLabel || "—"}</td>
 <td style={td}>{pitchDeg ? `${pitchDeg}°` : "—"}</td>
 <td style={td}>{sft ? `${sft} mm` : "—"}</td>
           </tr>
@@ -758,8 +837,10 @@ const gutterOutlet = q.gutter_outlet || q.gutterOutlet || q.outlet || "left";
   </div>
 </section>
 
-                {/* ===== PAGE 2: CAD PAGE ===== */}
-                {/* ===== PAGE 2: CAD PAGE ===== */}
+                {roofStyleKey === "leanTo" && (
+  <>
+    {/* ===== PAGE 2: CAD PAGE ===== */}
+    {/* ===== PAGE 2: CAD PAGE ===== */}
         <section
           className="pm-page"
           style={{
@@ -1144,6 +1225,265 @@ const gutterOutlet = q.gutter_outlet || q.gutterOutlet || q.outlet || "left";
     </div>
   </div>
 </section>
+  </>
+)}
+
+{roofStyleKey === "hippedLeanTo" && (
+  <section className="pm-page">
+    <div style={panel}>
+
+      <div
+        style={{
+          fontSize: 24,
+          fontWeight: 800,
+          marginBottom: 10,
+          color: "#111827",
+        }}
+      >
+        Hipped Lean-To Manufacture
+      </div>
+
+      <div style={{ ...panel, marginBottom: 12 }}>
+  <div style={sectionTitle}>Fascia & Soffit Manufacture</div>
+
+  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+    <thead>
+      <tr>
+        <th style={th}>Facet</th>
+        <th style={th}>Plumb Cut</th>
+        <th style={th}>Finished Fascia</th>
+        <th style={th}>Fascia Size</th>
+        <th style={th}>Manufactured Soffit</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      <tr>
+        <td style={td}>
+          <b>Front</b>
+        </td>
+
+        <td style={td}>
+          {Math.round(hippedGeom?.frontPlumbCutHeightMM ?? 0)} mm
+        </td>
+
+        <td style={td}>
+          {Math.round(
+            hippedGeom?.frontFinishedFasciaHeightMM ?? 0
+          )} mm
+        </td>
+
+        <td style={td}>
+          {Math.round(
+            hippedGeom?.frontFasciaOrderSizeMM ??
+              hippedGeom?.commonFasciaOrderSizeMM ??
+              0
+          )} mm
+        </td>
+
+        <td style={td}>
+          {Math.round(
+            hippedGeom?.effectiveFrontSoffitMM ??
+              hippedGeom?.frontSoffitMM ??
+              0
+          )} mm
+        </td>
+      </tr>
+
+      {hippedGeom?.leftSideRingBeam?.exists && (
+        <tr>
+          <td style={td}>
+            <b>Left Side</b>
+          </td>
+
+          <td style={td}>
+            {Math.round(
+              hippedGeom?.leftPlumbCutHeightMM ?? 0
+            )} mm
+          </td>
+
+          <td style={td}>
+            {Math.round(
+              hippedGeom?.leftFinishedFasciaHeightMM ?? 0
+            )} mm
+          </td>
+
+          <td style={td}>
+            {Math.round(
+              hippedGeom?.leftFasciaOrderSizeMM ??
+                hippedGeom?.commonFasciaOrderSizeMM ??
+                0
+            )} mm
+          </td>
+
+          <td style={td}>
+            {Math.round(
+              hippedGeom?.facetEavesLeftManufacturedSoffitMM ??
+                hippedGeom?.leftRoundedManufacturedSoffitMM ??
+                0
+            )} mm
+          </td>
+        </tr>
+      )}
+
+      {hippedGeom?.rightSideRingBeam?.exists && (
+        <tr>
+          <td style={td}>
+            <b>Right Side</b>
+          </td>
+
+          <td style={td}>
+            {Math.round(
+              hippedGeom?.rightPlumbCutHeightMM ?? 0
+            )} mm
+          </td>
+
+          <td style={td}>
+            {Math.round(
+              hippedGeom?.rightFinishedFasciaHeightMM ?? 0
+            )} mm
+          </td>
+
+          <td style={td}>
+            {Math.round(
+              hippedGeom?.rightFasciaOrderSizeMM ??
+                hippedGeom?.commonFasciaOrderSizeMM ??
+                0
+            )} mm
+          </td>
+
+          <td style={td}>
+            {Math.round(
+              hippedGeom?.facetEavesRightManufacturedSoffitMM ??
+                hippedGeom?.rightRoundedManufacturedSoffitMM ??
+                0
+            )} mm
+          </td>
+        </tr>
+      )}
+    </tbody>
+  </table>
+
+  <div
+    style={{
+      marginTop: 10,
+      fontSize: 13,
+      color: "#374151",
+    }}
+  >
+    One common fascia size for all active roof facets:{" "}
+    <b>
+      {Math.round(hippedGeom?.commonFasciaOrderSizeMM ?? 0)} mm
+    </b>
+  </div>
+      </div>
+
+      <div style={{ ...panel, marginBottom: 12 }}>
+        <div style={sectionTitle}>Roof Geometry & Components</div>
+
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <tbody>
+            <tr>
+              <td style={th}>Front Pitch</td>
+              <td style={td}>
+                {Number(pitchDeg || 0).toFixed(1)}°
+              </td>
+
+              <td style={th}>Active Facets</td>
+              <td style={td}>
+                {hippedGeom?.facets?.length ?? 0}
+              </td>
+            </tr>
+
+            <tr>
+              <td style={th}>Bosses</td>
+              <td style={td}>
+                {hippedGeom?.bossQty ?? 0}
+              </td>
+
+              <td style={th}>Spar Hooks</td>
+              <td style={td}>
+                {hippedGeom?.sparHookQty ?? 0}
+              </td>
+            </tr>
+
+            <tr>
+              <td style={th}>Plain Rafters</td>
+              <td style={td}>
+                {hippedGeom?.plainRafterCount ?? 0}
+              </td>
+
+              <td style={th}>Hip Top Cut</td>
+              <td style={td}>
+                {Number(hippedGeom?.hipTopCutDeg ?? 0).toFixed(1)}°
+              </td>
+            </tr>
+
+            {hippedGeom?.leftSideRingBeam?.exists && (
+              <tr>
+                <td style={th}>Left Jack Rafters</td>
+                <td style={td}>
+                  {hippedGeom?.leftJackRafterCount ?? 0}
+                </td>
+
+                <td style={th}>Left Boss Position</td>
+                <td style={td}>
+                  {Math.round(hippedGeom?.leftBossXMM ?? 0)} mm
+                </td>
+              </tr>
+            )}
+
+            {hippedGeom?.rightSideRingBeam?.exists && (
+              <tr>
+                <td style={th}>Right Jack Rafters</td>
+                <td style={td}>
+                  {hippedGeom?.rightJackRafterCount ?? 0}
+                </td>
+
+                <td style={th}>Right Boss Position</td>
+                <td style={td}>
+                  {Math.round(hippedGeom?.rightBossXMM ?? 0)} mm
+                </td>
+              </tr>
+            )}
+
+            <tr>
+              <td style={th}>Plain Rafter Zone</td>
+              <td style={td}>
+                {Math.round(hippedGeom?.plainRafterZoneStartMM ?? 0)} mm
+                {" → "}
+                {Math.round(hippedGeom?.plainRafterZoneEndMM ?? 0)} mm
+              </td>
+
+              <td style={th}>Zone Width</td>
+              <td style={td}>
+                {Math.round(hippedGeom?.plainRafterZoneWidthMM ?? 0)} mm
+              </td>
+            </tr>
+
+            {hippedGeom?.leftSideRingBeam?.exists &&
+              hippedGeom?.rightSideRingBeam?.exists && (
+                <tr>
+                  <td style={th}>Between Bosses</td>
+                  <td style={td}>
+                    {Math.round(hippedGeom?.centreWidthMM ?? 0)} mm
+                  </td>
+
+                  <td style={th}>Boss/Spar Hook Offset</td>
+                  <td style={td}>
+                    {Math.round(
+                      hippedGeom?.sparHookToBossOffsetMM ?? 0
+                    )} mm
+                  </td>
+                </tr>
+              )}
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </section>
+)}
       </div>
 
       <style>{`

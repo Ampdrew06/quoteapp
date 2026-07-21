@@ -6,20 +6,7 @@ const round = (v, dp = 0) => {
   const p = 10 ** dp;
   return Math.round((Number(v) || 0) * p) / p;
 };
-const degToRad = (deg) => (Number(deg) * Math.PI) / 180;
-const radToDeg = (rad) => (Number(rad) * 180) / Math.PI;
 
-const calcSidePitchDeg = ({ frontPitchDeg, projectionMM, hipWidthMM }) => {
-  const frontPitchRad = degToRad(frontPitchDeg);
-  const projection = Number(projectionMM) || 0;
-  const hipWidth = Number(hipWidthMM) || 0;
-
-  if (!projection || !hipWidth) return 0;
-
-  return radToDeg(
-    Math.atan(Math.tan(frontPitchRad) * (projection / hipWidth))
-  );
-};
 export default function PlanDiagramHippedLeanTo({
   iw = 4000,
   ip = 2000,
@@ -99,17 +86,9 @@ for (let c = firstCentre; c < width; c += rafterSpacing) {
     };
   }, [iw, leftHipWidth, rightHipWidth, hippedSides, rafterSpacing, firstCentre]);
 
-  const leftSidePitchDeg = calcSidePitchDeg({
-  frontPitchDeg: pitchDeg,
-  projectionMM: ip,
-  hipWidthMM: leftHipWidth,
-});
+  const leftSidePitchDeg = geom.leftSidePitchDeg;
 
-const rightSidePitchDeg = calcSidePitchDeg({
-  frontPitchDeg: pitchDeg,
-  projectionMM: ip,
-  hipWidthMM: rightHipWidth,
-});
+const rightSidePitchDeg = geom.rightSidePitchDeg;
 
   const minPitchDeg = tileSystem === "liteslate" ? 12 : 15;
 

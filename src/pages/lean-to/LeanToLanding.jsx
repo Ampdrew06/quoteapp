@@ -120,19 +120,7 @@ const grid2Responsive = {
   if (!p) return 1000;
   return Math.round(p * 0.5);
 };
-const degToRad = (deg) => (Number(deg) * Math.PI) / 180;
-const radToDeg = (rad) => (Number(rad) * 180) / Math.PI;
 
-const calcSidePitchDeg = ({ frontPitchDeg, projectionMM, hipWidthMM }) => {
-  const projection = Number(projectionMM) || 0;
-  const hipWidth = Number(hipWidthMM) || 0;
-
-  if (!projection || !hipWidth) return 0;
-
-  return radToDeg(
-    Math.atan(Math.tan(degToRad(frontPitchDeg)) * (projection / hipWidth))
-  );
-};
 
         // ---- react to Materials changes ----
 /*const [materialsTick, setMaterialsTick] = useState(0);
@@ -380,17 +368,32 @@ const [summaryAdjustmentTick, setSummaryAdjustmentTick] = useState(0);
   });
   const minTilePitchDeg = tileSystem === "liteslate" ? 12 : 15;
 
-const leftSidePitchDeg = calcSidePitchDeg({
-  frontPitchDeg: pitchDeg,
-  projectionMM: projMM,
-  hipWidthMM: leftHipWidthMM,
-});
 
-const rightSidePitchDeg = calcSidePitchDeg({
-  frontPitchDeg: pitchDeg,
-  projectionMM: projMM,
-  hipWidthMM: rightHipWidthMM,
-});
+const hippedGeom =
+  roofStyle === "hippedLeanTo"
+    ? calculateHippedLeanToGeometry({
+        widthMM: num(widthMM),
+        projectionMM: num(projMM),
+        pitchDeg: num(pitchDeg, 15),
+        soffitDepthMM: num(eavesOverhangMM),
+        materials: m,
+
+        hippedSides: activeHippedSides,
+        leftHipWidthMM: num(leftHipWidthMM, 1000),
+        rightHipWidthMM: num(rightHipWidthMM, 1000),
+
+        leftWall,
+        rightWall,
+        leftOverhangMM: num(leftOverhangMM, 0),
+        rightOverhangMM: num(rightOverhangMM, 0),
+      })
+    : null;
+
+const leftSidePitchDeg =
+  hippedGeom?.leftSidePitchDeg ?? 0;
+
+const rightSidePitchDeg =
+  hippedGeom?.rightSidePitchDeg ?? 0;
 
 const leftHipPitchTooLow =
   roofStyle === "hippedLeanTo" &&
@@ -403,6 +406,7 @@ const rightHipPitchTooLow =
   rightHip &&
   rightSidePitchDeg > 0 &&
   rightSidePitchDeg < minTilePitchDeg;
+
   const [tileColor, setTileColor]   = useState("Titanium");
   const [plasticsColor, setPlasticsColor] = useState("White");
 
@@ -1366,25 +1370,6 @@ const demoProfit = demoBase + (pricing.net ?? 0) * demoPct;
 const demoNet = (pricing.net ?? 0) + demoProfit;
 const demoVat = demoNet * (pricing.vatRate ?? 0);
 const demoGross = demoNet + demoVat;
-const hippedGeom =
-  roofStyle === "hippedLeanTo"
-    ? calculateHippedLeanToGeometry({
-        widthMM: num(widthMM),
-        projectionMM: num(projMM),
-        pitchDeg: num(pitchDeg, 15),
-        soffitDepthMM: num(eavesOverhangMM),
-        materials: m,
-
-        hippedSides: activeHippedSides,
-        leftHipWidthMM: num(leftHipWidthMM, 1000),
-        rightHipWidthMM: num(rightHipWidthMM, 1000),
-
-        leftWall,
-        rightWall,
-        leftOverhangMM: num(leftOverhangMM, 0),
-        rightOverhangMM: num(rightOverhangMM, 0),
-      })
-    : null;
 
 const displayExtWidthMM =
   roofStyle === "hippedLeanTo" && hippedGeom
@@ -1887,520 +1872,45 @@ title={
                   <b>Internal projection</b>: {round(projMM)} mm · <b>External projection</b>: {round(displayExtProjectionMM)} mm
                 </div>
                 <div>
-                  <b>Internal Wall-Plate Height</b>: {round(riseMM)} mm · <b>Pitch</b>: {pitchDeg}°
-                </div>
-                <div>
   <b>External Finished Height</b>: {round(externalFinishedHeightMM)} mm
 </div>
-                {roofStyle === "hippedLeanTo" && hippedGeom && (
-  <>
-    <div>
-      <b>Front Soffit</b>: {Math.round(hippedGeom?.frontSoffitMM ?? 0)} mm</div>
-
-    <div className="mt-3 rounded border bg-light p-3">
-    <div className="fw-bold mb-2">Calculated Hipped Geometry</div>
-
-    <div>Requested Front Soffit: {Math.round(hippedGeom.requestedFrontSoffitMM || 0)} mm</div>
-    <div>Effective Front Soffit: {Math.round(hippedGeom.effectiveFrontSoffitMM || 0)} mm</div>
-    <hr />
-
-<div className="fw-bold">
-  Finished Fascia Validation
-</div>
-
-<div>
-  <b>Front Plumb Cut:</b>{" "}
+<p>
+  Rise:{" "}
   {Math.round(
-    hippedGeom.frontPlumbCutHeightMM || 0
-  )} mm
-</div>
-
+    roofStyle === "hippedLeanTo"
+      ? hippedGeom?.riseMM ?? 0
+      : riseMM
+  )}{" "}
+  mm
+</p>
 <div>
-  <b>Front Finished Fascia Height:</b>{" "}
-  {Math.round(
-    hippedGeom.frontFinishedFasciaHeightMM || 0
-  )} mm
+  <b>Front Pitch</b>: {Number(pitchDeg || 0).toFixed(1)}°
 </div>
 
-<div>
-  <b>Front Fascia Order Size:</b>{" "}
-  {Math.round(
-    hippedGeom.frontFasciaOrderSizeMM || 0
-  )} mm
-</div>
-
-<div style={{ marginTop: 8 }}>
-  <b>Common Roof Fascia:</b>{" "}
-  {Math.round(
-    hippedGeom.commonFasciaOrderSizeMM || 0
-  )} mm
-</div>
-
-<div>
-  <b>Common Fascia Set From Front:</b>{" "}
-  {hippedGeom.fasciaOrderSizesMatch
-    ? "Yes"
-    : "No"}
-</div>
-{hippedGeom.leftSideRingBeam?.exists && (
-  <>
-    <div style={{ marginTop: 8 }}>
-      <b>Left Side Plumb Cut:</b>{" "}
-      {Math.round(
-        hippedGeom.leftPlumbCutHeightMM || 0
-      )} mm
-    </div>
-<div>
-  <b>Left Solver Soffit:</b>{" "}
-  {Math.round(
-    hippedGeom.leftPlumbCutMatchedSoffitMM || 0
-  )} mm
-</div>
-
-<div>
-  <b>Left Solver Plumb Cut:</b>{" "}
-  {Math.round(
-    hippedGeom.leftMatchedPlumbCutHeightMM || 0
-  )} mm
-</div>
-
-<div>
-  <b>Left Solver Difference:</b>{" "}
-  {Number(
-    hippedGeom.leftPlumbCutDifferenceMM || 0
-  ).toFixed(2)} mm
-</div>
-
-<div>
-  <b>Left Mitre Trim Allowance:</b>{" "}
-  {Number(
-    hippedGeom.leftMitreTrimAllowanceMM || 0
-  ).toFixed(2)} mm
-</div>
-
-<div>
-  <b>Left Raw Manufactured Soffit:</b>{" "}
-  {Number(
-    hippedGeom.leftRawManufacturedSoffitMM || 0
-  ).toFixed(2)} mm
-</div>
-
-<div>
-  <b>Left Rounded Manufactured Soffit:</b>{" "}
-  {Math.round(
-    hippedGeom.leftRoundedManufacturedSoffitMM || 0
-  )} mm
-</div>
-    <div>
-      <b>Left Finished Fascia Height:</b>{" "}
-      {Math.round(
-        hippedGeom.leftFinishedFasciaHeightMM || 0
-      )} mm
-    </div>
-
-    <div>
-      <b>Left Fascia Order Size:</b>{" "}
-      {Math.round(
-        hippedGeom.leftFasciaOrderSizeMM || 0
-      )} mm
-    </div>
-
-  </>
-)}
-
-{hippedGeom.rightSideRingBeam?.exists && (
-  <>
-    <div style={{ marginTop: 8 }}>
-      <b>Right Side Plumb Cut:</b>{" "}
-      {Math.round(
-        hippedGeom.rightPlumbCutHeightMM || 0
-      )} mm
-    </div>
-<div>
-  <b>Right Solver Soffit:</b>{" "}
-  {Math.round(
-    hippedGeom.rightPlumbCutMatchedSoffitMM || 0
-  )} mm
-</div>
-
-<div>
-  <b>Right Solver Plumb Cut:</b>{" "}
-  {Math.round(
-    hippedGeom.rightMatchedPlumbCutHeightMM || 0
-  )} mm
-</div>
-
-<div>
-  <b>Right Solver Difference:</b>{" "}
-  {Number(
-    hippedGeom.rightPlumbCutDifferenceMM || 0
-  ).toFixed(2)} mm
-</div>
-
-<div>
-  <b>Right Mitre Trim Allowance:</b>{" "}
-  {Number(
-    hippedGeom.rightMitreTrimAllowanceMM || 0
-  ).toFixed(2)} mm
-</div>
-
-<div>
-  <b>Right Raw Manufactured Soffit:</b>{" "}
-  {Number(
-    hippedGeom.rightRawManufacturedSoffitMM || 0
-  ).toFixed(2)} mm
-</div>
-
-<div>
-  <b>Right Rounded Manufactured Soffit:</b>{" "}
-  {Math.round(
-    hippedGeom.rightRoundedManufacturedSoffitMM || 0
-  )} mm
-</div>
-
-<hr />
-
-<div className="fw-bold">
-  Universal Facet Eaves Solver
-</div>
-
-<div>
-  <b>Reference Soffit:</b>{" "}
-  {Math.round(
-    hippedGeom.facetEavesReferenceSoffitMM || 0
-  )} mm
-</div>
-
-<div>
-  <b>Common Plumb Cut:</b>{" "}
-  {Math.round(
-    hippedGeom.facetEavesCommonPlumbCutMM || 0
-  )} mm
-</div>
-
-<div>
-  <b>Common Finished Fascia Height:</b>{" "}
-  {Math.round(
-    hippedGeom.facetEavesCommonFasciaHeightMM || 0
-  )} mm
-</div>
-
-<div>
-  <b>Common Fascia Order Size:</b>{" "}
-  {Math.round(
-    hippedGeom.facetEavesCommonFasciaOrderSizeMM || 0
-  )} mm
-</div>
-
-{hippedGeom.leftSideRingBeam?.exists && (
-  <>
-    <div style={{ marginTop: 8 }}>
-      <b>Left Matched Soffit:</b>{" "}
-      {Number(
-        hippedGeom.facetEavesLeftMatchedSoffitMM || 0
-      ).toFixed(2)} mm
-    </div>
-
-    <div>
-      <b>Left Mitre Trim:</b>{" "}
-      {Number(
-        hippedGeom.facetEavesLeftMitreTrimMM || 0
-      ).toFixed(2)} mm
-    </div>
-
-    <div>
-      <b>Left Raw Manufactured Soffit:</b>{" "}
-      {Number(
-        hippedGeom.facetEavesLeftRawManufacturedSoffitMM || 0
-      ).toFixed(2)} mm
-    </div>
-
-    <div>
-      <b>Left Manufactured Soffit:</b>{" "}
-      {Math.round(
-        hippedGeom.facetEavesLeftManufacturedSoffitMM || 0
-      )} mm
-    </div>
-  </>
-)}
-
-{hippedGeom.rightSideRingBeam?.exists && (
-  <>
-    <div style={{ marginTop: 8 }}>
-      <b>Right Matched Soffit:</b>{" "}
-      {Number(
-        hippedGeom.facetEavesRightMatchedSoffitMM || 0
-      ).toFixed(2)} mm
-    </div>
-
-    <div>
-      <b>Right Mitre Trim:</b>{" "}
-      {Number(
-        hippedGeom.facetEavesRightMitreTrimMM || 0
-      ).toFixed(2)} mm
-    </div>
-
-    <div>
-      <b>Right Raw Manufactured Soffit:</b>{" "}
-      {Number(
-        hippedGeom.facetEavesRightRawManufacturedSoffitMM || 0
-      ).toFixed(2)} mm
-    </div>
-
-    <div>
-      <b>Right Manufactured Soffit:</b>{" "}
-      {Math.round(
-        hippedGeom.facetEavesRightManufacturedSoffitMM || 0
-      )} mm
-    </div>
-  </>
-)}
-    <div>
-      <b>Right Finished Fascia Height:</b>{" "}
-      {Math.round(
-        hippedGeom.rightFinishedFasciaHeightMM || 0
-      )} mm
-    </div>
-
-    <div>
-      <b>Right Fascia Order Size:</b>{" "}
-      {Math.round(
-        hippedGeom.rightFasciaOrderSizeMM || 0
-      )} mm
-    </div>
-
-  </>
-)}
-
-    <div style={{ marginTop: 10 }}>
-  <b>Active Facets:</b> {hippedGeom.facets?.length ?? 0}
-</div>
-
-{(hippedGeom.facets || []).map((facet) => (
-  <div
-    key={facet.id}
-    style={{
-      marginTop: 8,
-      paddingTop: 8,
-      borderTop: "1px solid #ddd",
-    }}
-  >
-    <div>
-      <b>{facet.label}</b>
-    </div>
-
-    <div>
-      Internal eaves length:{" "}
-      {Math.round(facet.geometry?.internalEavesLengthMM || 0)} mm
-    </div>
-
-    <div>
-      External eaves length:{" "}
-      {Math.round(facet.geometry?.externalEavesLengthMM || 0)} mm
-    </div>
-
-    <div>
-      Pitch: {Number(facet.geometry?.pitchDeg || 0).toFixed(1)}°
-    </div>
-
-    <div>
-      Ring-beam length:{" "}
-      {Math.round(facet.ringBeam?.lengthMM || 0)} mm
-    </div>
-  </div>
-))}
-
-    {hippedGeom.frontSoffitAutoAdjusted && (
-      <div className="text-warning">
-        Front soffit adjusted to maintain minimum side soffit.
-      </div>
-    )}
-
+{roofStyle === "hippedLeanTo" && hippedGeom && (
+  <div>
     {hippedGeom.leftSideRingBeam?.exists && (
       <>
-        <hr />
-        <div className="fw-bold">Left Side Ring-Beam</div>
-        <div>Internal Length: {Math.round(hippedGeom.leftSideRingBeam.internalLengthMM || 0)} mm</div>
-        <div>External Length: {Math.round(hippedGeom.leftSideRingBeam.externalLengthMM || 0)} mm</div>
-        <div>Side Soffit: {Math.round(hippedGeom.leftSideRingBeam.sideSoffitMM || 0)} mm</div>
+        <b>Left Side Pitch</b>:{" "}
+        {Number(leftSidePitchDeg || 0).toFixed(1)}°
       </>
     )}
+
+    {hippedGeom.leftSideRingBeam?.exists &&
+      hippedGeom.rightSideRingBeam?.exists && (
+        <> · </>
+      )}
 
     {hippedGeom.rightSideRingBeam?.exists && (
       <>
-        <hr />
-        <div className="fw-bold">Right Side Ring-Beam</div>
-        <div>Internal Length: {Math.round(hippedGeom.rightSideRingBeam.internalLengthMM || 0)} mm</div>
-        <div>External Length: {Math.round(hippedGeom.rightSideRingBeam.externalLengthMM || 0)} mm</div>
-        <div>Side Soffit: {Math.round(hippedGeom.rightSideRingBeam.sideSoffitMM || 0)} mm</div>
+        <b>Right Side Pitch</b>:{" "}
+        {Number(rightSidePitchDeg || 0).toFixed(1)}°
       </>
     )}
   </div>
-<div style={{ marginTop: 12 }}>
-  <b>Facet Ring-beam Materials</b>
-</div>
-
-{(hippedGeom.facets || []).map((facet) => (
-  <div
-    key={`${facet.id}-ringbeam-materials`}
-    style={{
-      marginTop: 8,
-      paddingTop: 8,
-      borderTop: "1px solid #ddd",
-    }}
-  >
-    <div>
-      <b>{facet.label}</b>
-    </div>
-
-    <div>
-      Ring-beam length:{" "}
-      {Math.round(facet.ringBeam?.lengthMM || 0)} mm
-    </div>
-
-    <div>
-      Upstands: {facet.ringBeam?.upstandCount || 0}
-    </div>
-
-    <div>
-      Bay widths:{" "}
-      {(facet.ringBeam?.bayWidthsMM || [])
-        .map((width) => Math.round(width))
-        .join(", ")}{" "}
-      mm
-    </div>
-
-    <div>
-      9 mm ply base:{" "}
-      {Number(
-        facet.ringBeam?.materials?.ply9BaseAreaM2 || 0
-      ).toFixed(3)}{" "}
-      m²
-    </div>
-
-    <div>
-      9 mm ply upstands:{" "}
-      {Number(
-        facet.ringBeam?.materials?.ply9UpstandAreaM2 || 0
-      ).toFixed(3)}{" "}
-      m²
-    </div>
-
-    <div>
-      30×90 PSE:{" "}
-      {Number(
-        facet.ringBeam?.materials?.pse30x90LengthM || 0
-      ).toFixed(3)}{" "}
-      m
-    </div>
-
-    <div>
-      Outer 25×50 lath:{" "}
-      {Number(
-        facet.ringBeam?.materials
-          ?.outerFixingLath25x50LengthM || 0
-      ).toFixed(3)}{" "}
-      m
-    </div>
-
-    <div>
-      Finishing 25×50 lath:{" "}
-      {Number(
-        facet.ringBeam?.materials
-          ?.finishingLath25x50LengthM || 0
-      ).toFixed(3)}{" "}
-      m
-    </div>
-
-    <div>
-      50 mm PIR:{" "}
-      {Number(
-        facet.ringBeam?.materials?.pir50AreaM2 || 0
-      ).toFixed(3)}{" "}
-      m²
-    </div>
-  </div>
-))}
-    <div>
-      <b>Left Hip</b>: {leftHipWidthMM} mm ·
-      <b> Right Hip</b>: {rightHipWidthMM} mm ·
-      <b> Left Pitch</b>: {round(leftSidePitchDeg, 1)}° ·
-      <b> Right Pitch</b>: {round(rightSidePitchDeg, 1)}°
-    </div>
-    <div>
-  <b>Left Hip Pitch</b>: {Number(hippedGeom?.leftHipPitchDeg ?? 0).toFixed(1)}° ·{" "}
-  <b>Right Hip Pitch</b>: {Number(hippedGeom?.rightHipPitchDeg ?? 0).toFixed(1)}°
-</div>
-<div>
-  <b>Left Hip Theoretical</b>: {round(hippedGeom.leftHipTrueLengthMM)} mm ·
-  <b> Right Hip Theoretical</b>: {round(hippedGeom.rightHipTrueLengthMM)} mm
-</div>
-
-<div>
-  <b>Left Hip Cut Length</b>: {round(hippedGeom.leftHipManufacturingLengthMM)} mm ·
-  <b> Right Hip Cut Length</b>: {round(hippedGeom.rightHipManufacturingLengthMM)} mm
-</div>
-
-<div>
-  <b>Left Timberlite Hip Cut</b>: {Math.round(hippedGeom?.leftHipTimberliteCutLengthMM ?? 0)} mm ·{" "}
-  <b>Right Timberlite Hip Cut</b>: {Math.round(hippedGeom?.rightHipTimberliteCutLengthMM ?? 0)} mm
-</div>
-
-<div>
-  <b>Pitch-based Hip Cut</b>: {Math.round(hippedGeom?.leftHipPitchBasedCutMM ?? 0)} mm
-</div>
-
-<div>
-  <b>Hip Manufacture Test</b>:{" "}
-  {Math.round(hippedGeom?.leftHipManufactureTest?.pitchBasedTimberliteCutMM ?? 0)} mm
-</div>
-
-<div>
-  <b>External Edge Cut Length</b>:{" "}
-  {Math.round(hippedGeom?.leftHipExternalEdgeCutLengthMM ?? 0)} mm ·{" "}
-  {Math.round(hippedGeom?.rightHipExternalEdgeCutLengthMM ?? 0)} mm
-</div>
-<div>
-  <b>Bosses</b>: {hippedGeom.bossQty} ·
-  <b> Spar Hooks</b>: {hippedGeom.sparHookQty} ·
-  <b> Hip Top Cut</b>: {hippedGeom.hipTopCutDeg}°
-</div>
-
-<div>
-  <b>Plain Rafter Zone</b>: {round(hippedGeom.plainRafterZoneStartMM)} mm →{" "}
-  {round(hippedGeom.plainRafterZoneEndMM)} mm ·
-  <b> Width</b>: {round(hippedGeom.plainRafterZoneWidthMM)} mm
-</div>
-
-<div>
-  <b>Left Jacks</b>: {hippedGeom.leftJackRafterCount} ·
-  <b> Plain Rafters</b>: {hippedGeom.plainRafterCount} ·
-  <b> Right Jacks</b>: {hippedGeom.rightJackRafterCount}
-</div>
-
-<div>
-  <b>Top Allowance</b>: {hippedGeom.hipTopCutFaceOffsetMM} mm ·
-  <b> Boss/Spar Hook</b>: {hippedGeom.sparHookToBossOffsetMM} mm
-</div>
-<div>
-  <b>Left Boss Position</b>: {round(hippedGeom.leftBossXMM)} mm ·
-  <b> Right Boss Position</b>: {round(hippedGeom.rightBossXMM)} mm ·
-  <b> Wallplate Between Bosses</b>: {round(hippedGeom.centreWidthMM)} mm
-</div>
-    {hippedGeom.frontSoffitAutoAdjusted && (
-      <div style={{ color: "#b45309" }}>
-        ⚠ Front soffit automatically increased to maintain equal fascia sizes.
-      </div>
-    )}
-  </>
 )}
-{roofStyle === "hippedLeanTo" &&
- !leftHipWidthManual &&
- !rightHipWidthManual && (
-  <div style={{ color: "#666", fontSize: 13 }}>
-    Default hip position based on projection ÷ 2.
-  </div>
-)}
+                
+
                 <div>
                   <b>Tile</b>: {tileSystem === "britmet" ? "Britmet" : "LiteSlate"} — <b>{tileColor}</b>
                 </div>
