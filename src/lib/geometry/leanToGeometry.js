@@ -19,7 +19,7 @@ export function calculateLeanToGeometry({
   ),
 
   wallplateThicknessMM: Number(
-    materials?.wallplate_thickness_mm ?? 65
+    materials?.wallplate_thickness_mm ?? 63
   ),
 });
 

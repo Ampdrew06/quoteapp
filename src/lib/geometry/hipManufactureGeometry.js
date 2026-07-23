@@ -13,9 +13,9 @@ export function computeHipManufactureGeometry(inputs = {}) {
     cosHip > 0 ? hipPlanRunMM / cosHip : 0;
 
   const pitchBasedTimberliteCutMM = Math.max(
-    0,
-    pitchBasedStructuralLengthMM - sparHookAllowanceMM
-  );
+  0,
+  pitchBasedStructuralLengthMM + sparHookAllowanceMM
+);
 
   return {
     hipPlanRunMM: Number(hipPlanRunMM.toFixed(2)),
