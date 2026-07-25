@@ -1898,134 +1898,134 @@ title={
       lineHeight: 1.6,
     }}
   >
-    <h3 style={{ margin: "0 0 10px", color: "#92400e" }}>
-      HIP DEBUG — TEMPORARY
-    </h3>
+    <h3>
+  HIP GEOMETRY / MANUFACTURE DEBUG
+</h3>
 
-    <div>
-      <b>Left Hip Width:</b>{" "}
-      {Math.round(hippedGeom.leftHipWidthMM ?? 0)} mm
-    </div>
+<div>
+  <b>Left Hip Width:</b>{" "}
+  {Math.round(hippedGeom.leftHipWidthMM ?? 0)} mm
+</div>
 
-    <div>
-      <b>Input Projection:</b>{" "}
-      {Math.round(hippedGeom.projectionMM ?? 0)} mm
-    </div>
+<div>
+  <b>Input Projection:</b>{" "}
+  {Math.round(hippedGeom.projectionMM ?? 0)} mm
+</div>
 
-    <div>
-      <b>Effective Pitch Run:</b>{" "}
-      {Math.round(hippedGeom.effectivePitchRunMM ?? 0)} mm
-    </div>
+<div>
+  <b>Effective Pitch Run:</b>{" "}
+  {Math.round(hippedGeom.effectivePitchRunMM ?? 0)} mm
+</div>
 
-    <div>
-      <b>Rise:</b>{" "}
-      {Math.round(hippedGeom.riseMM ?? 0)} mm
-    </div>
+<div>
+  <b>Rise:</b>{" "}
+  {Math.round(hippedGeom.riseMM ?? 0)} mm
+</div>
 
-    <hr style={{ margin: "10px 0" }} />
+<hr style={{ margin: "10px 0" }} />
 
-    <div>
-      <b>Existing Hip Plan Length:</b>{" "}
-      {Math.round(hippedGeom.leftHipPlanLengthMM ?? 0)} mm
-    </div>
+<div>
+  <b>Hip Plan Length:</b>{" "}
+  {Math.round(hippedGeom.leftHipPlanLengthMM ?? 0)} mm
+</div>
 
-    <div>
-      <b>Corrected Hip Plan Length:</b>{" "}
-      {Math.round(
-        hippedGeom.leftCorrectedHipPlanLengthMM ?? 0
-      )} mm
-    </div>
+<div>
+  <b>Hip Pitch:</b>{" "}
+  {Number(
+    hippedGeom.leftHipPitchDeg ?? 0
+  ).toFixed(2)}°
+</div>
 
-    <div>
-      <b>Existing Hip Pitch:</b>{" "}
-      {Number(
-        hippedGeom.leftHipPitchDeg ?? 0
-      ).toFixed(2)}°
-    </div>
+<div>
+  <b>Structural Hip Length:</b>{" "}
+  {Math.round(
+    hippedGeom.leftHipStructuralLengthMM ?? 0
+  )} mm
+</div>
 
-    <div>
-      <b>Corrected Hip Pitch:</b>{" "}
-      {Number(
-        hippedGeom.leftCorrectedHipPitchDeg ?? 0
-      ).toFixed(2)}°
-    </div>
+<div>
+  <b>Spar-Hook Extension:</b>{" "}
+  {Math.round(
+    hippedGeom.leftHipManufacture
+      ?.sparHookAllowanceMM ?? 0
+  )} mm
+</div>
 
-    <hr style={{ margin: "10px 0" }} />
+<div>
+  <b>Finished Workshop Cut:</b>{" "}
+  {Math.round(
+    hippedGeom.leftHipFinishedCutLengthMM ?? 0
+  )} mm
+</div>
+<hr style={{ margin: "10px 0" }} />
 
-    <div>
-      <b>leftHipTrueLengthMM:</b>{" "}
-      {Math.round(
-        hippedGeom.leftHipTrueLengthMM ?? 0
-      )} mm
-    </div>
+<div style={{ fontWeight: 800 }}>
+  V2 GEOMETRY
+</div>
 
+<div>
+  <b>V2 Internal Edge B–C:</b>{" "}
+  {Math.round(
+    hippedGeom.leftHipManufactureV2
+      ?.internalSlopeLengthMM ?? 0
+  )} mm
+</div>
 
-    <div>
-      <b>leftCorrectedHipTrueLengthMM:</b>{" "}
-      {Math.round(
-        hippedGeom.leftCorrectedHipTrueLengthMM ?? 0
-      )} mm
-    </div>
+<div>
+  <b>V2 External Edge A–D:</b>{" "}
+  {Math.round(
+    hippedGeom.leftHipManufactureV2
+      ?.externalSlopeLengthMM ?? 0
+  )} mm
+</div>
 
-    <div>
-      <b>leftHipTimberliteCutLengthMM:</b>{" "}
-      {Math.round(
-        hippedGeom.leftHipTimberliteCutLengthMM ?? 0
-      )} mm
-    </div>
+<div>
+  <b>V2 Horizontal Foot C–E:</b>{" "}
+  {Math.round(
+    hippedGeom.leftHipManufactureV2
+      ?.horizontalFootCutMM ?? 0
+  )} mm
+</div>
 
-  
+<div>
+  <b>V2 Vertical Foot D–E:</b>{" "}
+  {Math.round(
+    hippedGeom.leftHipManufactureV2
+      ?.verticalFootCutMM ?? 0
+  )} mm
+</div>
 
-    <hr style={{ margin: "10px 0" }} />
+<div>
+  <b>V2 Top Vertical Cut A–B:</b>{" "}
+  {Math.round(
+    hippedGeom.leftHipManufactureV2
+      ?.topVerticalCutMM ?? 0
+  )} mm
+</div>
 
-    <div>
-      <b>Manufacture Test Plan Run:</b>{" "}
-      {Math.round(
-        hippedGeom.leftHipManufactureTest?.hipPlanRunMM ?? 0
-      )} mm
-    </div>
+<div style={{ marginTop: 8 }}>
+  <b>Front Horizontal Allowance:</b>{" "}
+  {Math.round(
+    hippedGeom.frontHipHorizontalAllowanceMM ?? 0
+  )} mm
+</div>
 
-    <div>
-      <b>Manufacture Test Hip Pitch:</b>{" "}
-      {Number(
-        hippedGeom.leftHipManufactureTest?.hipPitchDeg ?? 0
-      ).toFixed(2)}°
-    </div>
-
-    <div>
-      <b>Manufacture Structural Length:</b>{" "}
-      {Math.round(
-        hippedGeom.leftHipManufactureTest
-          ?.pitchBasedStructuralLengthMM ?? 0
-      )} mm
-    </div>
-
-    <div>
-      <b>Spar-Hook Allowance:</b>{" "}
-      {Math.round(
-        hippedGeom.leftHipManufactureTest
-          ?.sparHookAllowanceMM ?? 0
-      )} mm
-    </div>
-
-    <div>
-      <b>Manufacture Timberlite Cut:</b>{" "}
-      {Math.round(
-        hippedGeom.leftHipManufactureTest
-          ?.pitchBasedTimberliteCutMM ?? 0
-      )} mm
-    </div>
-
-    <div
-      style={{
-        marginTop: 10,
-        paddingTop: 8,
-        borderTop: "2px solid #f59e0b",
-        fontWeight: 800,
-      }}
-    >
-      Physical finished hip cut target: 4125 mm
-    </div>
+<div>
+  <b>Left Horizontal Allowance:</b>{" "}
+  {Math.round(
+    hippedGeom.leftHipHorizontalAllowanceMM ?? 0
+  )} mm
+</div>
+<div
+  style={{
+    marginTop: 10,
+    paddingTop: 8,
+    borderTop: "2px solid #f59e0b",
+    fontWeight: 800,
+  }}
+>
+  Physical finished hip cut target: 4125 mm
+</div>
   </div>
 )}
 {roofStyle === "hippedLeanTo" && hippedGeom && (

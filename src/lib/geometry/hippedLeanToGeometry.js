@@ -2,6 +2,7 @@
 
 import { calculateLeanToGeometry } from "./leanToGeometry";
 import { computeHipManufactureGeometry } from "./hipManufactureGeometry";
+import { calculateHipManufactureGeometryV2 } from "./hipManufactureGeometryV2";
 import { buildFacet } from "../Manufacturing/facetBuilder";
 import { solveFacetEavesGeometry } from "./facetEavesGeometry";
 
@@ -67,15 +68,6 @@ export function calculateHippedLeanToGeometry({
 const leftBossX = leftHipWidth;
 const rightBossX = width - rightHipWidth;
 
-// 2) Hip plan lengths
-const hipPlanLengthLeft = hasLeftHip
-  ? Math.sqrt(leftHipWidth ** 2 + projection ** 2)
-  : 0;
-
-const hipPlanLengthRight = hasRightHip
-  ? Math.sqrt(rightHipWidth ** 2 + projection ** 2)
-  : 0;
-
 // 3) Rise from corrected Lean-To geometry
 const riseMM = base?.raw?.pureRiseMM ?? 0;
 
@@ -84,32 +76,40 @@ const riseMM = base?.raw?.pureRiseMM ?? 0;
 const effectivePitchRunMM =
   Number(base?.raw?.effectivePitchRunMM ?? 0);
 
-const leftCorrectedHipPlanLengthMM = hasLeftHip
+// ======================================================
+// AUTHORITATIVE TIMBERLITE HIP GEOMETRY
+//
+// Uses the same effective wallplate-face pitch datum as
+// the front-rafter geometry. Validated against a physical
+// manufactured roof.
+// ======================================================
+
+const leftHipPlanLengthMM = hasLeftHip
   ? Math.hypot(leftHipWidth, effectivePitchRunMM)
   : 0;
 
-const rightCorrectedHipPlanLengthMM = hasRightHip
+const rightHipPlanLengthMM = hasRightHip
   ? Math.hypot(rightHipWidth, effectivePitchRunMM)
   : 0;
 
-const leftCorrectedHipPitchDeg = hasLeftHip
+const leftHipPitchDeg = hasLeftHip
   ? radToDeg(
-      Math.atan2(riseMM, leftCorrectedHipPlanLengthMM)
+      Math.atan2(riseMM, leftHipPlanLengthMM)
     )
   : 0;
 
-const rightCorrectedHipPitchDeg = hasRightHip
+const rightHipPitchDeg = hasRightHip
   ? radToDeg(
-      Math.atan2(riseMM, rightCorrectedHipPlanLengthMM)
+      Math.atan2(riseMM, rightHipPlanLengthMM)
     )
   : 0;
 
-const leftCorrectedHipTrueLengthMM = hasLeftHip
-  ? Math.hypot(leftCorrectedHipPlanLengthMM, riseMM)
+const leftHipTrueLengthMM = hasLeftHip
+  ? Math.hypot(leftHipPlanLengthMM, riseMM)
   : 0;
 
-const rightCorrectedHipTrueLengthMM = hasRightHip
-  ? Math.hypot(rightCorrectedHipPlanLengthMM, riseMM)
+const rightHipTrueLengthMM = hasRightHip
+  ? Math.hypot(rightHipPlanLengthMM, riseMM)
   : 0;
 
 // 4) Side roof plane pitches
@@ -126,21 +126,6 @@ const rightSidePitchDeg = hasRightHip
       hipWidthMM: rightHipWidth,
     })
   : 0;
-
-// 5) Hip member pitch — this is the factory saw angle we need to validate
-const leftHipPitchDeg = hasLeftHip
-  ? radToDeg(Math.atan2(riseMM, hipPlanLengthLeft))
-  : 0;
-
-const rightHipPitchDeg = hasRightHip
-  ? radToDeg(Math.atan2(riseMM, hipPlanLengthRight))
-  : 0;
-
-// 6) Hip true lengths (legacy compatibility)
-// The validated geometry is now calculated by leftCorrectedHipTrueLengthMM.
-// Keep this alias until all consumers have been migrated.
-const leftHipTrueLengthMM = leftCorrectedHipTrueLengthMM;
-const rightHipTrueLengthMM = rightCorrectedHipTrueLengthMM;
 
   // 7) Manufacturing / fittings
 const bossQty = (hasLeftHip ? 1 : 0) + (hasRightHip ? 1 : 0);
@@ -196,8 +181,20 @@ const rightCalculatedSoffitMM = hasRightHip
       facetEavesRule.right.manufacturedSoffitMM ?? 0
     )
   : 0;
-
+const fasciaLipMM = Number(materials?.fascia_lip_mm ?? 25);
 const frameThicknessMM = Number(materials?.side_frame_thickness_mm ?? 70);
+const frameOnMM = Number(materials?.frame_on_mm ?? 70);
+
+const frontHipHorizontalAllowanceMM =
+  frameOnMM +
+  effectiveFrontSoffitMM +
+  fasciaLipMM;
+
+const leftHipHorizontalAllowanceMM =
+  frameThicknessMM + leftCalculatedSoffitMM;
+
+const rightHipHorizontalAllowanceMM =
+  frameThicknessMM + rightCalculatedSoffitMM;
 
 
 // Authoritative hip manufacture geometry.
@@ -205,20 +202,62 @@ const frameThicknessMM = Number(materials?.side_frame_thickness_mm ?? 70);
 // spar-hook extension to obtain the finished workshop cut.
 const leftHipManufacture = hasLeftHip
   ? computeHipManufactureGeometry({
-      hipPlanRunMM: leftCorrectedHipPlanLengthMM,
-      hipPitchDeg: leftCorrectedHipPitchDeg,
+      hipPlanRunMM: leftHipPlanLengthMM,
+      hipPitchDeg: leftHipPitchDeg,
       sparHookAllowanceMM: SPAR_HOOK_TO_WALLPLATE_FACE_MM,
     })
   : null;
 
 const rightHipManufacture = hasRightHip
   ? computeHipManufactureGeometry({
-      hipPlanRunMM: rightCorrectedHipPlanLengthMM,
-      hipPitchDeg: rightCorrectedHipPitchDeg,
+      hipPlanRunMM: rightHipPlanLengthMM,
+      hipPitchDeg: rightHipPitchDeg,
       sparHookAllowanceMM: SPAR_HOOK_TO_WALLPLATE_FACE_MM,
     })
   : null;
 
+  // ======================================================
+// HIP MANUFACTURE GEOMETRY V2
+//
+// Temporary parallel calculation for validation.
+// This does not replace the existing manufacture outputs.
+// ======================================================
+
+const leftHipManufactureV2 = hasLeftHip
+  ? calculateHipManufactureGeometryV2({
+      hipWidthMM: leftHipWidth,
+      effectivePitchRunMM,
+      frontPitchDeg: Number(pitchDeg) || 0,
+
+      hipDepthMM: 220,
+      bossAllowancePlanMM:
+        SPAR_HOOK_TO_WALLPLATE_FACE_MM,
+
+      frontHorizontalAllowanceMM:
+        frontHipHorizontalAllowanceMM,
+
+      sideHorizontalAllowanceMM:
+        leftHipHorizontalAllowanceMM,
+    })
+  : null;
+
+const rightHipManufactureV2 = hasRightHip
+  ? calculateHipManufactureGeometryV2({
+      hipWidthMM: rightHipWidth,
+      effectivePitchRunMM,
+      frontPitchDeg: Number(pitchDeg) || 0,
+
+      hipDepthMM: 220,
+      bossAllowancePlanMM:
+        SPAR_HOOK_TO_WALLPLATE_FACE_MM,
+
+      frontHorizontalAllowanceMM:
+        frontHipHorizontalAllowanceMM,
+
+      sideHorizontalAllowanceMM:
+        rightHipHorizontalAllowanceMM,
+    })
+  : null;
 // Temporary compatibility aliases.
 // Remove these after all pages have moved to the official names.
 const leftHipManufactureTest = leftHipManufacture;
@@ -247,9 +286,7 @@ const rightHipManufacturingLengthMM = rightHipFinishedCutLengthMM;
   const leftHipTimberliteCutLengthMM = leftHipFinishedCutLengthMM;
 const rightHipTimberliteCutLengthMM = rightHipFinishedCutLengthMM;
 
-const frameOnMM = Number(materials?.frame_on_mm ?? 70);
 
-const fasciaLipMM = Number(materials?.fascia_lip_mm ?? 25);
 
 const resolvedLeftOverhangMM = Math.max(
   0,
@@ -730,21 +767,23 @@ rightWallJackCount:
 
   effectivePitchRunMM,
 
-leftCorrectedHipPlanLengthMM,
-rightCorrectedHipPlanLengthMM,
-
-leftCorrectedHipPitchDeg,
-rightCorrectedHipPitchDeg,
-
-leftCorrectedHipTrueLengthMM,
-rightCorrectedHipTrueLengthMM,
-
-  // Official manufacture outputs
+  // Existing official manufacture outputs
 leftHipManufacture,
 rightHipManufacture,
 
 leftHipStructuralLengthMM,
 rightHipStructuralLengthMM,
+
+leftHipFinishedCutLengthMM,
+rightHipFinishedCutLengthMM,
+
+// Temporary V2 comparison outputs
+leftHipManufactureV2,
+rightHipManufactureV2,
+
+frontHipHorizontalAllowanceMM,
+leftHipHorizontalAllowanceMM,
+rightHipHorizontalAllowanceMM,
 
 leftHipFinishedCutLengthMM,
 rightHipFinishedCutLengthMM,
@@ -930,8 +969,8 @@ rightExternalAllowanceMM,
   leftBossXMM: leftBossX,
   rightBossXMM: rightBossX,
 
-  leftHipPlanLengthMM: hipPlanLengthLeft,
-  rightHipPlanLengthMM: hipPlanLengthRight,
+ leftHipPlanLengthMM,
+ rightHipPlanLengthMM,
 
   points: {
     frontLeft: { x: 0, y: 0 },
