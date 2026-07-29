@@ -13,7 +13,8 @@ export default async function handler(req, res) {
     const apiKey = process.env.GOOGLE_MAPS_API_KEY;
     const originPostcode = process.env.BUSINESS_POSTCODE;
 
-    if (!apiKey || !originPostcode) {
+
+if (!apiKey || !originPostcode) {
       return res.status(500).json({
         error: "Missing GOOGLE_MAPS_API_KEY or BUSINESS_POSTCODE",
       });
