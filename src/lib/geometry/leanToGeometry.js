@@ -25,9 +25,9 @@ export function calculateLeanToGeometry({
 
   return {
     // Standardised shared names for the rest of the app
-    rafterExternalLength: geom.totalRafterLengthMM,
+    rafterExternalLength: geom.fullProjectionRafterLengthMM,
     rafterInternalLength: geom.internalRafterLengthMM,
-    externalSlopeLength: geom.externalRafterExtensionMM,
+    externalSlopeLength: geom.fullProjectionRafterLengthMM,
     plumbCutHeight: geom.plumbCutHeightMM,
     fasciaHeight: geom.finishedFasciaHeightMM,
     fasciaAlignmentDatum: geom.finishedFasciaAlignmentDatumMM,
