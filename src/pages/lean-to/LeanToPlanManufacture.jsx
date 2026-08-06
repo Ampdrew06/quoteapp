@@ -315,7 +315,7 @@ const rightWall =
 );
 
 const externalSlopeMM = Math.floor(
-  manufactureGeom.totalRafterLengthMM
+  manufactureGeom.fullProjectionRafterLengthMM
 );
 
 const rawBlankLengthMM = Math.floor(

@@ -68,8 +68,47 @@ export function calculateHippedLeanToGeometry({
 const leftBossX = leftHipWidth;
 const rightBossX = width - rightHipWidth;
 
-// 3) Rise from corrected Lean-To geometry
-const riseMM = base?.raw?.pureRiseMM ?? 0;
+// ======================================================
+// TWO SEPARATE VERTICAL DATUMS
+// ======================================================
+//
+// 1. designRiseMM
+//    The required roof rise established by the full
+//    internal projection and the requested front pitch.
+//    This controls the wallplate height and side pitches.
+//
+// 2. frontRafterFaceRiseMM
+//    The existing front-rafter manufacture rise, based on
+//    the effective run to the wallplate face.
+//    Retained for the current rafter/hip manufacture logic
+//    until those calculations are migrated separately.
+// ======================================================
+
+const frontPitchRad = degToRad(pitchDeg);
+
+const designRiseMM =
+  projection * Math.tan(frontPitchRad);
+
+const frontRafterFaceRiseMM =
+  Number(base?.raw?.pureRiseMM ?? 0);
+
+// Keep the existing name temporarily so current hip
+// manufacture calculations remain unchanged.
+const riseMM = frontRafterFaceRiseMM;
+
+const ringBeamHeightMM = Number(
+  materials?.ring_beam_height_mm ?? 40
+);
+
+const wallplateHeightMM = Number(
+  materials?.wallplate_height_mm ?? 220
+);
+
+const designInternalWallplateHeightMM =
+  designRiseMM + ringBeamHeightMM;
+
+const designExternalWallplateHeightMM =
+  designInternalWallplateHeightMM + wallplateHeightMM;
 
 // Corrected Timberlite hip geometry diagnostic.
 // Uses the same effective pitch run as the front-rafter geometry.
@@ -115,14 +154,14 @@ const rightHipTrueLengthMM = hasRightHip
 // 4) Side roof plane pitches
 const leftSidePitchDeg = hasLeftHip
   ? calcSidePitchDeg({
-      riseMM,
+      riseMM: designRiseMM,
       hipWidthMM: leftHipWidth,
     })
   : 0;
 
 const rightSidePitchDeg = hasRightHip
   ? calcSidePitchDeg({
-      riseMM,
+      riseMM: designRiseMM,
       hipWidthMM: rightHipWidth,
     })
   : 0;
@@ -161,7 +200,99 @@ const facetEavesRule = solveFacetEavesGeometry({
 
   manufacturingRoundIncrementMM: 5,
 });
+// ======================================================
+// TEMPORARY RAFTER-TEMPLATE DIAGNOSTICS
+//
+// These expose the two calculated foot-cut profiles used
+// by the facet-eaves solver:
+//
+// - frontTemplateDebug: requested front pitch and soffit
+// - left/rightTemplateDebug: side pitch with the soffit
+//   required to match the front template's plumb cut
+//
+// No live calculation is changed by this block.
+// ======================================================
 
+const frontTemplateRaw =
+  facetEavesRule.referenceGeometry?.raw ?? null;
+
+const leftTemplateRaw =
+  facetEavesRule.left?.geometry?.raw ?? null;
+
+const rightTemplateRaw =
+  facetEavesRule.right?.geometry?.raw ?? null;
+
+const buildTemplateDebug = ({
+  exists,
+  pitchDeg,
+  raw,
+}) => {
+  if (!exists || !raw) return null;
+
+  return {
+    pitchDeg: Number(pitchDeg) || 0,
+
+    soffitDepthMM:
+      Number(raw.effectiveSoffitMM ?? 0),
+
+    frameThicknessMM:
+      Number(raw.frameThicknessMM ?? 0),
+
+    horizontalFootRunMM:
+      Number(raw.horizontalExtensionMM ?? 0),
+
+    verticalFallAcrossFootMM:
+      Number(raw.verticalDropMM ?? 0),
+
+    plumbCutHeightMM:
+      Number(raw.plumbCutHeightMM ?? 0),
+
+    rafterDepthMM:
+      Number(raw.rafterDepthMM ?? 0),
+
+    upperEdgeReferenceXMM:
+      Number(
+        raw.footTemplate
+          ?.upperEdgeReferencePoint?.xMM ?? 0
+      ),
+
+    upperEdgeReferenceYMM:
+      Number(
+        raw.footTemplate
+          ?.upperEdgeReferencePoint?.yMM ?? 0
+      ),
+
+    outwardSlopeUnitX:
+      Number(
+        raw.footTemplate
+          ?.outwardSlopeUnit?.x ?? 0
+      ),
+
+    outwardSlopeUnitY:
+      Number(
+        raw.footTemplate
+          ?.outwardSlopeUnit?.y ?? 0
+      ),
+  };
+};
+
+const frontTemplateDebug = buildTemplateDebug({
+  exists: true,
+  pitchDeg,
+  raw: frontTemplateRaw,
+});
+
+const leftTemplateDebug = buildTemplateDebug({
+  exists: hasLeftHip,
+  pitchDeg: leftSidePitchDeg,
+  raw: leftTemplateRaw,
+});
+
+const rightTemplateDebug = buildTemplateDebug({
+  exists: hasRightHip,
+  pitchDeg: rightSidePitchDeg,
+  raw: rightTemplateRaw,
+});
 
 
 // Live eaves dimensions now come from the universal,
@@ -732,6 +863,8 @@ const facets = [
   leftSideRingBeamLayout,
 rightSideRingBeamLayout,
 
+
+
 leftSideIntermediateJackCount:
   leftSideRingBeamLayout.intermediateJackRafterCount,
 
@@ -752,7 +885,16 @@ rightWallJackCount:
   leftHipPitchDeg,
   rightHipPitchDeg,
 
-  riseMM,
+  // Vertical design/manufacture datums
+riseMM,
+designRiseMM,
+frontRafterFaceRiseMM,
+
+ringBeamHeightMM,
+wallplateHeightMM,
+
+designInternalWallplateHeightMM,
+designExternalWallplateHeightMM,
 
   plainRafterZoneStartMM,
   plainRafterZoneEndMM,
@@ -931,6 +1073,11 @@ facetEavesRightRawManufacturedSoffitMM:
 
 facetEavesRightManufacturedSoffitMM:
   facetEavesRule.right.manufacturedSoffitMM,
+
+  // Temporary rafter-template diagnostics
+frontTemplateDebug,
+leftTemplateDebug,
+rightTemplateDebug,
 
   externalWidthMM,
   externalProjectionMM,

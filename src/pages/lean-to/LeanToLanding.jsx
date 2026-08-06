@@ -29,6 +29,9 @@ import {
   saveQuote as saveQuoteToCloud,
   getNextQuoteNumber,
 } from "../../lib/quotes";
+import TemplateGeometryVisualizer from "../../components/TemplateGeometryVisualizer";
+import WallplateGeometryVisualizer from "../../components/WallplateGeometryVisualizer";
+import HippedWallplateFrontVisualizer from "../../components/HippedWallplateFrontVisualizer";
 //import { computeLeanToManufactureGeometry } from "../../lib/leanToManufactureGeometry";
 
 // adjust path if file structure differs
@@ -1897,6 +1900,7 @@ title={
       fontSize: 13,
       lineHeight: 1.6,
     }}
+    
   >
     <h3>
   HIP GEOMETRY / MANUFACTURE DEBUG
@@ -1918,8 +1922,31 @@ title={
 </div>
 
 <div>
-  <b>Rise:</b>{" "}
-  {Math.round(hippedGeom.riseMM ?? 0)} mm
+  <b>Design Rise:</b>{" "}
+  {Math.round(
+    hippedGeom.designRiseMM ?? 0
+  )} mm
+</div>
+
+<div>
+  <b>Front-Rafter Face Rise:</b>{" "}
+  {Math.round(
+    hippedGeom.frontRafterFaceRiseMM ?? 0
+  )} mm
+</div>
+
+<div>
+  <b>Required Internal Wallplate Height:</b>{" "}
+  {Math.round(
+    hippedGeom.designInternalWallplateHeightMM ?? 0
+  )} mm
+</div>
+
+<div>
+  <b>Required External Wallplate Height:</b>{" "}
+  {Math.round(
+    hippedGeom.designExternalWallplateHeightMM ?? 0
+  )} mm
 </div>
 
 <hr style={{ margin: "10px 0" }} />
@@ -2016,6 +2043,129 @@ title={
     hippedGeom.leftHipHorizontalAllowanceMM ?? 0
   )} mm
 </div>
+
+<hr style={{ margin: "10px 0" }} />
+
+<div style={{ fontWeight: 800 }}>
+  FACET EAVES / SIDE SOFFIT DEBUG
+</div>
+
+<hr style={{ margin: "10px 0" }} />
+
+<div style={{ fontWeight: 800 }}>
+  FRONT RAFTER TEMPLATE
+</div>
+
+<div>
+  <b>Pitch:</b>{" "}
+  {Number(
+    hippedGeom.frontTemplateDebug?.pitchDeg ?? 0
+  ).toFixed(2)}°
+</div>
+
+<div>
+  <b>Entered Soffit:</b>{" "}
+  {Number(
+    hippedGeom.frontTemplateDebug?.soffitDepthMM ?? 0
+  ).toFixed(1)} mm
+</div>
+
+<div>
+  <b>Frame + Soffit Foot Run:</b>{" "}
+  {Number(
+    hippedGeom.frontTemplateDebug
+      ?.horizontalFootRunMM ?? 0
+  ).toFixed(1)} mm
+</div>
+
+<div>
+  <b>Fall Across Foot:</b>{" "}
+  {Number(
+    hippedGeom.frontTemplateDebug
+      ?.verticalFallAcrossFootMM ?? 0
+  ).toFixed(1)} mm
+</div>
+
+<div>
+  <b>Vertical Plumb Cut:</b>{" "}
+  {Number(
+    hippedGeom.frontTemplateDebug
+      ?.plumbCutHeightMM ?? 0
+  ).toFixed(1)} mm
+</div>
+
+<hr style={{ margin: "10px 0" }} />
+
+<div style={{ fontWeight: 800 }}>
+  LEFT SIDE RAFTER TEMPLATE
+</div>
+
+<div>
+  <b>Pitch:</b>{" "}
+  {Number(
+    hippedGeom.leftTemplateDebug?.pitchDeg ?? 0
+  ).toFixed(2)}°
+</div>
+
+<div>
+  <b>Matched Soffit:</b>{" "}
+  {Number(
+    hippedGeom.leftTemplateDebug?.soffitDepthMM ?? 0
+  ).toFixed(1)} mm
+</div>
+
+<div>
+  <b>Frame + Soffit Foot Run:</b>{" "}
+  {Number(
+    hippedGeom.leftTemplateDebug
+      ?.horizontalFootRunMM ?? 0
+  ).toFixed(1)} mm
+</div>
+
+<div>
+  <b>Fall Across Foot:</b>{" "}
+  {Number(
+    hippedGeom.leftTemplateDebug
+      ?.verticalFallAcrossFootMM ?? 0
+  ).toFixed(1)} mm
+</div>
+
+<div>
+  <b>Vertical Plumb Cut:</b>{" "}
+  {Number(
+    hippedGeom.leftTemplateDebug
+      ?.plumbCutHeightMM ?? 0
+  ).toFixed(1)} mm
+</div>
+
+<div>
+  <b>Side Soffit — Plumb-Cut Match:</b>{" "}
+  {Number(
+    hippedGeom.leftPlumbCutMatchedSoffitMM ?? 0
+  ).toFixed(1)} mm
+</div>
+
+<div>
+  <b>Side Mitre Trim:</b>{" "}
+  {Number(
+    hippedGeom.leftMitreTrimAllowanceMM ?? 0
+  ).toFixed(1)} mm
+</div>
+
+<div>
+  <b>Side Soffit — Raw Manufactured:</b>{" "}
+  {Number(
+    hippedGeom.leftRawManufacturedSoffitMM ?? 0
+  ).toFixed(1)} mm
+</div>
+
+<div>
+  <b>Side Soffit — Rounded Manufactured:</b>{" "}
+  {Number(
+    hippedGeom.leftRoundedManufacturedSoffitMM ?? 0
+  ).toFixed(1)} mm
+</div>
+
 <div
   style={{
     marginTop: 10,
@@ -2050,8 +2200,116 @@ title={
     )}
   </div>
 )}
-                
+   {roofStyle === "hippedLeanTo" &&
+  hippedGeom &&
+  hippedGeom.frontTemplateDebug &&
+  hippedGeom.leftTemplateDebug && (
+    <TemplateGeometryVisualizer
+      frontTemplate={
+        hippedGeom.frontTemplateDebug
+      }
+      sideTemplate={
+        hippedGeom.leftTemplateDebug
+      }
+      matchedSideSoffitMM={
+        hippedGeom.leftPlumbCutMatchedSoffitMM
+      }
+      mitreTrimAllowanceMM={
+        hippedGeom.leftMitreTrimAllowanceMM
+      }
+      manufacturedSideSoffitMM={
+        hippedGeom.leftRoundedManufacturedSoffitMM
+      }
+    />
+  )}             
+{roofStyle === "hippedLeanTo" && hippedGeom && (
+  <WallplateGeometryVisualizer
+    projectionMM={hippedGeom.projectionMM}
+    frontPitchDeg={hippedGeom.frontPitchDeg}
 
+    designRiseMM={hippedGeom.designRiseMM}
+    frontRafterFaceRiseMM={
+      hippedGeom.frontRafterFaceRiseMM
+    }
+
+    effectivePitchRunMM={
+      hippedGeom.effectivePitchRunMM
+    }
+
+    internalWallplateHeightMM={
+      hippedGeom.designInternalWallplateHeightMM
+    }
+
+    externalWallplateHeightMM={
+      hippedGeom.designExternalWallplateHeightMM
+    }
+
+    wallplateThicknessMM={
+      hippedGeom.raw?.wallplateThicknessMM ?? 63
+    }
+
+    wallplateHeightMM={
+      hippedGeom.wallplateHeightMM ?? 220
+    }
+
+    ringBeamHeightMM={
+      hippedGeom.ringBeamHeightMM ?? 40
+    }
+  />
+)}
+{roofStyle === "hippedLeanTo" && hippedGeom && (
+  <HippedWallplateFrontVisualizer
+    internalWidthMM={hippedGeom.widthMM}
+
+    leftHipPositionMM={
+      hippedGeom.leftHipWidthMM
+    }
+
+    rightHipPositionMM={
+      hippedGeom.rightHipWidthMM
+    }
+
+    leftSidePitchDeg={
+      hippedGeom.leftSidePitchDeg
+    }
+
+    rightSidePitchDeg={
+      hippedGeom.rightSidePitchDeg
+    }
+
+    internalWallplateHeightMM={
+      hippedGeom.designInternalWallplateHeightMM
+    }
+
+    externalWallplateHeightMM={
+      hippedGeom.designExternalWallplateHeightMM
+    }
+
+    wallplateSectionHeightMM={
+      hippedGeom.wallplateHeightMM ?? 220
+    }
+leftWallBarFootRunMM={
+  hippedGeom.leftTemplateDebug?.horizontalFootRunMM ?? 0
+}
+
+rightWallBarFootRunMM={
+  hippedGeom.rightTemplateDebug?.horizontalFootRunMM ??
+  hippedGeom.leftTemplateDebug?.horizontalFootRunMM ??
+  0
+}
+    externalWidthMM={
+      hippedGeom.externalWidthMM
+    }
+
+    leftExternalAllowanceMM={
+      hippedGeom.leftExternalAllowanceMM
+    }
+
+    rightExternalAllowanceMM={
+      hippedGeom.rightExternalAllowanceMM
+    }
+  />
+)}
                 <div>
                   <b>Tile</b>: {tileSystem === "britmet" ? "Britmet" : "LiteSlate"} — <b>{tileColor}</b>
                 </div>
