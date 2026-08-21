@@ -9,6 +9,10 @@ const round = (v, dp = 0) => {
 export default function PlanDiagramLeanTo({
   iw, ip,
   sft, lip,
+
+  leftSupportDepthMM,
+  rightSupportDepthMM,
+
   soffit, frameOn,
   leftOH = 0, rightOH = 0,
   leftWall = false, rightWall = false,
@@ -18,24 +22,48 @@ export default function PlanDiagramLeanTo({
 }) {
   // --- compute per-side deltas (full rule set) ---
   const { extW, extP, leftDelta, rightDelta } = useMemo(() => {
-  const FT  = Number(sft) || 70;
-  const LIP = Number(lip) || 25;
-  const L_OH = Number(leftOH) || 0;
-  const R_OH = Number(rightOH) || 0;
+  const FT = Number(sft) || 70;
 
-  const leftDelta = leftWall
-    ? 0
-    : (L_OH > 0 ? FT + L_OH : FT + LIP);
+const LEFT_FT =
+  Number(leftSupportDepthMM) || FT;
 
-  const rightDelta = rightWall
-    ? 0
-    : (R_OH > 0 ? FT + R_OH : FT + LIP);
+const RIGHT_FT =
+  Number(rightSupportDepthMM) || FT;
+
+const LIP = Number(lip) || 25;
+const L_OH = Number(leftOH) || 0;
+const R_OH = Number(rightOH) || 0;
+
+const leftDelta = leftWall
+  ? 0
+  : (L_OH > 0
+      ? LEFT_FT + L_OH
+      : LEFT_FT + LIP);
+
+const rightDelta = rightWall
+  ? 0
+  : (R_OH > 0
+      ? RIGHT_FT + R_OH
+      : RIGHT_FT + LIP);
 
   const extW = iw + leftDelta + rightDelta;
   const extP = ip + (Number(frameOn) || 70) + (Number(soffit) || 150);
 
   return { extW, extP, leftDelta, rightDelta };
-}, [iw, ip, sft, lip, soffit, frameOn, leftOH, rightOH, leftWall, rightWall]);
+}, [
+  iw,
+  ip,
+  sft,
+  lip,
+  leftSupportDepthMM,
+  rightSupportDepthMM,
+  soffit,
+  frameOn,
+  leftOH,
+  rightOH,
+  leftWall,
+  rightWall,
+]);
 
   // --- drawing area setup ---
   const VB_W = 900, VB_H = 520;
@@ -180,6 +208,21 @@ export default function PlanDiagramLeanTo({
           </g>
         );
       })}
+
+      {/* --- pitch at centre of roof --- */}
+<text
+  x={ox + ow / 2}
+  y={oy + oh / 2}
+  textAnchor="middle"
+  dominantBaseline="middle"
+  style={{
+    font: "16px Inter, system-ui, Arial",
+    fontWeight: 700,
+  }}
+  fill="#111827"
+>
+  {round(pitchDeg, 1)}°
+</text>
 
       {/* --- side labels on actual external edges --- */}
 <g>

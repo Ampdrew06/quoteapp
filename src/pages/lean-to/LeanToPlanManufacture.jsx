@@ -7,7 +7,17 @@ import { calculateHippedLeanToGeometry } from "../../lib/geometry/hippedLeanToGe
 import NavTabs from "../../components/NavTabs";
 import IdiotList from "./IdiotList";
 import { getQuoteById, updateQuote } from "../../lib/quotes";
-
+import ManufacturingFacetDrawing from "../../components/ManufacturingFacetDrawing";
+import { buildRoofPlan } from "../../lib/Manufacturing/roofPlanBuilder";
+import RoofPlanDiagram from "../../components/RoofPlanDiagram";
+import { buildManufacturingSequence } from "../../lib/Manufacturing/manufacturingSequenceBuilder";
+import ManufacturingWallplateMemberDrawing from "../../components/ManufacturingWallplateMemberDrawing";
+import {
+  resolveEdgeSupport,
+  resolveTwoSidedExternalWidth,
+} from "../../lib/geometry/supportGeometry";
+import LeanToSideElevationManufacture
+  from "../../components/LeanToSideElevationManufacture";
 
 
 const num = (v, f = 0) => (Number.isFinite(Number(v)) ? Number(v) : f);
@@ -55,6 +65,10 @@ const sectionTitle = {
   fontWeight: 800,
   margin: "0 0 8px",
 };
+
+const SHOW_LEGACY_HIPPED_WALLPLATE_VISUALISER = false;
+
+const SHOW_LEGACY_LEANTO_RAFTER_DETAIL = true;
 
 /* function BookFrontRow({ leftLabel, leftValue, rightLabel, rightValue }) {
   return (
@@ -165,6 +179,7 @@ function RafterDetailDiagram({
 export default function LeanToPlanManufacture() {
   const [activeJob, setActiveJob] = useState(null);
 const [jobDetails, setJobDetails] = useState({
+  jobNumber: "",
   requested_delivery_date: "",
   deliveryType: "Delivery",
   deliveryAddress: "",
@@ -186,13 +201,14 @@ useEffect(() => {
       setActiveJob(job);
 
       setJobDetails({
-        requested_delivery_date: job.requested_delivery_date || "",
-        deliveryType: job.delivery_address_json?.deliveryType || "Delivery",
-        deliveryAddress: job.delivery_address_json?.deliveryAddress || "",
-        contactName: job.delivery_address_json?.contactName || "",
-        contactPhone: job.delivery_address_json?.contactPhone || "",
-        notes: job.order_notes || "",
-      });
+  jobNumber: job.job_number || "",
+  requested_delivery_date: job.requested_delivery_date || "",
+  deliveryType: job.delivery_address_json?.deliveryType || "Delivery",
+  deliveryAddress: job.delivery_address_json?.deliveryAddress || "",
+  contactName: job.delivery_address_json?.contactName || "",
+  contactPhone: job.delivery_address_json?.contactPhone || "",
+  notes: job.order_notes || "",
+});
 
      // if (job.inputs_json) {
      //   localStorage.setItem(
@@ -214,8 +230,13 @@ const saveJobDetails = async () => {
   if (!activeJob?.id) return;
 
   const updated = await updateQuote(activeJob.id, {
-    requested_delivery_date: jobDetails.requested_delivery_date || null,
-    delivery_address_json: {
+  job_number:
+    String(jobDetails.jobNumber || "").trim() || null,
+
+  requested_delivery_date:
+    jobDetails.requested_delivery_date || null,
+
+  delivery_address_json: {
       deliveryType: jobDetails.deliveryType,
       deliveryAddress: jobDetails.deliveryAddress,
       contactName: jobDetails.contactName,
@@ -244,7 +265,18 @@ const saveJobDetails = async () => {
   const hasRoofDimensions = iw > 0 && ip > 0;
 
   const sft = num(q.side_frame_thickness_mm ?? m.side_frame_thickness_mm ?? 70);
-  const lip = num(q.fascia_lip_mm ?? m.fascia_lip_mm ?? 25);
+
+const leftSupportDepthMM = num(
+  q.leftSupportDepthMM,
+  sft
+);
+
+const rightSupportDepthMM = num(
+  q.rightSupportDepthMM,
+  sft
+);
+
+const lip = num(q.fascia_lip_mm ?? m.fascia_lip_mm ?? 25);
   const frameOn = num(q.frame_on_mm ?? m.frame_on_mm ?? 70);
   const soffit = num(q.soffit_mm ?? 150);
   const L = num(q.left_overhang_mm, 0);
@@ -271,10 +303,46 @@ const rightWall =
 //const rightSideLabel = rightWall ? "WALL" : "END";
 
   // External sizes
-  const extWidthMM = useMemo(
-    () => iw + 2 * (sft + lip) + L + R,
-    [iw, sft, lip, L, R]
-  );
+  const extWidthMM = useMemo(() => {
+  const leftSupport =
+  resolveEdgeSupport({
+    type: leftWall ? "wall" : "frame",
+    depthMM: leftSupportDepthMM,
+    defaultDepthMM: sft,
+  });
+
+  const rightSupport =
+  resolveEdgeSupport({
+    type: rightWall ? "wall" : "frame",
+    depthMM: rightSupportDepthMM,
+    defaultDepthMM: sft,
+  });
+
+  const resolved =
+    resolveTwoSidedExternalWidth({
+      internalWidthMM: iw,
+
+      leftSupport,
+      rightSupport,
+
+      leftOverhangMM: L,
+      rightOverhangMM: R,
+
+      fasciaLipMM: lip,
+    });
+
+  return resolved.externalWidthMM;
+}, [
+  iw,
+  sft,
+  lip,
+  L,
+  R,
+  leftWall,
+  rightWall,
+  leftSupportDepthMM,
+  rightSupportDepthMM,
+]);
 
   const extProjectionMM = useMemo(
     () => ip + soffit + frameOn,
@@ -315,15 +383,16 @@ const rightWall =
 );
 
 const externalSlopeMM = Math.floor(
-  manufactureGeom.fullProjectionRafterLengthMM
+  manufactureGeom.manufacturedExternalSlopeLengthMM ??
+    manufactureGeom.calculatedExternalCutLengthMM
 );
 
-const rawBlankLengthMM = Math.floor(
-  manufactureGeom.totalRafterLengthMM
-);
+const manufacturedPlumbCutHeightMM =
+  manufactureGeom.manufacturedPlumbCutHeightMM ??
+  manufactureGeom.plumbCutHeightMM;
 
 const plumbCutMM = Math.round(
-  manufactureGeom.plumbCutHeightMM
+  manufacturedPlumbCutHeightMM
 );
 
   const topAngleDeg = round(pitchDeg, 1);
@@ -333,17 +402,25 @@ const plumbCutMM = Math.round(
   const wallplateFaceCutMM = Math.round(
   rafterDepthMM / Math.cos((topAngleDeg * Math.PI) / 180)
 );
-const stockExtraEachEndMM = round(
-  rafterDepthMM * Math.tan((topAngleDeg * Math.PI) / 180),
-  1
-);
 
 const overallBlankLengthMM = Math.floor(
-  externalSlopeMM + stockExtraEachEndMM * 2
+  manufactureGeom.manufacturedOverallBlankLengthMM ??
+    (
+      manufactureGeom
+        .manufacturedExternalSlopeLengthMM +
+      manufacturedPlumbCutHeightMM *
+        Math.sin((pitchDeg * Math.PI) / 180)
+    )
 );
+
+// Diagnostic only: independently calculated rectangular blank length.
+// Do not use as the production output until physically confirmed.
+
   const seatCutLengthMM = round(
-    manufactureGeom.horizontalExtensionMM ?? (soffit + sft)
-  );
+  manufactureGeom.manufacturedHorizontalFootCutMM ??
+    manufactureGeom.horizontalExtensionMM ??
+    (soffit + sft)
+);
 
   const fixingLathLengthMM = ringBeamLengthMM;
   const chamferLathLengthMM = ringBeamLengthMM;
@@ -502,6 +579,17 @@ const rightHipWidthMM = num(
   q.rightHipWidthMM ?? q.right_hip_width_mm,
   1000
 );
+
+const requestedLeftSidePitchDeg =
+  q.requestedLeftSidePitchDeg ??
+  jobInputs.requestedLeftSidePitchDeg ??
+  null;
+
+const requestedRightSidePitchDeg =
+  q.requestedRightSidePitchDeg ??
+  jobInputs.requestedRightSidePitchDeg ??
+  null;
+
 const hippedGeom = useMemo(
   () =>
     roofStyleKey === "hippedLeanTo"
@@ -515,6 +603,24 @@ const hippedGeom = useMemo(
           hippedSides: activeHippedSides,
           leftHipWidthMM,
           rightHipWidthMM,
+
+                    hippedSides: activeHippedSides,
+          leftHipWidthMM,
+          rightHipWidthMM,
+
+          requestedLeftSidePitchDeg:
+            requestedLeftSidePitchDeg == null ||
+            requestedLeftSidePitchDeg === ""
+              ? null
+              : Number(requestedLeftSidePitchDeg),
+
+          requestedRightSidePitchDeg:
+            requestedRightSidePitchDeg == null ||
+            requestedRightSidePitchDeg === ""
+              ? null
+              : Number(requestedRightSidePitchDeg),
+
+          leftWall,
 
           leftWall,
           rightWall,
@@ -530,15 +636,1467 @@ const hippedGeom = useMemo(
     soffit,
     m,
     activeHippedSides,
-    leftHipWidthMM,
-    rightHipWidthMM,
-    leftWall,
-    rightWall,
+leftHipWidthMM,
+rightHipWidthMM,
+requestedLeftSidePitchDeg,
+requestedRightSidePitchDeg,
+leftWall,
+rightWall,
     L,
     R,
   ]
 );
+const resolvedLeftBossMM =
+  hippedGeom?.leftFacetGeometry?.intersectionOffsetMM ?? 0;
 
+const resolvedRightBossMM =
+  iw -
+  (hippedGeom?.rightFacetGeometry?.intersectionOffsetMM ?? 0);
+
+const resolvedBetweenBossesMM =
+  Math.max(
+    0,
+    resolvedRightBossMM - resolvedLeftBossMM
+  );
+
+  const roofPlan = useMemo(() => {
+  if (
+    roofStyleKey !== "hippedLeanTo" ||
+    !hippedGeom ||
+    iw <= 0 ||
+    ip <= 0
+  ) {
+    return null;
+  }
+
+  /*
+   * IMPORTANT:
+   *
+   * Nothing in this block calculates roof geometry.
+   *
+   * It only translates geometry already resolved by
+   * calculateHippedLeanToGeometry() into the generic
+   * roof-plan format.
+   */
+
+  const structuralLines = [];
+
+  // --------------------------------------------------
+  // HIPS
+  // --------------------------------------------------
+
+  if (leftHip) {
+    structuralLines.push({
+      id: "left-hip",
+      type: "hip",
+      role: "hip",
+
+      start: {
+        xMM: 0,
+        yMM: ip,
+      },
+
+      end: {
+        xMM: resolvedLeftBossMM,
+        yMM: 0,
+      },
+
+      metadata: {
+        side: "left",
+      },
+    });
+  }
+
+  if (rightHip) {
+    structuralLines.push({
+      id: "right-hip",
+      type: "hip",
+      role: "hip",
+
+      start: {
+        xMM: iw,
+        yMM: ip,
+      },
+
+      end: {
+        xMM: resolvedRightBossMM,
+        yMM: 0,
+      },
+
+      metadata: {
+        side: "right",
+      },
+    });
+  }
+
+  // --------------------------------------------------
+  // FRONT RAFTERS
+  // --------------------------------------------------
+
+  const frontRafters =
+    hippedGeom?.frontRafterLayoutV2?.allRafters ??
+    [];
+
+  frontRafters.forEach((rafter) => {
+  const xMM = Number(rafter?.centreMM);
+
+  if (!Number.isFinite(xMM)) return;
+
+  let backYMM = 0;
+
+  /*
+   * Front jack rafters terminate at the hip.
+   *
+   * The intersection point is resolved here in the
+   * roof-plan model, NOT in the generic SVG renderer.
+   */
+  if (
+    rafter.zone === "left-jack" &&
+    resolvedLeftBossMM > 0
+  ) {
+    backYMM =
+      ip -
+      (ip * xMM) / resolvedLeftBossMM;
+  }
+
+  if (
+    rafter.zone === "right-jack" &&
+    iw > resolvedRightBossMM
+  ) {
+    backYMM =
+      ip *
+      ((xMM - resolvedRightBossMM) /
+        (iw - resolvedRightBossMM));
+  }
+
+  structuralLines.push({
+    id:
+      rafter.id ||
+      `front-rafter-${Math.round(xMM)}`,
+
+    type:
+      rafter.role === "boss-rafter"
+        ? "boss-rafter"
+        : rafter.role === "jack"
+        ? "jack-rafter"
+        : "rafter",
+
+    role: rafter.role || "plain",
+
+    facetId: "front",
+
+    start: {
+      xMM,
+      yMM: Math.max(0, backYMM),
+    },
+
+    end: {
+      xMM,
+      yMM: ip,
+    },
+
+    positionMM: xMM,
+
+    metadata: {
+      zone: rafter.zone || null,
+    },
+  });
+});
+
+const frontRafterPositions =
+  frontRafters
+    .map((rafter) => Number(rafter?.centreMM))
+    .filter((value) => Number.isFinite(value))
+    .sort((a, b) => a - b);
+
+const frontRafterSpacingAnnotations = [];
+
+for (
+  let index = 1;
+  index < frontRafterPositions.length;
+  index++
+) {
+  const previousMM =
+    frontRafterPositions[index - 1];
+
+  const currentMM =
+    frontRafterPositions[index];
+
+  frontRafterSpacingAnnotations.push({
+    id: `front-spacing-${index}`,
+
+    type: "spacing",
+
+    start: {
+      xMM: previousMM,
+      yMM: ip,
+    },
+
+    end: {
+      xMM: currentMM,
+      yMM: ip,
+    },
+
+    valueMM:
+      currentMM - previousMM,
+
+    label: "",
+
+    datum: "rafter-spacing",
+
+    metadata: {
+      placement: "inside",
+      axis: "horizontal",
+    },
+  });
+}
+
+// --------------------------------------------------
+// SIDE-FACET JACK RAFTERS
+// --------------------------------------------------
+
+const leftSideJacks =
+  hippedGeom?.leftSideRingBeamLayout
+    ?.intermediateJackRafters ?? [];
+
+leftSideJacks.forEach((jack, index) => {
+  const yMM = Number(jack?.centreMM);
+
+  if (!Number.isFinite(yMM) || ip <= 0) {
+    return;
+  }
+
+  const hipXMM =
+    resolvedLeftBossMM *
+    (1 - yMM / ip);
+
+  structuralLines.push({
+    id:
+      `left-side-jack-${Math.round(yMM)}-${index}`,
+
+    type: "side-jack-rafter",
+    role: "jack",
+    facetId: "left",
+
+    start: {
+      xMM: 0,
+      yMM,
+    },
+
+    end: {
+      xMM: Math.max(0, hipXMM),
+      yMM,
+    },
+
+    positionMM: yMM,
+
+    metadata: {
+      side: "left",
+      axis: "projection",
+    },
+  });
+});
+
+const rightSideJacks =
+  hippedGeom?.rightSideRingBeamLayout
+    ?.intermediateJackRafters ?? [];
+
+rightSideJacks.forEach((jack, index) => {
+  const yMM = Number(jack?.centreMM);
+
+  if (!Number.isFinite(yMM) || ip <= 0) {
+    return;
+  }
+
+  const hipXMM =
+    resolvedRightBossMM +
+    (iw - resolvedRightBossMM) *
+      (yMM / ip);
+
+  structuralLines.push({
+    id:
+      `right-side-jack-${Math.round(yMM)}-${index}`,
+
+    type: "side-jack-rafter",
+    role: "jack",
+    facetId: "right",
+
+    start: {
+      xMM: hipXMM,
+      yMM,
+    },
+
+    end: {
+      xMM: iw,
+      yMM,
+    },
+
+    positionMM: yMM,
+
+    metadata: {
+      side: "right",
+      axis: "projection",
+    },
+  });
+});
+// --------------------------------------------------
+// SIDE JACK RAFTER SPACING ANNOTATIONS
+// --------------------------------------------------
+
+const sideJackSpacingAnnotations = [];
+
+const leftSideJackPositions =
+  leftSideJacks
+    .map((jack) => Number(jack?.centreMM))
+    .filter((value) => Number.isFinite(value))
+    .sort((a, b) => a - b);
+
+for (
+  let index = 1;
+  index < leftSideJackPositions.length;
+  index++
+) {
+  const previousMM =
+    leftSideJackPositions[index - 1];
+
+  const currentMM =
+    leftSideJackPositions[index];
+
+  sideJackSpacingAnnotations.push({
+    id: `left-side-spacing-${index}`,
+    type: "spacing",
+
+    start: {
+      xMM: 0,
+      yMM: previousMM,
+    },
+
+    end: {
+      xMM: 0,
+      yMM: currentMM,
+    },
+
+    valueMM:
+      currentMM - previousMM,
+
+    datum: "rafter-spacing",
+
+    metadata: {
+      placement: "outside-left",
+      axis: "vertical",
+      side: "left",
+    },
+  });
+}
+
+const rightSideJackPositions =
+  rightSideJacks
+    .map((jack) => Number(jack?.centreMM))
+    .filter((value) => Number.isFinite(value))
+    .sort((a, b) => a - b);
+
+for (
+  let index = 1;
+  index < rightSideJackPositions.length;
+  index++
+) {
+  const previousMM =
+    rightSideJackPositions[index - 1];
+
+  const currentMM =
+    rightSideJackPositions[index];
+
+  sideJackSpacingAnnotations.push({
+    id: `right-side-spacing-${index}`,
+    type: "spacing",
+
+    start: {
+      xMM: iw,
+      yMM: previousMM,
+    },
+
+    end: {
+      xMM: iw,
+      yMM: currentMM,
+    },
+
+    valueMM:
+      currentMM - previousMM,
+
+    datum: "rafter-spacing",
+
+    metadata: {
+      placement: "outside-right",
+      axis: "vertical",
+      side: "right",
+    },
+  });
+}
+
+const manufacturingMembers = [];
+
+// Left wallbar
+if (leftHip) {
+  manufacturingMembers.push({
+    id: "left-wallbar",
+    type: "wallbar",
+    side: "left",
+  });
+}
+
+// Left side jack rafters
+leftSideJacks.forEach((jack, index) => {
+  manufacturingMembers.push({
+    id: `left-side-jack-${Math.round(Number(jack?.centreMM) || 0)}-${index}`,
+    type: "jack-rafter",
+    side: "left",
+  });
+});
+
+// Left hip
+if (leftHip) {
+  manufacturingMembers.push({
+    id: "left-hip",
+    type: "hip",
+    side: "left",
+  });
+}
+
+// Front-facet rafters
+frontRafters.forEach((rafter) => {
+  manufacturingMembers.push({
+    id:
+      rafter.id ||
+      `front-rafter-${Math.round(Number(rafter?.centreMM) || 0)}`,
+    type:
+      rafter.role === "boss-rafter"
+        ? "boss-rafter"
+        : rafter.role === "jack"
+        ? "jack-rafter"
+        : "rafter",
+    side: "front",
+  });
+});
+
+// Right hip
+if (rightHip) {
+  manufacturingMembers.push({
+    id: "right-hip",
+    type: "hip",
+    side: "right",
+  });
+}
+
+// Right side jack rafters
+//
+// Counter-clockwise manufacture sequence travels
+// from the right hip towards the back/right wallbar,
+// so these are numbered in REVERSE positional order.
+//
+// Preserve the original array index in the ID so the
+// manufacturing reference still matches the existing
+// structural-line ID used by RoofPlanDiagram.
+rightSideJacks
+  .map((jack, index) => ({
+    jack,
+    originalIndex: index,
+  }))
+  .reverse()
+  .forEach(({ jack, originalIndex }) => {
+    manufacturingMembers.push({
+      id: `right-side-jack-${Math.round(
+        Number(jack?.centreMM) || 0
+      )}-${originalIndex}`,
+
+      type: "jack-rafter",
+      side: "right",
+    });
+  });
+
+// Right wallbar
+if (rightHip) {
+  manufacturingMembers.push({
+    id: "right-wallbar",
+    type: "wallbar",
+    side: "right",
+  });
+}
+
+// Horizontal wallplate
+manufacturingMembers.push({
+  id: "horizontal-wallplate",
+  type: "wallplate",
+  side: "back",
+});
+// --------------------------------------------------
+// RING-BEAMS
+//
+// Continue the same R-series after the wallplate.
+// Counter-clockwise order:
+//
+// left side -> front -> right side
+// --------------------------------------------------
+
+if (hippedGeom?.leftSideRingBeam?.exists) {
+  manufacturingMembers.push({
+    id: "left-ring-beam",
+    type: "ring-beam",
+    side: "left",
+  });
+}
+
+manufacturingMembers.push({
+  id: "front-ring-beam",
+  type: "ring-beam",
+  side: "front",
+});
+
+if (hippedGeom?.rightSideRingBeam?.exists) {
+  manufacturingMembers.push({
+    id: "right-ring-beam",
+    type: "ring-beam",
+    side: "right",
+  });
+}
+// --------------------------------------------------
+// INSULATION SLAB / ROOF-SPACE SEQUENCE
+//
+// S-series follows the roof around in the same general
+// manufacturing direction as the R-series.
+//
+// These are identification regions only at this stage.
+// Actual insulation cutting geometry can be added later.
+// --------------------------------------------------
+
+const manufacturingSlabs = [];
+
+if (leftHip) {
+  const leftPositions = [
+    0,
+    ...leftSideJackPositions,
+    ip,
+  ];
+
+  for (
+    let index = 0;
+    index < leftPositions.length - 1;
+    index++
+  ) {
+    const startYMM = leftPositions[index];
+    const endYMM = leftPositions[index + 1];
+    const midYMM =
+      (startYMM + endYMM) / 2;
+
+    const hipXMM =
+      resolvedLeftBossMM *
+      (1 - midYMM / ip);
+
+    manufacturingSlabs.push({
+      id: `left-slab-${index + 1}`,
+      facetId: "left",
+
+      position: {
+        xMM: hipXMM * 0.45,
+        yMM: midYMM,
+      },
+
+      metadata: {
+        side: "left",
+      },
+    });
+  }
+}
+
+// --------------------------------------------------
+// FRONT FACET SLABS
+//
+// The front facet extends across the COMPLETE front
+// width, including the triangular jack-rafter zones
+// beneath the left and right hips.
+// --------------------------------------------------
+
+const frontStructuralPositions = [
+  0,
+
+  ...frontRafters
+    .map((rafter) => Number(rafter?.centreMM))
+    .filter((value) => Number.isFinite(value)),
+
+  iw,
+]
+  .sort((a, b) => a - b)
+  .filter(
+    (value, index, array) =>
+      index === 0 ||
+      Math.abs(value - array[index - 1]) > 0.5
+  );
+
+for (
+  let index = 0;
+  index < frontStructuralPositions.length - 1;
+  index++
+) {
+  const leftXMM =
+    frontStructuralPositions[index];
+
+  const rightXMM =
+    frontStructuralPositions[index + 1];
+
+  const midXMM =
+    (leftXMM + rightXMM) / 2;
+
+  /*
+   * Find the back/top boundary of the front facet
+   * at this X position.
+   *
+   * Left jack zone  -> bounded by left hip
+   * Centre zone     -> bounded by wallplate
+   * Right jack zone -> bounded by right hip
+   */
+  let facetBackYMM = 0;
+
+  if (
+    leftHip &&
+    midXMM < resolvedLeftBossMM &&
+    resolvedLeftBossMM > 0
+  ) {
+    facetBackYMM =
+      ip -
+      (ip * midXMM) /
+        resolvedLeftBossMM;
+  } else if (
+    rightHip &&
+    midXMM > resolvedRightBossMM &&
+    iw > resolvedRightBossMM
+  ) {
+    facetBackYMM =
+      ip *
+      (
+        (midXMM - resolvedRightBossMM) /
+        (iw - resolvedRightBossMM)
+      );
+  }
+
+  /*
+   * Put the S reference roughly halfway inside the
+   * actual slab region rather than on the hip.
+   */
+  const slabLabelYMM =
+    facetBackYMM +
+    (ip - facetBackYMM) * 0.5;
+
+  manufacturingSlabs.push({
+    id: `front-slab-${index + 1}`,
+    facetId: "front",
+
+    position: {
+      xMM: midXMM,
+      yMM: slabLabelYMM,
+    },
+
+    metadata: {
+      side: "front",
+    },
+  });
+}
+
+if (rightHip) {
+  /*
+   * Reverse the traversal so the S-series continues
+   * around the roof rather than restarting from the back.
+   */
+  const rightPositions = [
+    ip,
+    ...[...rightSideJackPositions].reverse(),
+    0,
+  ];
+
+  for (
+    let index = 0;
+    index < rightPositions.length - 1;
+    index++
+  ) {
+    const startYMM = rightPositions[index];
+    const endYMM = rightPositions[index + 1];
+    const midYMM =
+      (startYMM + endYMM) / 2;
+
+    const hipXMM =
+      resolvedRightBossMM +
+      (iw - resolvedRightBossMM) *
+        (midYMM / ip);
+
+    manufacturingSlabs.push({
+      id: `right-slab-${index + 1}`,
+      facetId: "right",
+
+      position: {
+        xMM:
+          hipXMM +
+          (iw - hipXMM) * 0.55,
+
+        yMM: midYMM,
+      },
+
+      metadata: {
+        side: "right",
+      },
+    });
+  }
+}
+
+const manufacturingSequence =
+  buildManufacturingSequence({
+    members: manufacturingMembers,
+    slabs: manufacturingSlabs,
+  });
+// --------------------------------------------------
+// WALLPLATE / RING-BEAM REFERENCE LINES
+//
+// These lines exist so the generic renderer can attach
+// the continuous R-series references to the appropriate
+// roof members.
+//
+// They do not calculate geometry.
+// --------------------------------------------------
+
+// Left wallbar
+if (leftHip) {
+  structuralLines.push({
+    id: "left-wallbar",
+    type: "wallbar",
+    role: "wallbar",
+
+    start: {
+      xMM: 0,
+      yMM: 0,
+    },
+
+    end: {
+      xMM: resolvedLeftBossMM,
+      yMM: 0,
+    },
+
+    metadata: {
+      referenceOnly: true,
+      side: "left",
+    },
+  });
+}
+
+// Horizontal wallplate
+structuralLines.push({
+  id: "horizontal-wallplate",
+  type: "wallplate",
+  role: "wallplate",
+
+  start: {
+    xMM: resolvedLeftBossMM,
+    yMM: 0,
+  },
+
+  end: {
+    xMM: resolvedRightBossMM,
+    yMM: 0,
+  },
+
+  metadata: {
+    referenceOnly: true,
+    side: "back",
+  },
+});
+
+// Right wallbar
+if (rightHip) {
+  structuralLines.push({
+    id: "right-wallbar",
+    type: "wallbar",
+    role: "wallbar",
+
+    start: {
+      xMM: resolvedRightBossMM,
+      yMM: 0,
+    },
+
+    end: {
+      xMM: iw,
+      yMM: 0,
+    },
+
+    metadata: {
+      referenceOnly: true,
+      side: "right",
+    },
+  });
+}
+
+// Left ring-beam
+if (hippedGeom?.leftSideRingBeam?.exists) {
+  structuralLines.push({
+    id: "left-ring-beam",
+    type: "ring-beam",
+    role: "ring-beam",
+
+    start: {
+      xMM: 0,
+      yMM: 0,
+    },
+
+    end: {
+      xMM: 0,
+      yMM: ip,
+    },
+
+    metadata: {
+      referenceOnly: true,
+      side: "left",
+    },
+  });
+}
+
+// Front ring-beam
+structuralLines.push({
+  id: "front-ring-beam",
+  type: "ring-beam",
+  role: "ring-beam",
+
+  start: {
+    xMM: 0,
+    yMM: ip,
+  },
+
+  end: {
+    xMM: iw,
+    yMM: ip,
+  },
+
+  metadata: {
+    referenceOnly: true,
+    side: "front",
+  },
+});
+
+// Right ring-beam
+if (hippedGeom?.rightSideRingBeam?.exists) {
+  structuralLines.push({
+    id: "right-ring-beam",
+    type: "ring-beam",
+    role: "ring-beam",
+
+    start: {
+      xMM: iw,
+      yMM: ip,
+    },
+
+    end: {
+      xMM: iw,
+      yMM: 0,
+    },
+
+    metadata: {
+      referenceOnly: true,
+      side: "right",
+    },
+  });
+}
+  // --------------------------------------------------
+  // BOSS MARKERS
+  // --------------------------------------------------
+
+  const markers = [];
+
+  if (leftHip) {
+    markers.push({
+      id: "left-boss",
+      type: "boss",
+
+      position: {
+        xMM: resolvedLeftBossMM,
+        yMM: 0,
+      },
+
+      label: "BOSS",
+
+      metadata: {
+        side: "left",
+      },
+    });
+  }
+
+  if (rightHip) {
+    markers.push({
+      id: "right-boss",
+      type: "boss",
+
+      position: {
+        xMM: resolvedRightBossMM,
+        yMM: 0,
+      },
+
+      label: "BOSS",
+
+      metadata: {
+        side: "right",
+      },
+    });
+  }
+
+  // --------------------------------------------------
+  // BASIC DIMENSIONS
+  // --------------------------------------------------
+
+  const dimensions = [
+    {
+      id: "internal-width",
+      type: "horizontal",
+
+      start: {
+        xMM: 0,
+        yMM: 0,
+      },
+
+      end: {
+        xMM: iw,
+        yMM: 0,
+      },
+
+      valueMM: iw,
+      label: "IW",
+      datum: "internal",
+
+      metadata: {
+  placement: "above",
+  level: 1,
+},
+    },
+
+    {
+      id: "internal-projection",
+      type: "vertical",
+
+      start: {
+        xMM: iw,
+        yMM: 0,
+      },
+
+      end: {
+        xMM: iw,
+        yMM: ip,
+      },
+
+      valueMM: ip,
+      label: "IP",
+      datum: "internal",
+
+      metadata: {
+  placement: "right",
+  level: 1,
+},
+    },
+
+   
+
+{
+  id: "left-hip-position",
+  type: "horizontal",
+
+  start: {
+    xMM: 0,
+    yMM: ip,
+  },
+
+  end: {
+    xMM: resolvedLeftBossMM,
+    yMM: ip,
+  },
+
+  valueMM: resolvedLeftBossMM,
+  label: "HP",
+  datum: "hip",
+
+  metadata: {
+    placement: "below",
+    level: 1,
+  },
+},
+
+{
+  id: "external-wallplate-length",
+  type: "horizontal",
+
+  start: {
+    xMM: resolvedLeftBossMM,
+    yMM: ip,
+  },
+
+  end: {
+    xMM: resolvedRightBossMM,
+    yMM: ip,
+  },
+
+  valueMM:
+    hippedGeom?.horizontalWallplateExternalLengthMM ?? 0,
+
+  label: "EWPL",
+  datum: "wallplate",
+
+  metadata: {
+    placement: "below",
+    level: 1,
+  },
+},
+
+{
+  id: "right-hip-position",
+  type: "horizontal",
+
+  start: {
+    xMM: resolvedRightBossMM,
+    yMM: ip,
+  },
+
+  end: {
+    xMM: iw,
+    yMM: ip,
+  },
+
+  valueMM:
+    iw - resolvedRightBossMM,
+
+  label: "HP",
+  datum: "hip",
+
+  metadata: {
+    placement: "below",
+    level: 1,
+  },
+},
+
+{
+  id: "external-width",
+  type: "horizontal",
+
+  start: {
+    xMM:
+      -Number(
+        hippedGeom?.leftExternalAllowanceMM ?? 0
+      ),
+    yMM:
+      Number(
+        hippedGeom?.externalProjectionMM ?? ip
+      ),
+  },
+
+  end: {
+    xMM:
+      iw +
+      Number(
+        hippedGeom?.rightExternalAllowanceMM ?? 0
+      ),
+    yMM:
+      Number(
+        hippedGeom?.externalProjectionMM ?? ip
+      ),
+  },
+
+  valueMM:
+    hippedGeom?.externalWidthMM ?? 0,
+
+  label: "EW",
+  datum: "external",
+
+  metadata: {
+    placement: "below",
+    level: 2,
+  },
+},
+
+{
+  id: "external-projection",
+  type: "vertical",
+
+  start: {
+    xMM:
+      -Number(
+        hippedGeom?.leftExternalAllowanceMM ?? 0
+      ),
+    yMM: 0,
+  },
+
+  end: {
+    xMM:
+      -Number(
+        hippedGeom?.leftExternalAllowanceMM ?? 0
+      ),
+    yMM:
+      Number(
+        hippedGeom?.externalProjectionMM ?? ip
+      ),
+  },
+
+  valueMM:
+    hippedGeom?.externalProjectionMM ?? 0,
+
+  label: "EP",
+  datum: "external",
+
+  metadata: {
+    placement: "left",
+    level: 1,
+  },
+},
+  ];
+
+  // --------------------------------------------------
+  // PITCH LABELS
+  // --------------------------------------------------
+
+  const pitchLabels = [
+    {
+      id: "front-pitch",
+      facetId: "front",
+
+      position: {
+        xMM: iw / 2,
+        yMM: ip / 2,
+      },
+
+      valueDeg: pitchDeg,
+      label: "Front",
+    },
+  ];
+
+  if (leftHip) {
+    pitchLabels.push({
+      id: "left-pitch",
+      facetId: "left",
+
+      position: {
+  xMM: resolvedLeftBossMM * 0.38,
+  yMM: ip * 0.32,
+},
+
+      valueDeg:
+        hippedGeom?.leftSidePitchDeg ?? 0,
+
+      label: "Left",
+    });
+  }
+
+  if (rightHip) {
+    pitchLabels.push({
+      id: "right-pitch",
+      facetId: "right",
+
+      position: {
+  xMM:
+    resolvedRightBossMM +
+    (iw - resolvedRightBossMM) * 0.62,
+
+  yMM: ip * 0.32,
+},
+
+      valueDeg:
+        hippedGeom?.rightSidePitchDeg ?? 0,
+
+      label: "Right",
+    });
+  }
+
+  if (leftHip) {
+  pitchLabels.push({
+    id: "left-hip-pitch",
+    facetId: null,
+
+    position: {
+      xMM: resolvedLeftBossMM * 0.42,
+      yMM: ip * 0.58,
+    },
+
+    valueDeg:
+      hippedGeom?.leftHipPitchDeg ?? 0,
+
+    label: "Hip",
+
+    metadata: {
+      kind: "hip",
+      side: "left",
+    },
+  });
+}
+
+if (rightHip) {
+  pitchLabels.push({
+    id: "right-hip-pitch",
+    facetId: null,
+
+    position: {
+      xMM:
+        resolvedRightBossMM +
+        (iw - resolvedRightBossMM) * 0.58,
+
+      yMM: ip * 0.58,
+    },
+
+    valueDeg:
+      hippedGeom?.rightHipPitchDeg ?? 0,
+
+    label: "Hip",
+
+    metadata: {
+      kind: "hip",
+      side: "right",
+    },
+  });
+}
+
+  const leftExternalAllowanceMM =
+  Number(
+    hippedGeom?.leftExternalAllowanceMM ?? 0
+  );
+
+const rightExternalAllowanceMM =
+  Number(
+    hippedGeom?.rightExternalAllowanceMM ?? 0
+  );
+
+const resolvedExternalProjectionMM =
+  Number(
+    hippedGeom?.externalProjectionMM ?? ip
+  );
+
+  const planFacets = [
+  {
+    id: "front",
+    label: "Front",
+    pitchDeg: Number(pitchDeg) || 0,
+
+    metadata: {
+      supportDepthMM: sft,
+
+      soffitDepthMM:
+        Number(
+          hippedGeom?.effectiveFrontSoffitMM ??
+          hippedGeom?.frontSoffitMM ??
+          soffit
+        ),
+
+      supportType: "frame",
+    },
+  },
+];
+
+if (leftHip) {
+  planFacets.push({
+    id: "left",
+    label: "Left Side",
+    pitchDeg:
+      Number(
+        hippedGeom?.leftSidePitchDeg ?? 0
+      ),
+
+    metadata: {
+      supportDepthMM: sft,
+
+      soffitDepthMM:
+        Number(
+          hippedGeom
+            ?.facetEavesLeftManufacturedSoffitMM ??
+          hippedGeom
+            ?.leftRoundedManufacturedSoffitMM ??
+          0
+        ),
+
+      supportType:
+        leftWall ? "wall" : "frame",
+    },
+  });
+}
+
+if (rightHip) {
+  planFacets.push({
+    id: "right",
+    label: "Right Side",
+    pitchDeg:
+      Number(
+        hippedGeom?.rightSidePitchDeg ?? 0
+      ),
+
+    metadata: {
+      supportDepthMM: sft,
+
+      soffitDepthMM:
+        Number(
+          hippedGeom
+            ?.facetEavesRightManufacturedSoffitMM ??
+          hippedGeom
+            ?.rightRoundedManufacturedSoffitMM ??
+          0
+        ),
+
+      supportType:
+        rightWall ? "wall" : "frame",
+    },
+  });
+}
+
+  return buildRoofPlan({
+    internalOutline: [
+  { xMM: 0, yMM: 0 },
+  { xMM: iw, yMM: 0 },
+  { xMM: iw, yMM: ip },
+  { xMM: 0, yMM: ip },
+],
+
+externalOutline: [
+  {
+    xMM: -leftExternalAllowanceMM,
+    yMM: 0,
+  },
+  {
+    xMM: iw + rightExternalAllowanceMM,
+    yMM: 0,
+  },
+  {
+    xMM: iw + rightExternalAllowanceMM,
+    yMM: resolvedExternalProjectionMM,
+  },
+  {
+    xMM: -leftExternalAllowanceMM,
+    yMM: resolvedExternalProjectionMM,
+  },
+],
+
+structuralLines,
+
+manufacturingSequence,
+
+    markers,
+
+    dimensions: [
+  ...dimensions,
+  ...frontRafterSpacingAnnotations,
+  ...sideJackSpacingAnnotations,
+],
+
+    pitchLabels,
+
+    facets: planFacets,
+
+    metadata: {
+      source: "resolved-geometry",
+      roofStyle: roofStyleKey,
+
+      internalWidthMM: iw,
+      internalProjectionMM: ip,
+
+      externalWidthMM:
+        hippedGeom?.externalWidthMM ?? 0,
+
+      externalProjectionMM:
+        hippedGeom?.externalProjectionMM ?? 0,
+    },
+  });
+}, [
+  roofStyleKey,
+  hippedGeom,
+  iw,
+  ip,
+  pitchDeg,
+  leftHip,
+  rightHip,
+  resolvedLeftBossMM,
+  resolvedRightBossMM,
+]);
+const WALLPLATE_MATCH_TOLERANCE = 0.1;
+
+const nearlyEqual = (a, b) =>
+  Math.abs(
+    Number(a || 0) - Number(b || 0)
+  ) <= WALLPLATE_MATCH_TOLERANCE;
+
+const leftWallbarManufacture = hippedGeom
+  ? {
+      pitchDeg:
+        hippedGeom.leftSidePitchDeg,
+
+      hfcMM:
+        hippedGeom.leftHorizontalFootRunMM,
+
+      vfcMM:
+        hippedGeom.leftPlumbCutHeightMM,
+
+      ewbsMM:
+        hippedGeom.leftExternalWallBarSlopeMM,
+
+      iwbsMM:
+        hippedGeom.leftInternalWallBarSlopeMM,
+
+      internalHorizontalRunMM:
+        hippedGeom.leftFacetGeometry
+          ?.internalHorizontalRunMM,
+
+      externalWallplateHeightMM:
+        hippedGeom.designExternalWallplateHeightMM,
+
+      internalWallplateHeightMM:
+        hippedGeom.designInternalWallplateHeightMM,
+    }
+  : null;
+
+const rightWallbarManufacture = hippedGeom
+  ? {
+      pitchDeg:
+        hippedGeom.rightSidePitchDeg,
+
+      hfcMM:
+        hippedGeom.rightHorizontalFootRunMM,
+
+      vfcMM:
+        hippedGeom.rightPlumbCutHeightMM,
+
+      ewbsMM:
+        hippedGeom.rightExternalWallBarSlopeMM,
+
+      iwbsMM:
+        hippedGeom.rightInternalWallBarSlopeMM,
+
+      internalHorizontalRunMM:
+        hippedGeom.rightFacetGeometry
+          ?.internalHorizontalRunMM,
+
+      externalWallplateHeightMM:
+        hippedGeom.designExternalWallplateHeightMM,
+
+      internalWallplateHeightMM:
+        hippedGeom.designInternalWallplateHeightMM,
+    }
+  : null;
+
+const wallbarsAreDuplicates =
+  Boolean(leftHip && rightHip) &&
+  leftWallbarManufacture &&
+  rightWallbarManufacture &&
+  nearlyEqual(
+    leftWallbarManufacture.pitchDeg,
+    rightWallbarManufacture.pitchDeg
+  ) &&
+  nearlyEqual(
+    leftWallbarManufacture.hfcMM,
+    rightWallbarManufacture.hfcMM
+  ) &&
+  nearlyEqual(
+    leftWallbarManufacture.vfcMM,
+    rightWallbarManufacture.vfcMM
+  ) &&
+  nearlyEqual(
+    leftWallbarManufacture.ewbsMM,
+    rightWallbarManufacture.ewbsMM
+  ) &&
+  nearlyEqual(
+    leftWallbarManufacture.iwbsMM,
+    rightWallbarManufacture.iwbsMM
+  );
   //const roofSizeDisplay = `${round(iw)} × ${round(ip)} mm int / ${round(extWidthMM)} × ${round(extProjectionMM)} mm ext`;
 
   return (
@@ -597,7 +2155,23 @@ const hippedGeom = useMemo(
           </tr>
           {/* Row 1 values */}
           <tr>
-            <td style={td}>{activeJob?.job_number || jobNo || "—"}</td>
+            <td style={td}>
+  <input
+    type="text"
+    value={jobDetails.jobNumber}
+    onChange={(e) =>
+      setJobDetails((p) => ({
+        ...p,
+        jobNumber: e.target.value,
+      }))
+    }
+    placeholder={jobNo || "Job number"}
+    style={{
+      width: "100%",
+      boxSizing: "border-box",
+    }}
+  />
+</td>
             <td style={td}>{activeJob?.customer_name || customer || "—"}</td>
             <td style={td}>{activeJob?.manual_reference || customerRef || "—"}</td>
             <td style={td}>
@@ -839,7 +2413,7 @@ const hippedGeom = useMemo(
 
                 {roofStyleKey === "leanTo" && (
   <>
-    {/* ===== PAGE 2: CAD PAGE ===== */}
+  
     {/* ===== PAGE 2: CAD PAGE ===== */}
         <section
           className="pm-page"
@@ -862,7 +2436,7 @@ const hippedGeom = useMemo(
             <div
               style={{
                 ...panel,
-                flex: "0 0 63%",
+                flex: "0 0 58%",
                 marginBottom: 8,
                 position: "relative",
                 padding: 8,
@@ -896,6 +2470,8 @@ const hippedGeom = useMemo(
     iw={iw}
     ip={ip}
     sft={sft}
+    leftSupportDepthMM={leftSupportDepthMM}
+    rightSupportDepthMM={rightSupportDepthMM}
     lip={lip}
     soffit={soffit}
     frameOn={frameOn}
@@ -935,127 +2511,54 @@ const hippedGeom = useMemo(
                 <div><b>Wallplate:</b> P{wallplateNo}</div>
               </div>
             </div>
-
-            {/* Rafter detail below */}
-            <div
-              style={{
-                ...panel,
-                flex: 1,
-                padding: 8,
-                display: "flex",
-                flexDirection: "column",
-                overflow: "auto",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 18,
-                  fontWeight: 800,
-                  margin: "0 0 6px",
-                  color: "#111827",
-                  textTransform: "uppercase",
-                  letterSpacing: 0.4,
-                }}
-              >
-                Rafter Detail
-              </div>
-
-              {hasRoofDimensions ? (
-  <RafterDetailDiagram
-    externalSlopeMM={externalSlopeMM}
-    internalSlopeMM={internalSlopeMM}
-    plumbCutMM={plumbCutMM}
-    seatCutLengthMM={seatCutLengthMM}
-    wallplateFaceCutMM={wallplateFaceCutMM}
-    overallBlankLengthMM={overallBlankLengthMM}
-    topAngleDeg={topAngleDeg}
-    bottomAngleDeg={bottomAngleDeg}
-  />
-) : (
-  <div style={{ color: "#6b7280", fontSize: 14 }}>
-    Rafter detail will appear once roof dimensions are loaded.
-  </div>
-)}
+{/* ===== SIDE ELEVATION / HEIGHT VISUALISER ===== */}
 <div
   style={{
-    marginTop: 12,
-    padding: 12,
-    border: "1px solid #ddd",
-    borderRadius: 8,
-    background: "#fafafa",
-    fontSize: 13,
+    ...panel,
+    flex: "1 1 auto",
+    padding: 8,
+    display: "flex",
+    flexDirection: "column",
+    overflow: "hidden",
   }}
 >
-  <h3 style={{ margin: "0 0 8px 0" }}>Simple Trig Check</h3>
+  <div
+    style={{
+      fontSize: 18,
+      fontWeight: 800,
+      margin: "0 0 6px",
+      color: "#111827",
+      textTransform: "uppercase",
+      letterSpacing: 0.4,
+    }}
+  >
+    Side Elevation / Height Check
+  </div>
 
-  <div>
-  <b>Input Projection</b>:{" "}
-  {Math.round(manufactureGeom.internalProjectionMM)} mm
+  {hasRoofDimensions ? (
+    <div
+      style={{
+        flex: 1,
+        minHeight: 0,
+      }}
+    >
+      <LeanToSideElevationManufacture
+        manufactureGeom={manufactureGeom}
+        pitchDeg={pitchDeg}
+      />
+    </div>
+  ) : (
+    <div
+      style={{
+        color: "#6b7280",
+        fontSize: 14,
+      }}
+    >
+      Side elevation will appear once roof dimensions are loaded.
+    </div>
+  )}
 </div>
-
-<div>
-  <b>Wallplate Thickness</b>:{" "}
-  {Math.round(manufactureGeom.wallplateThicknessMM)} mm
-</div>
-
-<div>
-  <b>Internal Horizontal Run</b>:{" "}
-  {Math.round(manufactureGeom.internalHorizontalRunMM)} mm
-</div>
-
-<div>
-  <b>External Horizontal Run</b>:{" "}
-  {Math.round(manufactureGeom.externalHorizontalRunMM)} mm
-</div>
-
-<div>
-  <b>Full Horizontal Run</b>:{" "}
-  {Math.round(manufactureGeom.fullHorizontalRunMM)} mm
-</div>
-
-<div>
-  <b>Calculated Internal Cut</b>:{" "}
-  {Math.round(manufactureGeom.calculatedInternalCutLengthMM)} mm
-</div>
-
-<div>
-  <b>Calculated External Extension</b>:{" "}
-  {Math.round(
-    manufactureGeom.calculatedExternalExtensionLengthMM
-  )}{" "}
-  mm
-</div>
-
-<div>
-  <b>Calculated External Cut</b>:{" "}
-  {Math.round(manufactureGeom.calculatedExternalCutLengthMM)} mm
-</div>
-
-<div>
-  <b>Expected Top/Bottom Edge Difference</b>:{" "}
-  {Math.round(
-    manufactureGeom.rafterEdgeLengthDifferenceMM
-  )}{" "}
-  mm
-</div>
-
-  <div><b>Pure Rise</b>: {Math.round(manufactureGeom.pureRiseMM)} mm</div>
-  <div><b>Internal Wall-Plate Height</b>: {Math.round(manufactureGeom.internalWallPlateHeightMM)} mm</div>
-  <div><b>Simple Internal Cut Run</b>: {Math.round(manufactureGeom.simpleInternalCutRunMM)} mm</div>
-  <div><b>Simple Internal Cut Length</b>: {Math.round(manufactureGeom.simpleInternalCutLengthMM)} mm</div>
-  <div><b>Simple External Extension</b>: {Math.round(manufactureGeom.simpleExternalExtensionLengthMM)} mm</div>
-  <div><b>Simple Total Cut Length</b>: {Math.round(manufactureGeom.simpleTotalCutLengthMM)} mm</div>
-  <div>
-  <b>Simple Overall Blank Length</b>:{" "}
-  {Math.round(
-    manufactureGeom.simpleInternalCutLengthMM +
-      (220 * Math.tan((pitchDeg * Math.PI) / 180) * 2)
-  )} mm
-</div>
-  <div><b>External Finished Height</b>: {Math.round(manufactureGeom.externalFinishedHeightMM)} mm</div>
-</div>
-              
-            </div>
+            
           </div>
         </section>
         {/* ===== PAGE 3: MANUFACTURE LIST ===== */}
@@ -1090,6 +2593,8 @@ const hippedGeom = useMemo(
               </table>
             </div>
 
+            
+
             <div style={{ ...panel, marginBottom: 10 }}>
               <div style={sectionTitle}>Rafters</div>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -1107,7 +2612,7 @@ const hippedGeom = useMemo(
                     <td style={td}>P{firstRafterNo}–P{lastRafterNo}</td>
                     <td style={td}>Rafters</td>
                     <td style={td}>{rafterCount}</td>
-                    <td style={td}>{rawBlankLengthMM} mm</td>
+                    <td style={td}>{overallBlankLengthMM} mm</td>
                     <td style={td}>
                       External slope: {externalSlopeMM} mm
                       <br />
@@ -1225,11 +2730,519 @@ const hippedGeom = useMemo(
     </div>
   </div>
 </section>
+
+{/* ===== PAGE 5: LEGACY RAFTER GEOMETRY REFERENCE ===== */}
+{SHOW_LEGACY_LEANTO_RAFTER_DETAIL && (
+  <section
+    className="pm-page"
+    style={{
+      display: "flex",
+      flexDirection: "column",
+      height: "279mm",
+    }}
+  >
+    <div
+      style={{
+        ...panel,
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+      }}
+    >
+      <div
+        style={{
+          fontSize: 24,
+          fontWeight: 800,
+          marginBottom: 10,
+          color: "#111827",
+        }}
+      >
+        Legacy Rafter Geometry Reference
+      </div>
+
+      {/* Rafter detail below */}
+            <div
+              style={{
+                ...panel,
+                flex: 1,
+                padding: 8,
+                display: "flex",
+                flexDirection: "column",
+                overflow: "auto",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 18,
+                  fontWeight: 800,
+                  margin: "0 0 6px",
+                  color: "#111827",
+                  textTransform: "uppercase",
+                  letterSpacing: 0.4,
+                }}
+              >
+                Rafter Detail
+              </div>
+
+              {hasRoofDimensions ? (
+  <RafterDetailDiagram
+  externalSlopeMM={externalSlopeMM}
+  internalSlopeMM={internalSlopeMM}
+  plumbCutMM={plumbCutMM}
+  seatCutLengthMM={seatCutLengthMM}
+  wallplateFaceCutMM={wallplateFaceCutMM}
+  overallBlankLengthMM={overallBlankLengthMM}
+  topAngleDeg={topAngleDeg}
+  bottomAngleDeg={bottomAngleDeg}
+/>
+) : (
+  <div style={{ color: "#6b7280", fontSize: 14 }}>
+    Rafter detail will appear once roof dimensions are loaded.
+  </div>
+)}
+<div
+  style={{
+    marginTop: 12,
+    padding: 12,
+    border: "1px solid #ddd",
+    borderRadius: 8,
+    background: "#fafafa",
+    fontSize: 13,
+  }}
+>
+
+  <div>
+  <b>Input Projection</b>:{" "}
+  {Math.round(manufactureGeom.internalProjectionMM)} mm
+</div>
+
+<div>
+  <b>Wallplate Thickness</b>:{" "}
+  {Math.round(manufactureGeom.wallplateThicknessMM)} mm
+</div>
+
+<div>
+  <b>Internal Horizontal Run</b>:{" "}
+  {Math.round(manufactureGeom.internalHorizontalRunMM)} mm
+</div>
+
+<div>
+  <b>External Horizontal Run</b>:{" "}
+  {Math.round(manufactureGeom.externalHorizontalRunMM)} mm
+</div>
+
+<div>
+  <b>Full Horizontal Run</b>:{" "}
+  {Math.round(manufactureGeom.fullHorizontalRunMM)} mm
+</div>
+
+<div>
+  <b>Calculated Internal Cut</b>:{" "}
+  {Math.round(manufactureGeom.calculatedInternalCutLengthMM)} mm
+</div>
+
+<div>
+  <b>Calculated External Extension</b>:{" "}
+  {Math.round(
+    manufactureGeom.calculatedExternalExtensionLengthMM
+  )}{" "}
+  mm
+</div>
+
+<div>
+  <b>Calculated External Cut</b>:{" "}
+  {Math.round(manufactureGeom.calculatedExternalCutLengthMM)} mm
+</div>
+
+<div>
+  <b>Expected Top/Bottom Edge Difference</b>:{" "}
+  {Math.round(
+    manufactureGeom.rafterEdgeLengthDifferenceMM
+  )}{" "}
+  mm
+</div>
+
+  <div><b>Pure Rise</b>: {Math.round(manufactureGeom.pureRiseMM)} mm</div>
+  <div><b>Internal Wall-Plate Height</b>: {Math.round(manufactureGeom.internalWallPlateHeightMM)} mm</div>
+  <div><b>Simple Internal Cut Run</b>: {Math.round(manufactureGeom.simpleInternalCutRunMM)} mm</div>
+  <div><b>Simple Internal Cut Length</b>: {Math.round(manufactureGeom.simpleInternalCutLengthMM)} mm</div>
+  <div><b>Simple External Extension</b>: {Math.round(manufactureGeom.simpleExternalExtensionLengthMM)} mm</div>
+  <div><b>Simple Total Cut Length</b>: {Math.round(manufactureGeom.simpleTotalCutLengthMM)} mm</div>
+  <div><b>External Finished Height</b>: {Math.round(manufactureGeom.externalFinishedHeightMM)} mm</div>
+</div>
+              
+    <div style={{ marginTop: 10, fontWeight: 800 }}>
+  HEIGHT / WALLPLATE DATUM CHECK
+</div>
+
+<div>
+  <b>Effective Pitch Run</b>:{" "}
+  {Math.round(
+    manufactureGeom.effectivePitchRunMM
+  )} mm
+</div>
+
+<div>
+  <b>Pure Rise</b>:{" "}
+  {Math.round(
+    manufactureGeom.pureRiseMM
+  )} mm
+</div>
+
+<div>
+  <b>Internal Wallplate Height</b>:{" "}
+  {Math.round(
+    manufactureGeom.internalWallPlateHeightMM
+  )} mm
+</div>
+
+<div>
+  <b>External Finished Height</b>:{" "}
+  {Math.round(
+    manufactureGeom.externalFinishedHeightMM
+  )} mm
+</div>
+
+<div>
+  <b>Ring Beam Height</b>:{" "}
+  {Math.round(
+    manufactureGeom.ringBeamHeightMM
+  )} mm
+</div>
+
+<div>
+  <b>Roof Build-Up</b>:{" "}
+  {Math.round(
+    manufactureGeom.roofBuildUpMM
+  )} mm
+</div>
+
+<div>
+  <b>Wallplate Thickness</b>:{" "}
+  {Math.round(
+    manufactureGeom.wallplateThicknessMM
+  )} mm
+</div>          
+            </div>
+<div
+  style={{
+    marginTop: 8,
+    fontWeight: 800,
+  }}
+>
+  PHYSICAL FINISHED HEIGHT MODEL
+</div>
+
+<div>
+  <b>Rafter Foot Datum</b>:{" "}
+  {Math.round(
+    manufactureGeom.ringBeamHeightMM
+  )} mm
+</div>
+
+<div>
+  <b>Wallplate Trajectory Rise</b>:{" "}
+  {Math.round(
+    manufactureGeom.wallplateTrajectoryRiseMM
+  )} mm
+</div>
+
+<div>
+  <b>Rafter Vertical Depth</b>:{" "}
+  {Math.round(
+    manufactureGeom.rafterVerticalDepthMM
+  )} mm
+</div>
+
+<div>
+  <b>Fixing Lath Depth</b>:{" "}
+  {Math.round(
+    manufactureGeom.fixingLathDepthMM
+  )} mm
+</div>
+
+<div>
+  <b>Tile Top Thickness</b>:{" "}
+  {Math.round(
+    manufactureGeom.tileTopThicknessMM
+  )} mm
+</div>
+
+<div>
+  <b>Roof Finish Vertical Build-Up</b>:{" "}
+  {Math.round(
+    manufactureGeom.roofFinishVerticalBuildUpMM
+  )} mm
+</div>
+
+<div
+  style={{
+    marginTop: 5,
+    fontWeight: 800,
+  }}
+>
+  Calculated Maximum Finished Height:{" "}
+  {Math.round(
+    manufactureGeom.calculatedMaximumFinishedHeightMM
+  )} mm
+</div>
+
+    </div>
+  </section>
+)}
   </>
 )}
 
 {roofStyleKey === "hippedLeanTo" && (
-  <section className="pm-page">
+  <>
+    {/* ===== HIPPED PAGE 2: WALLPLATE GEOMETRY ===== */}
+    <section
+      className="pm-page"
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        height: "279mm",
+      }}
+    >
+      <div
+        style={{
+          ...panel,
+          display: "flex",
+          flexDirection: "column",
+          height: "100%",
+        }}
+      >
+        <div
+          style={{
+            textAlign: "center",
+            fontSize: 24,
+            fontWeight: 800,
+            color: "#111827",
+            marginBottom: 10,
+          }}
+        >
+          Hipped Wallplate Manufacture
+        </div>
+{roofStyleKey === "hippedLeanTo" &&
+  roofPlan && (
+    <section
+      style={{
+        border: "1px solid #cbd5e1",
+        borderRadius: 6,
+        padding: 24,
+        marginTop: 16,
+        background: "#ffffff",
+      }}
+    >
+      <h2
+        style={{
+          textAlign: "center",
+          marginTop: 0,
+          marginBottom: 20,
+        }}
+      >
+        Roof Plan
+      </h2>
+<div
+  style={{
+    display: "grid",
+    gridTemplateColumns:
+      "repeat(4, minmax(0, 1fr))",
+    gap: 8,
+    marginBottom: 12,
+    padding: "8px 10px",
+    border: "1px solid #d1d5db",
+    background: "#f8fafc",
+    fontSize: 12,
+  }}
+>
+  <div>
+    <b>Reference:</b>{" "}
+    {customerRef || "—"}
+  </div>
+
+  <div>
+    <b>Roof:</b>{" "}
+    {roofStyleLabel}
+  </div>
+
+  <div>
+    <b>Tiles:</b>{" "}
+    {[tileType, tileColour]
+      .filter(Boolean)
+      .join(" — ") || "—"}
+  </div>
+
+  <div>
+    <b>Frame:</b>{" "}
+    {sft} mm
+  </div>
+</div>
+      <RoofPlanDiagram
+        model={roofPlan}
+        mode="manufacture"
+      />
+
+      {roofPlan?.facets?.length > 0 && (
+  <table
+    style={{
+      width: "100%",
+      borderCollapse: "collapse",
+      marginTop: 10,
+      fontSize: 12,
+    }}
+  >
+    <thead>
+      <tr>
+        <th style={th}>Facet</th>
+        <th style={th}>Pitch</th>
+        <th style={th}>Support</th>
+        <th style={th}>Soffit</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      {roofPlan.facets.map((facet) => (
+        <tr key={facet.id}>
+          <td style={td}>
+            {facet.label}
+          </td>
+
+          <td style={td}>
+            {Number(
+              facet.pitchDeg || 0
+            ).toFixed(1)}
+            °
+          </td>
+
+          <td style={td}>
+            {facet.metadata?.supportDepthMM
+              ? `${
+                  facet.metadata
+                    .supportDepthMM
+                } mm ${
+                  facet.metadata
+                    ?.supportType || ""
+                }`
+              : "—"}
+          </td>
+
+          <td style={td}>
+            {Math.round(
+              facet.metadata
+                ?.soffitDepthMM ?? 0
+            )}{" "}
+            mm
+          </td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+)}
+
+    </section>
+  )}
+        {hippedGeom ? (
+  <>
+    {SHOW_LEGACY_HIPPED_WALLPLATE_VISUALISER && (
+      <ManufacturingFacetDrawing
+        title="Front Wallplate Assembly"
+
+        internalWidthMM={iw}
+        externalWidthMM={
+          hippedGeom.externalWidthMM
+        }
+
+        leftHipPositionMM={
+          hippedGeom.resolvedLeftHipWidthMM
+        }
+        rightHipPositionMM={
+          hippedGeom.resolvedRightHipWidthMM
+        }
+
+        externalWallplateLengthMM={
+          hippedGeom
+            .horizontalWallplateExternalLengthMM
+        }
+        internalWallplateLengthMM={
+          hippedGeom
+            .horizontalWallplateInternalLengthMM
+        }
+
+        internalWallplateHeightMM={
+          hippedGeom
+            .designInternalWallplateHeightMM
+        }
+        externalWallplateHeightMM={
+          hippedGeom
+            .designExternalWallplateHeightMM
+        }
+
+        leftPitchDeg={
+          hippedGeom.leftSidePitchDeg
+        }
+        rightPitchDeg={
+          hippedGeom.rightSidePitchDeg
+        }
+
+        leftHFCMM={
+          hippedGeom.leftHorizontalFootRunMM
+        }
+        rightHFCMM={
+          hippedGeom.rightHorizontalFootRunMM
+        }
+
+        leftVFCMM={
+          hippedGeom.leftPlumbCutHeightMM
+        }
+        rightVFCMM={
+          hippedGeom.rightPlumbCutHeightMM
+        }
+
+        leftEWBSMM={
+          hippedGeom.leftExternalWallBarSlopeMM
+        }
+        rightEWBSMM={
+          hippedGeom.rightExternalWallBarSlopeMM
+        }
+
+        leftIWBSMM={
+          hippedGeom.leftInternalWallBarSlopeMM
+        }
+        rightIWBSMM={
+          hippedGeom.rightInternalWallBarSlopeMM
+        }
+
+        leftInternalHorizontalRunMM={
+          hippedGeom
+            .leftFacetGeometry
+            ?.internalHorizontalRunMM
+        }
+        rightInternalHorizontalRunMM={
+          hippedGeom
+            .rightFacetGeometry
+            ?.internalHorizontalRunMM
+        }
+      />
+    )}
+  </>
+) : (
+  <div
+    style={{
+      color: "#6b7280",
+      fontSize: 16,
+      fontWeight: 600,
+    }}
+  >
+    No Hipped Lean-To geometry loaded
+  </div>
+)}
+      </div>
+    </section>
+          
+
+    {/* ===== EXISTING HIPPED MANUFACTURE PAGE ===== */}
+    <section className="pm-page">
     <div style={panel}>
 
       <div
@@ -1242,6 +3255,99 @@ const hippedGeom = useMemo(
       >
         Hipped Lean-To Manufacture
       </div>
+
+      <div
+  style={{
+    fontSize: 18,
+    fontWeight: 800,
+    marginBottom: 10,
+    paddingBottom: 6,
+    borderBottom: "2px solid #111827",
+  }}
+>
+  Wallplate
+</div>
+
+{hippedGeom && (
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns:
+        "repeat(auto-fit, minmax(280px, 1fr))",
+      gap: 10,
+      alignItems: "start",
+    }}
+  >
+    {/* =========================================
+        LEFT / DUPLICATE WALLBAR
+    ========================================= */}
+
+    {leftHip &&
+      leftWallbarManufacture && (
+        <ManufacturingWallplateMemberDrawing
+          manufactureRef={
+            wallbarsAreDuplicates
+              ? "R1 / R21"
+              : "R1"
+          }
+
+          quantity={
+            wallbarsAreDuplicates ? 2 : 1
+          }
+
+          memberType="wallbar"
+
+          {...leftWallbarManufacture}
+        />
+      )}
+
+    {/* =========================================
+        RIGHT WALLBAR — ONLY WHEN UNIQUE
+    ========================================= */}
+
+    {rightHip &&
+      !wallbarsAreDuplicates &&
+      rightWallbarManufacture && (
+        <ManufacturingWallplateMemberDrawing
+          manufactureRef="R21"
+          quantity={1}
+          memberType="wallbar"
+
+          {...rightWallbarManufacture}
+        />
+      )}
+
+    {/* =========================================
+        HORIZONTAL WALLPLATE
+    ========================================= */}
+
+    <ManufacturingWallplateMemberDrawing
+      manufactureRef="R22"
+      quantity={1}
+      memberType="horizontal-wallplate"
+
+      externalLengthMM={
+        hippedGeom
+          .horizontalWallplateExternalLengthMM
+      }
+
+      internalLengthMM={
+        hippedGeom
+          .horizontalWallplateInternalLengthMM
+      }
+
+      externalHeightMM={
+        hippedGeom
+          .designExternalWallplateHeightMM
+      }
+
+      internalHeightMM={
+        hippedGeom
+          .designInternalWallplateHeightMM
+      }
+    />
+  </div>
+)}
 
       <div style={{ ...panel, marginBottom: 12 }}>
   <div style={sectionTitle}>Fascia & Soffit Manufacture</div>
@@ -1428,7 +3534,7 @@ const hippedGeom = useMemo(
 
                 <td style={th}>Left Boss Position</td>
                 <td style={td}>
-                  {Math.round(hippedGeom?.leftBossXMM ?? 0)} mm
+                  {Math.round(resolvedLeftBossMM)} mm
                 </td>
               </tr>
             )}
@@ -1442,7 +3548,7 @@ const hippedGeom = useMemo(
 
                 <td style={th}>Right Boss Position</td>
                 <td style={td}>
-                  {Math.round(hippedGeom?.rightBossXMM ?? 0)} mm
+                  {Math.round(resolvedRightBossMM)} mm
                 </td>
               </tr>
             )}
@@ -1450,14 +3556,14 @@ const hippedGeom = useMemo(
             <tr>
               <td style={th}>Plain Rafter Zone</td>
               <td style={td}>
-                {Math.round(hippedGeom?.plainRafterZoneStartMM ?? 0)} mm
+                {Math.round(resolvedLeftBossMM)} mm
                 {" → "}
-                {Math.round(hippedGeom?.plainRafterZoneEndMM ?? 0)} mm
+                {Math.round(resolvedRightBossMM)} mm
               </td>
 
               <td style={th}>Zone Width</td>
               <td style={td}>
-                {Math.round(hippedGeom?.plainRafterZoneWidthMM ?? 0)} mm
+                {Math.round(resolvedBetweenBossesMM)} mm
               </td>
             </tr>
 
@@ -1466,7 +3572,7 @@ const hippedGeom = useMemo(
                 <tr>
                   <td style={th}>Between Bosses</td>
                   <td style={td}>
-                    {Math.round(hippedGeom?.centreWidthMM ?? 0)} mm
+                    {Math.round(resolvedBetweenBossesMM)} mm
                   </td>
 
                   <td style={th}>Boss/Spar Hook Offset</td>
@@ -1483,6 +3589,7 @@ const hippedGeom = useMemo(
 
     </div>
   </section>
+  </>
 )}
       </div>
 

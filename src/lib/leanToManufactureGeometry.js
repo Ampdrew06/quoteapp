@@ -38,6 +38,111 @@ const pickNextStock = (sizes = [], required = 0) => {
  * The calibration constants below come from the measured 15° mock-up
  * and can be refined later if needed.
  */
+
+/**
+ * Solve the front pitch from a maximum finished-height restriction.
+ *
+ * Uses the same physical height model as
+ * calculatedMaximumFinishedHeightMM:
+ *
+ * ring-beam datum
+ * + rise across the full internal projection
+ * + vertical rafter/lath/tile build-up.
+ */
+export function solveLeanToPitchForMaximumFinishedHeight(
+  inputs = {}
+) {
+  const internalProjectionMM = Math.max(
+    0,
+    num(
+      inputs.internalProjectionMM ??
+        inputs.projMM ??
+        inputs.internalProjection
+    )
+  );
+
+  const maximumFinishedHeightMM = Math.max(
+    0,
+    num(inputs.maximumFinishedHeightMM)
+  );
+
+  const ringBeamHeightMM = Math.max(
+    0,
+    num(inputs.ringBeamHeightMM, 40)
+  );
+
+  const rafterDepthMM = Math.max(
+    0,
+    num(inputs.rafterDepthMM, 220)
+  );
+
+  const fixingLathDepthMM = Math.max(
+    0,
+    num(inputs.fixingLathDepthMM, 25)
+  );
+
+  const tileTopThicknessMM = Math.max(
+    0,
+    num(inputs.tileTopThicknessMM, 3)
+  );
+
+  if (
+    internalProjectionMM <= 0 ||
+    maximumFinishedHeightMM <= 0
+  ) {
+    return null;
+  }
+
+  const totalRoofDepthMM =
+    rafterDepthMM +
+    fixingLathDepthMM +
+    tileTopThicknessMM;
+
+  const finishedHeightAtPitch = (degrees) => {
+    const radians = deg2rad(degrees);
+    const cosPitch = Math.cos(radians);
+
+    if (cosPitch <= 0) {
+      return Number.POSITIVE_INFINITY;
+    }
+
+    return (
+      ringBeamHeightMM +
+      internalProjectionMM * Math.tan(radians) +
+      totalRoofDepthMM / cosPitch
+    );
+  };
+
+  const minimumPossibleHeightMM =
+    finishedHeightAtPitch(0);
+
+  if (
+    maximumFinishedHeightMM <
+    minimumPossibleHeightMM
+  ) {
+    return null;
+  }
+
+  let lowDeg = 0;
+  let highDeg = 60;
+
+  for (let i = 0; i < 80; i += 1) {
+    const middleDeg =
+      (lowDeg + highDeg) / 2;
+
+    if (
+      finishedHeightAtPitch(middleDeg) <=
+      maximumFinishedHeightMM
+    ) {
+      lowDeg = middleDeg;
+    } else {
+      highDeg = middleDeg;
+    }
+  }
+
+  return Number(lowDeg.toFixed(6));
+}
+
 export function computeLeanToManufactureGeometry(inputs = {}) {
   const internalProjectionMM = num(
     inputs.internalProjectionMM ?? inputs.projMM ?? inputs.internalProjection
@@ -89,6 +194,25 @@ const wallplateThicknessMM = num(inputs.wallplateThicknessMM, 63);
 const ringBeamHeightMM = num(inputs.ringBeamHeightMM, 40);
 const rafterDepthMM = num(inputs.rafterDepthMM, 220);
 const roofBuildUpMM = num(inputs.roofBuildUpMM, 260); // rafter + laths + tiles approx.
+
+// Explicit finished-roof build-up.
+//
+// These are kept separate from the legacy roofBuildUpMM
+// so we can verify the physical construction before
+// replacing any existing production calculation.
+const fixingLathDepthMM = num(
+  inputs.fixingLathDepthMM,
+  25
+);
+
+const tileTopThicknessMM = num(
+  inputs.tileTopThicknessMM,
+  3
+);
+
+const roofFinishBuildUpMM =
+  fixingLathDepthMM +
+  tileTopThicknessMM;
 
 // Local rafter-template coordinates.
 //
@@ -154,6 +278,47 @@ const pureRiseMM =
 const internalWallPlateHeightMM =
   pureRiseMM + ringBeamHeightMM;
 
+  // --------------------------------------------------
+// EXPLICIT MAXIMUM FINISHED HEIGHT MODEL
+// --------------------------------------------------
+//
+// Datum:
+// factory floor / top of conservatory frame = 0
+//
+// internalWallPlateHeightMM reaches the underside of
+// the wallplate at the front face of the wallplate.
+//
+// From there:
+//
+// 1. Continue the rafter trajectory backwards across
+//    the wallplate thickness (the green triangle).
+//
+// 2. Add the vertical height of the 220 mm rafter.
+//
+// 3. Add the 25 mm fixing lath + thin tile covering.
+//
+// This describes the physical highest finished point
+// at the house wall.
+
+const wallplateTrajectoryRiseMM =
+  wallplateThicknessMM * tanT;
+
+const rafterVerticalDepthMM =
+  cosT > 0
+    ? rafterDepthMM / cosT
+    : 0;
+
+const roofFinishVerticalBuildUpMM =
+  cosT > 0
+    ? roofFinishBuildUpMM / cosT
+    : 0;
+
+const calculatedMaximumFinishedHeightMM =
+  internalWallPlateHeightMM +
+  wallplateTrajectoryRiseMM +
+  rafterVerticalDepthMM +
+  roofFinishVerticalBuildUpMM;
+
 // The internal rafter cut uses the same physical run datum.
 const simpleInternalCutRunMM =
   effectivePitchRunMM;
@@ -208,6 +373,35 @@ const internalRafterLengthMM =
   // 2) External horizontal extension from inside face of frame to fascia face
   const horizontalExtensionMM = frameThicknessMM + effectiveSoffitMM;
 
+  // Explicit workshop clearance at the front foot cut.
+//
+// The nominal architectural extension remains unchanged.
+// This allowance prevents the manufactured rafter from
+// finishing proud of the external ring-beam face.
+const rafterFootClearanceMM = Math.max(
+  0,
+  num(inputs.rafterFootClearanceMM, 2)
+);
+
+const manufacturedHorizontalFootCutMM = Math.max(
+  0,
+  horizontalExtensionMM - rafterFootClearanceMM
+);
+// Manufactured sloping extension from the internal
+// foot-cut corner to the external VFC.
+const manufacturedExternalRafterExtensionMM =
+  cosT > 0
+    ? manufacturedHorizontalFootCutMM / cosT
+    : 0;
+
+// Complete manufactured upper/external rafter edge:
+//
+// internal slope from wallplate to foot-cut corner
+// + manufactured sloping foot extension.
+const manufacturedExternalSlopeLengthMM =
+  internalRafterLengthMM +
+  manufacturedExternalRafterExtensionMM;
+
   // 3) External extension along the slope
   const externalRafterExtensionMM =
     cosT > 0 ? horizontalExtensionMM / cosT : 0;
@@ -231,11 +425,37 @@ const finishedFasciaAlignmentDatumMM =
   (cosT > 0 ? roofBuildUpMM / cosT : 0) -
   verticalDropMM;
 
-  // 6) Plumb cut height at fascia (ideal geometric result)
-  const plumbCutHeightMM = plumbCutBaseConstantMM - verticalDropMM;
+  // 6) TRUE vertical foot cut (VFC)
+//
+// Pure rafter geometry:
+// vertical depth of the 220 mm rafter
+// minus the vertical fall across the HFC.
+//
+// No tolerance is included in the rafter cut.
+const plumbCutHeightMM =
+  rafterVerticalDepthMM - verticalDropMM;
+  // Manufactured VFC after applying the explicit HFC clearance.
+// This remains separate from the nominal true-geometry VFC.
+const manufacturedVerticalDropMM =
+  manufacturedHorizontalFootCutMM * tanT;
 
-  // 7) Finished fascia height (ideal geometric result)
-  const finishedFasciaHeightMM = plumbCutHeightMM + fasciaOffsetMM;
+const manufacturedPlumbCutHeightMM =
+  rafterVerticalDepthMM - manufacturedVerticalDropMM;
+  // Minimum rectangular stock length required to contain
+// the complete five-sided manufactured rafter.
+const manufacturedOverallBlankLengthMM =
+  manufacturedExternalSlopeLengthMM +
+  manufacturedPlumbCutHeightMM * sinT;
+
+// Keep the previous calibrated VFC temporarily for the
+// existing fascia-order calculation only.
+// We will review/remove this separately.
+const legacyFasciaPlumbCutHeightMM =
+  plumbCutBaseConstantMM - verticalDropMM;
+
+// 7) Existing fascia calculation retained unchanged for now
+const finishedFasciaHeightMM =
+  legacyFasciaPlumbCutHeightMM + fasciaOffsetMM;
 
   // 8) Practical fascia ordering reference
   const fasciaOrderingReferenceMM = Math.max(
@@ -265,14 +485,38 @@ effectivePitchRunMM: Number(
 
     internalRafterLengthMM: Number(internalRafterLengthMM.toFixed(2)),
     horizontalExtensionMM: Number(horizontalExtensionMM.toFixed(2)),
+    rafterFootClearanceMM: Number(
+  rafterFootClearanceMM.toFixed(2)
+),
+
+manufacturedHorizontalFootCutMM: Number(
+  manufacturedHorizontalFootCutMM.toFixed(2)
+),
+manufacturedExternalRafterExtensionMM: Number(
+  manufacturedExternalRafterExtensionMM.toFixed(2)
+),
+
+manufacturedExternalSlopeLengthMM: Number(
+  manufacturedExternalSlopeLengthMM.toFixed(2)
+),
     externalRafterExtensionMM: Number(externalRafterExtensionMM.toFixed(2)),
     totalRafterLengthMM: Number(totalRafterLengthMM.toFixed(2)),
     fullProjectionRafterLengthMM: Number(fullProjectionRafterLengthMM.toFixed(2)),
-
+  
     
 
     verticalDropMM: Number(verticalDropMM.toFixed(2)),
     plumbCutHeightMM: Number(plumbCutHeightMM.toFixed(2)),
+    manufacturedVerticalDropMM: Number(
+  manufacturedVerticalDropMM.toFixed(2)
+),
+
+manufacturedPlumbCutHeightMM: Number(
+  manufacturedPlumbCutHeightMM.toFixed(2)
+),
+manufacturedOverallBlankLengthMM: Number(
+  manufacturedOverallBlankLengthMM.toFixed(2)
+),
     finishedFasciaHeightMM: Number(finishedFasciaHeightMM.toFixed(2)),
 
     finishedFasciaAlignmentDatumMM: Number(finishedFasciaAlignmentDatumMM.toFixed(2)),
@@ -332,10 +576,38 @@ effectivePitchRunMM: Number(
   ),
 },
 
-    wallplateThicknessMM: Number(wallplateThicknessMM.toFixed(2)),
+wallplateThicknessMM: Number(wallplateThicknessMM.toFixed(2)),
 ringBeamHeightMM: Number(ringBeamHeightMM.toFixed(2)),
 rafterDepthMM: Number(rafterDepthMM.toFixed(2)),
 roofBuildUpMM: Number(roofBuildUpMM.toFixed(2)),
+
+fixingLathDepthMM: Number(
+  fixingLathDepthMM.toFixed(2)
+),
+
+tileTopThicknessMM: Number(
+  tileTopThicknessMM.toFixed(2)
+),
+
+roofFinishBuildUpMM: Number(
+  roofFinishBuildUpMM.toFixed(2)
+),
+
+wallplateTrajectoryRiseMM: Number(
+  wallplateTrajectoryRiseMM.toFixed(2)
+),
+
+rafterVerticalDepthMM: Number(
+  rafterVerticalDepthMM.toFixed(2)
+),
+
+roofFinishVerticalBuildUpMM: Number(
+  roofFinishVerticalBuildUpMM.toFixed(2)
+),
+
+calculatedMaximumFinishedHeightMM: Number(
+  calculatedMaximumFinishedHeightMM.toFixed(2)
+),
 
 pureRiseMM: Number(pureRiseMM.toFixed(2)),
 internalWallPlateHeightMM: Number(internalWallPlateHeightMM.toFixed(2)),

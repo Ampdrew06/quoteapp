@@ -32,7 +32,14 @@ import {
 import TemplateGeometryVisualizer from "../../components/TemplateGeometryVisualizer";
 import WallplateGeometryVisualizer from "../../components/WallplateGeometryVisualizer";
 import HippedWallplateFrontVisualizer from "../../components/HippedWallplateFrontVisualizer";
-//import { computeLeanToManufactureGeometry } from "../../lib/leanToManufactureGeometry";
+import {
+  resolveEdgeSupport,
+  resolveTwoSidedExternalWidth,
+} from "../../lib/geometry/supportGeometry";
+import {
+  computeLeanToManufactureGeometry,
+  solveLeanToPitchForMaximumFinishedHeight,
+} from "../../lib/leanToManufactureGeometry";
 
 // adjust path if file structure differs
 
@@ -105,9 +112,15 @@ const grid2Responsive = {
   const [widthMM, setWidth]   = useState("");   // internal width
   const [projMM, setProj]     = useState("");   // internal projection
   const [pitchDeg, setPitch]  = useState(15);   // default 15°
+  const [
+  maximumFinishedHeightMM,
+  setMaximumFinishedHeightMM,
+] = useState("");
   const [inputsRestored, setInputsRestored] = useState(false);
   const [leftWall, setLeftWall] = useState(false);
   const [rightWall, setRightWall] = useState(false);
+  const [leftSupportDepthMM, setLeftSupportDepthMM] = useState(70);
+  const [rightSupportDepthMM, setRightSupportDepthMM] = useState(70);
   const [roofStyle, setRoofStyle] = useState(location.state?.roofStyle || "leanTo");
   const [hippedSides, setHippedSides] = useState(location.state?.hippedSides || "both");
   const [leftHip, setLeftHip] = useState(true);
@@ -116,8 +129,9 @@ const grid2Responsive = {
   const [rightHipWidthMM, setRightHipWidthMM] = useState("1000");
   const [leftHipWidthManual, setLeftHipWidthManual] = useState(false);
   const [rightHipWidthManual, setRightHipWidthManual] = useState(false);
-  const activeHippedSides =
-  leftHip && rightHip ? "both" : leftHip ? "left" : rightHip ? "right" : "none";
+  const [requestedLeftSidePitchDeg, setRequestedLeftSidePitchDeg] = useState("");
+  const [requestedRightSidePitchDeg, setRequestedRightSidePitchDeg] = useState("");
+  const activeHippedSides = leftHip && rightHip ? "both" : leftHip ? "left" : rightHip ? "right" : "none";
   const getDefaultHipWidth = (projection) => {
   const p = Number(projection) || 0;
   if (!p) return 1000;
@@ -186,6 +200,16 @@ useEffect(() => {
     if (saved.pitchDeg !== undefined) {
       setPitch(saved.pitchDeg);
     }
+
+    if (
+  saved.maximumFinishedHeightMM !== undefined &&
+  saved.maximumFinishedHeightMM !== null
+) {
+  setMaximumFinishedHeightMM(
+    String(saved.maximumFinishedHeightMM)
+  );
+}
+
 if (saved.roofStyle) {
   setRoofStyle(saved.roofStyle);
 }
@@ -209,22 +233,46 @@ if (saved.leftHipWidthMM !== undefined) {
 if (saved.rightHipWidthMM !== undefined) {
   setRightHipWidthMM(saved.rightHipWidthMM);
 }
+if (saved.requestedLeftSidePitchDeg !== undefined) {
+  setRequestedLeftSidePitchDeg(
+    String(saved.requestedLeftSidePitchDeg)
+  );
+}
+
+if (saved.requestedRightSidePitchDeg !== undefined) {
+  setRequestedRightSidePitchDeg(
+    String(saved.requestedRightSidePitchDeg)
+  );
+}
     // Walls: your stored shape uses left_exposed/right_exposed
-    if (typeof saved.left_exposed === "boolean") {
-      setLeftWall(!saved.left_exposed);
-    } else if (typeof saved.leftWall === "boolean") {
-      setLeftWall(saved.leftWall);
-    }
+if (typeof saved.left_exposed === "boolean") {
+  setLeftWall(!saved.left_exposed);
+} else if (typeof saved.leftWall === "boolean") {
+  setLeftWall(saved.leftWall);
+}
 
-    if (typeof saved.right_exposed === "boolean") {
-      setRightWall(!saved.right_exposed);
-    } else if (typeof saved.rightWall === "boolean") {
-      setRightWall(saved.rightWall);
-    }
+if (typeof saved.right_exposed === "boolean") {
+  setRightWall(!saved.right_exposed);
+} else if (typeof saved.rightWall === "boolean") {
+  setRightWall(saved.rightWall);
+}
 
-    if (saved.showQuote) {
-      setShowQuote(true);
-    }
+// Restore per-side support depths
+if (saved.leftSupportDepthMM !== undefined) {
+  setLeftSupportDepthMM(
+    Number(saved.leftSupportDepthMM) || 70
+  );
+}
+
+if (saved.rightSupportDepthMM !== undefined) {
+  setRightSupportDepthMM(
+    Number(saved.rightSupportDepthMM) || 70
+  );
+}
+
+if (saved.showQuote) {
+  setShowQuote(true);
+}
   } catch (e) {
     console.warn("Failed to restore leanToInputs", e);
   } finally {
@@ -250,6 +298,11 @@ useEffect(() => {
 
   pitchDeg,
 
+  maximumFinishedHeightMM:
+  maximumFinishedHeightMM === ""
+    ? null
+    : Number(maximumFinishedHeightMM),
+
   roofStyle,
   hippedSides: activeHippedSides,
 
@@ -258,8 +311,21 @@ useEffect(() => {
   leftHipWidthMM,
   rightHipWidthMM,
 
+    requestedLeftSidePitchDeg:
+    requestedLeftSidePitchDeg === ""
+      ? null
+      : Number(requestedLeftSidePitchDeg),
+
+  requestedRightSidePitchDeg:
+    requestedRightSidePitchDeg === ""
+      ? null
+      : Number(requestedRightSidePitchDeg),
+
   left_exposed: !leftWall,
   right_exposed: !rightWall,
+
+  leftSupportDepthMM,
+  rightSupportDepthMM,
 };
 
     localStorage.setItem("leanToInputs", JSON.stringify(merged));
@@ -271,6 +337,7 @@ useEffect(() => {
   widthMM,
   projMM,
   pitchDeg,
+  maximumFinishedHeightMM,
   leftWall,
   rightWall,
   roofStyle,
@@ -279,6 +346,10 @@ useEffect(() => {
   rightHip,
   leftHipWidthMM,
   rightHipWidthMM,
+  requestedLeftSidePitchDeg,
+  requestedRightSidePitchDeg,
+  leftSupportDepthMM,
+  rightSupportDepthMM,
 ]);
 useEffect(() => {
   const defaultHip = getDefaultHipWidth(projMM);
@@ -370,6 +441,63 @@ const [summaryAdjustmentTick, setSummaryAdjustmentTick] = useState(0);
     return localStorage.getItem("tl_tile_system") ?? "britmet";
   });
   const minTilePitchDeg = tileSystem === "liteslate" ? 12 : 15;
+  const maximumHeightIsActive =
+  roofStyle !== "hippedLeanTo" &&
+  maximumFinishedHeightMM !== "";
+
+const maximumHeightPitchSolutionDeg = useMemo(() => {
+  if (!maximumHeightIsActive) {
+    return null;
+  }
+
+  return solveLeanToPitchForMaximumFinishedHeight({
+    internalProjectionMM: num(projMM),
+    maximumFinishedHeightMM:
+      num(maximumFinishedHeightMM),
+  });
+}, [
+  maximumHeightIsActive,
+  projMM,
+  maximumFinishedHeightMM,
+]);
+
+const maximumHeightIsImpossible =
+  maximumHeightIsActive &&
+  maximumHeightPitchSolutionDeg === null;
+
+useEffect(() => {
+  if (
+    !maximumHeightIsActive ||
+    maximumHeightPitchSolutionDeg === null
+  ) {
+    return;
+  }
+
+  // Round downward so the finished roof cannot
+  // accidentally exceed the entered restriction.
+  const restrictedPitchDeg =
+    Math.floor(
+      (maximumHeightPitchSolutionDeg + 0.000001) * 10
+    ) / 10;
+
+  if (
+    Number(pitchDeg) !== restrictedPitchDeg
+  ) {
+    setPitch(restrictedPitchDeg);
+
+    persist({
+      pitchDeg: restrictedPitchDeg,
+      pitch: restrictedPitchDeg,
+      maximumFinishedHeightMM:
+        Number(maximumFinishedHeightMM),
+    });
+  }
+}, [
+  maximumHeightIsActive,
+  maximumHeightPitchSolutionDeg,
+  maximumFinishedHeightMM,
+  pitchDeg,
+]);
 
 
 const hippedGeom =
@@ -384,6 +512,26 @@ const hippedGeom =
         hippedSides: activeHippedSides,
         leftHipWidthMM: num(leftHipWidthMM, 1000),
         rightHipWidthMM: num(rightHipWidthMM, 1000),
+
+        requestedLeftSidePitchDeg:
+  requestedLeftSidePitchDeg === ""
+    ? null
+    : Number(requestedLeftSidePitchDeg),
+
+requestedRightSidePitchDeg:
+  requestedRightSidePitchDeg === ""
+    ? null
+    : Number(requestedRightSidePitchDeg),
+
+        requestedLeftSidePitchDeg:
+  requestedLeftSidePitchDeg === ""
+    ? null
+    : Number(requestedLeftSidePitchDeg),
+
+requestedRightSidePitchDeg:
+  requestedRightSidePitchDeg === ""
+    ? null
+    : Number(requestedRightSidePitchDeg),
 
         leftWall,
         rightWall,
@@ -567,6 +715,10 @@ const persistInputs = (opts = {}) => {
     internalWidthMM: widthMM === "" ? null : Number(widthMM),
     internalProjectionMM: projMM === "" ? null : Number(projMM),
     pitchDeg: Number(pitchDeg),
+    maximumFinishedHeightMM:
+  maximumFinishedHeightMM === ""
+    ? null
+    : Number(maximumFinishedHeightMM),
     selectedCustomerId,
     roofStyle,
     hippedSides: activeHippedSides,
@@ -575,6 +727,16 @@ const persistInputs = (opts = {}) => {
 
     leftHipWidthMM: Number(leftHipWidthMM || 0),
     rightHipWidthMM: Number(rightHipWidthMM || 0),
+
+    requestedLeftSidePitchDeg:
+  requestedLeftSidePitchDeg === ""
+    ? null
+    : Number(requestedLeftSidePitchDeg),
+
+requestedRightSidePitchDeg:
+  requestedRightSidePitchDeg === ""
+    ? null
+    : Number(requestedRightSidePitchDeg),
 
 
     // customer / reference
@@ -590,6 +752,11 @@ const persistInputs = (opts = {}) => {
     // exposed/wall flags — store with legacy keys for compatibility
     left_exposed: leftSideExposed,
     right_exposed: rightSideExposed,
+
+    // per-side support depths
+    leftSupportDepthMM: Number(leftSupportDepthMM || 70),
+
+    rightSupportDepthMM: Number(rightSupportDepthMM || 70),
 
     // defaults other pages expect
     gauge_mm: 250,
@@ -639,6 +806,11 @@ showQuote: opts.overrideShowQuote ?? showQuote,
         if (q.internalWidthMM != null)      setWidth(String(Number(q.internalWidthMM)));
         if (q.internalProjectionMM != null) setProj(String(Number(q.internalProjectionMM)));
         if (q.pitchDeg != null)             setPitch(Number(q.pitchDeg));
+        if (q.maximumFinishedHeightMM != null) {
+  setMaximumFinishedHeightMM(
+    String(q.maximumFinishedHeightMM)
+  );
+}
         if (q.soffit_mm != null)            setEavesOverhang(Number(q.soffit_mm));
         if (q.left_overhang_mm != null)     setLeftOverhang(String(q.left_overhang_mm));
         if (q.right_overhang_mm != null)    setRightOverhang(String(q.right_overhang_mm));
@@ -654,6 +826,18 @@ if ("right_wall_present" in q) {
   setRightWall(!!q.right_wall_present);
 } else if ("right_exposed" in q) {
   setRightWall(!q.right_exposed);
+}
+
+if (q.leftSupportDepthMM != null) {
+  setLeftSupportDepthMM(
+    Number(q.leftSupportDepthMM) || 70
+  );
+}
+
+if (q.rightSupportDepthMM != null) {
+  setRightSupportDepthMM(
+    Number(q.rightSupportDepthMM) || 70
+  );
 }
 
 // gutters
@@ -905,29 +1089,55 @@ useEffect(() => {
 
 // ——— Derived external sizes ———
 const extWidthMM = useMemo(() => {
-  const iw   = num(widthMM);
+  const iw = num(widthMM);
 
-  // Side frame + lip from materials (with sensible fallbacks)
-  const SFT  = num(m.side_frame_thickness_mm ?? 70);
-  const LIP  = num(m.fascia_lip_mm ?? 25);
+  const defaultSupportDepthMM =
+    num(m.side_frame_thickness_mm ?? 70);
 
-  const L_OH = num(leftOverhangMM, 0);
-  const R_OH = num(rightOverhangMM, 0);
+  const fasciaLipMM =
+    num(m.fascia_lip_mm ?? 25);
 
-  // Rules:
-  // - If side is a wall => 0 (we don't push past the wall)
-  // - If side is open AND has an explicit overhang => frame + that overhang
-  // - If side is open AND no overhang entered      => frame + lip
-  const leftDelta = leftWall
-    ? 0
-    : (L_OH > 0 ? SFT + L_OH : SFT + LIP);
+  const leftSupport =
+    resolveEdgeSupport({
+      type: leftWall ? "wall" : "frame",
+      depthMM: leftSupportDepthMM,
+      defaultDepthMM: defaultSupportDepthMM,
+    });
 
-  const rightDelta = rightWall
-    ? 0
-    : (R_OH > 0 ? SFT + R_OH : SFT + LIP);
+  const rightSupport =
+    resolveEdgeSupport({
+      type: rightWall ? "wall" : "frame",
+      depthMM: rightSupportDepthMM,
+      defaultDepthMM: defaultSupportDepthMM,
+    });
 
-  return iw + leftDelta + rightDelta;
-}, [widthMM, leftWall, rightWall, leftOverhangMM, rightOverhangMM, m]);
+  const resolved =
+    resolveTwoSidedExternalWidth({
+      internalWidthMM: iw,
+
+      leftSupport,
+      rightSupport,
+
+      leftOverhangMM:
+        num(leftOverhangMM, 0),
+
+      rightOverhangMM:
+        num(rightOverhangMM, 0),
+
+      fasciaLipMM,
+    });
+
+  return resolved.externalWidthMM;
+}, [
+  widthMM,
+  leftWall,
+  rightWall,
+  leftOverhangMM,
+  rightOverhangMM,
+  leftSupportDepthMM,
+  rightSupportDepthMM,
+  m,
+]);
 
 
 
@@ -942,13 +1152,26 @@ const extWidthMM = useMemo(() => {
   const slopeMM = extProjectionMM / Math.cos(theta);
   const riseMM = extProjectionMM * Math.tan(theta);
 
-const ringBeamHeightMM = 40;
-const roofBuildUpMM = 260;
+const leanToManufactureGeom = useMemo(
+  () =>
+    computeLeanToManufactureGeometry({
+      internalProjectionMM: num(projMM),
+      pitchDeg: num(pitchDeg, 15),
+      soffitDepthMM: num(eavesOverhangMM, 150),
+      frameThicknessMM:
+        num(m.side_frame_thickness_mm, 70),
+    }),
+  [
+    projMM,
+    pitchDeg,
+    eavesOverhangMM,
+    m,
+  ]
+);
 
 const externalFinishedHeightMM =
-  riseMM +
-  ringBeamHeightMM +
-  (roofBuildUpMM / Math.cos(theta));
+  leanToManufactureGeom
+    .calculatedMaximumFinishedHeightMM;
 
   // ——— Minimal BOMs ———
 
@@ -1209,6 +1432,9 @@ setShowQuote(true);
     setLeftWall(false);
     setRightWall(false);
 
+    setLeftSupportDepthMM(70);
+    setRightSupportDepthMM(70);
+
     setRoofStyle(location.state?.roofStyle || roofStyle || "leanTo");
     setHippedSides(location.state?.hippedSides || "both");
 
@@ -1218,6 +1444,8 @@ setShowQuote(true);
     setRightHipWidthManual(false);
     setLeftHipWidthMM("1000");
     setRightHipWidthMM("1000");
+    setRequestedLeftSidePitchDeg("");
+    setRequestedRightSidePitchDeg("");
     setEavesOverhang(150);
     setLeftOverhang("");
     setRightOverhang("");
@@ -1265,6 +1493,23 @@ if (!isAdmin && !manualReference) {
   widthMM,
   projMM,
   pitchDeg,
+
+  roofStyle,
+  hippedSides: activeHippedSides,
+  leftHip,
+  rightHip,
+  leftHipWidthMM: Number(leftHipWidthMM || 0),
+  rightHipWidthMM: Number(rightHipWidthMM || 0),
+
+  requestedLeftSidePitchDeg:
+    requestedLeftSidePitchDeg === ""
+      ? null
+      : Number(requestedLeftSidePitchDeg),
+
+  requestedRightSidePitchDeg:
+    requestedRightSidePitchDeg === ""
+      ? null
+      : Number(requestedRightSidePitchDeg),
 
   leftWall,
   rightWall,
@@ -1543,6 +1788,7 @@ onChange={(e) => {
                 type="number"
                 step="0.1"
                 value={pitchDeg}
+                disabled={maximumHeightIsActive}
 onChange={(e) => {
   const v = e.target.value;
 
@@ -1557,44 +1803,219 @@ onChange={(e) => {
     persist({ pitch: numVal });
   }
 }}
-                style={inputStyle}
+                style={{
+  ...inputStyle,
+  background: maximumHeightIsActive
+    ? "#f3f4f6"
+    : "#fff",
+}}
               />
-              {pitchDeg < 15 && (
-                <div style={{ color: "#b45309", fontSize: 12, marginTop: 4 }}>
-                  Recommended minimum is 15°. Please confirm suitability if you go lower.
-                </div>
-              )}
+              {Number(pitchDeg) < minTilePitchDeg && (
+  <div
+    style={{
+      color: "#b45309",
+      fontSize: 12,
+      marginTop: 4,
+    }}
+  >
+    Recommended minimum for{" "}
+    {tileSystem === "liteslate"
+      ? "LiteSlate"
+      : "Britmet"}{" "}
+    is {minTilePitchDeg}°. Please confirm suitability
+    if you go lower.
+  </div>
+)}
             </label>
+            {roofStyle !== "hippedLeanTo" && (
+  <label>
+    Maximum finished height (mm)
+
+    <input
+      type="number"
+      min="0"
+      step="1"
+      value={maximumFinishedHeightMM}
+      placeholder="Optional"
+      onChange={(e) => {
+        const value = e.target.value;
+
+        setMaximumFinishedHeightMM(value);
+
+        persist({
+          maximumFinishedHeightMM:
+            value === ""
+              ? null
+              : Number(value),
+        });
+      }}
+      style={inputStyle}
+    />
+
+    {maximumHeightIsActive &&
+      !maximumHeightIsImpossible && (
+        <div
+          style={{
+            color: "#047857",
+            fontSize: 12,
+            marginTop: 4,
+          }}
+        >
+          Pitch calculated from height restriction:{" "}
+          {Number(pitchDeg).toFixed(1)}°
+        </div>
+      )}
+
+    {maximumHeightIsImpossible && (
+      <div
+        style={{
+          color: "#b91c1c",
+          fontSize: 12,
+          marginTop: 4,
+        }}
+      >
+        This height is below the minimum physical roof
+        build-up.
+      </div>
+    )}
+  </label>
+)}
 
 {roofStyle !== "hippedLeanTo" && (
-  <div style={{ display: "grid", gap: 8 }}>
-    <label className="flex items-center gap-2">
-      <input
-        type="checkbox"
-        checked={leftWall}
-        onChange={(e) => {
-          const v = e.target.checked;
-          setLeftWall(v);
-          persist({ left_wall_present: v, left_exposed: !v });
-        }}
-      />
+  <div
+    style={{
+      display: "grid",
+      gap: 10,
+      gridColumn: "1 / -1",
+      gridTemplateColumns:
+        isMobile ? "1fr" : "1fr 1fr",
+    }}
+  >
+    {/* LEFT SIDE */}
+    <div
+      style={{
+        border: "1px solid #d1d5db",
+        borderRadius: 8,
+        padding: 10,
+      }}
+    >
+      <label className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          checked={leftWall}
+          onChange={(e) => {
+            const v = e.target.checked;
 
-      Left side wall present
-    </label>
+            setLeftWall(v);
 
-    <label className="flex items-center gap-2">
-      <input
-        type="checkbox"
-        checked={rightWall}
-        onChange={(e) => {
-          const v = e.target.checked;
-          setRightWall(v);
-          persist({ right_wall_present: v, right_exposed: !v });
-        }}
-      />
+            persist({
+              left_wall_present: v,
+              left_exposed: !v,
+            });
+          }}
+        />
 
-      Right side wall present
-    </label>
+        Left side wall present
+      </label>
+
+      {!leftWall && (
+        <label
+          style={{
+            display: "block",
+            marginTop: 8,
+          }}
+        >
+          Left support depth (mm)
+
+          <input
+            type="number"
+            value={leftSupportDepthMM}
+            onChange={(e) => {
+              const v = e.target.value;
+
+              if (v === "") {
+                setLeftSupportDepthMM("");
+                return;
+              }
+
+              const n = Number(v);
+
+              if (!Number.isNaN(n)) {
+                setLeftSupportDepthMM(n);
+
+                persist({
+                  leftSupportDepthMM: n,
+                });
+              }
+            }}
+            style={inputStyle}
+          />
+        </label>
+      )}
+    </div>
+
+    {/* RIGHT SIDE */}
+    <div
+      style={{
+        border: "1px solid #d1d5db",
+        borderRadius: 8,
+        padding: 10,
+      }}
+    >
+      <label className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          checked={rightWall}
+          onChange={(e) => {
+            const v = e.target.checked;
+
+            setRightWall(v);
+
+            persist({
+              right_wall_present: v,
+              right_exposed: !v,
+            });
+          }}
+        />
+
+        Right side wall present
+      </label>
+
+      {!rightWall && (
+        <label
+          style={{
+            display: "block",
+            marginTop: 8,
+          }}
+        >
+          Right support depth (mm)
+
+          <input
+            type="number"
+            value={rightSupportDepthMM}
+            onChange={(e) => {
+              const v = e.target.value;
+
+              if (v === "") {
+                setRightSupportDepthMM("");
+                return;
+              }
+
+              const n = Number(v);
+
+              if (!Number.isNaN(n)) {
+                setRightSupportDepthMM(n);
+
+                persist({
+                  rightSupportDepthMM: n,
+                });
+              }
+            }}
+            style={inputStyle}
+          />
+        </label>
+      )}
+    </div>
   </div>
 )}
 {roofStyle === "hippedLeanTo" && (
@@ -1608,6 +2029,19 @@ onChange={(e) => {
     setLeftHipWidthMM={setLeftHipWidthMM}
     rightHipWidthMM={rightHipWidthMM}
     setRightHipWidthMM={setRightHipWidthMM}
+    requestedLeftSidePitchDeg={
+  requestedLeftSidePitchDeg
+}
+setRequestedLeftSidePitchDeg={
+  setRequestedLeftSidePitchDeg
+}
+
+requestedRightSidePitchDeg={
+  requestedRightSidePitchDeg
+}
+setRequestedRightSidePitchDeg={
+  setRequestedRightSidePitchDeg
+}
     setLeftHipWidthManual={setLeftHipWidthManual}
     setRightHipWidthManual={setRightHipWidthManual}
     leftWall={leftWall}
@@ -1663,8 +2097,14 @@ onChange={(e) => {
     type="text"
     value={deliveryPostcode}
     style={missingPostcode && quoteError ? requiredInputStyle : undefined}
-    onChange={(e) => {setDeliveryPostcode(e.target.value.toUpperCase());
-  persist({ projectionMM: e.target.value });
+    onChange={(e) => {
+  const v = e.target.value.toUpperCase();
+
+  setDeliveryPostcode(v);
+
+  persist({
+    deliveryPostcode: v,
+  });
 }}
     onBlur={lookupDeliveryDistance}
 onKeyDown={(e) => {
@@ -1821,12 +2261,29 @@ title={
               <div style={{ border: "1px solid #e5e7eb", borderRadius: 8, padding: 12 }}>
                 {roofStyle === "hippedLeanTo" ? (
   <PlanDiagramHippedLeanTo
+  isAdmin={isAdmin}
   iw={num(widthMM)}
   ip={num(projMM)}
-  leftHipWidth={num(leftHipWidthMM, 1000)}
-  rightHipWidth={num(rightHipWidthMM, 1000)}
+
+  leftHipWidth={
+  hippedGeom?.leftPitchDerivedHipWidthMM ??
+  num(leftHipWidthMM, 1000)
+}
+
+rightHipWidth={
+  hippedGeom?.rightPitchDerivedHipWidthMM ??
+  num(rightHipWidthMM, 1000)
+}
+
+frontRafterLayout={
+  hippedGeom?.frontRafterLayoutV2
+}
+
   hippedSides={activeHippedSides}
   pitchDeg={num(pitchDeg, 15)}
+
+  leftSidePitchDeg={hippedGeom?.leftSidePitchDeg}
+  rightSidePitchDeg={hippedGeom?.rightSidePitchDeg}
   soffitDepthMM={num(eavesOverhangMM)}
   rafterSpacing={num(m.rafter_spacing_mm ?? 665)}
   firstCentre={num(m.rafter_first_center_mm ?? 690)}
@@ -1849,10 +2306,20 @@ title={
 />
 ) : (
   <PlanDiagramLeanTo
-    iw={num(widthMM)}
-    ip={num(projMM)}
-    sft={num(m.side_frame_thickness_mm ?? 70)}
-    lip={num(m.fascia_lip_mm ?? 25)}
+  iw={num(widthMM)}
+  ip={num(projMM)}
+
+  sft={num(m.side_frame_thickness_mm ?? 70)}
+
+  leftSupportDepthMM={
+    num(leftSupportDepthMM, 70)
+  }
+
+  rightSupportDepthMM={
+    num(rightSupportDepthMM, 70)
+  }
+
+  lip={num(m.fascia_lip_mm ?? 25)}
     soffit={num(eavesOverhangMM)}
     frameOn={num(m.frame_on_mm ?? 70)}
     leftOH={num(leftOverhangMM, 0)}
@@ -1861,8 +2328,10 @@ title={
     rightWall={rightWall}
     rafterSpacing={num(m.rafter_spacing_mm ?? 665)}
     firstCentre={num(m.rafter_first_center_mm ?? 690)}
+    pitchDeg={num(pitchDeg, 15)}
     outlet={gutterOutlet}
     gutterColor={gutterColor}
+    
   />
 )}
               </div>
@@ -1912,6 +2381,20 @@ title={
 </div>
 
 <div>
+  <b>Pitch-Derived Left HP:</b>{" "}
+  {Number(
+    hippedGeom.leftPitchDerivedHipWidthMM ?? 0
+  ).toFixed(1)} mm
+</div>
+
+<div>
+  <b>Pitch-Derived Right HP:</b>{" "}
+  {Number(
+    hippedGeom.rightPitchDerivedHipWidthMM ?? 0
+  ).toFixed(1)} mm
+</div>
+
+<div>
   <b>Input Projection:</b>{" "}
   {Math.round(hippedGeom.projectionMM ?? 0)} mm
 </div>
@@ -1950,6 +2433,65 @@ title={
 </div>
 
 <hr style={{ margin: "10px 0" }} />
+
+<div style={{ marginTop: 6 }}>
+  <b>FACET GEOMETRY:</b>
+</div>
+
+<div>
+  Intersection offset:{" "}
+  {Number(
+    hippedGeom
+      ?.rightFacetGeometry
+      ?.intersectionOffsetMM ?? 0
+  ).toFixed(1)}{" "}
+  mm
+</div>
+
+<div>
+  Resolved HP:{" "}
+  {Number(
+    hippedGeom?.leftPitchDerivedHipWidthMM ?? 0
+  ).toFixed(1)}{" "}
+  mm
+</div>
+
+
+<div>
+  EWBS:{" "}
+  {Number(
+    hippedGeom
+      ?.rightFacetGeometry
+      ?.externalWallBarSlopeMM ?? 0
+  ).toFixed(1)}{" "}
+  mm
+</div>
+
+<div>
+  IWBS:{" "}
+  {Number(
+    hippedGeom
+      ?.rightFacetGeometry
+      ?.internalWallBarSlopeMM ?? 0
+  ).toFixed(1)}{" "}
+  mm
+</div>
+
+<div>
+  <b>EWPL:</b>{" "}
+  {Number(
+    hippedGeom?.horizontalWallplateExternalLengthMM ?? 0
+  ).toFixed(1)}{" "}
+  mm
+</div>
+
+<div>
+  <b>IWPL:</b>{" "}
+  {Number(
+    hippedGeom?.horizontalWallplateInternalLengthMM ?? 0
+  ).toFixed(1)}{" "}
+  mm
+</div>
 
 <div>
   <b>Hip Plan Length:</b>{" "}
@@ -2296,6 +2838,13 @@ rightWallBarFootRunMM={
   hippedGeom.rightTemplateDebug?.horizontalFootRunMM ??
   hippedGeom.leftTemplateDebug?.horizontalFootRunMM ??
   0
+}
+leftWallBarVerticalFootCutMM={
+  hippedGeom.leftPlumbCutHeightMM
+}
+
+rightWallBarVerticalFootCutMM={
+  hippedGeom.rightPlumbCutHeightMM
 }
     externalWidthMM={
       hippedGeom.externalWidthMM

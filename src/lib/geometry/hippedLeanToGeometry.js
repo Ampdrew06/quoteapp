@@ -5,6 +5,8 @@ import { computeHipManufactureGeometry } from "./hipManufactureGeometry";
 import { calculateHipManufactureGeometryV2 } from "./hipManufactureGeometryV2";
 import { buildFacet } from "../Manufacturing/facetBuilder";
 import { solveFacetEavesGeometry } from "./facetEavesGeometry";
+import { buildFacetGeometry } from "../Manufacturing/facetGeometryBuilder";
+import { buildDefaultFrontRafterLayout } from "../Manufacturing/rafterLayoutBuilder";
 
 const degToRad = (deg) => (Number(deg) * Math.PI) / 180;
 const radToDeg = (rad) => (Number(rad) * 180) / Math.PI;
@@ -30,6 +32,18 @@ const SPAR_HOOK_TO_BOSS_OFFSET_MM = 105;
 
 const SPAR_HOOK_TO_WALLPLATE_FACE_MM = 156;
 
+// Temporary migration switch.
+//
+// true  = use pitch-driven Timberlite HP once resolved
+// false = fall back to the existing/manual HP workflow
+const USE_PITCH_DRIVEN_GEOMETRY = true;
+// Global minimum default centre spacing used when
+// automatically laying out rafters.
+//
+
+
+  
+
 export function calculateHippedLeanToGeometry({
   widthMM,
   projectionMM,
@@ -37,8 +51,16 @@ export function calculateHippedLeanToGeometry({
   soffitDepthMM,
   materials,
   hippedSides = "both", // "left" | "right" | "both"
+
+  // Current/manual HP inputs.
+  // Retained for compatibility and future admin override.
   leftHipWidthMM = 1000,
   rightHipWidthMM = 1000,
+
+  // New normal design inputs.
+  // When supplied, these will eventually become authoritative.
+  requestedLeftSidePitchDeg = null,
+  requestedRightSidePitchDeg = null,
 
   leftWall = false,
   rightWall = false,
@@ -59,10 +81,57 @@ export function calculateHippedLeanToGeometry({
   const hasLeftHip = hippedSides === "left" || hippedSides === "both";
   const hasRightHip = hippedSides === "right" || hippedSides === "both";
 
-  const leftHipWidth = hasLeftHip ? Number(leftHipWidthMM || 0) : 0;
-  const rightHipWidth = hasRightHip ? Number(rightHipWidthMM || 0) : 0;
+  // ======================================================
+// LEGACY / MANUAL HIP-POSITION INPUTS
+//
+// These are retained for:
+// - compatibility during migration
+// - future admin manual override
+//
+// They are NOT yet being replaced in this step.
+// ======================================================
 
-  const centreWidth = Math.max(0, width - leftHipWidth - rightHipWidth);
+const manualLeftHipWidthMM = hasLeftHip
+  ? Number(leftHipWidthMM || 0)
+  : 0;
+
+const manualRightHipWidthMM = hasRightHip
+  ? Number(rightHipWidthMM || 0)
+  : 0;
+
+// Has the new pitch-driven workflow actually been requested?
+const hasRequestedLeftSidePitch =
+  hasLeftHip &&
+  Number.isFinite(Number(requestedLeftSidePitchDeg)) &&
+  Number(requestedLeftSidePitchDeg) > 0;
+
+const hasRequestedRightSidePitch =
+  hasRightHip &&
+  Number.isFinite(Number(requestedRightSidePitchDeg)) &&
+  Number(requestedRightSidePitchDeg) > 0;
+
+// Migration-mode decisions.
+// These will be used once the pitch-derived HP has been
+// calculated farther down the file.
+const usePitchDrivenLeft =
+  USE_PITCH_DRIVEN_GEOMETRY &&
+  hasRequestedLeftSidePitch;
+
+const usePitchDrivenRight =
+  USE_PITCH_DRIVEN_GEOMETRY &&
+  hasRequestedRightSidePitch;
+
+// TEMPORARY compatibility aliases.
+//
+// Everything below still behaves exactly as before until
+// we deliberately migrate the dependent calculations.
+const leftHipWidth = manualLeftHipWidthMM;
+const rightHipWidth = manualRightHipWidthMM;
+
+const centreWidth = Math.max(
+  0,
+  width - leftHipWidth - rightHipWidth
+);
 
   // 1) Boss / hip positions in plan
 const leftBossX = leftHipWidth;
@@ -152,19 +221,45 @@ const rightHipTrueLengthMM = hasRightHip
   : 0;
 
 // 4) Side roof plane pitches
-const leftSidePitchDeg = hasLeftHip
-  ? calcSidePitchDeg({
-      riseMM: designRiseMM,
-      hipWidthMM: leftHipWidth,
-    })
+//
+// Normal future mode:
+// requested side pitch is authoritative.
+//
+// Current compatibility mode:
+// if no requested pitch is supplied, derive pitch
+// from the existing hip-position input exactly as before.
+
+const resolvedLeftSidePitchDeg = hasLeftHip
+  ? (
+      Number.isFinite(Number(requestedLeftSidePitchDeg)) &&
+      Number(requestedLeftSidePitchDeg) > 0
+        ? Number(requestedLeftSidePitchDeg)
+        : calcSidePitchDeg({
+            riseMM: designRiseMM,
+            hipWidthMM: leftHipWidth,
+          })
+    )
   : 0;
 
-const rightSidePitchDeg = hasRightHip
-  ? calcSidePitchDeg({
-      riseMM: designRiseMM,
-      hipWidthMM: rightHipWidth,
-    })
+const resolvedRightSidePitchDeg = hasRightHip
+  ? (
+      Number.isFinite(Number(requestedRightSidePitchDeg)) &&
+      Number(requestedRightSidePitchDeg) > 0
+        ? Number(requestedRightSidePitchDeg)
+        : calcSidePitchDeg({
+            riseMM: designRiseMM,
+            hipWidthMM: rightHipWidth,
+          })
+    )
   : 0;
+
+// Keep the existing public names for compatibility.
+// Everything below can continue using these names.
+const leftSidePitchDeg =
+  resolvedLeftSidePitchDeg;
+
+const rightSidePitchDeg =
+  resolvedRightSidePitchDeg;
 
   // 7) Manufacturing / fittings
 const bossQty = (hasLeftHip ? 1 : 0) + (hasRightHip ? 1 : 0);
@@ -303,15 +398,270 @@ const effectiveFrontSoffitMM = Number(
 
 const leftCalculatedSoffitMM = hasLeftHip
   ? Number(
-      facetEavesRule.left.manufacturedSoffitMM ?? 0
+      facetEavesRule.left.matchedSoffitMM ?? 0
     )
   : 0;
 
 const rightCalculatedSoffitMM = hasRightHip
   ? Number(
-      facetEavesRule.right.manufacturedSoffitMM ?? 0
+      facetEavesRule.right.matchedSoffitMM ?? 0
     )
   : 0;
+
+ const leftHorizontalFootRunMM = hasLeftHip
+  ? Number(
+      facetEavesRule.left
+        .matchedHorizontalFootRunMM ?? 0
+    )
+  : 0;
+
+const rightHorizontalFootRunMM = hasRightHip
+  ? Number(
+      facetEavesRule.right
+        .matchedHorizontalFootRunMM ?? 0
+    )
+  : 0;
+
+  // ======================================================
+// UNIVERSAL FACET GEOMETRY BUILDER — VALIDATION
+//
+// Parallel calculation only.
+//
+// This does NOT yet drive live Hipped Lean-To geometry.
+// It allows us to prove that the universal facet builder
+// reproduces the geometry already validated here.
+// ======================================================
+
+const leftFacetGeometry = hasLeftHip
+  ? buildFacetGeometry({
+      pitchDeg: leftSidePitchDeg,
+
+      horizontalFootRunMM:
+        leftHorizontalFootRunMM,
+
+      verticalFootCutMM:
+        Number(
+          facetEavesRule.left
+            ?.matchedPlumbCutHeightMM ?? 0
+        ),
+
+      internalWallplateHeightMM:
+        designInternalWallplateHeightMM,
+
+      externalWallplateHeightMM:
+        designExternalWallplateHeightMM,
+    })
+  : null;
+
+  const rightFacetGeometry = hasRightHip
+  ? buildFacetGeometry({
+      pitchDeg: rightSidePitchDeg,
+
+      horizontalFootRunMM:
+        rightHorizontalFootRunMM,
+
+      verticalFootCutMM:
+        Number(
+          facetEavesRule.right
+            ?.matchedPlumbCutHeightMM ?? 0
+        ),
+
+      internalWallplateHeightMM:
+        designInternalWallplateHeightMM,
+
+      externalWallplateHeightMM:
+        designExternalWallplateHeightMM,
+    })
+  : null;
+
+// ======================================================
+// PITCH-DERIVED HIP POSITIONS
+//
+// Timberlite design rule:
+//
+// Side pitch is authoritative.
+//
+// Starting from the top of the side VFC, extend the
+// external edge of the wall-bar at the requested side
+// pitch until it intersects the external/top wallplate
+// datum.
+//
+// HP is then measured horizontally from the internal
+// foot datum (end of HFC) to that intersection.
+//
+// This is currently DIAGNOSTIC ONLY.
+// It does not yet replace the legacy HP inputs elsewhere.
+// ======================================================
+
+// ======================================================
+// AUTHORITATIVE FACET INTERSECTION GEOMETRY
+//
+// Hip position and wall-bar slopes now come from the
+// reusable roof-style-independent facet geometry builder.
+// ======================================================
+
+const leftPitchDerivedHipWidthMM =
+  hasLeftHip &&
+  leftFacetGeometry?.valid
+    ? Number(
+        leftFacetGeometry
+          .intersectionOffsetMM ?? 0
+      )
+    : 0;
+
+const rightPitchDerivedHipWidthMM =
+  hasRightHip &&
+  rightFacetGeometry?.valid
+    ? Number(
+        rightFacetGeometry
+          .intersectionOffsetMM ?? 0
+      )
+    : 0;
+
+  const leftExternalWallBarSlopeMM =
+  hasLeftHip &&
+  leftFacetGeometry?.valid
+    ? Number(
+        leftFacetGeometry
+          .externalWallBarSlopeMM ?? 0
+      )
+    : 0;
+
+const leftInternalWallBarSlopeMM =
+  hasLeftHip &&
+  leftFacetGeometry?.valid
+    ? Number(
+        leftFacetGeometry
+          .internalWallBarSlopeMM ?? 0
+      )
+    : 0;
+
+const rightExternalWallBarSlopeMM =
+  hasRightHip &&
+  rightFacetGeometry?.valid
+    ? Number(
+        rightFacetGeometry
+          .externalWallBarSlopeMM ?? 0
+      )
+    : 0;
+
+const rightInternalWallBarSlopeMM =
+  hasRightHip &&
+  rightFacetGeometry?.valid
+    ? Number(
+        rightFacetGeometry
+          .internalWallBarSlopeMM ?? 0
+      )
+    : 0;  
+// ======================================================
+// HORIZONTAL WALLPLATE GEOMETRY
+//
+// The side facet geometry determines the two mitred
+// intersections with the horizontal wallplate.
+//
+// EWPL = external/top finished wallplate length E → F
+// IWPL = internal/bottom finished wallplate length D → G
+//
+// These are outputs of the resolved geometry and must not
+// be recalculated by manufacture drawings.
+// ======================================================
+
+const horizontalWallplateExternalLengthMM =
+  Math.max(
+    0,
+    width -
+      (hasLeftHip
+        ? Number(
+            leftFacetGeometry?.intersectionOffsetMM ?? 0
+          )
+        : 0) -
+      (hasRightHip
+        ? Number(
+            rightFacetGeometry?.intersectionOffsetMM ?? 0
+          )
+        : 0)
+  );
+
+const horizontalWallplateInternalLengthMM =
+  Math.max(
+    0,
+    width -
+      (hasLeftHip
+        ? Number(
+            leftFacetGeometry?.internalHorizontalRunMM ?? 0
+          )
+        : 0) -
+      (hasRightHip
+        ? Number(
+            rightFacetGeometry?.internalHorizontalRunMM ?? 0
+          )
+        : 0)
+  );
+  // ======================================================
+// RESOLVED HIP POSITIONS
+//
+// From this point onwards the geometry should use only
+// these values.
+//
+// During migration:
+//
+// • Customer mode
+//     → pitch-derived HP
+//
+// • Admin / legacy mode
+//     → manual HP
+// ======================================================
+
+const resolvedLeftHipWidthMM =
+  usePitchDrivenLeft
+    ? leftPitchDerivedHipWidthMM
+    : manualLeftHipWidthMM;
+
+const resolvedRightHipWidthMM =
+  usePitchDrivenRight
+    ? rightPitchDerivedHipWidthMM
+    : manualRightHipWidthMM;
+ // ======================================================
+// RESOLVED PLAN / BOSS GEOMETRY
+//
+// These are the authoritative plan positions that will
+// progressively replace the legacy/manual HP geometry.
+// ======================================================
+
+const resolvedLeftBossXMM =
+  hasLeftHip
+    ? resolvedLeftHipWidthMM
+    : 0;
+
+const resolvedRightBossXMM =
+  hasRightHip
+    ? width - resolvedRightHipWidthMM
+    : width;
+
+const resolvedCentreWidthMM = Math.max(
+  0,
+  resolvedRightBossXMM -
+    resolvedLeftBossXMM
+);   
+const frontRafterLayoutV2 =
+  buildDefaultFrontRafterLayout({
+    widthMM: width,
+
+    leftBossXMM:
+      resolvedLeftBossXMM,
+
+    rightBossXMM:
+      resolvedRightBossXMM,
+
+    hasLeftHip,
+    hasRightHip,
+
+    spacingMM:
+      Number(
+        materials?.rafter_spacing_mm ?? 665
+      ),
+  });
+
 const fasciaLipMM = Number(materials?.fascia_lip_mm ?? 25);
 const frameThicknessMM = Number(materials?.side_frame_thickness_mm ?? 70);
 const frameOnMM = Number(materials?.frame_on_mm ?? 70);
@@ -322,10 +672,10 @@ const frontHipHorizontalAllowanceMM =
   fasciaLipMM;
 
 const leftHipHorizontalAllowanceMM =
-  frameThicknessMM + leftCalculatedSoffitMM;
+  leftHorizontalFootRunMM;
 
 const rightHipHorizontalAllowanceMM =
-  frameThicknessMM + rightCalculatedSoffitMM;
+  rightHorizontalFootRunMM;
 
 
 // Authoritative hip manufacture geometry.
@@ -441,7 +791,7 @@ const resolvedRightOverhangMM = Math.max(
 //    use the normal Lean-To rule:
 //    frame + entered overhang, or frame + minimum fascia lip.
 const leftExternalAllowanceMM = hasLeftHip
-  ? frameThicknessMM + leftCalculatedSoffitMM
+  ? leftHorizontalFootRunMM
   : leftWall
     ? 0
     : frameThicknessMM +
@@ -450,7 +800,7 @@ const leftExternalAllowanceMM = hasLeftHip
         : fasciaLipMM);
 
 const rightExternalAllowanceMM = hasRightHip
-  ? frameThicknessMM + rightCalculatedSoffitMM
+  ? rightHorizontalFootRunMM
   : rightWall
     ? 0
     : frameThicknessMM +
@@ -729,32 +1079,72 @@ fasciaOrderSizeMM:
 });
 
 
-  const plainRafterZoneStartMM = leftBossX;
-const plainRafterZoneEndMM = rightBossX;
-const plainRafterZoneWidthMM = centreWidth;
-const rafterSpacingMM = Number(materials?.rafter_spacing_mm ?? 665);
-const firstRafterCentreMM = Number(materials?.rafter_first_center_mm ?? 685);
+  // ======================================================
+// AUTHORITATIVE FRONT RAFTER LAYOUT
+//
+// All front-facet rafter positions now come from the
+// shared rafterLayoutBuilder.
+//
+// Keep these compatibility variable names temporarily
+// because downstream manufacture / Summary code still
+// reads them.
+// ======================================================
 
-const rafterCentres = [];
+const plainRafterZoneStartMM =
+  frontRafterLayoutV2?.centreZoneStartMM ?? 0;
 
-for (let c = firstRafterCentreMM; c < width; c += rafterSpacingMM) {
-  let type = "plain";
+const plainRafterZoneEndMM =
+  frontRafterLayoutV2?.centreZoneEndMM ?? width;
 
-  if (hasLeftHip && c < leftBossX) {
-    type = "leftJack";
-  } else if (hasRightHip && c > rightBossX) {
-    type = "rightJack";
-  }
+const plainRafterZoneWidthMM =
+  frontRafterLayoutV2?.centreZoneWidthMM ?? 0;
 
-  rafterCentres.push({
-    centreMM: c,
-    type,
-  });
-}
+const rafterSpacingMM =
+  frontRafterLayoutV2?.spacingMM ??
+  Number(materials?.rafter_spacing_mm ?? 665);
 
-const leftJackRafters = rafterCentres.filter((r) => r.type === "leftJack");
-const plainRafters = rafterCentres.filter((r) => r.type === "plain");
-const rightJackRafters = rafterCentres.filter((r) => r.type === "rightJack");
+const leftJackRafters =
+  frontRafterLayoutV2?.leftJackRafters ?? [];
+
+const plainRafters =
+  (frontRafterLayoutV2?.centreRafters ?? []).filter(
+    (rafter) => rafter.role === "plain"
+  );
+
+const bossRafters =
+  (frontRafterLayoutV2?.centreRafters ?? []).filter(
+    (rafter) => rafter.role === "boss-rafter"
+  );
+
+const rightJackRafters =
+  frontRafterLayoutV2?.rightJackRafters ?? [];
+
+/*
+ * Compatibility list used by the front ring-beam slot
+ * calculation below.
+ *
+ * This now contains the exact same positions as the D/O CAD:
+ * left jacks + boss rafters + centre plain rafters + right jacks.
+ */
+const rafterCentres =
+  (frontRafterLayoutV2?.allRafters ?? []).map(
+    (rafter) => ({
+      centreMM: Number(rafter.centreMM) || 0,
+
+      type:
+        rafter.role === "boss-rafter"
+          ? "boss"
+          : rafter.zone === "left-jack"
+            ? "leftJack"
+            : rafter.zone === "right-jack"
+              ? "rightJack"
+              : "plain",
+
+      role: rafter.role,
+      zone: rafter.zone,
+      id: rafter.id,
+    })
+  );
 
 const rafterSlotWidthMM = 48;
 const rafterSlotHalfWidthMM = rafterSlotWidthMM / 2;
@@ -935,9 +1325,18 @@ leftHipManufactureTest,
 rightHipManufactureTest,
 
   rafterCentres,
-  leftJackRafterCount: leftJackRafters.length,
-  plainRafterCount: plainRafters.length,
-  rightJackRafterCount: rightJackRafters.length,
+
+leftJackRafterCount:
+  leftJackRafters.length,
+
+plainRafterCount:
+  plainRafters.length,
+
+bossRafterCount:
+  bossRafters.length,
+
+rightJackRafterCount:
+  rightJackRafters.length,
 
   hipTopCutFaceOffsetMM: HIP_TOP_CUT_FACE_OFFSET_MM,
   sparHookToBossOffsetMM: SPAR_HOOK_TO_BOSS_OFFSET_MM,
@@ -947,12 +1346,44 @@ rightHipManufactureTest,
   hipTopCutDeg,
 
   frontSoffitMM: effectiveFrontSoffitMM,
-  leftCalculatedSoffitMM,
-  rightCalculatedSoffitMM,
 
-  requestedFrontSoffitMM,
+leftCalculatedSoffitMM,
+rightCalculatedSoffitMM,
 
-  effectiveFrontSoffitMM,
+leftHorizontalFootRunMM,
+rightHorizontalFootRunMM,
+
+leftPitchDerivedHipWidthMM,
+rightPitchDerivedHipWidthMM,
+
+leftExternalWallBarSlopeMM,
+leftInternalWallBarSlopeMM,
+
+rightExternalWallBarSlopeMM,
+rightInternalWallBarSlopeMM,
+
+horizontalWallplateExternalLengthMM,
+horizontalWallplateInternalLengthMM,
+
+// Universal facet-geometry validation
+leftFacetGeometry,
+rightFacetGeometry,
+
+
+requestedFrontSoffitMM,
+
+effectiveFrontSoffitMM,
+
+frontSoffitAdjustmentMM:
+  Number(
+    facetEavesRule
+      .referenceSoffitAdjustmentMM ?? 0
+  ),
+
+facetEavesSolutionValid:
+  Boolean(
+    facetEavesRule.solutionValid
+  ),
 
   frontFinishedFasciaHeightMM:
   facetEavesRule.commonFinishedFasciaHeightMM,
@@ -998,7 +1429,10 @@ rightPlumbCutHeightMM:
     ? facetEavesRule.right.matchedPlumbCutHeightMM
     : 0,
 
-  frontSoffitAutoAdjusted: false,
+  frontSoffitAutoAdjusted:
+  Boolean(
+    facetEavesRule.referenceSoffitAdjusted
+  ),
 
 minOpenSideSoffitMM:
   MIN_OPEN_SIDE_SOFFIT_MM,
@@ -1115,6 +1549,16 @@ rightExternalAllowanceMM,
 
   leftBossXMM: leftBossX,
   rightBossXMM: rightBossX,
+
+  resolvedLeftHipWidthMM,
+resolvedRightHipWidthMM,
+
+resolvedCentreWidthMM,
+
+resolvedLeftBossXMM,
+resolvedRightBossXMM,
+
+frontRafterLayoutV2,
 
  leftHipPlanLengthMM,
  rightHipPlanLengthMM,

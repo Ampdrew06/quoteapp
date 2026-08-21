@@ -9,6 +9,8 @@ const round = (v, dp = 0) => {
 export default function PlanDiagramLeanToManufacture({
   iw, ip,
   sft, lip,
+  leftSupportDepthMM,
+  rightSupportDepthMM,
   soffit, frameOn,
   leftOH = 0, rightOH = 0,
   leftWall = false, rightWall = false,
@@ -18,24 +20,48 @@ export default function PlanDiagramLeanToManufacture({
 }) {
   // --- compute per-side deltas (full rule set) ---
   const { extW, extP, leftDelta, rightDelta } = useMemo(() => {
-  const FT  = Number(sft) || 70;
-  const LIP = Number(lip) || 25;
+  const FT = Number(sft) || 70;
+
+const LEFT_FT =
+  Number(leftSupportDepthMM) || FT;
+
+const RIGHT_FT =
+  Number(rightSupportDepthMM) || FT;
+
+const LIP = Number(lip) || 25;
   const L_OH = Number(leftOH) || 0;
   const R_OH = Number(rightOH) || 0;
 
   const leftDelta = leftWall
-    ? 0
-    : (L_OH > 0 ? FT + L_OH : FT + LIP);
+  ? 0
+  : (L_OH > 0
+      ? LEFT_FT + L_OH
+      : LEFT_FT + LIP);
 
-  const rightDelta = rightWall
-    ? 0
-    : (R_OH > 0 ? FT + R_OH : FT + LIP);
+const rightDelta = rightWall
+  ? 0
+  : (R_OH > 0
+      ? RIGHT_FT + R_OH
+      : RIGHT_FT + LIP);
 
   const extW = iw + leftDelta + rightDelta;
   const extP = ip + (Number(frameOn) || 70) + (Number(soffit) || 150);
 
   return { extW, extP, leftDelta, rightDelta };
-}, [iw, ip, sft, lip, soffit, frameOn, leftOH, rightOH, leftWall, rightWall]);
+}, [
+  iw,
+  ip,
+  sft,
+  lip,
+  leftSupportDepthMM,
+  rightSupportDepthMM,
+  soffit,
+  frameOn,
+  leftOH,
+  rightOH,
+  leftWall,
+  rightWall,
+]);
 
   // --- drawing area setup ---
   const VB_W = 900, VB_H = 520;
@@ -69,6 +95,22 @@ const oy = M_TOP + (innerH - oh) / 2 + 14;
   // --- rafters ---
   const centres = [];
   for (let c = firstCentre; c <= iw; c += rafterSpacing) centres.push(c);
+
+  // Include the two edge rafters so we can display each
+// individual centre-to-centre bay rather than cumulative positions.
+const rafterPositionsMM = [
+  0,
+  ...centres.filter((c) => c > 0 && c < iw),
+  iw,
+];
+
+const rafterBays = rafterPositionsMM
+  .slice(0, -1)
+  .map((startMM, index) => ({
+    startMM,
+    endMM: rafterPositionsMM[index + 1],
+    spacingMM: rafterPositionsMM[index + 1] - startMM,
+  }));
 
   const rafterStroke = Math.max(2, Math.min(6, 0.005 * iw_px + 2));
   const labelFont = "14px Inter, system-ui, Arial";
@@ -148,15 +190,55 @@ const oy = M_TOP + (innerH - oh) / 2 + 14;
 
       {/* --- rafters --- */}
       {centres.map((mm, i) => {
-        const x = ix + mm * scale;
-        return (
-          <g key={i}>
-            <line x1={x} y1={oy} x2={x} y2={oy + oh} stroke="#2563eb" strokeWidth={rafterStroke} />
-            <text x={x} y={oy + oh + 16} textAnchor="middle"
-              style={{ font: labelFont }} fill="#111827">{dim(mm)}</text>
-          </g>
-        );
-      })}
+  const x = ix + mm * scale;
+
+  return (
+    <g key={i}>
+      <line
+        x1={x}
+        y1={oy}
+        x2={x}
+        y2={oy + oh}
+        stroke="#2563eb"
+        strokeWidth={rafterStroke}
+      />
+
+      {/* Cumulative rafter position */}
+      <text
+        x={x}
+        y={oy + oh + 16}
+        textAnchor="middle"
+        style={{
+          font: labelFont,
+          fontWeight: 700,
+        }}
+        fill="#111827"
+      >
+        {dim(mm)}
+      </text>
+    </g>
+  );
+})}
+
+{/* Individual rafter bay spacings */}
+{rafterBays.map((bay, i) => {
+  const x1 = ix + bay.startMM * scale;
+  const x2 = ix + bay.endMM * scale;
+  const midX = (x1 + x2) / 2;
+
+  return (
+    <text
+      key={`bay-${i}`}
+      x={midX}
+      y={oy + oh - 10}
+      textAnchor="middle"
+      style={{ font: "11px Inter, system-ui, Arial" }}
+fill="#6b7280"
+    >
+      {dim(bay.spacingMM)}
+    </text>
+  );
+})}
 
       const M_TOP = 30, M_RIGHT = 35, M_BOTTOM = 55, M_LEFT = 35;
 

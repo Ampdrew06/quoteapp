@@ -10,6 +10,10 @@ export default function HippedLeanToOptions({
   setLeftHipWidthMM,
   rightHipWidthMM,
   setRightHipWidthMM,
+  requestedLeftSidePitchDeg,
+  setRequestedLeftSidePitchDeg,
+  requestedRightSidePitchDeg,
+  setRequestedRightSidePitchDeg,
   setLeftHipWidthManual,
   setRightHipWidthManual,
   leftWall,
@@ -47,44 +51,96 @@ export default function HippedLeanToOptions({
   }}
 >
   <label>
-    <input
-      type="checkbox"
-      checked={leftHip}
-      onChange={(e) => setLeftHip(e.target.checked)}
-    />{" "}
-    Left Hip{" "}
-    {leftHip && (
+  <input
+    type="checkbox"
+    checked={leftHip}
+    onChange={(e) => setLeftHip(e.target.checked)}
+  />{" "}
+  Left Hip{" "}
+  {leftHip && (
+    <>
       <input
         type="number"
-        value={leftHipWidthMM}
-        onChange={(e) => {
-  setLeftHipWidthMM(e.target.value);
-  setLeftHipWidthManual(true);
-}}
-        style={{ marginLeft: 8, width: 80 }}
+        step="0.1"
+        placeholder="Side pitch"
+        value={requestedLeftSidePitchDeg}
+        onChange={(e) =>
+          setRequestedLeftSidePitchDeg(e.target.value)
+        }
+        style={{
+          marginLeft: 8,
+          width: 80,
+        }}
       />
-    )}
-  </label>
+
+      <span
+        style={{
+          marginLeft: 6,
+          fontSize: 12,
+          color: "#475569",
+        }}
+      >
+        °
+      </span>
+
+      <div
+        style={{
+          marginTop: 4,
+          fontSize: 11,
+          color: "#64748b",
+        }}
+      >
+        Current HP: {Number(leftHipWidthMM || 0).toFixed(0)} mm
+      </div>
+    </>
+  )}
+</label>
 
   <label>
-    <input
-      type="checkbox"
-      checked={rightHip}
-      onChange={(e) => setRightHip(e.target.checked)}
-    />{" "}
-    Right Hip{" "}
-    {rightHip && (
+  <input
+    type="checkbox"
+    checked={rightHip}
+    onChange={(e) => setRightHip(e.target.checked)}
+  />{" "}
+  Right Hip{" "}
+  {rightHip && (
+    <>
       <input
         type="number"
-        value={rightHipWidthMM}
-        onChange={(e) => {
-  setRightHipWidthMM(e.target.value);
-  setRightHipWidthManual(true);
-}}
-        style={{ marginLeft: 8, width: 80 }}
+        step="0.1"
+        placeholder="Side pitch"
+        value={requestedRightSidePitchDeg}
+        onChange={(e) =>
+          setRequestedRightSidePitchDeg(e.target.value)
+        }
+        style={{
+          marginLeft: 8,
+          width: 80,
+        }}
       />
-    )}
-  </label>
+
+      <span
+        style={{
+          marginLeft: 6,
+          fontSize: 12,
+          color: "#475569",
+        }}
+      >
+        °
+      </span>
+
+      <div
+        style={{
+          marginTop: 4,
+          fontSize: 11,
+          color: "#64748b",
+        }}
+      >
+        Current HP: {Number(rightHipWidthMM || 0).toFixed(0)} mm
+      </div>
+    </>
+  )}
+</label>
 
   <label>
     <input

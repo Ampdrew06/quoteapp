@@ -12,10 +12,14 @@ export default function PlanDiagramHippedLeanTo({
   ip = 2000,
   leftHipWidth = 1000,
   rightHipWidth = 1000,
+  frontRafterLayout,
+  isAdmin = false,
   hippedSides = "both",
   rafterSpacing = 665,
   firstCentre = 690,
   pitchDeg = 15,
+  leftSidePitchDeg: suppliedLeftSidePitchDeg,
+  rightSidePitchDeg: suppliedRightSidePitchDeg,
   tileSystem = "britmet",
   soffitDepthMM = 150,
   externalWidthMM,
@@ -59,22 +63,22 @@ export default function PlanDiagramHippedLeanTo({
     const start = hasLeft ? leftHip : 0;
     const end = hasRight ? width - rightHip : width;
 
-    const list = [];
+    const list =
+  Array.isArray(frontRafterLayout?.allRafters)
+    ? frontRafterLayout.allRafters.map((rafter) => ({
+        centreMM: Number(rafter.centreMM) || 0,
 
-for (let c = firstCentre; c < width; c += rafterSpacing) {
-  let type = "plain";
+        type:
+          rafter.zone === "left-jack"
+            ? "leftJack"
+            : rafter.zone === "right-jack"
+              ? "rightJack"
+              : "plain",
 
-  if (hasLeft && c < start) {
-    type = "leftJack";
-  } else if (hasRight && c > end) {
-    type = "rightJack";
-  }
-
-  list.push({
-    centreMM: c,
-    type,
-  });
-}
+        role: rafter.role,
+        id: rafter.id,
+      }))
+    : [];
 
     return {
       hasLeftHip: hasLeft,
@@ -84,11 +88,17 @@ for (let c = firstCentre; c < width; c += rafterSpacing) {
       centreWidth: Math.max(0, end - start),
       rafters: list,
     };
-  }, [iw, leftHipWidth, rightHipWidth, hippedSides, rafterSpacing, firstCentre]);
+  }, [iw, leftHipWidth, rightHipWidth, hippedSides, rafterSpacing, firstCentre, frontRafterLayout,]);
 
-  const leftSidePitchDeg = geom.leftSidePitchDeg;
+  const leftSidePitchDeg =
+  Number.isFinite(Number(suppliedLeftSidePitchDeg))
+    ? Number(suppliedLeftSidePitchDeg)
+    : Number(geom.leftSidePitchDeg || 0);
 
-const rightSidePitchDeg = geom.rightSidePitchDeg;
+const rightSidePitchDeg =
+  Number.isFinite(Number(suppliedRightSidePitchDeg))
+    ? Number(suppliedRightSidePitchDeg)
+    : Number(geom.rightSidePitchDeg || 0);
 
   const minPitchDeg = tileSystem === "liteslate" ? 12 : 15;
 
@@ -105,7 +115,7 @@ const rightSidePitchDeg = geom.rightSidePitchDeg;
   const VB_H = 520;
   const M_TOP = 70;
   const M_RIGHT = 80;
-  const M_BOTTOM = 90;
+  const M_BOTTOM = 130;
   const M_LEFT = 80;
 
   const innerW = VB_W - M_LEFT - M_RIGHT;
@@ -300,10 +310,8 @@ const extBack = yBack;
   strokeWidth={rafterStroke}
 />
           <line x1={ox} y1={yFront} x2={x(centreStart)} y2={yBack} stroke="#111827" strokeWidth="4" />
-          <circle cx={x(centreStart)} cy={yBack} r="7" fill="#111827" />
-          <text x={x(centreStart)} y={yBack - 12} textAnchor="middle" style={{ font: smallFont }}>
-            BOSS
-          </text>
+          <circle cx={x(centreStart)} cy={yBack} r="4" fill="#111827" />
+          
          <text
   x={x(centreStart / 2)}
   y={yBack + oh * 0.18}
@@ -328,10 +336,8 @@ const extBack = yBack;
   strokeWidth={rafterStroke}
 />
           <line x1={ox + ow} y1={yFront} x2={x(centreEnd)} y2={yBack} stroke="#111827" strokeWidth="4" />
-          <circle cx={x(centreEnd)} cy={yBack} r="7" fill="#111827" />
-          <text x={x(centreEnd)} y={yBack - 12} textAnchor="middle" style={{ font: smallFont }}>
-            BOSS
-          </text>
+          <circle cx={x(centreEnd)} cy={yBack} r="4" fill="#111827" />
+          
           <text
   x={x((centreEnd + iw) / 2)}
   y={yBack + oh * 0.18}
@@ -364,17 +370,29 @@ const extBack = yBack;
       const jackY = sidePositionY(positionMM);
 
       return (
-        <g key={`left-side-jack-${positionMM}-${index}`}>
-          <line
-            x1={ox}
-            y1={jackY}
-            x2={hipIntersectionX}
-            y2={jackY}
-            stroke="#2563eb"
-            strokeWidth={rafterStroke}
-          />
-        </g>
-      );
+  <g key={`left-side-jack-${positionMM}-${index}`}>
+    <line
+      x1={ox}
+      y1={jackY}
+      x2={hipIntersectionX}
+      y2={jackY}
+      stroke="#2563eb"
+      strokeWidth={rafterStroke}
+    />
+
+    {isAdmin && (
+      <text
+        x={ox + 8}
+        y={jackY - 6}
+        textAnchor="start"
+        style={{ font: smallFont }}
+        fill="#111827"
+      >
+        {dim(positionMM)}
+      </text>
+    )}
+  </g>
+);
     }
   )}
 
@@ -402,17 +420,29 @@ const extBack = yBack;
       const jackY = sidePositionY(positionMM);
 
       return (
-        <g key={`right-side-jack-${positionMM}-${index}`}>
-          <line
-            x1={hipIntersectionX}
-            y1={jackY}
-            x2={ox + ow}
-            y2={jackY}
-            stroke="#2563eb"
-            strokeWidth={rafterStroke}
-          />
-        </g>
-      );
+  <g key={`right-side-jack-${positionMM}-${index}`}>
+    <line
+      x1={hipIntersectionX}
+      y1={jackY}
+      x2={ox + ow}
+      y2={jackY}
+      stroke="#2563eb"
+      strokeWidth={rafterStroke}
+    />
+
+    {isAdmin && (
+      <text
+        x={ox + ow - 8}
+        y={jackY - 6}
+        textAnchor="end"
+        style={{ font: smallFont }}
+        fill="#111827"
+      >
+        {dim(positionMM)}
+      </text>
+    )}
+  </g>
+);
     }
   )}
       {/* Rafters and jack rafters */}
@@ -459,16 +489,18 @@ const extBack = yBack;
         stroke="#2563eb"
         strokeWidth={rafterStroke}
       />
-
-      <text
-        x={rx}
-        y={yFront + 22}
-        textAnchor="middle"
-        style={{ font: labelFont }}
-        fill="#111827"
-      >
-        {dim(mm)}
-      </text>
+{isAdmin && (
+  <text
+    x={rx}
+    y={yFront + 22}
+    textAnchor="middle"
+    style={{ font: labelFont }}
+    fill="#111827"
+  >
+    {dim(mm)}
+  </text>
+)}
+      
     </g>
   );
 })}
@@ -511,18 +543,66 @@ const extBack = yBack;
 )}
 
       {/* Internal dimensions */}
-<DimX x1={ox} x2={ox + ow} y={oy - 20} text={`${dim(iw)} int`} />
-<DimY x={ox + ow + 50} y1={oy} y2={oy + oh} text={`${dim(ip)} int`} />
+<DimX
+  x1={ox}
+  x2={ox + ow}
+  y={oy - 20}
+  text={`${dim(iw)} int`}
+/>
+
+<DimY
+  x={ox + ow + 50}
+  y1={oy}
+  y2={oy + oh}
+  text={`${dim(ip)} int`}
+/>
+
+{/* Hip positions + external wallplate length */}
+{hasLeftHip && (
+  <DimX
+    x1={ox}
+    x2={x(centreStart)}
+    y={extFront + 28}
+    text={`${dim(centreStart)} HP`}
+  />
+)}
+
+<DimX
+  x1={x(centreStart)}
+  x2={x(centreEnd)}
+  y={extFront + 28}
+  text={`${dim(centreWidth)} EWPL`}
+/>
+
+{hasRightHip && (
+  <DimX
+    x1={x(centreEnd)}
+    x2={ox + ow}
+    y={extFront + 28}
+    text={`${dim(iw - centreEnd)} HP`}
+  />
+)}
 
 {/* External dimensions */}
 <DimX
   x1={extLeft}
   x2={extRight}
-  y={extFront + 35}
+  y={extFront + 68}
   text={`${dim(
     Number.isFinite(Number(externalWidthMM))
       ? Number(externalWidthMM)
       : geom.externalWidthMM
+  )} ext`}
+/>
+
+<DimY
+  x={extLeft - 50}
+  y1={extBack}
+  y2={extFront}
+  text={`${dim(
+    Number.isFinite(Number(externalProjectionMM))
+      ? Number(externalProjectionMM)
+      : geom.externalProjectionMM
   )} ext`}
 />
 

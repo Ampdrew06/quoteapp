@@ -9,6 +9,10 @@ import { computeMiscLeanTo } from "./Calculations/miscCalc";
 import { calculateLeanToGeometry } from "./geometry/leanToGeometry";
 import { calculateHippedLeanToGeometry } from "./geometry/hippedLeanToGeometry";
 import { computeTilesLathsBOM } from "./Calculations/tilesLathsCalc";
+import {
+  resolveEdgeSupport,
+  resolveTwoSidedExternalWidth,
+} from "./geometry/supportGeometry";
 
 const BRITMET_WASTE = 1.1;
 const LITESLATE_WASTE = 5;
@@ -124,12 +128,32 @@ const gutterColor =
 const SFT = num(m.side_frame_thickness_mm ?? 70);
 const LIP = num(m.fascia_lip_mm ?? 25);
 
-const leftDelta =
-  leftWall ? 0 : (leftOverhangMM > 0 ? (SFT + leftOverhangMM) : (SFT + LIP));
-const rightDelta =
-  rightWall ? 0 : (rightOverhangMM > 0 ? (SFT + rightOverhangMM) : (SFT + LIP));
+const leftSupport =
+  resolveEdgeSupport({
+    type: leftWall ? "wall" : "frame",
+    depthMM: SFT,
+    defaultDepthMM: SFT,
+  });
 
-const extWidthMM = widthMM + leftDelta + rightDelta;
+const rightSupport =
+  resolveEdgeSupport({
+    type: rightWall ? "wall" : "frame",
+    depthMM: SFT,
+    defaultDepthMM: SFT,
+  });
+
+const resolvedWidth =
+  resolveTwoSidedExternalWidth({
+    internalWidthMM: widthMM,
+    leftSupport,
+    rightSupport,
+    leftOverhangMM,
+    rightOverhangMM,
+    fasciaLipMM: LIP,
+  });
+
+const extWidthMM =
+  resolvedWidth.externalWidthMM;
 
 const frameOn = num(m.frame_on_mm ?? 70);
 
@@ -419,8 +443,60 @@ export function buildLeanToQuoteBase(inputs = {}, exclusions = {}) {
   const soff = Number(inputs.soffit_mm) || Number(inputs.eaves_overhang_mm) || 150;
   const frameOn = Number(inputs.frame_on_mm) || Number(m.frame_on_mm) || 70;
 
-  const extWidthMM = iw + 2 * (sft + lip);
-  const extWidthM = extWidthMM / 1000;
+const leftWall =
+  typeof inputs.leftWall === "boolean"
+    ? inputs.leftWall
+    : typeof inputs.left_wall_present === "boolean"
+    ? inputs.left_wall_present
+    : typeof inputs.left_exposed === "boolean"
+    ? !inputs.left_exposed
+    : false;
+
+const rightWall =
+  typeof inputs.rightWall === "boolean"
+    ? inputs.rightWall
+    : typeof inputs.right_wall_present === "boolean"
+    ? inputs.right_wall_present
+    : typeof inputs.right_exposed === "boolean"
+    ? !inputs.right_exposed
+    : false;
+
+const leftSupport =
+  resolveEdgeSupport({
+    type: leftWall ? "wall" : "frame",
+    depthMM: sft,
+    defaultDepthMM: sft,
+  });
+
+const rightSupport =
+  resolveEdgeSupport({
+    type: rightWall ? "wall" : "frame",
+    depthMM: sft,
+    defaultDepthMM: sft,
+  });
+
+const resolvedWidth =
+  resolveTwoSidedExternalWidth({
+    internalWidthMM: iw,
+    leftSupport,
+    rightSupport,
+    leftOverhangMM: Number(
+      inputs.leftOverhangMM ??
+      inputs.left_overhang_mm ??
+      0
+    ),
+    rightOverhangMM: Number(
+      inputs.rightOverhangMM ??
+      inputs.right_overhang_mm ??
+      0
+    ),
+    fasciaLipMM: lip,
+  });
+
+const extWidthMM =
+  resolvedWidth.externalWidthMM;
+
+const extWidthM = extWidthMM / 1000;
 
   const timberSpacing = Number(m.rafter_spacing_mm ?? 665);
   const timberFirstCtr = Number(m.rafter_first_center_mm ?? 690);
