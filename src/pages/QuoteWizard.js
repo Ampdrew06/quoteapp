@@ -4,6 +4,7 @@ import { useNavigate, Link } from "react-router-dom";
 
 import TradeLogin from "../TradeLogin";            // path adjusted (we are in src/pages/)
 import logo from "../timberlite-logo-small.jpg";  // path adjusted
+import { isAdminUser } from "../lib/userRole";
 
 const roofDesigns = [
   "Lean-To",
@@ -19,6 +20,7 @@ const roofDesigns = [
 export default function QuoteWizard() { 
   const [tradeDiscount, setTradeDiscount] = useState(null);
   const navigate = useNavigate();
+  const isAdmin = isAdminUser();
 
   // 🔹 Whenever we land on this page, start a fresh quote:
   //    - Clear stored Lean-To inputs, so Design/Options will use defaults
@@ -109,6 +111,36 @@ const handleLogin = (discount) => {
           </button>
         ))}
       </div>
+            {isAdmin && (
+        <div
+          style={{
+            marginTop: 30,
+            paddingTop: 20,
+            borderTop: "1px solid #ccc",
+          }}
+        >
+          <h2>Admin Tools</h2>
+
+          <button
+            type="button"
+            onClick={() =>
+              navigate("/tiles-laths?mode=manual")
+            }
+            style={{
+              padding: "10px 20px",
+              cursor: "pointer",
+              borderRadius: 5,
+              border: "1px solid #1d4ed8",
+              background: "#dbeafe",
+              color: "#1e3a8a",
+              fontWeight: 700,
+              minWidth: 160,
+            }}
+          >
+            Tile Calc
+          </button>
+        </div>
+      )}
 
       {/*
 <Link

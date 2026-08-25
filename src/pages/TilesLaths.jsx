@@ -6,6 +6,7 @@ import { computeInternalLining } from "../lib/Calculations/internalCalc";
 import { computeFasciaSoffitLeanTo } from "../lib/Calculations/fasciaSoffitCalc";
 import { computeEdgeTrimsLeanTo } from "../lib/Calculations/edgeTrimsCalc";
 import NavTabs from "../components/NavTabs";
+import FacetTilingCalculator from "../components/FacetTilingCalculator";
 
 // ---------- helpers ----------
 const num = (v, f = 0) => {
@@ -59,6 +60,11 @@ function useQueryInputs() {
 export default function TilesLaths() {
   const m = getMaterials();
   const q = useQueryInputs();
+
+    const isManualMode =
+    new URLSearchParams(window.location.search).get(
+      "mode"
+    ) === "manual";
 
   // ---------- UI state ----------
   const [inputs, setInputs] = useState({
@@ -320,6 +326,47 @@ export default function TilesLaths() {
   );
 
   // ---------- RENDER ----------
+
+    if (isManualMode) {
+    return (
+      <div
+        style={{
+          fontFamily: "Inter, system-ui, Arial",
+        }}
+      >
+        <NavTabs />
+
+        <main
+          style={{
+            maxWidth: 1100,
+            margin: "0 auto",
+            padding: 16,
+          }}
+        >
+          <h1
+            style={{
+              marginBottom: 4,
+              fontSize: 24,
+            }}
+          >
+            Tile &amp; Lath Calculator
+          </h1>
+
+          <p
+            style={{
+              marginTop: 0,
+              color: "#555",
+            }}
+          >
+            Standalone manual facet calculator
+          </p>
+
+          <FacetTilingCalculator />
+        </main>
+      </div>
+    );
+  }
+  
   return (
     <div style={{ fontFamily: "Inter, system-ui, Arial" }}>
       <NavTabs />
@@ -351,6 +398,8 @@ export default function TilesLaths() {
           <b>{inputs.tile_cover_w_mm}</b> mm · eaves overhang{" "}
           <b>{inputs.eaves_overhang_mm}</b> mm.
         </p>
+
+        <FacetTilingCalculator />
 
         {/* Inputs */}
         <div

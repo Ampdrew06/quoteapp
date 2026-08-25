@@ -1,0 +1,116 @@
+Folder PATH listing
+Volume serial number is 00000267 FCBA:55EF
+C:\USERS\USER\DOCUMENTS\AW TIMBERLITE\B TIMBERLITE\QUOTEAPP-V2\SRC
+|   +---app
+|   +---Backup
+|   +---components
+|   +---lib
+|   +---pages
+|   .eslintrc.json
+|   App.css
+|   App.js
+|   App.test.js
+|   index.css
+|   index.js
+|   LeanToConfigurator.js
+|   LeanToPlan.js
+|   logo.svg
+|   QuoteCalculator.js
+|   reportWebVitals.js
+|   setupTests.js
+|   timberlite-logo-small.jpg
+|   TradeLogin.js
+|   
++---app
+|       routerConfig.js
+|       routes.js
+|       
++---Backup files
+|       customers_BACKUP 06MAY.js
+|       materials-backup-2026-03-12-07-39-59.json
+|       Summary.preTotalsRefractor.jsx
+|       Summary_BACKUP19May.jsx
+|       
++---components
+|   |   HippedLeanToOptions.jsx
+|   |   HippedWallplateFrontVisualizer.jsx
+|   |   index.js
+|   |   LeanToSideElevationManufacture.jsx
+|   |   ManufacturingFacetDrawing.jsx
+|   |   ManufacturingWallplateMemberDrawing.jsx
+|   |   NavTabs.jsx
+|   |   PlanDiagramHippedLeanTo.jsx
+|   |   PlanDiagramLeanTo.jsx
+|   |   PlanDiagramLeanToManufacture.jsx
+|   |   RoofPlanDiagram.jsx
+|   |   TemplateGeometryVisualizer.jsx
+|   |   WallplateGeometryVisualizer.jsx
+|   |   
+|   +---Diagrams
+|   |       PlanDiagramLeanTo_UNUSED.jsx
+|   |       
+|   \---Shared
++---lib
+|   |   customers.js
+|   |   hippedLeanToTotals.js
+|   |   index.js
+|   |   leanToManufactureGeometry.js
+|   |   leanToTotals.js
+|   |   materials.js
+|   |   pricing.js
+|   |   quotes.js
+|   |   supabaseClient.js
+|   |   userRole.js
+|   |   weightUtils.js
+|   |   
+|   +---Calculations
+|   |       edgeTrimsCalc.js
+|   |       fasciaSoffitCalc.js
+|   |       guttersCalc.js
+|   |       internalCalc.js
+|   |       liteslateCalc.js
+|   |       miscCalc.js
+|   |       roofMath.js
+|   |       tilesLathsCalc.js
+|   |       
+|   +---geometry
+|   |       facetEavesGeometry.js
+|   |       hipManufactureGeometry.js
+|   |       hipManufactureGeometryV2.js
+|   |       hippedLeanToGeometry.js
+|   |       leanToGeometry.js
+|   |       supportGeometry.js
+|   |       
+|   +---Manufacturing
+|   |       facetBuilder.js
+|   |       facetGeometryBuilder.js
+|   |       manufacturingSequenceBuilder.js
+|   |       rafterLayoutBuilder.js
+|   |       ringBeamBuilder.js
+|   |       roofPlanBuilder.js
+|   |       
+|   \---utils
+|           weights.js
+|           
++---pages
+|   |   Customers.jsx
+|   |   IdiotList.jsx
+|   |   Jobs.jsx
+|   |   LeanTo.jsx
+|   |   Materials.js
+|   |   PlanManufacture.jsx
+|   |   Quotes.jsx
+|   |   QuoteWizard.js
+|   |   Summary.jsx
+|   |   TilesLaths.jsx
+|   |   
+|   +---lean-to
+|   |       IdiotList.jsx
+|   |       LeanToLanding.jsx
+|   |       LeanToPlanManufacture.jsx
+|   |       
+|   \---shared
+\---styles
+        App.css
+        LeanToConfigurator.js
+        

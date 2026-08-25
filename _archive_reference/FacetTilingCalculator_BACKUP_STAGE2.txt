@@ -1,0 +1,225 @@
+import React, { useMemo, useState } from "react";
+import { calculateFacetTiling } from "../lib/Calculations/facetTilingCalc";
+
+const fieldStyle = {
+  width: "100%",
+  boxSizing: "border-box",
+  padding: "6px 8px",
+};
+
+const initialFacet = {
+  id: "s1",
+  label: "S1",
+  baseWidthMM: "4465",
+  topWidthMM: "2300",
+  heightMM: "2389",
+  pitchDeg: "20",
+};
+
+export default function FacetTilingCalculator() {
+  const [productId, setProductId] = useState("britmetShingle");
+  const [facet, setFacet] = useState(initialFacet);
+
+  const updateFacet = (key) => (event) => {
+    setFacet((current) => ({
+      ...current,
+      [key]: event.target.value,
+    }));
+  };
+
+  const result = useMemo(
+    () =>
+      calculateFacetTiling({
+        product: productId,
+        facet: {
+          ...facet,
+          baseWidthMM: Number(facet.baseWidthMM),
+          topWidthMM: Number(facet.topWidthMM),
+          heightMM: Number(facet.heightMM),
+          pitchDeg: Number(facet.pitchDeg),
+        },
+      }),
+    [productId, facet]
+  );
+
+  return (
+    <section
+      style={{
+        marginTop: 24,
+        padding: 16,
+        border: "2px solid #2563eb",
+        borderRadius: 8,
+        background: "#eff6ff",
+      }}
+    >
+      <h2 style={{ marginTop: 0 }}>Multi-Facet Tile Calculator</h2>
+
+      <p>
+        Stage two: editable single-facet calculation using the confirmed
+        Timberlite steel-shingle set-out.
+      </p>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+          gap: 12,
+          marginBottom: 16,
+        }}
+      >
+        <label>
+          Tile system
+          <select
+            value={productId}
+            onChange={(event) => setProductId(event.target.value)}
+            style={fieldStyle}
+          >
+            <option value="britmetShingle">Britmet Shingle</option>
+            <option value="metrotileShingle">Metrotile Shingle</option>
+            <option value="liteSlate">LiteSlate</option>
+            <option value="tapcoSlate">TapcoSlate</option>
+          </select>
+        </label>
+
+        <label>
+          Facet label
+          <input
+            type="text"
+            value={facet.label}
+            onChange={updateFacet("label")}
+            style={fieldStyle}
+          />
+        </label>
+
+        <label>
+          Base width (mm)
+          <input
+            type="number"
+            min="1"
+            value={facet.baseWidthMM}
+            onChange={updateFacet("baseWidthMM")}
+            style={fieldStyle}
+          />
+        </label>
+
+        <label>
+          Top width (mm)
+          <input
+            type="number"
+            min="0"
+            value={facet.topWidthMM}
+            onChange={updateFacet("topWidthMM")}
+            style={fieldStyle}
+          />
+        </label>
+
+        <label>
+          Facet height (mm)
+          <input
+            type="number"
+            min="1"
+            value={facet.heightMM}
+            onChange={updateFacet("heightMM")}
+            style={fieldStyle}
+          />
+        </label>
+
+        <label>
+          Pitch (degrees)
+          <input
+            type="number"
+            min="0"
+            step="0.1"
+            value={facet.pitchDeg}
+            onChange={updateFacet("pitchDeg")}
+            style={fieldStyle}
+          />
+        </label>
+      </div>
+
+      {result.errors?.length > 0 ? (
+        <div
+          style={{
+            padding: 10,
+            color: "#991b1b",
+            background: "#fee2e2",
+            borderRadius: 6,
+          }}
+        >
+          {result.errors.map((error) => (
+            <div key={error}>{error}</div>
+          ))}
+        </div>
+      ) : (
+        <>
+          {result.warnings?.map((warning) => (
+            <div
+              key={warning}
+              style={{
+                marginBottom: 8,
+                padding: 8,
+                color: "#854d0e",
+                background: "#fef9c3",
+                borderRadius: 6,
+              }}
+            >
+              {warning}
+            </div>
+          ))}
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+              gap: 10,
+              padding: 12,
+              background: "#ffffff",
+              borderRadius: 6,
+            }}
+          >
+            <div>
+              <strong>Facet area</strong>
+              <br />
+              {result.facetAreaM2.toFixed(3)} m²
+            </div>
+
+            <div>
+              <strong>Lath rows</strong>
+              <br />
+              {result.lathRows.length}
+            </div>
+
+            <div>
+              <strong>Total lath</strong>
+              <br />
+              {(result.lathLengthMM / 1000).toFixed(3)} m
+            </div>
+
+            <div>
+              <strong>Raw tiles</strong>
+              <br />
+              {result.tileQuantityRaw.toFixed(4)}
+            </div>
+
+            <div>
+              <strong>Provisional order</strong>
+              <br />
+              {result.tileQuantityOrdered} tiles
+            </div>
+
+            <div>
+              <strong>Fixings</strong>
+              <br />
+              {result.fixingQuantity}
+            </div>
+          </div>
+
+          <p style={{ marginBottom: 0 }}>
+            <strong>Lath positions:</strong>{" "}
+            {result.lathRows.map((row) => row.yMM).join(", ")} mm
+          </p>
+        </>
+      )}
+    </section>
+  );
+}
