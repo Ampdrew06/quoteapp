@@ -6,7 +6,14 @@ import { computeInternalLining } from "../lib/Calculations/internalCalc";
 import { computeFasciaSoffitLeanTo } from "../lib/Calculations/fasciaSoffitCalc";
 import { computeEdgeTrimsLeanTo } from "../lib/Calculations/edgeTrimsCalc";
 import NavTabs from "../components/NavTabs";
-import FacetTilingCalculator from "../components/FacetTilingCalculator";
+import FacetTilingCalculator, {
+  LathScheduleTable,
+  RoofTilingTotals,
+} from "../components/FacetTilingCalculator";
+import {
+  buildAutomaticRoofTiling,
+} from "../lib/Calculations/automaticRoofTiling";
+import { buildAutomaticRoofEdgeBOM } from "../lib/Calculations/automaticRoofEdgeBOM";
 
 // ---------- helpers ----------
 const num = (v, f = 0) => {
@@ -65,6 +72,70 @@ export default function TilesLaths() {
     new URLSearchParams(window.location.search).get(
       "mode"
     ) === "manual";
+
+      const isAutomaticMode =
+    new URLSearchParams(window.location.search).get(
+      "mode"
+    ) === "auto";
+
+  /*
+   * Read-only snapshot of the roof currently being designed.
+   * This does not write anything back to D/O.
+   */
+  const savedRoofInputs = useMemo(() => {
+    try {
+      return JSON.parse(
+        window.localStorage.getItem(
+          "leanToInputs"
+        ) || "{}"
+      );
+    } catch {
+      return {};
+    }
+  }, []);
+
+  const automaticRoofTiling =
+    useMemo(() => {
+      if (!isAutomaticMode) return null;
+
+      return buildAutomaticRoofTiling({
+        roofInputs: savedRoofInputs,
+        materials: m,
+      });
+    }, [
+      isAutomaticMode,
+      savedRoofInputs,
+      m,
+    ]);
+
+  const savedRoofStyle =
+    automaticRoofTiling?.roofStyle ||
+    savedRoofInputs.roofStyle ||
+    "leanTo";
+
+  const automaticProductId =
+    automaticRoofTiling?.productId ||
+    "britmetShingle";
+
+  const automaticTilingResult =
+    automaticRoofTiling?.result ||
+    null;
+
+  const automaticRoofEdgeResult = useMemo(
+    () =>
+      buildAutomaticRoofEdgeBOM({
+        roofInputs: savedRoofInputs,
+        materials: m,
+        automaticRoofTiling,
+      }),
+    [savedRoofInputs, m, automaticRoofTiling]
+  );
+
+  const automaticRoofEdges = automaticRoofEdgeResult.edgeModel;
+  const automaticEdgeAccessories =
+    automaticRoofEdgeResult.accessoryRequirements;
+  const automaticEdgeStock = automaticRoofEdgeResult.stock;
+  const automaticEdgeBOM = automaticRoofEdgeResult.bom;
 
   // ---------- UI state ----------
   const [inputs, setInputs] = useState({
@@ -327,6 +398,469 @@ export default function TilesLaths() {
 
   // ---------- RENDER ----------
 
+    if (isAutomaticMode) {
+    const automaticFacets =
+      automaticTilingResult?.facets || [];
+
+    const automaticResultValid =
+      automaticTilingResult &&
+      automaticFacets.length > 0 &&
+      automaticTilingResult.errors.length === 0;
+
+    const productLabels = {
+      britmetShingle: "Britmet Shingle",
+      metrotileShingle: "Metrotile Shingle",
+      liteSlate: "LiteSlate",
+      tapcoSlate: "TapcoSlate",
+    };
+
+    const isSlate =
+      automaticProductId === "liteSlate" ||
+      automaticProductId === "tapcoSlate";
+
+    const itemWord =
+      isSlate ? "slates" : "tiles";
+
+    const automaticRoofStyleLabel =
+      savedRoofStyle ===
+      "hippedLeanTo"
+        ? "Hipped Lean-To"
+        : "Lean-To";
+
+    return (
+      <div
+        style={{
+          fontFamily:
+            "Inter, system-ui, Arial",
+        }}
+      >
+        <NavTabs />
+
+        <main
+          style={{
+            maxWidth: 1100,
+            margin: "0 auto",
+            padding: 16,
+          }}
+        >
+          <h1
+            style={{
+              marginBottom: 4,
+              fontSize: 24,
+            }}
+          >
+            Tiles &amp; Laths — Designed Roof
+          </h1>
+
+          <p
+            style={{
+              marginTop: 0,
+              color: "#555",
+            }}
+          >
+            Read-only audit generated from the
+            current Design/Options roof.
+          </p>
+
+       {!automaticResultValid ? (
+            <section
+              style={{
+                padding: 16,
+                border:
+                  "1px solid #dc2626",
+                borderRadius: 8,
+                background: "#fef2f2",
+                color: "#991b1b",
+              }}
+            >
+              <strong>
+                A complete Lean-To design was not
+                found.
+              </strong>
+
+              {(automaticTilingResult?.errors || [])
+                .map((error, index) => (
+                  <div key={`${index}-${error}`}>
+                    {error}
+                  </div>
+                ))}
+            </section>
+          ) : (
+            <>
+              <section
+                style={{
+                  padding: 16,
+                  border:
+                    "2px solid #2563eb",
+                  borderRadius: 8,
+                  background: "#eff6ff",
+                }}
+              >
+                <h2 style={{ marginTop: 0 }}>
+                  Roof tile &amp; lath results
+                </h2>
+
+<p>
+  <strong>Roof style:</strong>{" "}
+  {automaticRoofStyleLabel}
+
+  {" · "}
+
+  <strong>Tile system:</strong>{" "}
+  {
+    productLabels[
+      automaticProductId
+    ]
+  }
+
+</p>
+
+                <RoofTilingTotals
+                  result={automaticTilingResult}
+                  itemWord={itemWord}
+                />
+
+                {automaticRoofEdges.valid && (
+                  <section
+                    style={{
+                      marginTop: 14,
+                      padding: 12,
+                      border: "1px solid #93c5fd",
+                      borderRadius: 7,
+                      background: "#fff",
+                    }}
+                  >
+                    <h3 style={{ margin: "0 0 4px" }}>
+                      Roof edge audit — read only
+                    </h3>
+                    <p style={{ margin: "0 0 10px", color: "#555" }}>
+                      Physical edges detected from the saved roof geometry.
+                    </p>
+
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns:
+                          "repeat(auto-fit, minmax(180px, 1fr))",
+                        gap: 8,
+                      }}
+                    >
+                      {automaticRoofEdges.edges.map((edge) => {
+                        const kindLabels = {
+                          eaves: "Eaves",
+                          hip: "Hip",
+                          openVerge: "Open verge",
+                          wallAbutment: "Wall abutment",
+                          rearWallplate: "Rear wallplate",
+                        };
+
+                        return (
+                          <div key={edge.id}>
+                            <strong>
+                              {kindLabels[edge.kind] || edge.kind} — {edge.side}
+                            </strong>
+                            <br />
+                            {edge.kind === "hip" ? (
+                              <>
+                                Finished tiled edge: {" "}
+                                {(edge.lengthMM / 1000).toFixed(3)} m
+                                <br />
+                                Structural hip: {" "}
+                                {(edge.structuralLengthMM / 1000).toFixed(3)} m
+                              </>
+                            ) : (
+                              <>{(edge.lengthMM / 1000).toFixed(3)} m</>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                  </section>
+                )}
+
+                {automaticEdgeAccessories.valid && (
+                  <section
+                    style={{
+                      marginTop: 14,
+                      padding: 12,
+                      border: "1px solid #93c5fd",
+                      borderRadius: 7,
+                      background: "#fff",
+                    }}
+                  >
+                    <h3 style={{ margin: "0 0 4px" }}>
+                      Edge accessory requirements — read only
+                    </h3>
+                    <p style={{ margin: "0 0 10px", color: "#555" }}>
+                      Finished edge lengths, confirmed stock allocation and
+                      usage-based charging. Unverified products remain read only.
+                    </p>
+
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns:
+                          "repeat(auto-fit, minmax(180px, 1fr))",
+                        gap: 8,
+                      }}
+                    >
+                      {Object.values(
+                        automaticEdgeAccessories.requirements
+                      ).map((item) => {
+                        const labels = {
+                          tileStarter: "Tile starter",
+                          gutter: "Gutter",
+                          hipCovering: "Hip covering",
+                          watercourse: "Watercourse",
+                          twoPartBarge: "2-Part Barge",
+                          dryVerge: "Dry verge",
+                        };
+
+                        return (
+                          <div key={item.key}>
+                            <strong>{labels[item.key] || item.key}</strong>
+                            <br />
+                            {item.edgeCount} edge
+                            {item.edgeCount === 1 ? "" : "s"} · {" "}
+                            {(item.totalLengthMM / 1000).toFixed(3)} m
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {automaticEdgeStock.valid && (
+                      <div
+                        style={{
+                          marginTop: 12,
+                          paddingTop: 10,
+                          borderTop: "1px solid #dbeafe",
+                        }}
+                      >
+                        <strong>Confirmed stock quantity</strong>
+                        {automaticEdgeStock.lines.map((line) => (
+                          <div key={line.key} style={{ marginTop: 4 }}>
+                            {line.label}: {line.qty} × {" "}
+                            {(line.stockLengthMM / 1000).toFixed(1)} m lengths
+                            {line.pooledAcrossEdges
+                              ? " (offcuts pooled across eaves)"
+                              : ""}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {automaticEdgeBOM.valid &&
+                      automaticEdgeBOM.lines.map((line) => (
+                        <div
+                          key={`${line.key}-bom`}
+                          style={{
+                            marginTop: 12,
+                            paddingTop: 10,
+                            borderTop: "1px solid #dbeafe",
+                          }}
+                        >
+                          <strong>{line.label} usage and charge</strong>
+                          <div
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns:
+                                "repeat(auto-fit, minmax(160px, 1fr))",
+                              gap: 8,
+                              marginTop: 6,
+                            }}
+                          >
+                            <div>
+                              <strong>Used by this roof</strong>
+                              <br />
+                              {line.qty.toFixed(3)} m
+                            </div>
+                            <div>
+                              <strong>Lengths allocated</strong>
+                              <br />
+                              {line.order_qty} × {" "}
+                              {(line.stockLengthMM / 1000).toFixed(1)} m
+                            </div>
+                            <div>
+                              <strong>Reusable offcut</strong>
+                              <br />
+                              {(line.retainedOffcutMM / 1000).toFixed(3)} m
+                            </div>
+                            <div>
+                              <strong>Charge basis</strong>
+                              <br />
+                              Used metres only
+                            </div>
+                            <div>
+                              <strong>Material cost</strong>
+                              <br />
+                              £{line.line.toFixed(2)}
+                            </div>
+                            <div>
+                              <strong>Installed weight</strong>
+                              <br />
+                              {line.weight_kg.toFixed(2)} kg
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                  </section>
+                )}
+
+                {automaticFacets.map(
+                  (result, index) => (
+                    <article
+                      className="tiling-facet-result"
+                      key={
+                        result.facet.id ||
+                        `facet-${index}`
+                      }
+                      style={{
+                        marginTop: 12,
+                        padding: 14,
+                        border:
+                          "1px solid #93c5fd",
+                        borderRadius: 7,
+                        background: "#fff",
+                      }}
+                    >
+                      <h3
+                        style={{
+                          marginTop: 0,
+                        }}
+                      >
+                        F{index + 1}
+                      </h3>
+
+                      <p
+                        style={{
+                          marginTop: -8,
+                          color: "#555",
+                        }}
+                      >
+                        {result.facet.label}
+                      </p>
+
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns:
+                            "repeat(auto-fit, minmax(150px, 1fr))",
+                          gap: 10,
+                        }}
+                      >
+                        <div>
+                          <strong>
+                            Bottom edge
+                          </strong>
+                          <br />
+                          {result.facet.baseWidthMM.toFixed(
+                            2
+                          )}{" "}
+                          mm
+                        </div>
+
+                        <div>
+                          <strong>
+                            Top edge
+                          </strong>
+                          <br />
+                          {result.facet.topWidthMM.toFixed(
+                            2
+                          )}{" "}
+                          mm
+                        </div>
+
+                        <div>
+                          <strong>
+                            Tiled height
+                          </strong>
+                          <br />
+                          {result.facet.heightMM.toFixed(
+                            2
+                          )}{" "}
+                          mm
+                        </div>
+
+                        <div>
+  <strong>
+    {isSlate
+      ? "Physical facet pitch"
+      : "Pitch"}
+  </strong>
+  <br />
+  {result.facet.pitchDeg.toFixed(
+    2
+  )}
+  °
+</div>
+
+{isSlate && (
+  <div>
+    <strong>
+      Slate set-out pitch
+    </strong>
+    <br />
+    {result.facet.setOutPitchDeg.toFixed(
+      2
+    )}
+    °
+  </div>
+)}
+
+                        <div>
+                          <strong>Area</strong>
+                          <br />
+                          {result.facetAreaM2.toFixed(
+                            3
+                          )}{" "}
+                          m²
+                        </div>
+
+                        <div>
+                          <strong>
+                            Lath rows
+                          </strong>
+                          <br />
+                          {result.lathRows.length}
+                        </div>
+
+                        <div>
+                          <strong>Total lath</strong>
+                          <br />
+                          {(
+                            result.lathLengthMM /
+                            1000
+                          ).toFixed(3)}{" "}
+                          m
+                        </div>
+
+                        <div>
+                          <strong>
+                            Raw {itemWord}
+                          </strong>
+                          <br />
+                          {result.tileQuantityRaw.toFixed(
+                            4
+                          )}
+                        </div>
+                      </div>
+
+                      <LathScheduleTable
+                        result={result}
+                        facetNumber={index + 1}
+                      />
+                    </article>
+                  )
+                )}
+              </section>
+            </>
+          )}
+        </main>
+      </div>
+    );
+  }
+
     if (isManualMode) {
     return (
       <div
@@ -366,7 +900,7 @@ export default function TilesLaths() {
       </div>
     );
   }
-  
+
   return (
     <div style={{ fontFamily: "Inter, system-ui, Arial" }}>
       <NavTabs />
@@ -1175,6 +1709,17 @@ export default function TilesLaths() {
           @page { size: A4 portrait; margin: 6mm; }
           .print\\:hidden { display: none !important; }
           body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          .tiling-facet-result {
+            break-inside: avoid-page;
+            page-break-inside: avoid;
+          }
+          .lath-schedule > summary { display: none; }
+          .lath-schedule > *:not(summary) { display: block !important; }
+          .lath-schedule table,
+          .lath-schedule tr {
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
         }
         input[type="number"] { appearance: textfield; }
         input::-webkit-outer-spin-button,

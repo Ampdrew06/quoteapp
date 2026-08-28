@@ -27,6 +27,13 @@ import { buildLeanToTotals, buildLeanToQuoteBase } from "../lib/leanToTotals";
 import { calculateLeanToGeometry } from "../lib/geometry/leanToGeometry";
 import { buildHippedLeanToTotals } from "../lib/hippedLeanToTotals";
 import { calculateHippedLeanToGeometry } from "../lib/geometry/hippedLeanToGeometry";
+import { buildAutomaticRoofTiling } from "../lib/Calculations/automaticRoofTiling";
+import { buildSummaryTilingComparison } from "../lib/Calculations/summaryTilingComparison";
+import { buildQuoteTilingAdjustment } from "../lib/Calculations/quoteTilingAdjustment";
+import {
+  applyUniversalTilingToSummaryLines,
+  selectSummaryExternalFixingLathM,
+} from "../lib/Calculations/summaryTilingBOM";
 
 // adjust relative path if needed
 
@@ -1112,6 +1119,21 @@ const ply9OrderQty =
 // Chamfered front lath ≈ one full external width
 const chamferLathM = extWidthM;
 
+const automaticRoofTilingAudit = buildAutomaticRoofTiling({
+  roofInputs: inputs,
+  materials: m,
+});
+
+const legacyExternalFixingLathM =
+  Math.max(0, externalLathsM) +
+  Math.max(0, chamferLathM);
+
+const summaryExternalFixingLathM =
+  selectSummaryExternalFixingLathM({
+    legacyExternalFixingLathM,
+    automaticResult: automaticRoofTilingAudit.result,
+  });
+
 // Ring-beam upstand finishing laths:
 // one 25×50 per upstand, approx 0.617 m wide
 const upstandBayWidthM = 0.617; // matches your 617 mm upstand width
@@ -1121,9 +1143,8 @@ const ringBeamUpstandLathsM =
 
 // Total lath length (all 25×50) in metres
 const totalLathsM =
-  Math.max(0, externalLathsM) +
+  Math.max(0, summaryExternalFixingLathM) +
   Math.max(0, internalLathsM) +
-  Math.max(0, chamferLathM) +
   Math.max(0, ringBeamUpstandLathsM);
 
 
@@ -1409,9 +1430,20 @@ const totals = isHippedLeanTo
   ? buildHippedLeanToTotals(totalsInput, exclusions)
   : buildLeanToTotals(totalsInput, exclusions);
 
+const tilingComparison = buildSummaryTilingComparison({
+  legacyTileLines: totals?.sections?.tiles || [],
+  legacyExternalLathM: legacyExternalFixingLathM,
+  automaticResult: automaticRoofTilingAudit.result,
+});
+
+const summaryTilingBOM = applyUniversalTilingToSummaryLines({
+  lines: totals.allLines || [],
+  automaticResult: automaticRoofTilingAudit.result,
+});
+
 // This is the canonical calculator output list (tiles+plastics+edge+gutters+misc)
 // This is the canonical calculator output list (tiles+plastics+edge+gutters+misc)
-const baseLines = (totals.allLines || [])
+const baseLines = (summaryTilingBOM.lines || [])
   .filter((r) => String(r.key || "").toLowerCase() !== "membrane")
   .map((r) => ({
     ...r,
@@ -3218,6 +3250,19 @@ console.log("SUMMARY_WEIGHT_DEBUG", {
 
 const quoteBase = buildLeanToQuoteBase(inputs, exclusions);
 
+const quoteTilingAdjustment = buildQuoteTilingAdjustment({
+  legacyTileLines: quoteBase?.totals?.sections?.tiles || [],
+  legacyExternalFixingLathM:
+    quoteBase?.tilingPricingBasis?.legacyExternalFixingLathM,
+  automaticResult: automaticRoofTilingAudit?.result,
+  lathPricePerM: quoteBase?.tilingPricingBasis?.lathPricePerM,
+  lathWastePercent: quoteBase?.tilingPricingBasis?.lathWastePercent,
+});
+
+const universalMaterialsCostForPricing =
+  (quoteBase?.materialsCostForPricing ?? 0) +
+  (quoteTilingAdjustment.valid ? quoteTilingAdjustment.adjustment : 0);
+
 const labourFeatures = {
   roofVent: false,
   fixedUnit: false,
@@ -3319,10 +3364,11 @@ const pricingAdjustmentDelta = [
 }, 0);
 
 const adjustedMaterialsCostForPricing =
-  (quoteBase?.materialsCostForPricing ?? 0) + pricingAdjustmentDelta;
+  universalMaterialsCostForPricing + pricingAdjustmentDelta;
 console.log("SUMMARY_PRICE_DEBUG", {
   discountPct,
   adjustedMaterialsCostForPricing,
+  quoteTilingAdjustment,
   deliveryCost,
   labourCost: labour.labourCost,
 });
@@ -3420,6 +3466,69 @@ return (
         (for example when a customer supplies their own gutters) while its
         weight remains included for final overall weight purposes.
       </p>
+
+      {tilingComparison && (
+        <div
+          style={{
+            marginBottom: 14,
+            padding: 12,
+            border: "2px solid #2563eb",
+            borderRadius: 7,
+            background: "#eff6ff",
+          }}
+        >
+          <h3 style={{ margin: "0 0 6px", fontSize: 16 }}>
+            Tile/lath integration audit
+          </h3>
+          <p style={{ margin: "0 0 10px", fontSize: 13, color: "#374151" }}>
+            The Summary now uses the universal quantities. This panel retains
+            the previous calculation for comparison while we validate the change.
+          </p>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+              gap: 10,
+              fontSize: 13,
+            }}
+          >
+            <div>
+              <b>Legacy tile quantity</b>
+              <br />
+              {tilingComparison.legacyTileQuantity ?? "Not found"}
+            </div>
+            <div>
+              <b>Universal tile quantity</b>
+              <br />
+              {tilingComparison.universalTileQuantity}
+            </div>
+            <div>
+              <b>Tile difference</b>
+              <br />
+              {tilingComparison.tileDifference == null
+                ? "Not available"
+                : `${tilingComparison.tileDifference >= 0 ? "+" : ""}${tilingComparison.tileDifference}`}
+            </div>
+            <div>
+              <b>Legacy external fixing lath</b>
+              <br />
+              {tilingComparison.legacyExternalLathM.toFixed(3)} m
+            </div>
+            <div>
+              <b>Universal external fixing lath</b>
+              <br />
+              {tilingComparison.universalExternalLathM.toFixed(3)} m
+            </div>
+            <div>
+              <b>External-lath difference</b>
+              <br />
+              {tilingComparison.externalLathDifferenceM >= 0 ? "+" : ""}
+              {tilingComparison.externalLathDifferenceM.toFixed(3)} m
+            </div>
+          </div>
+        </div>
+      )}
 
       <Section title="Timber Elements" lines={timberLinesAdjusted} totals={timberTotals} showChargeable />
       <Section title="Tile Elements" lines={tilesLinesAdjusted} totals={tilesTotals} showChargeable={false} />

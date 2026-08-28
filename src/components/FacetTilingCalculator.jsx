@@ -10,11 +10,178 @@ const fieldStyle = {
 function createBlankFacet(index) {
   return {
     id: `facet-${index + 1}`,
-    label: `S${index + 1}`,
+    label: `F${index + 1}`,
     baseWidthMM: "",
     topWidthMM: "",
     heightMM: "",
   };
+}
+
+const lathKindLabels = {
+  chamferedPerimeter: "Chamfered perimeter lath",
+  tileFixing: "Tile fixing lath",
+  eavesSupport: "Eaves support lath",
+  slateCourse: "Slate fixing lath",
+};
+
+export function RoofTilingTotals({ result, itemWord }) {
+  if (!result) return null;
+
+  return (
+    <section
+      style={{
+        marginBottom: 18,
+        padding: 16,
+        borderRadius: 7,
+        background: "#dbeafe",
+      }}
+    >
+      <h3 style={{ marginTop: 0 }}>Roof totals</h3>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns:
+            "repeat(auto-fit, minmax(150px, 1fr))",
+          gap: 10,
+        }}
+      >
+        <div>
+          <strong>Total area</strong>
+          <br />
+          {result.facetAreaM2.toFixed(3)} m²
+        </div>
+
+        <div>
+          <strong>Total lath</strong>
+          <br />
+          {(result.lathLengthMM / 1000).toFixed(3)} m
+        </div>
+
+        <div>
+          <strong>Raw {itemWord}</strong>
+          <br />
+          {result.tileQuantityRaw.toFixed(4)}
+        </div>
+
+        <div>
+          <strong>Provisional order</strong>
+          <br />
+          {result.tileQuantityOrdered} {itemWord}
+        </div>
+
+        <div>
+          <strong>Total fixings</strong>
+          <br />
+          {result.fixingQuantity}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export function LathScheduleTable({ result, facetNumber }) {
+  const rows = result?.lathRows || [];
+  const hasOpeningDeductions = rows.some(
+    (row) => Number(row.openingDeductionMM) > 0
+  );
+
+  if (rows.length === 0) return null;
+
+  const cellStyle = {
+    padding: "7px 9px",
+    borderBottom: "1px solid #dbeafe",
+    textAlign: "left",
+    whiteSpace: "nowrap",
+  };
+
+  return (
+    <details
+      className="lath-schedule"
+      style={{ marginTop: 14 }}
+    >
+      <summary
+        style={{
+          marginBottom: 8,
+          cursor: "pointer",
+          fontWeight: 700,
+        }}
+      >
+        Lath schedule ({rows.length} rows)
+      </summary>
+
+      <div style={{ overflowX: "auto" }}>
+        <table
+          style={{
+            width: "100%",
+            borderCollapse: "collapse",
+            background: "#fff",
+          }}
+        >
+          <thead>
+            <tr style={{ background: "#e0f2fe" }}>
+              <th style={cellStyle}>Lath ID</th>
+              <th style={cellStyle}>Type</th>
+              <th style={cellStyle}>Position from eaves</th>
+              {hasOpeningDeductions && (
+                <th style={cellStyle}>Gross length</th>
+              )}
+              {hasOpeningDeductions && (
+                <th style={cellStyle}>Opening deduction</th>
+              )}
+              <th style={cellStyle}>
+                {hasOpeningDeductions
+                  ? "Net lath required"
+                  : "Finished length"}
+              </th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {rows.map((row, index) => (
+              <tr key={`${facetNumber}-${row.index}-${row.yMM}`}>
+                <td style={cellStyle}>
+                  <strong>
+                    F{facetNumber}-L{index + 1}
+                  </strong>
+                </td>
+                <td style={cellStyle}>
+                  {lathKindLabels[row.kind] || "Fixing lath"}
+                </td>
+                <td style={cellStyle}>
+                  {Math.round(row.yMM)} mm
+                </td>
+                {hasOpeningDeductions && (
+                  <td style={cellStyle}>
+                    {Math.round(
+                      row.grossWidthMM ?? row.widthMM
+                    )}{" "}
+                    mm
+                  </td>
+                )}
+                {hasOpeningDeductions && (
+                  <td style={cellStyle}>
+                    {Math.round(row.openingDeductionMM || 0)} mm
+                  </td>
+                )}
+                <td style={cellStyle}>
+                  {Math.round(row.widthMM)} mm
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {hasOpeningDeductions && (
+        <p style={{ margin: "8px 0 0", color: "#555" }}>
+          A net figure may represent separate lath pieces on either
+          side of a roof opening; individual opening-side cuts will be
+          detailed by the future manufacture cutting list.
+        </p>
+      )}
+    </details>
+  );
 }
 
 export default function FacetTilingCalculator() {
@@ -82,8 +249,11 @@ export default function FacetTilingCalculator() {
       calculateRoofTiling({
         product: productId,
 
-        facets: facets.map((facet) => ({
+        facets: facets.map((facet, index) => ({
           ...facet,
+
+          id: `facet-${index + 1}`,
+          label: `F${index + 1}`,
 
           baseWidthMM:
             facet.baseWidthMM === ""
@@ -228,6 +398,13 @@ export default function FacetTilingCalculator() {
           </div>
         )}
 
+      {allFacetsValid && (
+        <RoofTilingTotals
+          result={roofResult}
+          itemWord={itemWord}
+        />
+      )}
+
       <div
         style={{
           display: "grid",
@@ -244,6 +421,7 @@ export default function FacetTilingCalculator() {
 
           return (
             <article
+              className="tiling-facet-result"
               key={facet.id}
               style={{
                 padding: 14,
@@ -253,7 +431,7 @@ export default function FacetTilingCalculator() {
               }}
             >
               <h3 style={{ marginTop: 0 }}>
-                Facet {index + 1}
+                F{index + 1} — Facet {index + 1}
               </h3>
 
               <div
@@ -264,22 +442,6 @@ export default function FacetTilingCalculator() {
                   gap: 10,
                 }}
               >
-                <label>
-                  Facet label
-                  <input
-                    type="text"
-                    value={facet.label}
-                    onChange={(event) =>
-                      updateFacet(
-                        index,
-                        "label",
-                        event.target.value
-                      )
-                    }
-                    style={fieldStyle}
-                  />
-                </label>
-
                 <label>
                   Bottom edge (mm)
                   <input
@@ -375,7 +537,7 @@ export default function FacetTilingCalculator() {
                   </div>
 
                   <div>
-                    <strong>Lath</strong>
+                  <strong>Total lath</strong>
                     <br />
                     {(
                       result.lathLengthMM / 1000
@@ -398,20 +560,10 @@ export default function FacetTilingCalculator() {
               )}
 
               {isValid && (
-                <p
-                  style={{
-                    marginBottom: 0,
-                    overflowWrap: "anywhere",
-                  }}
-                >
-                  <strong>
-                    Lath positions:
-                  </strong>{" "}
-                  {result.lathRows
-                    .map((row) => row.yMM)
-                    .join(", ")}{" "}
-                  mm
-                </p>
+                <LathScheduleTable
+                  result={result}
+                  facetNumber={index + 1}
+                />
               )}
             </article>
           );
@@ -437,67 +589,22 @@ export default function FacetTilingCalculator() {
         </button>
       </div>
 
-      {allFacetsValid && (
-        <section
-          style={{
-            marginTop: 18,
-            padding: 16,
-            borderRadius: 7,
-            background: "#dbeafe",
-          }}
-        >
-          <h3 style={{ marginTop: 0 }}>
-            Roof totals
-          </h3>
+      <style>{`
+        @media print {
+          .tiling-facet-result {
+            break-inside: avoid-page;
+            page-break-inside: avoid;
+          }
+          .lath-schedule > summary { display: none; }
+          .lath-schedule > *:not(summary) { display: block !important; }
+          .lath-schedule table,
+          .lath-schedule tr {
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+        }
+      `}</style>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns:
-                "repeat(auto-fit, minmax(150px, 1fr))",
-              gap: 10,
-            }}
-          >
-            <div>
-              <strong>Total area</strong>
-              <br />
-              {roofResult.facetAreaM2.toFixed(3)} m²
-            </div>
-
-            <div>
-              <strong>Total lath</strong>
-              <br />
-              {(
-                roofResult.lathLengthMM / 1000
-              ).toFixed(3)}{" "}
-              m
-            </div>
-
-            <div>
-              <strong>
-                Raw {itemWord}
-              </strong>
-              <br />
-              {roofResult.tileQuantityRaw.toFixed(4)}
-            </div>
-
-            <div>
-              <strong>
-                Provisional order
-              </strong>
-              <br />
-              {roofResult.tileQuantityOrdered}{" "}
-              {itemWord}
-            </div>
-
-            <div>
-              <strong>Total fixings</strong>
-              <br />
-              {roofResult.fixingQuantity}
-            </div>
-          </div>
-        </section>
-      )}
     </section>
   );
 }

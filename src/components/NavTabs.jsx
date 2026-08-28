@@ -11,7 +11,10 @@ const publicTabsLeft = [
 const adminTabsLeft = [
   ...publicTabsLeft,
   { to: "/quote/lean-to/plan-manufacture", label: "Manufacture Book" },
-  // { to: "/quote/lean-to/tiles-laths", label: "Tiles & Laths" },
+    {
+    to: "/tiles-laths?mode=auto",
+    label: "Tiles/Laths",
+  },
   { to: "/idiot-list", label: "Idiot List" },
   { to: "/summary", label: "Summary" },
   { to: "/quotes", label: "Quotes" },

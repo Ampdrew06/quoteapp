@@ -786,8 +786,5 @@ const metalCost =
       lathPricePerM: Number(m.chamferLath?.price_per_m ?? 0),
       lathWastePercent: wasteFracFor("laths") * 100,
     },
-    edgePricingBasis: {
-      legacyTileStarterCost: tileStarterCost,
-    },
   };
 }

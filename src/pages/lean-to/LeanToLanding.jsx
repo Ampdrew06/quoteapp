@@ -16,6 +16,8 @@ import { computeLiteSlateLeanTo as computeLiteSlate } from "../../lib/Calculatio
 import { useLocation, useNavigate } from "react-router-dom";
 import NavTabs from "../../components/NavTabs";
 import { buildLeanToTotals, buildLeanToQuoteBase } from "../../lib/leanToTotals";
+import { buildAutomaticRoofTiling } from "../../lib/Calculations/automaticRoofTiling";
+import { buildQuoteTilingAdjustment } from "../../lib/Calculations/quoteTilingAdjustment";
 import { getCurrentCustomer } from "../../lib/customers";
 import {
   computePricing,
@@ -891,6 +893,21 @@ const exclusions = useMemo(() => ({}), []); // Landing = no exclusions (customer
 
 const totalsInput = useMemo(
   () => ({
+    roofStyle,
+    hippedSides: activeHippedSides,
+    leftHip,
+    rightHip,
+    leftHipWidthMM: num(leftHipWidthMM, 0),
+    rightHipWidthMM: num(rightHipWidthMM, 0),
+    requestedLeftSidePitchDeg:
+      requestedLeftSidePitchDeg === ""
+        ? null
+        : num(requestedLeftSidePitchDeg, 0),
+    requestedRightSidePitchDeg:
+      requestedRightSidePitchDeg === ""
+        ? null
+        : num(requestedRightSidePitchDeg, 0),
+
     widthMM: num(widthMM, 0),
     projMM: num(projMM, 0),
     pitchDeg: num(pitchDeg, 15),
@@ -899,6 +916,7 @@ const totalsInput = useMemo(
     rightWall,
 
     eavesOverhangMM: num(eavesOverhangMM, 150),
+    soffit_mm: num(eavesOverhangMM, 150),
     leftOverhangMM: num(leftOverhangMM, 0),
     rightOverhangMM: num(rightOverhangMM, 0),
 
@@ -909,6 +927,14 @@ const totalsInput = useMemo(
     gutterColor,
   }),
   [
+    roofStyle,
+    activeHippedSides,
+    leftHip,
+    rightHip,
+    leftHipWidthMM,
+    rightHipWidthMM,
+    requestedLeftSidePitchDeg,
+    requestedRightSidePitchDeg,
     widthMM,
     projMM,
     pitchDeg,
@@ -936,6 +962,28 @@ const quoteBase = useMemo(
   () => buildLeanToQuoteBase(totalsInput, summaryExclusions),
   [totalsInput, summaryExclusions]
 );
+
+const automaticRoofTiling = useMemo(
+  () => buildAutomaticRoofTiling({ roofInputs: totalsInput, materials: m }),
+  [totalsInput, m]
+);
+
+const quoteTilingAdjustment = useMemo(
+  () =>
+    buildQuoteTilingAdjustment({
+      legacyTileLines: quoteBase?.totals?.sections?.tiles || [],
+      legacyExternalFixingLathM:
+        quoteBase?.tilingPricingBasis?.legacyExternalFixingLathM,
+      automaticResult: automaticRoofTiling?.result,
+      lathPricePerM: quoteBase?.tilingPricingBasis?.lathPricePerM,
+      lathWastePercent: quoteBase?.tilingPricingBasis?.lathWastePercent,
+    }),
+  [quoteBase, automaticRoofTiling]
+);
+
+const universalMaterialsCostForPricing =
+  quoteBase.materialsCostForPricing +
+  (quoteTilingAdjustment.valid ? quoteTilingAdjustment.adjustment : 0);
 
 const totals = useMemo(
   () => buildLeanToTotals(totalsInput, summaryExclusions),
@@ -1018,12 +1066,13 @@ console.log("DO_PRICE_DEBUG", {
   selectedCustomerId,
   selectedCustomer,
   discountPct,
-  materialsCostForPricing: quoteBase.materialsCostForPricing,
+  materialsCostForPricing: universalMaterialsCostForPricing,
+  quoteTilingAdjustment,
   adjustmentDelta,
   deliveryDistanceMiles,
 });
 return computePricing(
-  quoteBase.materialsCostForPricing + adjustmentDelta,
+  universalMaterialsCostForPricing + adjustmentDelta,
   {
     ...m,
     profit_pct: markupConfig.profitPct,
@@ -1035,7 +1084,8 @@ return computePricing(
 }
 );
 }, [
-  quoteBase.materialsCostForPricing,
+  universalMaterialsCostForPricing,
+  quoteTilingAdjustment,
   adjustmentDelta,
   summaryAdjustmentTick,
   m,

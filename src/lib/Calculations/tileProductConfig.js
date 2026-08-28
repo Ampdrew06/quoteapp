@@ -10,7 +10,7 @@ const STEEL_SHINGLE_SET_OUT = Object.freeze({
   subsequentGaugeMM: 255,
 
   // Britmet and Metrotile use the same practical geometry.
-  effectiveCoverWidthMM: 1250,
+  effectiveCoverWidthMM: 1245,
   fixingsPerTile: 4,
   defaultOrderAllowanceTiles: 2,
 });

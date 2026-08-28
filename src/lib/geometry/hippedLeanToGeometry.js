@@ -62,10 +62,13 @@ export function calculateHippedLeanToGeometry({
   requestedLeftSidePitchDeg = null,
   requestedRightSidePitchDeg = null,
 
-  leftWall = false,
+    leftWall = false,
   rightWall = false,
   leftOverhangMM = 0,
   rightOverhangMM = 0,
+
+  // Finished tile overhang into each gutter.
+  tileOverhangMM = 50,
 }) {
   const base = calculateLeanToGeometry({
     widthMM,
@@ -818,6 +821,103 @@ const externalProjectionMM =
   frameOnMM +
   effectiveFrontSoffitMM;
 
+  // ======================================================
+// FINISHED TILED-SURFACE GEOMETRY
+//
+// Structural dimensions remain unchanged. These values
+// describe the outer finished tile envelope, including
+// the confirmed 50 mm tile overhang into each gutter.
+// ======================================================
+
+const resolvedTileOverhangMM = Math.max(
+  0,
+  Number(tileOverhangMM) || 0
+);
+
+const slopeLengthFromHorizontalRun = (
+  horizontalRunMM,
+  facetPitchDeg
+) => {
+  const pitchRadians =
+    degToRad(facetPitchDeg);
+
+  const cosine =
+    Math.cos(pitchRadians);
+
+  return cosine > 0
+    ? Math.max(
+        0,
+        Number(horizontalRunMM) || 0
+      ) / cosine
+    : 0;
+};
+
+/*
+ * Front facet:
+ *
+ * The front gutter overhang extends its tiled height.
+ * A hipped side has its own gutter, so its 50 mm tile
+ * overhang also extends the corresponding end of the
+ * front facet's bottom edge.
+ */
+const frontTilingBaseWidthMM =
+  externalWidthMM +
+  (hasLeftHip
+    ? resolvedTileOverhangMM
+    : 0) +
+  (hasRightHip
+    ? resolvedTileOverhangMM
+    : 0);
+
+const frontTilingTopWidthMM =
+  resolvedCentreWidthMM +
+  (!hasLeftHip
+    ? leftExternalAllowanceMM
+    : 0) +
+  (!hasRightHip
+    ? rightExternalAllowanceMM
+    : 0);
+
+const frontTilingHeightMM =
+  slopeLengthFromHorizontalRun(
+    externalProjectionMM +
+      resolvedTileOverhangMM,
+    pitchDeg
+  );
+
+/*
+ * Side facets:
+ *
+ * Their bottom edges run from the rear wall to the outer
+ * finished front-tile edge.
+ *
+ * Their tiled heights run from the outer side gutter edge
+ * to the corresponding hip/boss position.
+ */
+const sideTilingBaseWidthMM =
+  externalProjectionMM +
+  resolvedTileOverhangMM;
+
+const leftTilingHeightMM =
+  hasLeftHip
+    ? slopeLengthFromHorizontalRun(
+        resolvedLeftHipWidthMM +
+          leftHorizontalFootRunMM +
+          resolvedTileOverhangMM,
+        leftSidePitchDeg
+      )
+    : 0;
+
+const rightTilingHeightMM =
+  hasRightHip
+    ? slopeLengthFromHorizontalRun(
+        resolvedRightHipWidthMM +
+          rightHorizontalFootRunMM +
+          resolvedTileOverhangMM,
+        rightSidePitchDeg
+      )
+    : 0;
+
 const leftSideRingBeam = hasLeftHip
   ? {
       exists: true,
@@ -1025,6 +1125,30 @@ const leftFacet = buildFacet({
 
   pitchDeg: leftSidePitchDeg,
 
+    tilingGeometry: hasLeftHip
+    ? {
+        baseWidthMM:
+          sideTilingBaseWidthMM,
+
+        topWidthMM: 0,
+
+        heightMM:
+          leftTilingHeightMM,
+
+        outline: [
+          { xMM: 0, yMM: 0 },
+          {
+            xMM: sideTilingBaseWidthMM,
+            yMM: 0,
+          },
+          {
+            xMM: 0,
+            yMM: leftTilingHeightMM,
+          },
+        ],
+      }
+    : null,
+
   soffitDepthMM:
   facetEavesRule.left.matchedSoffitMM,
 
@@ -1056,6 +1180,30 @@ const rightFacet = buildFacet({
     rightSideRingBeam.externalLengthMM,
 
   pitchDeg: rightSidePitchDeg,
+
+    tilingGeometry: hasRightHip
+    ? {
+        baseWidthMM:
+          sideTilingBaseWidthMM,
+
+        topWidthMM: 0,
+
+        heightMM:
+          rightTilingHeightMM,
+
+        outline: [
+          { xMM: 0, yMM: 0 },
+          {
+            xMM: sideTilingBaseWidthMM,
+            yMM: 0,
+          },
+          {
+            xMM: 0,
+            yMM: rightTilingHeightMM,
+          },
+        ],
+      }
+    : null,
 
   soffitDepthMM:
   facetEavesRule.right.matchedSoffitMM,
@@ -1215,6 +1363,33 @@ const frontRingBeamBayWidthsMM = frontRafterSlots
   externalEavesLengthMM: externalWidthMM,
 
   pitchDeg: Number(pitchDeg) || 0,
+
+    tilingGeometry: {
+    baseWidthMM:
+      frontTilingBaseWidthMM,
+
+    topWidthMM:
+      frontTilingTopWidthMM,
+
+    heightMM:
+      frontTilingHeightMM,
+
+    outline: [
+      { xMM: 0, yMM: 0 },
+      {
+        xMM: frontTilingBaseWidthMM,
+        yMM: 0,
+      },
+      {
+        xMM: frontTilingTopWidthMM,
+        yMM: frontTilingHeightMM,
+      },
+      {
+        xMM: 0,
+        yMM: frontTilingHeightMM,
+      },
+    ],
+  },
 
   soffitDepthMM:
     effectiveFrontSoffitMM,

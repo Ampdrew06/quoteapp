@@ -7,6 +7,22 @@ const toFiniteNumber = (value, fallback = 0) => {
   return Number.isFinite(number) ? number : fallback;
 };
 
+const toOptionalNonNegativeNumber = (value) => {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+    return null;
+  }
+
+  const number = Number(value);
+
+  return Number.isFinite(number) && number >= 0
+    ? number
+    : null;
+};
+
 /**
  * Builds one reusable roof facet.
  *
@@ -40,6 +56,21 @@ fasciaOrderSizeMM = 0,
   // These can be supplied by the roof-specific geometry calculator.
   planAreaM2 = 0,
   roofAreaM2 = 0,
+
+    /*
+   * Optional finished tiled-surface geometry.
+   *
+   * This is separate from structural rafter and ring-beam
+   * geometry because the finished tiles can include their
+   * own perimeter overhang.
+   */
+  tilingGeometry = null,
+
+  /*
+   * Roof openings belonging to this facet.
+   * These will later include vents and fixed glazing.
+   */
+  openings = [],
 
   // Optional relationships
   startVertexId = null,
@@ -112,6 +143,72 @@ const resolvedFasciaOrderSizeMM = Math.max(
     toFiniteNumber(roofAreaM2)
   );
 
+    const resolvedTilingGeometry = (() => {
+    if (
+      !tilingGeometry ||
+      typeof tilingGeometry !== "object"
+    ) {
+      return null;
+    }
+
+    const baseWidthMM =
+      toOptionalNonNegativeNumber(
+        tilingGeometry.baseWidthMM
+      );
+
+    const topWidthMM =
+      toOptionalNonNegativeNumber(
+        tilingGeometry.topWidthMM
+      );
+
+    const heightMM =
+      toOptionalNonNegativeNumber(
+        tilingGeometry.heightMM
+      );
+
+    /*
+     * A top width of zero is valid for a triangular facet.
+     * Missing values remain invalid rather than silently
+     * becoming zero.
+     */
+    if (
+      baseWidthMM === null ||
+      baseWidthMM <= 0 ||
+      topWidthMM === null ||
+      heightMM === null ||
+      heightMM <= 0
+    ) {
+      return null;
+    }
+
+    const outline = Array.isArray(
+      tilingGeometry.outline
+    )
+      ? tilingGeometry.outline.map((point) => ({
+          xMM: toFiniteNumber(
+            point?.xMM ?? point?.x
+          ),
+
+          yMM: toFiniteNumber(
+            point?.yMM ?? point?.y
+          ),
+        }))
+      : [];
+
+    return {
+      baseWidthMM,
+      topWidthMM,
+      heightMM,
+      outline,
+    };
+  })();
+
+  const resolvedOpenings = Array.isArray(openings)
+    ? openings.map((opening) => ({
+        ...opening,
+      }))
+    : [];
+
   const resolvedRingBeamLengthMM = Math.max(
     0,
     toFiniteNumber(
@@ -165,8 +262,14 @@ bayWidthsMM: ringBeamBayWidthsMM,
 
       pitchDeg: resolvedPitchDeg,
 
-      planAreaM2: resolvedPlanAreaM2,
+            planAreaM2: resolvedPlanAreaM2,
       roofAreaM2: resolvedRoofAreaM2,
+
+      /*
+       * Null until the roof-specific geometry builder has
+       * supplied a complete finished tiled surface.
+       */
+      tiling: resolvedTilingGeometry,
     },
 
     ringBeam,
@@ -175,6 +278,8 @@ bayWidthsMM: ringBeamBayWidthsMM,
     jackRafters: Array.isArray(jackRafters)
       ? jackRafters
       : [],
+
+          openings: resolvedOpenings,
 
     materials: {
       // These currently come from the ring-beam only.
