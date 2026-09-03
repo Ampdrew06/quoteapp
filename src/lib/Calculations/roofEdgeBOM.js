@@ -1,3 +1,5 @@
+import { getFixedProductWeightKg } from "../utils/weights";
+
 const finite = (value, fallback = 0) => {
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
@@ -56,6 +58,51 @@ export function buildRoofEdgeBOM({ stockResult = null, materials = {} } = {}) {
   const pricePerM = stockLengthM > 0 ? pricePerLength / stockLengthM : 0;
   const weightPerM = stockLengthM > 0 ? weightPerLengthKg / stockLengthM : 0;
 
+  const productFamily = stockResult.productFamily || "steelShingle";
+  const isSyntheticSlate = productFamily === "syntheticSlate";
+  const confirmedAccessoryLines = (stockResult.lines || [])
+    .filter((line) =>
+      ["hip_ridge", "hip_end_cap_90", "hip_end_cap_135"].includes(
+        line.key
+      )
+    )
+    .map((stockLine) => {
+      const isHipRidge = stockLine.key === "hip_ridge";
+      const is90 = stockLine.key === "hip_end_cap_90";
+      const priceEach = Math.max(
+        0,
+        finite(
+          isHipRidge
+            ? isSyntheticSlate
+              ? materials.liteslate_ridge_tile_price_each
+              : materials.britmet_ridge_tile_price_each
+            : is90
+              ? isSyntheticSlate
+                ? materials.liteslate_hip_end_cap_90_price_each
+                : materials.britmet_hip_end_cap_90_price_each
+              : isSyntheticSlate
+                ? materials.liteslate_hip_end_cap_135_price_each
+                : materials.britmet_hip_end_cap_135_price_each
+        )
+      );
+      const weightEachKg = getFixedProductWeightKg(stockLine.key);
+      const quantity = Math.max(0, finite(stockLine.qty));
+
+      return {
+        ...stockLine,
+        qty: quantity,
+        order_qty: quantity,
+        units: stockLine.units || (isHipRidge ? "pcs" : "Ea"),
+        priceEach,
+        unit: priceEach,
+        line: quantity * priceEach,
+        total: quantity * priceEach,
+        weightPerUnitKg: weightEachKg,
+        weight_kg: quantity * weightEachKg,
+        chargeBasis: "orderedQuantity",
+      };
+    });
+
   return {
     valid: true,
     lines: [
@@ -79,8 +126,8 @@ export function buildRoofEdgeBOM({ stockResult = null, materials = {} } = {}) {
           orderQty * stockLengthMM - requiredLengthMM
         ),
       },
+      ...confirmedAccessoryLines,
     ],
     errors: [],
   };
 }
-

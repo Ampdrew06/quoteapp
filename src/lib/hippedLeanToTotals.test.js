@@ -83,6 +83,12 @@ test("the integrated both-sided totals contain no 2-Part Barge", () => {
 
   expect(text).not.toContain("2-part barge");
   expect(text).not.toContain("watercourse");
+  expect(
+    totals.metalLines.find((line) => line.key === "boss_rafter_terminal")
+  ).toMatchObject({ qty: 2, weight_kg: 1 });
+  expect(
+    totals.metalLines.find((line) => line.key === "spar_hook")
+  ).toMatchObject({ qty: 8, weight_kg: 2 });
 });
 
 test("the quote base exposes its legacy tile-starter charge", () => {
@@ -115,6 +121,14 @@ test("the quote base replaces legacy starter cost with shared edge cost", () => 
   });
 
   expect(quoteBase.automaticRoofEdgeResult.valid).toBe(true);
+  const geometry = quoteBase.automaticRoofEdgeResult.tiling.geometry;
+  expect(
+    geometry.leftJackRafterCount +
+      geometry.rightJackRafterCount +
+      geometry.leftSideIntermediateJackCount +
+      geometry.rightSideIntermediateJackCount
+  ).toBe(12);
+  expect(geometry.sparHookQty).toBe(8);
   expect(quoteBase.edgeAdjustment.valid).toBe(true);
   expect(quoteBase.materialsCostForPricing).toBeCloseTo(
     quoteBase.legacyMaterialsCostForPricing +

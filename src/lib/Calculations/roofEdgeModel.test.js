@@ -84,6 +84,7 @@ describe("buildRoofEdgeModel", () => {
     const leftHip = result.edges.find((edge) => edge.id === "hip-left");
     expect(leftHip.lengthMM).toBeCloseTo(Math.hypot(3500, 2318.83), 6);
     expect(leftHip.structuralLengthMM).toBe(4010);
+    expect(leftHip.terminalAngleDeg).toBe(90);
     expect(result.totalsByKind.openVerge).toBeUndefined();
     expect(result.totalsByKind.wallAbutment).toBeUndefined();
   });

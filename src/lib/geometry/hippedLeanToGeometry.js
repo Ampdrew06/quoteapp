@@ -266,7 +266,9 @@ const rightSidePitchDeg =
 
   // 7) Manufacturing / fittings
 const bossQty = (hasLeftHip ? 1 : 0) + (hasRightHip ? 1 : 0);
-const sparHookQty = bossQty * 2;
+// Each boss receives the hip plus the aligned front-section rafter.
+// Both timber connections use a pair of spar hooks: 4 hooks per boss.
+const sparHookQty = bossQty * 4;
 const hipTopCutDeg = 19;
 const frontSoffitMM = base.soffitDepthEffective || 0;
 
@@ -675,10 +677,42 @@ const frontHipHorizontalAllowanceMM =
   fasciaLipMM;
 
 const leftHipHorizontalAllowanceMM =
-  leftHorizontalFootRunMM;
+  // The complete side rafter foot run includes the side frame and fascia lip.
+  // At the hip/ring-beam mitre those components are already represented by
+  // the corner datums, so V2 needs only the remaining side projection.
+  Math.max(
+    0,
+    leftHorizontalFootRunMM - frameThicknessMM - fasciaLipMM
+  );
+
+// Workshop saw settings for the two R22 end cuts. Each value is measured
+// away from a square (90 degree) cut across the horizontal member.
+const horizontalWallplateEndCutOffSquareDeg = (facetGeometry) => {
+  if (!facetGeometry || wallplateHeightMM <= 0) return 0;
+
+  const endOffsetMM = Math.abs(
+    Number(facetGeometry.internalHorizontalRunMM ?? 0) -
+      Number(facetGeometry.intersectionOffsetMM ?? 0)
+  );
+
+  return radToDeg(
+    Math.atan2(endOffsetMM, wallplateHeightMM)
+  );
+};
+
+const horizontalWallplateLeftEndCutOffSquareDeg = hasLeftHip
+  ? horizontalWallplateEndCutOffSquareDeg(leftFacetGeometry)
+  : 0;
+
+const horizontalWallplateRightEndCutOffSquareDeg = hasRightHip
+  ? horizontalWallplateEndCutOffSquareDeg(rightFacetGeometry)
+  : 0;
 
 const rightHipHorizontalAllowanceMM =
-  rightHorizontalFootRunMM;
+  Math.max(
+    0,
+    rightHorizontalFootRunMM - frameThicknessMM - fasciaLipMM
+  );
 
 
 // Authoritative hip manufacture geometry.
@@ -709,7 +743,10 @@ const rightHipManufacture = hasRightHip
 
 const leftHipManufactureV2 = hasLeftHip
   ? calculateHipManufactureGeometryV2({
-      hipWidthMM: leftHipWidth,
+      // V2 must use the pitch-derived live boss/hip position. Using the
+      // retained manual HP here mixed legacy and resolved geometry and made
+      // the read-only manufacturing profile describe a different roof.
+      hipWidthMM: resolvedLeftHipWidthMM,
       effectivePitchRunMM,
       frontPitchDeg: Number(pitchDeg) || 0,
 
@@ -727,7 +764,7 @@ const leftHipManufactureV2 = hasLeftHip
 
 const rightHipManufactureV2 = hasRightHip
   ? calculateHipManufactureGeometryV2({
-      hipWidthMM: rightHipWidth,
+      hipWidthMM: resolvedRightHipWidthMM,
       effectivePitchRunMM,
       frontPitchDeg: Number(pitchDeg) || 0,
 
@@ -1539,6 +1576,8 @@ rightInternalWallBarSlopeMM,
 
 horizontalWallplateExternalLengthMM,
 horizontalWallplateInternalLengthMM,
+horizontalWallplateLeftEndCutOffSquareDeg,
+horizontalWallplateRightEndCutOffSquareDeg,
 
 // Universal facet-geometry validation
 leftFacetGeometry,

@@ -115,4 +115,101 @@ export function buildManufacturingSequence({
   };
 }
 
+/**
+ * Build the Hipped Lean-To member list in the exact counter-clockwise order
+ * used by the manufacture CAD plan.
+ *
+ * This deliberately assigns no lengths and makes no material decisions. It
+ * only gives every already-resolved member one stable workshop identity.
+ */
+export function buildHippedLeanToManufacturingMembers(
+  geometry = null
+) {
+  if (!geometry) return [];
+
+  const members = [];
+  const leftSideJacks =
+    geometry.leftSideRingBeamLayout?.intermediateJackRafters ?? [];
+  const rightSideJacks =
+    geometry.rightSideRingBeamLayout?.intermediateJackRafters ?? [];
+  const frontRafters =
+    geometry.frontRafterLayoutV2?.allRafters ?? [];
+
+  if (geometry.hasLeftHip) {
+    members.push({ id: "left-wallbar", type: "wallbar", side: "left" });
+  }
+
+  leftSideJacks.forEach((jack, index) => {
+    members.push({
+      id: `left-side-jack-${Math.round(Number(jack?.centreMM) || 0)}-${index}`,
+      type: "jack-rafter",
+      side: "left",
+    });
+  });
+
+  if (geometry.hasLeftHip) {
+    members.push({ id: "left-hip", type: "hip", side: "left" });
+  }
+
+  frontRafters.forEach((rafter) => {
+    members.push({
+      id:
+        rafter.id ||
+        `front-rafter-${Math.round(Number(rafter?.centreMM) || 0)}`,
+      type:
+        rafter.role === "boss-rafter"
+          ? "boss-rafter"
+          : rafter.role === "jack"
+            ? "jack-rafter"
+            : "rafter",
+      side: "front",
+    });
+  });
+
+  if (geometry.hasRightHip) {
+    members.push({ id: "right-hip", type: "hip", side: "right" });
+  }
+
+  rightSideJacks
+    .map((jack, index) => ({ jack, originalIndex: index }))
+    .reverse()
+    .forEach(({ jack, originalIndex }) => {
+      members.push({
+        id: `right-side-jack-${Math.round(
+          Number(jack?.centreMM) || 0
+        )}-${originalIndex}`,
+        type: "jack-rafter",
+        side: "right",
+      });
+    });
+
+  if (geometry.hasRightHip) {
+    members.push({ id: "right-wallbar", type: "wallbar", side: "right" });
+  }
+
+  members.push({
+    id: "horizontal-wallplate",
+    type: "wallplate",
+    side: "back",
+  });
+
+  if (geometry.leftSideRingBeam?.exists) {
+    members.push({ id: "left-ring-beam", type: "ring-beam", side: "left" });
+  }
+
+  members.push({ id: "front-ring-beam", type: "ring-beam", side: "front" });
+
+  if (geometry.rightSideRingBeam?.exists) {
+    members.push({ id: "right-ring-beam", type: "ring-beam", side: "right" });
+  }
+
+  return members;
+}
+
+export function buildHippedLeanToManufacturingSequence(geometry = null) {
+  return buildManufacturingSequence({
+    members: buildHippedLeanToManufacturingMembers(geometry),
+  });
+}
+
 export default buildManufacturingSequence;

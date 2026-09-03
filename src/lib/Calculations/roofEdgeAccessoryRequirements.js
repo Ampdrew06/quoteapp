@@ -26,8 +26,38 @@ const requirement = (key, edgeKind, edges) => ({
     edgeId: edge.id,
     side: edge.side,
     lengthMM: finite(edge.lengthMM),
+    terminalAngleDeg:
+      edge.terminalAngleDeg == null
+        ? null
+        : Number(edge.terminalAngleDeg),
   })),
 });
+
+const suppliedHipEndCapAngleDeg = (terminalAngleDeg) =>
+  Number(terminalAngleDeg) === 90 ? 90 : 135;
+
+const hipEndCapRequirement = (hips) => {
+  const edges = hips.map((edge) => {
+    const requestedAngleDeg = Number(edge.terminalAngleDeg ?? 90);
+    return {
+      edgeId: edge.id,
+      side: edge.side,
+      requestedAngleDeg,
+      suppliedAngleDeg: suppliedHipEndCapAngleDeg(requestedAngleDeg),
+    };
+  });
+
+  return {
+    key: "hipEndCaps",
+    edgeKind: "hip",
+    edgeIds: edges.map((edge) => edge.edgeId),
+    edgeCount: edges.length,
+    qty: edges.length,
+    qty90: edges.filter((edge) => edge.suppliedAngleDeg === 90).length,
+    qty135: edges.filter((edge) => edge.suppliedAngleDeg === 135).length,
+    edges,
+  };
+};
 
 /**
  * Map physical roof edges to raw accessory requirements.
@@ -61,6 +91,7 @@ export function buildRoofEdgeAccessoryRequirements({
     tileStarter: requirement("tileStarter", "eaves", eaves),
     gutter: requirement("gutter", "eaves", eaves),
     hipCovering: requirement("hipCovering", "hip", hips),
+    hipEndCaps: hipEndCapRequirement(hips),
     watercourse: requirement(
       "watercourse",
       "wallAbutment",
@@ -89,4 +120,3 @@ export function buildRoofEdgeAccessoryRequirements({
     errors: [],
   };
 }
-

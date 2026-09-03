@@ -13,6 +13,8 @@ import {
   resolveEdgeSupport,
   resolveTwoSidedExternalWidth,
 } from "./geometry/supportGeometry";
+import { buildAutomaticRoofEdgeBOM } from "./Calculations/automaticRoofEdgeBOM";
+import { buildQuoteEdgeAdjustment } from "./Calculations/quoteEdgeAdjustment";
 
 const BRITMET_WASTE = 1.1;
 const LITESLATE_WASTE = 5;
@@ -549,6 +551,12 @@ const hippedGeom = isHippedLeanTo
         1000
       ),
 
+      requestedLeftSidePitchDeg:
+        inputs.requestedLeftSidePitchDeg ?? null,
+
+      requestedRightSidePitchDeg:
+        inputs.requestedRightSidePitchDeg ?? null,
+
       leftWall: Boolean(
         inputs.leftWall ??
         inputs.left_wall_present ??
@@ -772,14 +780,30 @@ const metalCost =
   bossCost +
   sparHookCost;
 
-  const materialsCostForPricing = leanToMaterialsCost + timberChargeableCost + metalCost;
+  const legacyMaterialsCostForPricing =
+    leanToMaterialsCost + timberChargeableCost + metalCost;
+
+  const automaticRoofEdgeResult = buildAutomaticRoofEdgeBOM({
+    roofInputs: inputs,
+    materials: m,
+  });
+  const edgeAdjustment = buildQuoteEdgeAdjustment({
+    legacyTileStarterCost: tileStarterCost,
+    automaticEdgeResult: automaticRoofEdgeResult,
+  });
+  const materialsCostForPricing =
+    legacyMaterialsCostForPricing +
+    (edgeAdjustment.valid ? edgeAdjustment.adjustment : 0);
 
   return {
     totals,
     leanToMaterialsCost,
     timberChargeableCost,
     metalCost,
+    legacyMaterialsCostForPricing,
     materialsCostForPricing,
+    automaticRoofEdgeResult,
+    edgeAdjustment,
     tilingPricingBasis: {
       legacyExternalFixingLathM:
         Math.max(0, externalLathsM) + Math.max(0, chamferLathM),

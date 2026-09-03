@@ -21,7 +21,10 @@ import {
   getMarkupPricingConfig,
   saveMarkupPricingConfig,
 } from "../lib/pricing";
-import { applyWeightsToLines } from "../lib/utils/weights";
+import {
+  applyWeightsToLines,
+  getFixedProductWeightKg,
+} from "../lib/utils/weights";
 import { computeTotalWeightKg } from "../lib/weightUtils";
 import { buildLeanToTotals, buildLeanToQuoteBase } from "../lib/leanToTotals";
 import { calculateLeanToGeometry } from "../lib/geometry/leanToGeometry";
@@ -34,6 +37,12 @@ import {
   applyUniversalTilingToSummaryLines,
   selectSummaryExternalFixingLathM,
 } from "../lib/Calculations/summaryTilingBOM";
+import { buildAutomaticRoofEdgeBOM } from "../lib/Calculations/automaticRoofEdgeBOM";
+import {
+  applyAutomaticEdgeBOMToSummaryLines,
+  applyAutomaticHipBOMToSummaryTileLines,
+} from "../lib/Calculations/summaryEdgeBOM";
+import { buildProvisionalHippedLeanToTimber } from "../lib/Calculations/provisionalHippedLeanToTimber";
 
 // adjust relative path if needed
 
@@ -894,6 +903,10 @@ const hippedGeomEarly = isHippedLeanToEarly
       hippedSides: inputs.hippedSides ?? "both",
       leftHipWidthMM: Number(inputs.leftHipWidthMM ?? inputs.left_hip_width_mm ?? 0),
       rightHipWidthMM: Number(inputs.rightHipWidthMM ?? inputs.right_hip_width_mm ?? 0),
+      requestedLeftSidePitchDeg:
+        inputs.requestedLeftSidePitchDeg ?? null,
+      requestedRightSidePitchDeg:
+        inputs.requestedRightSidePitchDeg ?? null,
     })
   : null;
   const timberSpacing   = Number(m.rafter_spacing_mm ?? 665);
@@ -986,19 +999,24 @@ const lipForSteico =
 
 const wallplate_m = (iw + 2 * (sftForSteico + lipForSteico)) / 1000;
 
-// Rafters run along slope
-const raftersTotal_m = (raftersCount * timberRafterLenMM) / 1000;
+const provisionalHippedTimber = isHippedLeanToEarly
+  ? buildProvisionalHippedLeanToTimber({
+      roofInputs: inputs,
+      geometry: hippedGeomEarly,
+    })
+  : null;
+
+// Ordinary Lean-To rafters retain their established calculation. A Hipped
+// Lean-To instead totals the individually classified full rafters, jacks and
+// hips so that ring-beams sharing the R-series cannot enter the Steico total.
+const raftersTotal_m = isHippedLeanToEarly
+  ? Number(
+      provisionalHippedTimber?.totals?.steicoRoofMemberLengthMM ?? 0
+    ) / 1000
+  : (raftersCount * timberRafterLenMM) / 1000;
 
 // Total Steico length = rafters + wallplate
 let steicoTotal_m = raftersTotal_m + wallplate_m;
-
-if (isHippedLeanToEarly && hippedGeomEarly) {
-
-
-  steicoTotal_m +=
-    (Number(hippedGeomEarly.leftHipManufacturingLengthMM || 0) +
-      Number(hippedGeomEarly.rightHipManufacturingLengthMM || 0)) / 1000;
-}
 
 // Pull price & weight per metre from materials
 const steicoPricePerM = Number(m.steico?.price_per_m ?? 0);
@@ -1122,6 +1140,12 @@ const chamferLathM = extWidthM;
 const automaticRoofTilingAudit = buildAutomaticRoofTiling({
   roofInputs: inputs,
   materials: m,
+});
+
+const automaticRoofEdgeResult = buildAutomaticRoofEdgeBOM({
+  roofInputs: inputs,
+  materials: m,
+  automaticRoofTiling: automaticRoofTilingAudit,
 });
 
 const legacyExternalFixingLathM =
@@ -1275,7 +1299,7 @@ const tileStarterChargeableM =
   tileStarterFullLens * tileStarterStockLenM +
   (tileStarterRemainderM > (tileStarterStockLenM / 2) ? tileStarterStockLenM : tileStarterRemainderM);
 
-const metalManualLines = [
+const legacyMetalManualLines = [
   {
   key: "tile_starter",
   _k: "tile_starter",
@@ -1331,8 +1355,19 @@ const metalManualLines = [
         qty: jackRafterQty,
         units: "Ea",
         order_qty: jackRafterQty,
-        weight_kg: 0,
-        line: 0,
+        weight_kg: Number(
+          (jackRafterQty * getFixedProductWeightKg("jack_rafter_hooks")).toFixed(2)
+        ),
+        line: Number(
+          (
+            jackRafterQty *
+            Number(
+              m.jack_rafter_hook_price_each ??
+                m.metal?.jack_rafter_hook?.price_each ??
+                0
+            )
+          ).toFixed(2)
+        ),
       },
       {
         key: "jack_rafter_brackets",
@@ -1341,13 +1376,31 @@ const metalManualLines = [
         qty: jackRafterQty,
         units: "Ea",
         order_qty: jackRafterQty,
-        weight_kg: 0,
-        line: 0,
+        weight_kg: Number(
+          (jackRafterQty * getFixedProductWeightKg("jack_rafter_brackets")).toFixed(2)
+        ),
+        line: Number(
+          (
+            jackRafterQty *
+            Number(
+              m.jack_rafter_bracket_price_each ??
+                m.metal?.jack_rafter_bracket?.price_each ??
+                0
+            )
+          ).toFixed(2)
+        ),
       },
     ]
   : []),
 
 ];
+
+const summaryEdgeBOM = applyAutomaticEdgeBOMToSummaryLines({
+  lines: legacyMetalManualLines,
+  automaticEdgeResult: automaticRoofEdgeResult,
+});
+
+const metalManualLines = summaryEdgeBOM.lines;
 
 
 
@@ -1379,6 +1432,10 @@ const totalsInput = {
 hippedSides: inputs.hippedSides ?? "both",
 leftHipWidthMM: Number(inputs.leftHipWidthMM ?? inputs.left_hip_width_mm ?? 0),
 rightHipWidthMM: Number(inputs.rightHipWidthMM ?? inputs.right_hip_width_mm ?? 0),
+requestedLeftSidePitchDeg:
+  inputs.requestedLeftSidePitchDeg ?? null,
+requestedRightSidePitchDeg:
+  inputs.requestedRightSidePitchDeg ?? null,
 
   widthMM: Number(inputs.internalWidthMM ?? inputs.widthMM ?? inputs.widthMM ?? 0),
   projMM: Number(inputs.internalProjectionMM ?? inputs.projMM ?? inputs.projectionMM ?? 0),
@@ -1423,6 +1480,8 @@ const hippedGeom = isHippedLeanTo
       hippedSides: totalsInput.hippedSides,
       leftHipWidthMM: totalsInput.leftHipWidthMM,
       rightHipWidthMM: totalsInput.rightHipWidthMM,
+      requestedLeftSidePitchDeg: totalsInput.requestedLeftSidePitchDeg,
+      requestedRightSidePitchDeg: totalsInput.requestedRightSidePitchDeg,
     })
   : null;
 
@@ -1996,7 +2055,7 @@ if (typeof window !== "undefined") {
   window.__SUMMARY_TIMBER_LINES__ = timberLines;
 }
 const isLiteSlateSystem = tileSystem === "liteslate";
-const tilesLines = baseLines
+let tilesLines = baseLines
   .filter((r) => {
     const key = String(r._k || "").toLowerCase();
 
@@ -2069,6 +2128,15 @@ if (isTouchupRow) {
 return r;
 
   });
+
+const summaryHipBOM = applyAutomaticHipBOMToSummaryTileLines({
+  lines: tilesLines,
+  automaticEdgeResult: automaticRoofEdgeResult,
+});
+
+if (summaryHipBOM.valid) {
+  tilesLines = summaryHipBOM.lines;
+}
 
 console.log(
   "DBG plasticsLines sample:",
@@ -2171,8 +2239,16 @@ if (typeof window !== "undefined") {
       qty: bossQty,
       order_qty: bossQty,
       units: "Ea",
-      weight_kg: bossQty * 0.5,
-      line: 0,
+      weight_kg:
+        bossQty * getFixedProductWeightKg("boss_rafter_terminal"),
+      line:
+        bossQty *
+        Number(
+          m.boss_rafter_terminal_price_each ??
+            m.boss_price_each ??
+            m.metal?.boss_rafter_terminal?.price_each ??
+            0
+        ),
     });
   }
 
@@ -2183,8 +2259,14 @@ if (typeof window !== "undefined") {
       qty: sparHookQty,
       order_qty: sparHookQty,
       units: "Ea",
-      weight_kg: sparHookQty * 0.25,
-      line: 0,
+      weight_kg: sparHookQty * getFixedProductWeightKg("spar_hook"),
+      line:
+        sparHookQty *
+        Number(
+          m.spar_hook_price_each ??
+            m.metal?.spar_hook?.price_each ??
+            0
+        ),
     });
   }
 }

@@ -102,6 +102,59 @@ test("matches the former automatic Hipped Lean-To calculation path", () => {
   expect(automatic.result).toEqual(expectedResult);
 });
 
+test("V2 hip manufacture uses the resolved pitch-driven hip positions", () => {
+  const automatic = buildAutomaticRoofTiling({
+    roofInputs: {
+      widthMM: 5870,
+      projMM: 3230,
+      pitchDeg: 15,
+      soffit_mm: 150,
+      roofStyle: "hippedLeanTo",
+      hippedSides: "both",
+      leftHip: true,
+      rightHip: true,
+
+      // Deliberately stale legacy/manual positions.
+      leftHipWidthMM: 1615,
+      rightHipWidthMM: 1615,
+
+      requestedLeftSidePitchDeg: 25,
+      requestedRightSidePitchDeg: 25,
+      tileSystem: "britmet",
+    },
+    materials,
+  });
+
+  const geometry = automatic.geometry;
+
+  expect(geometry.resolvedLeftHipWidthMM).not.toBe(1615);
+  expect(geometry.resolvedRightHipWidthMM).not.toBe(1615);
+  expect(geometry.leftHipManufactureV2.hipWidthMM).toBeCloseTo(
+    geometry.resolvedLeftHipWidthMM,
+    8
+  );
+  expect(geometry.rightHipManufactureV2.hipWidthMM).toBeCloseTo(
+    geometry.resolvedRightHipWidthMM,
+    8
+  );
+
+  const cadReference = {
+    externalSlopeLengthMM: 3885,
+    internalSlopeLengthMM: 3615,
+    horizontalFootCutMM: 250,
+    verticalFootCutMM: 170,
+    topVerticalCutMM: 230,
+  };
+
+  [geometry.leftHipManufactureV2, geometry.rightHipManufactureV2].forEach(
+    (profile) => {
+      Object.entries(cadReference).forEach(([key, referenceMM]) => {
+        expect(Math.abs(profile[key] - referenceMM)).toBeLessThanOrEqual(20);
+      });
+    }
+  );
+});
+
 test("returns a clear unsupported-roof result", () => {
   const automatic = buildAutomaticRoofTiling({
     roofInputs: { ...commonInputs, roofStyle: "victorian" },

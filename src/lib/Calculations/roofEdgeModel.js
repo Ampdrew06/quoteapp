@@ -9,6 +9,7 @@ const makeEdge = ({
   side,
   lengthMM,
   structuralLengthMM = null,
+  terminalAngleDeg = null,
   facetIds = [],
 }) => ({
   id,
@@ -19,6 +20,10 @@ const makeEdge = ({
     structuralLengthMM == null
       ? null
       : finiteLength(structuralLengthMM),
+  terminalAngleDeg:
+    terminalAngleDeg == null || !Number.isFinite(Number(terminalAngleDeg))
+      ? null
+      : Number(terminalAngleDeg),
   facetIds,
 });
 
@@ -80,6 +85,18 @@ const resolveWall = (roofInputs, side) => {
   }
   return false;
 };
+
+const resolveHipTerminalAngleDeg = ({
+  roofInputs,
+  geometry,
+  sideFacet,
+  side,
+}) =>
+  sideFacet?.terminalAngleDeg ??
+  sideFacet?.externalCornerAngleDeg ??
+  geometry?.[`${side}HipTerminalAngleDeg`] ??
+  roofInputs?.[`${side}HipTerminalAngleDeg`] ??
+  90;
 
 const summariseEdges = (edges) =>
   edges.reduce((summary, edge) => {
@@ -177,6 +194,12 @@ export function buildRoofEdgeModel({ roofInputs = {}, geometry = null } = {}) {
           side,
           lengthMM: finishedHipBoundaryLengthMM(sideFacet),
           structuralLengthMM: geometry[`${side}HipTrueLengthMM`],
+          terminalAngleDeg: resolveHipTerminalAngleDeg({
+            roofInputs,
+            geometry,
+            sideFacet,
+            side,
+          }),
           facetIds: [sideFacet?.id, mainFacetId].filter(Boolean),
         })
       );

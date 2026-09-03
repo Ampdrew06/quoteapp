@@ -10,8 +10,15 @@ import { getQuoteById, updateQuote } from "../../lib/quotes";
 import ManufacturingFacetDrawing from "../../components/ManufacturingFacetDrawing";
 import { buildRoofPlan } from "../../lib/Manufacturing/roofPlanBuilder";
 import RoofPlanDiagram from "../../components/RoofPlanDiagram";
-import { buildManufacturingSequence } from "../../lib/Manufacturing/manufacturingSequenceBuilder";
+import {
+  buildManufacturingSequence,
+  buildHippedLeanToManufacturingMembers,
+  buildHippedLeanToManufacturingSequence,
+} from "../../lib/Manufacturing/manufacturingSequenceBuilder";
 import ManufacturingWallplateMemberDrawing from "../../components/ManufacturingWallplateMemberDrawing";
+import ManufacturingRoofMemberDrawing from "../../components/ManufacturingRoofMemberDrawing";
+import { buildJackRafterManufactureAudit } from "../../lib/Calculations/jackRafterManufactureAudit";
+import { groupProvisionalRoofMembers } from "../../lib/Manufacturing/groupProvisionalRoofMembers";
 import {
   resolveEdgeSupport,
   resolveTwoSidedExternalWidth,
@@ -1033,131 +1040,8 @@ for (
   });
 }
 
-const manufacturingMembers = [];
-
-// Left wallbar
-if (leftHip) {
-  manufacturingMembers.push({
-    id: "left-wallbar",
-    type: "wallbar",
-    side: "left",
-  });
-}
-
-// Left side jack rafters
-leftSideJacks.forEach((jack, index) => {
-  manufacturingMembers.push({
-    id: `left-side-jack-${Math.round(Number(jack?.centreMM) || 0)}-${index}`,
-    type: "jack-rafter",
-    side: "left",
-  });
-});
-
-// Left hip
-if (leftHip) {
-  manufacturingMembers.push({
-    id: "left-hip",
-    type: "hip",
-    side: "left",
-  });
-}
-
-// Front-facet rafters
-frontRafters.forEach((rafter) => {
-  manufacturingMembers.push({
-    id:
-      rafter.id ||
-      `front-rafter-${Math.round(Number(rafter?.centreMM) || 0)}`,
-    type:
-      rafter.role === "boss-rafter"
-        ? "boss-rafter"
-        : rafter.role === "jack"
-        ? "jack-rafter"
-        : "rafter",
-    side: "front",
-  });
-});
-
-// Right hip
-if (rightHip) {
-  manufacturingMembers.push({
-    id: "right-hip",
-    type: "hip",
-    side: "right",
-  });
-}
-
-// Right side jack rafters
-//
-// Counter-clockwise manufacture sequence travels
-// from the right hip towards the back/right wallbar,
-// so these are numbered in REVERSE positional order.
-//
-// Preserve the original array index in the ID so the
-// manufacturing reference still matches the existing
-// structural-line ID used by RoofPlanDiagram.
-rightSideJacks
-  .map((jack, index) => ({
-    jack,
-    originalIndex: index,
-  }))
-  .reverse()
-  .forEach(({ jack, originalIndex }) => {
-    manufacturingMembers.push({
-      id: `right-side-jack-${Math.round(
-        Number(jack?.centreMM) || 0
-      )}-${originalIndex}`,
-
-      type: "jack-rafter",
-      side: "right",
-    });
-  });
-
-// Right wallbar
-if (rightHip) {
-  manufacturingMembers.push({
-    id: "right-wallbar",
-    type: "wallbar",
-    side: "right",
-  });
-}
-
-// Horizontal wallplate
-manufacturingMembers.push({
-  id: "horizontal-wallplate",
-  type: "wallplate",
-  side: "back",
-});
-// --------------------------------------------------
-// RING-BEAMS
-//
-// Continue the same R-series after the wallplate.
-// Counter-clockwise order:
-//
-// left side -> front -> right side
-// --------------------------------------------------
-
-if (hippedGeom?.leftSideRingBeam?.exists) {
-  manufacturingMembers.push({
-    id: "left-ring-beam",
-    type: "ring-beam",
-    side: "left",
-  });
-}
-
-manufacturingMembers.push({
-  id: "front-ring-beam",
-  type: "ring-beam",
-  side: "front",
-});
-
-if (hippedGeom?.rightSideRingBeam?.exists) {
-  manufacturingMembers.push({
-    id: "right-ring-beam",
-    type: "ring-beam",
-    side: "right",
-  });
-}
+const manufacturingMembers =
+  buildHippedLeanToManufacturingMembers(hippedGeom);
 // --------------------------------------------------
 // INSULATION SLAB / ROOF-SPACE SEQUENCE
 //
@@ -1814,7 +1698,9 @@ if (hippedGeom?.rightSideRingBeam?.exists) {
     },
 
     valueDeg:
-      hippedGeom?.leftHipPitchDeg ?? 0,
+      hippedGeom?.leftHipManufactureV2?.hipPitchDeg ??
+      hippedGeom?.leftHipPitchDeg ??
+      0,
 
     label: "Hip",
 
@@ -1839,7 +1725,9 @@ if (rightHip) {
     },
 
     valueDeg:
-      hippedGeom?.rightHipPitchDeg ?? 0,
+      hippedGeom?.rightHipManufactureV2?.hipPitchDeg ??
+      hippedGeom?.rightHipPitchDeg ??
+      0,
 
     label: "Hip",
 
@@ -2097,6 +1985,48 @@ const wallbarsAreDuplicates =
     leftWallbarManufacture.iwbsMM,
     rightWallbarManufacture.iwbsMM
   );
+
+const provisionalRoofMemberGroups = useMemo(() => {
+  if (!hippedGeom || roofStyleKey !== "hippedLeanTo") return [];
+
+  const roofInputs = {
+    roofStyle: roofStyleKey,
+    widthMM: iw,
+    projMM: ip,
+  };
+  const memberById =
+    buildHippedLeanToManufacturingSequence(hippedGeom).memberById;
+  const members = [];
+
+  [
+    ["left", hippedGeom.leftHipManufactureV2],
+    ["right", hippedGeom.rightHipManufactureV2],
+  ].forEach(([side, profile]) => {
+    if (!profile?.valid) return;
+    const id = `${side}-hip`;
+    members.push({
+      id,
+      type: "hip",
+      manufactureRef: memberById[id]?.manufactureRef ?? null,
+      profile,
+    });
+  });
+
+  const jackAudit = buildJackRafterManufactureAudit({
+    roofInputs,
+    geometry: hippedGeom,
+  });
+  jackAudit.jacks.forEach((jack) => {
+    members.push({
+      id: jack.id,
+      type: "jack-rafter",
+      manufactureRef: jack.manufactureRef,
+      profile: jack.profile,
+    });
+  });
+
+  return groupProvisionalRoofMembers(members);
+}, [hippedGeom, roofStyleKey, iw, ip]);
   //const roofSizeDisplay = `${round(iw)} × ${round(ip)} mm int / ${round(extWidthMM)} × ${round(extProjectionMM)} mm ext`;
 
   return (
@@ -3345,6 +3275,16 @@ const wallbarsAreDuplicates =
         hippedGeom
           .designInternalWallplateHeightMM
       }
+
+      leftEndCutOffSquareDeg={
+        hippedGeom
+          .horizontalWallplateLeftEndCutOffSquareDeg
+      }
+
+      rightEndCutOffSquareDeg={
+        hippedGeom
+          .horizontalWallplateRightEndCutOffSquareDeg
+      }
     />
   </div>
 )}
@@ -3589,6 +3529,37 @@ const wallbarsAreDuplicates =
 
     </div>
   </section>
+
+  {provisionalRoofMemberGroups.length > 0 && (
+    <section className="pm-page">
+      <div style={panel}>
+        <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 3 }}>
+          Hipped Lean-To Manufacture
+        </div>
+        <div style={{ ...sectionTitle, marginBottom: 2 }}>
+          Hips & Jack Rafters
+        </div>
+        <div style={{ fontSize: 12, color: "#92400e", marginBottom: 9 }}>
+          Provisional manufacture profiles. Retain factory checking until verified on a physical roof.
+        </div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+            gap: 10,
+            alignItems: "start",
+          }}
+        >
+          {provisionalRoofMemberGroups.map((group) => (
+            <ManufacturingRoofMemberDrawing
+              key={`${group.type}-${group.manufactureRefs.join("-")}`}
+              group={group}
+            />
+          ))}
+        </div>
+      </div>
+    </section>
+  )}
   </>
 )}
       </div>

@@ -1,4 +1,5 @@
 import { buildLeanToTotals } from "./leanToTotals";
+import { getFixedProductWeightKg } from "./utils/weights";
 
 const num = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
 
@@ -107,7 +108,7 @@ export function buildHippedLeanToTotals(inputs = {}, exclusions = {}) {
   });
 
   const bossQty = (hasLeftHip ? 1 : 0) + (hasRightHip ? 1 : 0);
-  const sparHookQty = bossQty * 2;
+  const sparHookQty = bossQty * 4;
 
   const hippedMetalLines = [
     bossQty > 0 && {
@@ -116,7 +117,8 @@ export function buildHippedLeanToTotals(inputs = {}, exclusions = {}) {
       qty: bossQty,
       order_qty: bossQty,
       units: "Ea",
-      weight_kg: bossQty * 0.5,
+      weight_kg:
+        bossQty * getFixedProductWeightKg("boss_rafter_terminal"),
       line: 0,
     },
     sparHookQty > 0 && {
@@ -125,7 +127,7 @@ export function buildHippedLeanToTotals(inputs = {}, exclusions = {}) {
       qty: sparHookQty,
       order_qty: sparHookQty,
       units: "Ea",
-      weight_kg: sparHookQty * 0.25,
+      weight_kg: sparHookQty * getFixedProductWeightKg("spar_hook"),
       line: 0,
     },
   ].filter(Boolean);

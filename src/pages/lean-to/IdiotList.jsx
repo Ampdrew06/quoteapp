@@ -9,6 +9,13 @@ import { computeLiteSlateLeanTo } from "../../lib/Calculations/liteslateCalc";
 import { computeTotalWeightKg } from "../../lib/weightUtils";
 import NavTabs from "../../components/NavTabs";
 import { buildLeanToTotals } from "../../lib/leanToTotals";
+import { buildAutomaticRoofEdgeBOM } from "../../lib/Calculations/automaticRoofEdgeBOM";
+import {
+  applyAutomaticEdgeBOMToIdiotListRows,
+  applyAutomaticHipRowsToIdiotListTileRows,
+  applyAutomaticMainTileToIdiotListRows,
+  applyAutomaticStructuralMetalToIdiotListRows,
+} from "../../lib/Calculations/idiotListEdgeRows";
 
 // adjust path if file structure differs
 
@@ -121,7 +128,7 @@ const slope_mm = extProjectionMM / Math.cos(theta);
 const slope_m = slope_mm / 1000;
 const run_m = extWidthMM / 1000;
 
-const leanToTotals = useMemo(
+  const leanToTotals = useMemo(
   () =>
     buildLeanToTotals({
       widthMM: iw,
@@ -154,6 +161,15 @@ const leanToTotals = useMemo(
     q.gutter_color,
   ]
 );
+
+  const automaticRoofEdgeResult = useMemo(
+    () =>
+      buildAutomaticRoofEdgeBOM({
+        roofInputs: q,
+        materials: m,
+      }),
+    [q, m]
+  );
 
   // ---- constants for barge / watercourse etc. ----
   // Total slope length that needs barge (open ends) and watercourse (wall ends)
@@ -568,6 +584,36 @@ const rowsPlastics = (() => {
     return out;
   })();
 
+  const automaticMainTileRows = applyAutomaticMainTileToIdiotListRows({
+    rows: rowsTiles,
+    automaticEdgeResult: automaticRoofEdgeResult,
+  });
+  const automaticTileRows = applyAutomaticHipRowsToIdiotListTileRows({
+    rows: automaticMainTileRows.valid
+      ? automaticMainTileRows.rows
+      : rowsTiles,
+    automaticEdgeResult: automaticRoofEdgeResult,
+  });
+  const rowsTilesForDisplay = automaticTileRows.valid
+    ? automaticTileRows.rows
+    : rowsTiles;
+
+  const automaticMetalRows = applyAutomaticEdgeBOMToIdiotListRows({
+    rows: rowsMetal,
+    automaticEdgeResult: automaticRoofEdgeResult,
+  });
+  const rowsMetalForDisplay = automaticMetalRows.valid
+    ? automaticMetalRows.rows
+    : rowsMetal;
+  const automaticStructuralMetalRows =
+    applyAutomaticStructuralMetalToIdiotListRows({
+      rows: rowsMetalForDisplay,
+      automaticEdgeResult: automaticRoofEdgeResult,
+    });
+  const finalRowsMetalForDisplay = automaticStructuralMetalRows.valid
+    ? automaticStructuralMetalRows.rows
+    : rowsMetalForDisplay;
+
   // ---- Guttering ----
   const rowsGutters = (() => {
     const out = [];
@@ -758,7 +804,13 @@ scan("miscLines", miscLines);
 
           {/* Row 2: roof description */}
           <div style={{ fontSize: 13 }}>
-            Roof: <b>Lean-to</b> · Pitch <b>{pitchDeg}°</b> · Finish{" "}
+            Roof:{" "}
+            <b>
+              {automaticRoofEdgeResult?.edgeModel?.roofStyle === "hippedLeanTo"
+                ? "Hipped Lean-To"
+                : "Lean-To"}
+            </b>{" "}
+            · Pitch <b>{pitchDeg}°</b> · Finish{" "}
             <b>{plasticsFinishDisplay}</b> · Vent <b>{String(q.vent_method || "factory")}</b> ·
             Weight <b>{totalWeightKg.toFixed(1)} kg</b>
           </div>
@@ -782,10 +834,10 @@ scan("miscLines", miscLines);
             title={`Tile Elements – ${tileSystemDisplay}${
               tileColourDisplay ? " / " + tileColourDisplay : ""
             }`}
-            rows={rowsTiles}
+            rows={rowsTilesForDisplay}
           />
 
-          <Section title="Metal Elements" rows={rowsMetal} />
+          <Section title="Metal Elements" rows={finalRowsMetalForDisplay} />
 
           <Section
             title={`Guttering – ${gutterColorDisplay} / ${gutterProfileDisplay}`}

@@ -2,6 +2,7 @@ import { buildRoofEdgeBOM } from "./roofEdgeBOM";
 
 const stockResult = {
   valid: true,
+  productFamily: "steelShingle",
   lines: [
     {
       key: "tile_starter",
@@ -10,6 +11,8 @@ const stockResult = {
       requiredLengthMM: 13111,
       pooledAcrossEdges: true,
     },
+    { key: "hip_ridge", label: "Hip / Ridge tile", qty: 8, units: "pcs" },
+    { key: "hip_end_cap_90", label: "90° Hip End Cap", qty: 2, units: "Ea" },
   ],
 };
 
@@ -65,6 +68,31 @@ describe("buildRoofEdgeBOM", () => {
     expect(result.lines[0].line).not.toBeCloseTo(5 * 8.8, 8);
   });
 
+  test("prices confirmed hip products from the existing Materials fields", () => {
+    const result = buildRoofEdgeBOM({
+      stockResult,
+      materials: {
+        britmet_ridge_tile_price_each: 6.18,
+        britmet_hip_end_cap_90_price_each: 10.5,
+      },
+    });
+
+    expect(result.lines.find((line) => line.key === "hip_ridge")).toMatchObject({
+      qty: 8,
+      order_qty: 8,
+      line: 49.44,
+      weight_kg: 12.8,
+      chargeBasis: "orderedQuantity",
+    });
+    expect(result.lines.find((line) => line.key === "hip_end_cap_90")).toMatchObject({
+      qty: 2,
+      order_qty: 2,
+      line: 21,
+      weight_kg: 0.3,
+      chargeBasis: "orderedQuantity",
+    });
+  });
+
   test("rejects invalid stock input", () => {
     const result = buildRoofEdgeBOM({
       stockResult: { valid: false, errors: ["Invalid stock."] },
@@ -74,4 +102,3 @@ describe("buildRoofEdgeBOM", () => {
     expect(result.lines).toEqual([]);
   });
 });
-

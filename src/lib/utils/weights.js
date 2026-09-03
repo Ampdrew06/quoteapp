@@ -6,6 +6,22 @@ console.log("🧪 miscCalc.js LOADED");
 
 const n = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 
+// Fixed technical product weights. These are deliberately kept out of the
+// Materials page because they are physical product specifications, not
+// editable commercial values.
+export const FIXED_PRODUCT_WEIGHTS_KG = Object.freeze({
+  hip_ridge: 1.6,
+  hip_end_cap_90: 0.15,
+  hip_end_cap_135: 0.2,
+  spar_hook: 0.25,
+  jack_rafter_hooks: 0.25,
+  jack_rafter_brackets: 0.25,
+  boss_rafter_terminal: 0.5,
+});
+
+export const getFixedProductWeightKg = (key) =>
+  n(FIXED_PRODUCT_WEIGHTS_KG[String(key || "").toLowerCase()]);
+
 // ✅ Fill missing weights on line items (gutter/plastics already have many; misc usually doesn't)
 export function applyWeightsToLines(lines = [], m) {
   const arr = Array.isArray(lines) ? lines : [];

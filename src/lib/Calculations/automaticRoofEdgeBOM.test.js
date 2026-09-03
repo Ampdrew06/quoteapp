@@ -42,6 +42,7 @@ describe("buildAutomaticRoofEdgeBOM", () => {
 
     expect(result.valid).toBe(true);
     expect(result.edgeModel.totalsByKind.eaves.count).toBe(3);
+    expect(result.tiling.geometry.sparHookQty).toBe(8);
     expect(starter.edgeCount).toBe(3);
     expect(bomLine.qty).toBeCloseTo(starter.totalLengthMM / 1000, 8);
     expect(bomLine.order_qty).toBe(

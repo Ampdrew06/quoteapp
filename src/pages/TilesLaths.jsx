@@ -14,6 +14,8 @@ import {
   buildAutomaticRoofTiling,
 } from "../lib/Calculations/automaticRoofTiling";
 import { buildAutomaticRoofEdgeBOM } from "../lib/Calculations/automaticRoofEdgeBOM";
+import { buildHipManufactureAudit } from "../lib/Calculations/hipManufactureAudit";
+import { buildJackRafterManufactureAudit } from "../lib/Calculations/jackRafterManufactureAudit";
 
 // ---------- helpers ----------
 const num = (v, f = 0) => {
@@ -136,6 +138,25 @@ export default function TilesLaths() {
     automaticRoofEdgeResult.accessoryRequirements;
   const automaticEdgeStock = automaticRoofEdgeResult.stock;
   const automaticEdgeBOM = automaticRoofEdgeResult.bom;
+
+  const automaticHipManufactureAudit = useMemo(
+    () =>
+      buildHipManufactureAudit({
+        roofInputs: savedRoofInputs,
+        geometry: automaticRoofTiling?.geometry,
+        edgeModel: automaticRoofEdges,
+      }),
+    [savedRoofInputs, automaticRoofTiling, automaticRoofEdges]
+  );
+
+  const automaticJackManufactureAudit = useMemo(
+    () =>
+      buildJackRafterManufactureAudit({
+        roofInputs: savedRoofInputs,
+        geometry: automaticRoofTiling?.geometry,
+      }),
+    [savedRoofInputs, automaticRoofTiling]
+  );
 
   // ---------- UI state ----------
   const [inputs, setInputs] = useState({
@@ -576,6 +597,209 @@ export default function TilesLaths() {
                       })}
                     </div>
 
+                  </section>
+                )}
+
+                {automaticHipManufactureAudit.valid && (
+                  <section
+                    style={{
+                      marginTop: 14,
+                      padding: 12,
+                      border: "1px solid #93c5fd",
+                      borderRadius: 7,
+                      background: "#fff",
+                    }}
+                  >
+                    <h3 style={{ margin: "0 0 4px" }}>
+                      Hip manufacturing audit — V2 read only
+                    </h3>
+                    <p style={{ margin: "0 0 10px", color: "#555" }}>
+                      Provisional factory timber profile. These hip lengths now
+                      feed the Steico material total and pricing, but not final
+                      manufacturing output.
+                    </p>
+
+                    {automaticHipManufactureAudit.hips.map((hip) => {
+                      const labels = {
+                        externalSlopeLengthMM: "External/top slope",
+                        internalSlopeLengthMM: "Internal/bottom slope",
+                        horizontalFootCutMM: "Horizontal foot cut",
+                        verticalFootCutMM: "Vertical foot cut",
+                        topVerticalCutMM: "Wallplate/boss vertical cut",
+                      };
+
+                      return (
+                        <div
+                          key={`${hip.side}-hip-manufacture`}
+                          style={{
+                            marginTop: 10,
+                            paddingTop: 10,
+                            borderTop: "1px solid #dbeafe",
+                          }}
+                        >
+                          <strong>
+                            {hip.manufactureRef ? `${hip.manufactureRef} · ` : ""}
+                            {hip.side === "left" ? "Left" : "Right"} hip
+                          </strong>
+                          <div style={{ margin: "5px 0 8px", color: "#444" }}>
+                            Hip pitch: {hip.hipPitchDeg.toFixed(2)}° · Plan
+                            length: {hip.hipPlanLengthMM.toFixed(1)} mm · Finished
+                            tiled edge: {hip.finishedTiledEdgeMM.toFixed(1)} mm
+                          </div>
+
+                          <div style={{ overflowX: "auto" }}>
+                            <table
+                              style={{
+                                width: "100%",
+                                borderCollapse: "collapse",
+                                fontSize: 14,
+                              }}
+                            >
+                              <thead>
+                                <tr>
+                                  <th style={{ textAlign: "left", padding: 4 }}>Measurement</th>
+                                  <th style={{ textAlign: "right", padding: 4 }}>Calculated</th>
+                                  {automaticHipManufactureAudit.cadReferenceApplicable && (
+                                    <>
+                                      <th style={{ textAlign: "right", padding: 4 }}>CAD reference</th>
+                                      <th style={{ textAlign: "right", padding: 4 }}>Difference</th>
+                                    </>
+                                  )}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {hip.measurements.map((measurement) => (
+                                  <tr key={measurement.key}>
+                                    <td style={{ padding: 4 }}>{labels[measurement.key]}</td>
+                                    <td style={{ textAlign: "right", padding: 4 }}>
+                                      {measurement.calculatedMM.toFixed(1)} mm
+                                    </td>
+                                    {automaticHipManufactureAudit.cadReferenceApplicable && (
+                                      <>
+                                        <td style={{ textAlign: "right", padding: 4 }}>
+                                          {measurement.referenceMM.toFixed(0)} mm
+                                        </td>
+                                        <td
+                                          style={{
+                                            textAlign: "right",
+                                            padding: 4,
+                                            color: measurement.withinTolerance
+                                              ? "#166534"
+                                              : "#b91c1c",
+                                          }}
+                                        >
+                                          {measurement.differenceMM >= 0 ? "+" : ""}
+                                          {measurement.differenceMM.toFixed(1)} mm
+                                        </td>
+                                      </>
+                                    )}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+
+                          {automaticHipManufactureAudit.cadReferenceApplicable && (
+                            <div
+                              style={{
+                                marginTop: 7,
+                                color: hip.allWithinCadTolerance
+                                  ? "#166534"
+                                  : "#b91c1c",
+                                fontWeight: 600,
+                              }}
+                            >
+                              {hip.allWithinCadTolerance
+                                ? `All five dimensions are within ±${automaticHipManufactureAudit.toleranceMM} mm.`
+                                : `One or more dimensions exceed ±${automaticHipManufactureAudit.toleranceMM} mm.`}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </section>
+                )}
+
+                {automaticJackManufactureAudit.valid && (
+                  <section
+                    style={{
+                      marginTop: 14,
+                      padding: 12,
+                      border: "1px solid #93c5fd",
+                      borderRadius: 7,
+                      background: "#fff",
+                    }}
+                  >
+                    <h3 style={{ margin: "0 0 4px" }}>
+                      Jack rafter manufacturing audit — read only
+                    </h3>
+                    <p style={{ margin: "0 0 10px", color: "#555" }}>
+                      Candidate five-sided profiles at the automatic positions.
+                      Each upper plumb cut stops {automaticJackManufactureAudit.setbackMM} mm
+                      before the hip top centreline. These provisional lengths
+                      now feed the Steico material total, but not final
+                      manufacturing output.
+                    </p>
+
+                    <div style={{ overflowX: "auto" }}>
+                      <table
+                        style={{
+                          width: "100%",
+                          borderCollapse: "collapse",
+                          fontSize: 13,
+                        }}
+                      >
+                        <thead>
+                          <tr>
+                            <th style={{ textAlign: "left", padding: 4 }}>Facet</th>
+                            <th style={{ textAlign: "left", padding: 4 }}>Ref</th>
+                            <th style={{ textAlign: "right", padding: 4 }}>Position</th>
+                            <th style={{ textAlign: "right", padding: 4 }}>Pitch</th>
+                            <th style={{ textAlign: "right", padding: 4 }}>Hip intersection</th>
+                            <th style={{ textAlign: "right", padding: 4 }}>Internal slope</th>
+                            <th style={{ textAlign: "right", padding: 4 }}>External slope</th>
+                            <th style={{ textAlign: "right", padding: 4 }}>HFC</th>
+                            <th style={{ textAlign: "right", padding: 4 }}>VFC</th>
+                            <th style={{ textAlign: "right", padding: 4 }}>Top V-cut</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {automaticJackManufactureAudit.jacks.map((jack) => {
+                            const profile = jack.profile;
+                            return (
+                              <tr key={jack.id}>
+                                <td style={{ padding: 4 }}>{jack.facetId}</td>
+                                <td style={{ padding: 4 }}>{jack.manufactureRef || "—"}</td>
+                                <td style={{ textAlign: "right", padding: 4 }}>
+                                  {jack.positionMM.toFixed(0)} mm
+                                </td>
+                                <td style={{ textAlign: "right", padding: 4 }}>
+                                  {profile.facetPitchDeg.toFixed(2)}°
+                                </td>
+                                <td style={{ textAlign: "right", padding: 4 }}>
+                                  {profile.hipCentrelinePlanRunMM.toFixed(1)} mm
+                                </td>
+                                <td style={{ textAlign: "right", padding: 4 }}>
+                                  {profile.internalSlopeLengthMM.toFixed(1)} mm
+                                </td>
+                                <td style={{ textAlign: "right", padding: 4 }}>
+                                  {profile.externalSlopeLengthMM.toFixed(1)} mm
+                                </td>
+                                <td style={{ textAlign: "right", padding: 4 }}>
+                                  {profile.horizontalFootCutMM.toFixed(1)} mm
+                                </td>
+                                <td style={{ textAlign: "right", padding: 4 }}>
+                                  {profile.verticalFootCutMM.toFixed(1)} mm
+                                </td>
+                                <td style={{ textAlign: "right", padding: 4 }}>
+                                  {profile.topVerticalCutMM.toFixed(1)} mm
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
                   </section>
                 )}
 

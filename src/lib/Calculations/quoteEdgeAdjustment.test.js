@@ -12,6 +12,8 @@ const automaticEdgeResult = {
         line: 52.444,
         chargeBasis: "usedLength",
       },
+      { key: "hip_ridge", qty: 8, line: 49.44 },
+      { key: "hip_end_cap_90", qty: 2, line: 21 },
     ],
   },
 };
@@ -27,8 +29,9 @@ describe("buildQuoteEdgeAdjustment", () => {
       valid: true,
       legacyTileStarterCost: 12,
       universalTileStarterCost: 52.444,
+      confirmedHipProductCost: 70.44,
     });
-    expect(result.adjustment).toBeCloseTo(40.444, 8);
+    expect(result.adjustment).toBeCloseTo(110.884, 8);
   });
 
   test("accepts the BOM directly", () => {
@@ -38,7 +41,7 @@ describe("buildQuoteEdgeAdjustment", () => {
     });
 
     expect(result.valid).toBe(true);
-    expect(result.adjustment).toBeCloseTo(40.444, 8);
+    expect(result.adjustment).toBeCloseTo(110.884, 8);
   });
 
   test("does not mistake another edge accessory for tile starter", () => {

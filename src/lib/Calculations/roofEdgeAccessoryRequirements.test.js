@@ -29,8 +29,29 @@ describe("buildRoofEdgeAccessoryRequirements", () => {
     expect(result.requirements.tileStarter.totalLengthMM).toBe(13111);
     expect(result.requirements.gutter.totalLengthMM).toBe(13111);
     expect(result.requirements.hipCovering.totalLengthMM).toBe(8396);
+    expect(result.requirements.hipEndCaps.qty90).toBe(2);
+    expect(result.requirements.hipEndCaps.qty135).toBe(0);
     expect(result.requirements.twoPartBarge.edgeCount).toBe(0);
     expect(result.requirements.watercourse.edgeCount).toBe(0);
+  });
+
+  test("supplies a 135 degree end cap for non-standard hip terminations", () => {
+    const result = buildRoofEdgeAccessoryRequirements({
+      tileSystem: "britmet",
+      edgeModel: {
+        valid: true,
+        edges: [
+          { ...edge("hip-a", "hip", "left", 3000), terminalAngleDeg: 135 },
+          { ...edge("hip-b", "hip", "right", 3500), terminalAngleDeg: 150 },
+        ],
+      },
+    });
+
+    expect(result.requirements.hipEndCaps.qty90).toBe(0);
+    expect(result.requirements.hipEndCaps.qty135).toBe(2);
+    expect(
+      result.requirements.hipEndCaps.edges.map((item) => item.suppliedAngleDeg)
+    ).toEqual([135, 135]);
   });
 
   test("maps ordinary steel-shingle open verges to 2-Part Barge", () => {
@@ -98,4 +119,3 @@ describe("buildRoofEdgeAccessoryRequirements", () => {
     expect(result.requirements).toEqual({});
   });
 });
-

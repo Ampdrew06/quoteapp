@@ -40,6 +40,8 @@ export default function ManufacturingWallplateMemberDrawing({
 
   externalHeightMM = 0,
   internalHeightMM = 0,
+  leftEndCutOffSquareDeg = 0,
+  rightEndCutOffSquareDeg = 0,
 
   internalHorizontalRunMM = 0,
 
@@ -133,6 +135,8 @@ export default function ManufacturingWallplateMemberDrawing({
           internalLengthMM={internalLengthMM}
           externalHeightMM={externalHeightMM}
           internalHeightMM={internalHeightMM}
+          leftEndCutOffSquareDeg={leftEndCutOffSquareDeg}
+          rightEndCutOffSquareDeg={rightEndCutOffSquareDeg}
         />
       )}
     </div>
@@ -287,6 +291,11 @@ function WallbarDrawing({
       D.x - E.x,
       D.y - E.y
     );
+
+  const topCutSawSettingDeg = Math.max(
+    0,
+    90 - topCutAngleDeg
+  );
 
   /*
    * Preserve the REAL member proportions.
@@ -514,50 +523,25 @@ function WallbarDrawing({
         {dim(hfcMM, 0)} mm
       </text>
 
-      {/* =============================
-          INTERNAL FOOT ANGLE AT C
-      ============================= */}
-
-      <path
-        d={`
-          M ${c.x - 18} ${c.y - 1}
-          Q ${c.x - 11} ${c.y - 17}
-            ${c.x + 5} ${c.y - 20}
-        `}
-        fill="none"
-        stroke="#dc2626"
-        strokeWidth="2"
-      />
-
+      {/* Roof pitch instruction at the foot datum. */}
+      
       <text
-        x={c.x + 9}
-        y={c.y - 17}
+  x={c.x + 25}
+  y={c.y + 1}
+  style={angleStyle}
+>
+  {dim(pitchDeg, 1)}°
+</text>
+
+      {/* Practical saw setting for the top / R22 mating cut. */}
+    
+      <text
+        x={e.x +40}
+        y={e.y + 31}
+        textAnchor="end"
         style={angleStyle}
       >
-        {dim(pitchDeg, 1)}°
-      </text>
-
-      {/* =============================
-          TOP / WALLPLATE CUT AT E
-      ============================= */}
-
-      <path
-        d={`
-          M ${e.x - 23} ${e.y + 3}
-          Q ${e.x - 9} ${e.y + 7}
-            ${e.x - 7} ${e.y + 23}
-        `}
-        fill="none"
-        stroke="#dc2626"
-        strokeWidth="2"
-      />
-
-      <text
-        x={e.x - 55}
-        y={e.y + 28}
-        style={angleStyle}
-      >
-        {dim(topCutAngleDeg, 1)}°
+        {dim(topCutSawSettingDeg, 1)}° 
       </text>
     </svg>
   );
@@ -568,15 +552,24 @@ function HorizontalWallplateDrawing({
   internalLengthMM,
   externalHeightMM,
   internalHeightMM,
+  leftEndCutOffSquareDeg,
+  rightEndCutOffSquareDeg,
 }) {
   const VB_W = 760;
-  const VB_H = 230;
+  const VB_H = 330;
 
   const leftX = 90;
   const rightX = 670;
 
-  const extY = 70;
-  const intY = 155;
+  const extY = 80;
+  const intY = 165;
+  const topDimY = 35;
+  const bottomDimY = 205;
+  const floorY = 285;
+  const heightDimX = 710;
+
+  const dimensionStroke = "#111827";
+  const extensionStroke = "#64748b";
 
   return (
     <svg
@@ -587,7 +580,39 @@ function HorizontalWallplateDrawing({
         display: "block",
       }}
     >
-      {/* MEMBER */}
+      {/* EXTERNAL / TOP LENGTH DIMENSION */}
+
+      <line
+        x1={leftX}
+        y1={topDimY}
+        x2={rightX}
+        y2={topDimY}
+        stroke={dimensionStroke}
+        strokeWidth="1.5"
+      />
+      <line x1={leftX} y1={topDimY - 7} x2={leftX} y2={topDimY + 7} stroke={dimensionStroke} />
+      <line x1={rightX} y1={topDimY - 7} x2={rightX} y2={topDimY + 7} stroke={dimensionStroke} />
+      <line x1={leftX} y1={topDimY + 8} x2={leftX} y2={extY - 5} stroke={extensionStroke} />
+      <line x1={rightX} y1={topDimY + 8} x2={rightX} y2={extY - 5} stroke={extensionStroke} />
+
+      <rect
+        x="285"
+        y="20"
+        width="190"
+        height="28"
+        fill="#fff"
+      />
+      <text
+        x={(leftX + rightX) / 2}
+        y="39"
+        textAnchor="middle"
+        fontSize="13"
+        fontWeight="700"
+      >
+        Top length (EWPL): {dim(externalLengthMM, 1)} mm
+      </text>
+
+      {/* MEMBER — intentionally uncoloured workshop profile */}
 
       <polygon
         points={`
@@ -596,53 +621,91 @@ function HorizontalWallplateDrawing({
           ${rightX - 35},${intY}
           ${leftX + 35},${intY}
         `}
-        fill="#fde047"
+        fill="#fff"
         stroke="#1f2937"
-        strokeWidth="2"
+        strokeWidth="2.5"
       />
 
-      {/* EWPL */}
+      {/* Practical saw settings for the two mating end cuts. */}
+
+      <line x1={leftX} y1={extY} x2={leftX + 34} y2={extY + 27} stroke="#dc2626" strokeWidth="1.5" />
+      <text x={leftX + 39} y={extY + 25} fontSize="11" fontWeight="800" fill="#dc2626">
+        {dim(leftEndCutOffSquareDeg, 1)}° 
+      </text>
+
+      <line x1={rightX} y1={extY} x2={rightX - 34} y2={extY + 27} stroke="#dc2626" strokeWidth="1.5" />
+      <text x={rightX - 39} y={extY + 25} textAnchor="end" fontSize="11" fontWeight="800" fill="#dc2626">
+       {dim(rightEndCutOffSquareDeg, 1)}° 
+      </text>
+
+      {/* INTERNAL / BOTTOM LENGTH DIMENSION */}
+
+      <line
+        x1={leftX + 35}
+        y1={bottomDimY}
+        x2={rightX - 35}
+        y2={bottomDimY}
+        stroke={dimensionStroke}
+        strokeWidth="1.5"
+      />
+      <line x1={leftX + 35} y1={bottomDimY - 7} x2={leftX + 35} y2={bottomDimY + 7} stroke={dimensionStroke} />
+      <line x1={rightX - 35} y1={bottomDimY - 7} x2={rightX - 35} y2={bottomDimY + 7} stroke={dimensionStroke} />
+      <line x1={leftX + 35} y1={intY + 5} x2={leftX + 35} y2={bottomDimY - 8} stroke={extensionStroke} />
+      <line x1={rightX - 35} y1={intY + 5} x2={rightX - 35} y2={bottomDimY - 8} stroke={extensionStroke} />
 
       <text
         x={(leftX + rightX) / 2}
-        y={extY - 18}
+        y={bottomDimY + 22}
         textAnchor="middle"
         fontSize="13"
         fontWeight="700"
       >
-        EWPL: {dim(externalLengthMM, 1)} mm
+        Bottom length (IWPL): {dim(internalLengthMM, 1)} mm
       </text>
 
-      {/* IWPL */}
+      {/* FACTORY FLOOR DATUM */}
+
+      <line
+        x1="45"
+        y1={floorY}
+        x2="740"
+        y2={floorY}
+        stroke="#111827"
+        strokeWidth="2"
+      />
+      <text x="48" y={floorY + 20} fontSize="12" fontWeight="700">
+        FACTORY FLOOR DATUM
+      </text>
+
+      {/* CRITICAL FLOOR-TO-UNDERSIDE CHECK DIMENSION */}
+
+      <line
+        x1={heightDimX}
+        y1={intY}
+        x2={heightDimX}
+        y2={floorY}
+        stroke="#111827"
+        strokeWidth="1.8"
+      />
+      <line x1={heightDimX - 8} y1={intY} x2={heightDimX + 8} y2={intY} stroke="#111827" />
+      <line x1={heightDimX - 8} y1={floorY} x2={heightDimX + 8} y2={floorY} stroke="#111827" />
+      <line x1={rightX - 35} y1={intY} x2={heightDimX - 9} y2={intY} stroke={extensionStroke} />
 
       <text
-        x={(leftX + rightX) / 2}
-        y={intY + 24}
+        x={heightDimX - 12}
+        y={(intY + floorY) / 2}
         textAnchor="middle"
+        transform={`rotate(-90 ${heightDimX - 12} ${(intY + floorY) / 2})`}
         fontSize="13"
-        fontWeight="700"
+        fontWeight="800"
       >
-        IWPL: {dim(internalLengthMM, 1)} mm
+        {dim(internalHeightMM, 1)} mm
       </text>
 
-      {/* HEIGHTS */}
+      {/* SECONDARY CHECK TO THE TOP EDGE */}
 
-      <text
-        x={leftX + 15}
-        y={(extY + intY) / 2}
-        fontSize="12"
-        fontWeight="700"
-      >
-        EWPH: {dim(externalHeightMM, 1)} mm
-      </text>
-
-      <text
-        x={rightX - 145}
-        y={(extY + intY) / 2}
-        fontSize="12"
-        fontWeight="700"
-      >
-        IWPH: {dim(internalHeightMM, 1)} mm
+      <text x="48" y="260" fontSize="12" fontWeight="600" fill="#334155">
+        Floor to top edge: {dim(externalHeightMM, 1)} mm
       </text>
     </svg>
   );

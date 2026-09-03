@@ -38,12 +38,22 @@ export function buildQuoteEdgeAdjustment({
     0,
     finite(tileStarterLine.line ?? tileStarterLine.total)
   );
+  const confirmedHipProductCost = (bom.lines || [])
+    .filter((line) =>
+      ["hip_ridge", "hip_end_cap_90", "hip_end_cap_135"].includes(line.key)
+    )
+    .reduce(
+      (total, line) =>
+        total + Math.max(0, finite(line.line ?? line.total)),
+      0
+    );
 
   return {
     valid: true,
     legacyTileStarterCost: legacyCost,
     universalTileStarterCost: universalCost,
-    adjustment: universalCost - legacyCost,
+    confirmedHipProductCost,
+    adjustment: universalCost - legacyCost + confirmedHipProductCost,
     errors: [],
   };
 }

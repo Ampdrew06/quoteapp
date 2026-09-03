@@ -8,7 +8,23 @@ const requirements = (totalLengthMM, edgeIds = []) => ({
       edgeIds,
     },
     gutter: { totalLengthMM },
-    hipCovering: { totalLengthMM: 8396 },
+    hipCovering: {
+      totalLengthMM: 8396,
+      edgeIds: ["hip-left", "hip-right"],
+      edges: [
+        { edgeId: "hip-left", lengthMM: 4198 },
+        { edgeId: "hip-right", lengthMM: 4198 },
+      ],
+    },
+    hipEndCaps: {
+      qty: 2,
+      qty90: 2,
+      qty135: 0,
+      edges: [
+        { edgeId: "hip-left", suppliedAngleDeg: 90 },
+        { edgeId: "hip-right", suppliedAngleDeg: 90 },
+      ],
+    },
     watercourse: { totalLengthMM: 0 },
     twoPartBarge: { totalLengthMM: 0 },
   },
@@ -54,10 +70,27 @@ describe("buildRoofEdgeStockQuantities", () => {
       accessoryRequirements: requirements(13111),
     });
 
-    expect(result.lines.map((line) => line.key)).toEqual(["tile_starter"]);
+    expect(result.lines.map((line) => line.key)).toEqual([
+      "tile_starter",
+      "hip_ridge",
+      "hip_end_cap_90",
+    ]);
     expect(result.pending).toEqual(
-      expect.arrayContaining(["gutter", "hipCovering", "twoPartBarge"])
+      expect.arrayContaining(["gutter", "twoPartBarge"])
     );
+  });
+
+  test("rounds each hip independently at 1150 mm effective cover", () => {
+    const result = buildRoofEdgeStockQuantities({
+      accessoryRequirements: requirements(13111),
+    });
+    const hip = result.lines.find((line) => line.key === "hip_ridge");
+
+    expect(hip.qty).toBe(8);
+    expect(hip.stockLengthMM).toBe(1250);
+    expect(hip.effectiveCoverMM).toBe(1150);
+    expect(hip.calculatedPerEdge).toBe(true);
+    expect(hip.perEdgeQuantities.map((edge) => edge.qty)).toEqual([4, 4]);
   });
 
   test("rejects invalid accessory requirements", () => {
@@ -72,4 +105,3 @@ describe("buildRoofEdgeStockQuantities", () => {
     expect(result.lines).toEqual([]);
   });
 });
-
