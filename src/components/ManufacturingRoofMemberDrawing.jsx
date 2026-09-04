@@ -10,6 +10,8 @@ const dim = (value, dp = 0) => finite(value).toFixed(dp);
 export default function ManufacturingRoofMemberDrawing({ group }) {
   const profile = group?.profile || {};
   const isJack = group?.type === "jack-rafter";
+  const isBossRafter = group?.type === "boss-rafter";
+  const isRegularRafter = group?.type === "rafter";
   const references = (group?.manufactureRefs || []).join(" / ");
   const pitchDeg = profile.hipPitchDeg ?? profile.facetPitchDeg;
 
@@ -27,7 +29,13 @@ export default function ManufacturingRoofMemberDrawing({ group }) {
       <div style={{ display: "flex", alignItems: "baseline", gap: 9 }}>
         <div style={{ fontSize: 18, fontWeight: 800 }}>{references}</div>
         <div style={{ fontSize: 15, fontWeight: 700 }}>
-          {isJack ? "Jack Rafter" : "Hip"}
+          {isJack
+            ? "Jack Rafter"
+            : isBossRafter
+              ? "Boss Rafter"
+              : isRegularRafter
+                ? "Rafter"
+                : "Hip"}
         </div>
         {group?.quantity > 1 && (
           <div style={{ marginLeft: "auto", fontSize: 16, fontWeight: 800 }}>
@@ -113,7 +121,11 @@ export default function ManufacturingRoofMemberDrawing({ group }) {
       </svg>
 
       <div style={{ fontSize: 11, color: "#b45309", fontWeight: 700 }}>
-        PROVISIONAL — physical factory check pending
+        {isBossRafter
+          ? `${dim(profile.bossTerminalAllowanceMM)} mm provisional boss-terminal allowance — factory check pending`
+          : isJack || group?.type === "hip"
+            ? "PROVISIONAL — physical factory check pending"
+            : "Front-facet manufacture profile"}
       </div>
     </div>
   );

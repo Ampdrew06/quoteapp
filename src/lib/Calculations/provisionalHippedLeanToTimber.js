@@ -1,5 +1,6 @@
 import { buildJackRafterManufactureAudit } from "./jackRafterManufactureAudit";
 import { buildHippedLeanToManufacturingSequence } from "../Manufacturing/manufacturingSequenceBuilder";
+import { buildFrontRafterManufactureProfiles } from "../Manufacturing/frontRafterManufactureProfiles";
 
 const finite = (value, fallback = 0) => {
   const number = Number(value);
@@ -30,14 +31,15 @@ export function buildProvisionalHippedLeanToTimber({
   const memberById = sequence.memberById;
   const members = [];
 
-  (geometry.frontRafterLayoutV2?.centreRafters || []).forEach((member) => {
+  buildFrontRafterManufactureProfiles({ geometry }).forEach((member) => {
     members.push({
       id: member.id,
-      manufactureRef: memberById[member.id]?.manufactureRef ?? null,
-      type: member.role === "boss-rafter" ? "boss-rafter" : "rafter",
+      manufactureRef: member.manufactureRef,
+      type: member.type,
       materialKey: "steico_220",
-      externalLengthMM: finite(geometry.rafterExternalLength),
-      provisional: false,
+      externalLengthMM: finite(member.profile.externalSlopeLengthMM),
+      internalLengthMM: finite(member.profile.internalSlopeLengthMM),
+      provisional: member.type === "boss-rafter",
     });
   });
 

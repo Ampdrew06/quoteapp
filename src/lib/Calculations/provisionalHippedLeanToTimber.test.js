@@ -11,6 +11,8 @@ describe("buildProvisionalHippedLeanToTimber", () => {
       hasLeftHip: true,
       hasRightHip: true,
       rafterExternalLength: 3500,
+      rafterInternalLength: 3200,
+      raw: { manufacturedExternalSlopeLengthMM: 3420 },
       effectivePitchRunMM: 3230,
       resolvedLeftHipWidthMM: 1880,
       resolvedRightHipWidthMM: 1880,
@@ -22,10 +24,14 @@ describe("buildProvisionalHippedLeanToTimber", () => {
       rightTemplateDebug: { horizontalFootRunMM: 170, plumbCutHeightMM: 169 },
       frontRafterLayoutV2: {
         leftJackRafters: [{ id: "front-left-jack-600", centreMM: 600 }],
-        centreRafters: [{ id: "front-centre", role: "plain", centreMM: 3000 }],
+        centreRafters: [
+          { id: "front-boss", role: "boss-rafter", centreMM: 1880 },
+          { id: "front-centre", role: "plain", centreMM: 3000 },
+        ],
         rightJackRafters: [{ id: "front-right-jack-5200", centreMM: 5200 }],
         allRafters: [
           { id: "front-left-jack-600", role: "jack", centreMM: 600 },
+          { id: "front-boss", role: "boss-rafter", centreMM: 1880 },
           { id: "front-centre", role: "plain", centreMM: 3000 },
           { id: "front-right-jack-5200", role: "jack", centreMM: 5200 },
         ],
@@ -52,7 +58,11 @@ describe("buildProvisionalHippedLeanToTimber", () => {
     });
 
     expect(result.valid).toBe(true);
-    expect(result.totals.fullRafterQty).toBe(1);
+    expect(result.totals.fullRafterQty).toBe(2);
+    const boss = result.members.find((member) => member.type === "boss-rafter");
+    const plain = result.members.find((member) => member.type === "rafter");
+    expect(plain.externalLengthMM - boss.externalLengthMM).toBe(140);
+    expect(plain.internalLengthMM - boss.internalLengthMM).toBe(140);
     expect(result.totals.jackQty).toBe(4);
     expect(result.totals.hipQty).toBe(2);
     expect(result.members.every((member) => member.manufactureRef)).toBe(true);

@@ -46,4 +46,14 @@ describe("groupProvisionalRoofMembers", () => {
 
     expect(groups).toHaveLength(2);
   });
+
+  test("keeps boss rafters separate from regular rafters", () => {
+    const shared = profile({ bossTerminalAllowanceMM: 140 });
+    const groups = groupProvisionalRoofMembers([
+      { type: "boss-rafter", manufactureRef: "R9", profile: shared },
+      { type: "rafter", manufactureRef: "R10", profile: shared },
+    ]);
+
+    expect(groups).toHaveLength(2);
+  });
 });

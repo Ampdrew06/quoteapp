@@ -19,6 +19,7 @@ import ManufacturingWallplateMemberDrawing from "../../components/ManufacturingW
 import ManufacturingRoofMemberDrawing from "../../components/ManufacturingRoofMemberDrawing";
 import { buildJackRafterManufactureAudit } from "../../lib/Calculations/jackRafterManufactureAudit";
 import { groupProvisionalRoofMembers } from "../../lib/Manufacturing/groupProvisionalRoofMembers";
+import { buildFrontRafterManufactureProfiles } from "../../lib/Manufacturing/frontRafterManufactureProfiles";
 import {
   resolveEdgeSupport,
   resolveTwoSidedExternalWidth,
@@ -2025,8 +2026,22 @@ const provisionalRoofMemberGroups = useMemo(() => {
     });
   });
 
+  buildFrontRafterManufactureProfiles({ geometry: hippedGeom }).forEach(
+    (member) => members.push(member)
+  );
+
   return groupProvisionalRoofMembers(members);
 }, [hippedGeom, roofStyleKey, iw, ip]);
+
+const provisionalHipGroups = provisionalRoofMemberGroups.filter(
+  (group) => group.type === "hip"
+);
+const provisionalJackGroups = provisionalRoofMemberGroups.filter(
+  (group) => group.type === "jack-rafter"
+);
+const provisionalFrontRafterGroups = provisionalRoofMemberGroups.filter(
+  (group) => group.type === "boss-rafter" || group.type === "rafter"
+);
   //const roofSizeDisplay = `${round(iw)} × ${round(ip)} mm int / ${round(extWidthMM)} × ${round(extProjectionMM)} mm ext`;
 
   return (
@@ -3536,11 +3551,28 @@ const provisionalRoofMemberGroups = useMemo(() => {
         <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 3 }}>
           Hipped Lean-To Manufacture
         </div>
-        <div style={{ ...sectionTitle, marginBottom: 2 }}>
-          Hips & Jack Rafters
-        </div>
         <div style={{ fontSize: 12, color: "#92400e", marginBottom: 9 }}>
           Provisional manufacture profiles. Retain factory checking until verified on a physical roof.
+        </div>
+        <div style={{ ...sectionTitle, marginBottom: 7 }}>Hips</div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+            gap: 10,
+            alignItems: "start",
+          }}
+        >
+          {provisionalHipGroups.map((group) => (
+            <ManufacturingRoofMemberDrawing
+              key={`${group.type}-${group.manufactureRefs.join("-")}`}
+              group={group}
+            />
+          ))}
+        </div>
+
+        <div style={{ ...sectionTitle, marginTop: 12, marginBottom: 7 }}>
+          Jack Rafters
         </div>
         <div
           style={{
@@ -3550,7 +3582,36 @@ const provisionalRoofMemberGroups = useMemo(() => {
             alignItems: "start",
           }}
         >
-          {provisionalRoofMemberGroups.map((group) => (
+          {provisionalJackGroups.map((group) => (
+            <ManufacturingRoofMemberDrawing
+              key={`${group.type}-${group.manufactureRefs.join("-")}`}
+              group={group}
+            />
+          ))}
+        </div>
+      </div>
+    </section>
+  )}
+
+  {provisionalFrontRafterGroups.length > 0 && (
+    <section className="pm-page">
+      <div style={panel}>
+        <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 3 }}>
+          Hipped Lean-To Manufacture
+        </div>
+        <div style={{ ...sectionTitle, marginBottom: 2 }}>Rafters</div>
+        <div style={{ fontSize: 12, color: "#475569", marginBottom: 9 }}>
+          Matching profiles are grouped automatically by structural role and finished dimensions.
+        </div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+            gap: 10,
+            alignItems: "start",
+          }}
+        >
+          {provisionalFrontRafterGroups.map((group) => (
             <ManufacturingRoofMemberDrawing
               key={`${group.type}-${group.manufactureRefs.join("-")}`}
               group={group}
