@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-
 import QuoteWizard from "../pages/QuoteWizard";
 import LeanToLanding from "../pages/lean-to/LeanToLanding";
 import LeanToPlanManufacture from "../pages/lean-to/LeanToPlanManufacture";
+import LeanToTechnical from "../pages/lean-to/LeanToTechnical";
 //import GeometryPage from "../GeometryPage";
 import Materials from "../pages/Materials";
 //import LeanToPlan from "../styles/LeanToPlan"; // (optional) simple plan page
@@ -43,6 +44,9 @@ export default function AppRoutes() {
 
         {/* Lean-To main configurator */}
         <Route path="/quote/lean-to" element={<LeanToLanding />} />
+
+        {/* Technical visualisers and read-only calculation audits */}
+        <Route path="/quote/lean-to/technical" element={<LeanToTechnical />} />
 
         {/* Combined Plan + Manufacture (print-ready) */}
         <Route path="/quote/lean-to/plan-manufacture" element={<LeanToPlanManufacture />} />

@@ -19,6 +19,10 @@ export function buildRingBeam({
 
   // Length along the ring-beam facet
   lengthMM = 0,
+  internalLengthMM,
+  externalLengthMM,
+  startExtensionMM = 0,
+  endExtensionMM,
 
   // Width of the 9 mm ply base from inner to outer edge
   baseWidthMM = 220,
@@ -39,9 +43,45 @@ export function buildRingBeam({
   upstandHeightMM = 195,
   pirHeightMM = 185,
   pirFacesPerBay = 2,
+  pseWidthMM = 90,
+  outerLathWidthMM = 50,
+  memberSlotWidthMM = 48,
 }) {
-  const resolvedLengthMM = Math.max(0, toFiniteNumber(lengthMM));
+  const resolvedExternalLengthMM = Math.max(
+    0,
+    toFiniteNumber(externalLengthMM, toFiniteNumber(lengthMM))
+  );
+  const resolvedInternalLengthMM = Math.max(
+    0,
+    toFiniteNumber(internalLengthMM, resolvedExternalLengthMM)
+  );
+  const resolvedLengthMM = resolvedExternalLengthMM;
   const resolvedBaseWidthMM = Math.max(0, toFiniteNumber(baseWidthMM, 220));
+  const totalExtensionMM = Math.max(
+    0,
+    resolvedExternalLengthMM - resolvedInternalLengthMM
+  );
+  const suppliedStartExtensionMM = Math.max(
+    0,
+    toFiniteNumber(startExtensionMM)
+  );
+  const suppliedEndExtensionMM = Math.max(
+    0,
+    toFiniteNumber(
+      endExtensionMM,
+      totalExtensionMM - suppliedStartExtensionMM
+    )
+  );
+  const suppliedExtensionTotalMM =
+    suppliedStartExtensionMM + suppliedEndExtensionMM;
+  const extensionScale =
+    suppliedExtensionTotalMM > 0
+      ? totalExtensionMM / suppliedExtensionTotalMM
+      : 0;
+  const resolvedStartExtensionMM =
+    suppliedStartExtensionMM * extensionScale;
+  const resolvedEndExtensionMM =
+    suppliedEndExtensionMM * extensionScale;
 
   const resolvedPitchDeg =
   toFiniteNumber(pitchDeg);
@@ -81,7 +121,13 @@ const resolvedFasciaOrderSizeMM = Math.max(
       exists: false,
       lengthMM: 0,
       lengthM: 0,
+      internalLengthMM: 0,
+      externalLengthMM: 0,
       baseWidthMM: resolvedBaseWidthMM,
+      endGeometry: {
+        startExtensionMM: 0,
+        endExtensionMM: 0,
+      },
 
       eavesGeometry: {
   pitchDeg: resolvedPitchDeg,
@@ -109,6 +155,7 @@ const resolvedFasciaOrderSizeMM = Math.max(
   }
 
   const lengthM = resolvedLengthMM / 1000;
+  const internalLengthM = resolvedInternalLengthMM / 1000;
   const baseWidthM = resolvedBaseWidthMM / 1000;
   const upstandHeightM = Math.max(
     0,
@@ -129,12 +176,71 @@ const resolvedFasciaOrderSizeMM = Math.max(
     resolvedBayWidthsMM.reduce((sum, widthMM) => sum + widthMM, 0) /
     1000;
 
-  const ply9BaseAreaM2 = lengthM * baseWidthM;
+  const ply9BaseAreaM2 =
+    ((internalLengthM + lengthM) / 2) * baseWidthM;
   const ply9UpstandAreaM2 = totalBayWidthM * upstandHeightM;
   const ply9TotalAreaM2 = ply9BaseAreaM2 + ply9UpstandAreaM2;
 
   const pir50AreaM2 =
     totalBayWidthM * pirHeightM * resolvedPirFacesPerBay;
+
+  const layerProfile = ({ widthMM, alignment }) => {
+    const resolvedWidthMM = Math.min(
+      resolvedBaseWidthMM,
+      Math.max(0, toFiniteNumber(widthMM))
+    );
+    const fraction =
+      resolvedBaseWidthMM > 0
+        ? resolvedWidthMM / resolvedBaseWidthMM
+        : 0;
+
+    if (alignment === "external") {
+      return {
+        alignment,
+        widthMM: resolvedWidthMM,
+        internalEdgeLengthMM:
+          resolvedExternalLengthMM - totalExtensionMM * fraction,
+        externalEdgeLengthMM: resolvedExternalLengthMM,
+        startInnerExtensionMM:
+          resolvedStartExtensionMM * (1 - fraction),
+        endInnerExtensionMM:
+          resolvedEndExtensionMM * (1 - fraction),
+        startOuterExtensionMM: resolvedStartExtensionMM,
+        endOuterExtensionMM: resolvedEndExtensionMM,
+      };
+    }
+
+    return {
+      alignment: "internal",
+      widthMM: resolvedWidthMM,
+      internalEdgeLengthMM: resolvedInternalLengthMM,
+      externalEdgeLengthMM:
+        resolvedInternalLengthMM + totalExtensionMM * fraction,
+      startInnerExtensionMM: 0,
+      endInnerExtensionMM: 0,
+      startOuterExtensionMM: resolvedStartExtensionMM * fraction,
+      endOuterExtensionMM: resolvedEndExtensionMM * fraction,
+    };
+  };
+
+  const baseProfile = {
+    alignment: "full-base",
+    widthMM: resolvedBaseWidthMM,
+    internalEdgeLengthMM: resolvedInternalLengthMM,
+    externalEdgeLengthMM: resolvedExternalLengthMM,
+    startInnerExtensionMM: 0,
+    endInnerExtensionMM: 0,
+    startOuterExtensionMM: resolvedStartExtensionMM,
+    endOuterExtensionMM: resolvedEndExtensionMM,
+  };
+  const pseProfile = layerProfile({
+    widthMM: pseWidthMM,
+    alignment: "internal",
+  });
+  const outerLathProfile = layerProfile({
+    widthMM: outerLathWidthMM,
+    alignment: "external",
+  });
 
   return {
     id,
@@ -143,7 +249,18 @@ const resolvedFasciaOrderSizeMM = Math.max(
 
     lengthMM: resolvedLengthMM,
     lengthM,
+    internalLengthMM: resolvedInternalLengthMM,
+    externalLengthMM: resolvedExternalLengthMM,
     baseWidthMM: resolvedBaseWidthMM,
+    endGeometry: {
+      startExtensionMM: resolvedStartExtensionMM,
+      endExtensionMM: resolvedEndExtensionMM,
+    },
+    layerProfiles: {
+      ply9Base: baseProfile,
+      pse30x90: pseProfile,
+      outerLath25x50: outerLathProfile,
+    },
 
     eavesGeometry: {
   pitchDeg: resolvedPitchDeg,
@@ -162,6 +279,10 @@ const resolvedFasciaOrderSizeMM = Math.max(
       upstandHeightMM: Math.round(upstandHeightM * 1000),
       pirHeightMM: Math.round(pirHeightM * 1000),
       pirFacesPerBay: resolvedPirFacesPerBay,
+      memberSlotWidthMM: Math.max(
+        0,
+        toFiniteNumber(memberSlotWidthMM, 48)
+      ),
     },
 
     materials: {
@@ -174,7 +295,11 @@ const resolvedFasciaOrderSizeMM = Math.max(
       ply9TotalAreaM2,
 
       // Continuous members along the full facet
-      pse30x90LengthM: lengthM,
+      pse30x90LengthM:
+        Math.max(
+          pseProfile.internalEdgeLengthMM,
+          pseProfile.externalEdgeLengthMM
+        ) / 1000,
       outerFixingLath25x50LengthM: lengthM,
 
       // One finishing lath across each clear bay

@@ -7,6 +7,7 @@ import { buildFacet } from "../Manufacturing/facetBuilder";
 import { solveFacetEavesGeometry } from "./facetEavesGeometry";
 import { buildFacetGeometry } from "../Manufacturing/facetGeometryBuilder";
 import { buildDefaultFrontRafterLayout } from "../Manufacturing/rafterLayoutBuilder";
+import { calculateWallplateMitreGeometry } from "./wallplateMitreGeometry";
 
 const degToRad = (deg) => (Number(deg) * Math.PI) / 180;
 const radToDeg = (rad) => (Number(rad) * 180) / Math.PI;
@@ -338,14 +339,37 @@ const buildTemplateDebug = ({
     frameThicknessMM:
       Number(raw.frameThicknessMM ?? 0),
 
+    // Workshop timber cut. The ply-base width is carried
+    // separately by the ring-beam geometry.
     horizontalFootRunMM:
-      Number(raw.horizontalExtensionMM ?? 0),
+      Number(
+        raw.manufacturedHorizontalFootCutMM ??
+          raw.horizontalExtensionMM ??
+          0
+      ),
 
     verticalFallAcrossFootMM:
       Number(raw.verticalDropMM ?? 0),
 
     plumbCutHeightMM:
-      Number(raw.plumbCutHeightMM ?? 0),
+      Number(
+        raw.manufacturedPlumbCutHeightMM ??
+          raw.plumbCutHeightMM ??
+          0
+      ),
+
+    nominalHorizontalFootRunMM:
+      Number(raw.horizontalExtensionMM ?? 0),
+
+    plyBaseWidthMM:
+      Number(
+        raw.manufacturedBaseWidthMM ??
+          raw.horizontalExtensionMM ??
+          0
+      ),
+
+    rafterFootClearanceMM:
+      Number(raw.rafterFootClearanceMM ?? 0),
 
     rafterDepthMM:
       Number(raw.rafterDepthMM ?? 0),
@@ -532,15 +556,6 @@ const rightPitchDerivedHipWidthMM =
       )
     : 0;
 
-const leftInternalWallBarSlopeMM =
-  hasLeftHip &&
-  leftFacetGeometry?.valid
-    ? Number(
-        leftFacetGeometry
-          .internalWallBarSlopeMM ?? 0
-      )
-    : 0;
-
 const rightExternalWallBarSlopeMM =
   hasRightHip &&
   rightFacetGeometry?.valid
@@ -550,14 +565,33 @@ const rightExternalWallBarSlopeMM =
       )
     : 0;
 
+const leftWallplateMitre = hasLeftHip
+  ? calculateWallplateMitreGeometry({
+      sidePitchDeg: leftSidePitchDeg,
+      memberDepthMM: wallplateHeightMM,
+      wallbarExternalSlopeMM: leftExternalWallBarSlopeMM,
+      wallbarHorizontalFootCutMM: leftHorizontalFootRunMM,
+      wallbarVerticalFootCutMM:
+        facetEavesRule.left?.matchedPlumbCutHeightMM ?? 0,
+    })
+  : null;
+
+const rightWallplateMitre = hasRightHip
+  ? calculateWallplateMitreGeometry({
+      sidePitchDeg: rightSidePitchDeg,
+      memberDepthMM: wallplateHeightMM,
+      wallbarExternalSlopeMM: rightExternalWallBarSlopeMM,
+      wallbarHorizontalFootCutMM: rightHorizontalFootRunMM,
+      wallbarVerticalFootCutMM:
+        facetEavesRule.right?.matchedPlumbCutHeightMM ?? 0,
+    })
+  : null;
+
+const leftInternalWallBarSlopeMM =
+  leftWallplateMitre?.wallbarInternalSlopeMM ?? 0;
+
 const rightInternalWallBarSlopeMM =
-  hasRightHip &&
-  rightFacetGeometry?.valid
-    ? Number(
-        rightFacetGeometry
-          .internalWallBarSlopeMM ?? 0
-      )
-    : 0;  
+  rightWallplateMitre?.wallbarInternalSlopeMM ?? 0;
 // ======================================================
 // HORIZONTAL WALLPLATE GEOMETRY
 //
@@ -587,21 +621,12 @@ const horizontalWallplateExternalLengthMM =
         : 0)
   );
 
-const horizontalWallplateInternalLengthMM =
-  Math.max(
-    0,
-    width -
-      (hasLeftHip
-        ? Number(
-            leftFacetGeometry?.internalHorizontalRunMM ?? 0
-          )
-        : 0) -
-      (hasRightHip
-        ? Number(
-            rightFacetGeometry?.internalHorizontalRunMM ?? 0
-          )
-        : 0)
-  );
+const horizontalWallplateInternalLengthMM = Math.max(
+  0,
+  horizontalWallplateExternalLengthMM -
+    (leftWallplateMitre?.mitreOffsetMM ?? 0) -
+    (rightWallplateMitre?.mitreOffsetMM ?? 0)
+);
   // ======================================================
 // RESOLVED HIP POSITIONS
 //
@@ -685,27 +710,20 @@ const leftHipHorizontalAllowanceMM =
     leftHorizontalFootRunMM - frameThicknessMM - fasciaLipMM
   );
 
-// Workshop saw settings for the two R22 end cuts. Each value is measured
-// away from a square (90 degree) cut across the horizontal member.
-const horizontalWallplateEndCutOffSquareDeg = (facetGeometry) => {
-  if (!facetGeometry || wallplateHeightMM <= 0) return 0;
-
-  const endOffsetMM = Math.abs(
-    Number(facetGeometry.internalHorizontalRunMM ?? 0) -
-      Number(facetGeometry.intersectionOffsetMM ?? 0)
-  );
-
-  return radToDeg(
-    Math.atan2(endOffsetMM, wallplateHeightMM)
-  );
-};
-
 const horizontalWallplateLeftEndCutOffSquareDeg = hasLeftHip
-  ? horizontalWallplateEndCutOffSquareDeg(leftFacetGeometry)
+  ? leftWallplateMitre.horizontalWallplateCutOffSquareDeg
   : 0;
 
 const horizontalWallplateRightEndCutOffSquareDeg = hasRightHip
-  ? horizontalWallplateEndCutOffSquareDeg(rightFacetGeometry)
+  ? rightWallplateMitre.horizontalWallplateCutOffSquareDeg
+  : 0;
+
+const leftWallbarTopCutOffSquareDeg = hasLeftHip
+  ? leftWallplateMitre.wallbarTopCutOffSquareDeg
+  : 0;
+
+const rightWallbarTopCutOffSquareDeg = hasRightHip
+  ? rightWallplateMitre.wallbarTopCutOffSquareDeg
   : 0;
 
 const rightHipHorizontalAllowanceMM =
@@ -1187,7 +1205,10 @@ const leftFacet = buildFacet({
     : null,
 
   soffitDepthMM:
-  facetEavesRule.left.matchedSoffitMM,
+  // Ring-beam manufacture uses the rounded-up workshop size.
+  // The exact matched soffit remains available separately and
+  // continues to drive the design/external geometry.
+  facetEavesRule.left.manufacturedSoffitMM,
 
   plumbCutHeightMM:
   facetEavesRule.left.matchedPlumbCutHeightMM,
@@ -1201,6 +1222,15 @@ fasciaOrderSizeMM:
   hasRingBeam: hasLeftHip,
   ringBeamLengthMM:
     leftSideRingBeam.externalLengthMM,
+  ringBeamInternalLengthMM: projection,
+  ringBeamExternalLengthMM:
+    leftSideRingBeam.externalLengthMM,
+  ringBeamBaseWidthMM:
+    facetEavesRule.left
+      .manufacturedHorizontalFootRunMM,
+  ringBeamStartExtensionMM: 0,
+  ringBeamEndExtensionMM:
+    externalProjectionMM - projection,
 
   // Wall slot + intermediate side-jack slots + hip-seat slot.
   ringBeamBayWidthsMM:
@@ -1243,7 +1273,10 @@ const rightFacet = buildFacet({
     : null,
 
   soffitDepthMM:
-  facetEavesRule.right.matchedSoffitMM,
+  // Ring-beam manufacture uses the rounded-up workshop size.
+  // The exact matched soffit remains available separately and
+  // continues to drive the design/external geometry.
+  facetEavesRule.right.manufacturedSoffitMM,
 
   plumbCutHeightMM:
   facetEavesRule.right.matchedPlumbCutHeightMM,
@@ -1257,6 +1290,15 @@ fasciaOrderSizeMM:
   hasRingBeam: hasRightHip,
   ringBeamLengthMM:
     rightSideRingBeam.externalLengthMM,
+  ringBeamInternalLengthMM: projection,
+  ringBeamExternalLengthMM:
+    rightSideRingBeam.externalLengthMM,
+  ringBeamBaseWidthMM:
+    facetEavesRule.right
+      .manufacturedHorizontalFootRunMM,
+  ringBeamStartExtensionMM:
+    externalProjectionMM - projection,
+  ringBeamEndExtensionMM: 0,
 
   // Wall slot + intermediate side-jack slots + hip-seat slot.
   ringBeamBayWidthsMM:
@@ -1442,6 +1484,14 @@ fasciaOrderSizeMM:
 
   hasRingBeam: true,
   ringBeamLengthMM: externalWidthMM,
+  ringBeamInternalLengthMM: width,
+  ringBeamExternalLengthMM: externalWidthMM,
+  ringBeamBaseWidthMM:
+    externalProjectionMM - projection,
+  ringBeamStartExtensionMM:
+    leftExternalAllowanceMM,
+  ringBeamEndExtensionMM:
+    rightExternalAllowanceMM,
 
   ringBeamBayWidthsMM:
     frontRingBeamBayWidthsMM,
@@ -1578,6 +1628,8 @@ horizontalWallplateExternalLengthMM,
 horizontalWallplateInternalLengthMM,
 horizontalWallplateLeftEndCutOffSquareDeg,
 horizontalWallplateRightEndCutOffSquareDeg,
+leftWallbarTopCutOffSquareDeg,
+rightWallbarTopCutOffSquareDeg,
 
 // Universal facet-geometry validation
 leftFacetGeometry,

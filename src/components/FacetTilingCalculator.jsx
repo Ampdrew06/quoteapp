@@ -14,6 +14,7 @@ function createBlankFacet(index) {
     baseWidthMM: "",
     topWidthMM: "",
     heightMM: "",
+    topEdgeType: "none",
   };
 }
 
@@ -22,6 +23,7 @@ const lathKindLabels = {
   tileFixing: "Tile fixing lath",
   eavesSupport: "Eaves support lath",
   slateCourse: "Slate fixing lath",
+  ridgeFinishing: "Ridge finishing lath",
 };
 
 export function RoofTilingTotals({ result, itemWord }) {
@@ -149,7 +151,9 @@ export function LathScheduleTable({ result, facetNumber }) {
                   {lathKindLabels[row.kind] || "Fixing lath"}
                 </td>
                 <td style={cellStyle}>
-                  {Math.round(row.yMM)} mm
+                  {row.setOutOnSite
+                    ? "Set out at ridge"
+                    : `${Math.round(row.yMM)} mm`}
                 </td>
                 {hasOpeningDeductions && (
                   <td style={cellStyle}>
@@ -492,6 +496,34 @@ export default function FacetTilingCalculator() {
                     style={fieldStyle}
                   />
                 </label>
+
+                {isSyntheticSlate && (
+                  <label>
+                    Top edge finishes at
+                    <select
+                      value={facet.topEdgeType}
+                      onChange={(event) =>
+                        updateFacet(
+                          index,
+                          "topEdgeType",
+                          event.target.value
+                        )
+                      }
+                      style={fieldStyle}
+                    >
+                      <option value="none">
+                        Other / no ridge course
+                      </option>
+                      <option value="ridge">Ridge</option>
+                      <option value="wallAbutment">
+                        Wall / abutment
+                      </option>
+                      <option value="hipOrApex">
+                        Hip or apex
+                      </option>
+                    </select>
+                  </label>
+                )}
               </div>
 
               {!isValid ? (

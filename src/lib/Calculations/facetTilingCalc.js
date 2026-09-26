@@ -471,6 +471,14 @@ export function normalizeFacetTilingInput(
       facet?.label ||
       "Facet",
 
+    // Manual calculations supply this explicitly. Automatic roof geometry
+    // supplies it when the roof topology is known (for example, a Gable ridge).
+    topEdgeType:
+      tilingGeometry?.topEdgeType ??
+      facet?.geometry?.topEdgeType ??
+      facet?.topEdgeType ??
+      "none",
+
     baseWidthMM: asFiniteNumber(
       tilingGeometry?.baseWidthMM ??
       facet?.baseWidthMM
@@ -692,7 +700,7 @@ function calculateSyntheticSlateFacet(facet, product, warnings) {
     pitchRule.gaugeMM
   );
 
-  const lathRows = applyOpeningDeductionsToLathRows(
+  let lathRows = applyOpeningDeductionsToLathRows(
   lathPositionsMM.map((yMM, index) => ({
     index: index + 1,
     kind:
@@ -711,6 +719,26 @@ function calculateSyntheticSlateFacet(facet, product, warnings) {
   })),
   facet.openings
 );
+
+  const hasRidgeFinishingCourse =
+    facet.topEdgeType === "ridge" &&
+    facet.topWidthMM > 0;
+
+  const ridgeFinishingLath = hasRidgeFinishingCourse
+    ? {
+        index: lathRows.length + 1,
+        kind: "ridgeFinishing",
+        // This records the ridge boundary datum. Its precise fixing position
+        // is deliberately left for on-site set-out rather than inventing a gauge.
+        yMM: facet.heightMM,
+        widthMM: round(facet.topWidthMM, 3),
+        setOutOnSite: true,
+      }
+    : null;
+
+  if (ridgeFinishingLath) {
+    lathRows = [...lathRows, ridgeFinishingLath];
+  }
 
   const lathLengthMM = lathRows.reduce(
     (total, row) => total + row.widthMM,
@@ -777,9 +805,21 @@ const starterSlateQuantity = Math.ceil(
     product.effectiveSlateWidthMM
 );
 
+// A horizontal ridge needs a separate short finishing course for practical
+// appearance and fitting, even when the ordinary gauge covers the remaining
+// geometric height on paper.
+const ridgeFinishingSlateQuantity =
+  hasRidgeFinishingCourse
+    ? Math.ceil(
+        facet.topWidthMM /
+          product.effectiveSlateWidthMM
+      )
+    : 0;
+
 const grossSlateQuantityRaw =
   standardSlateQuantity +
-  starterSlateQuantity;
+  starterSlateQuantity +
+  ridgeFinishingSlateQuantity;
 
 const openingTileQuantityDeduction =
   calculateOpeningTileDeduction({
@@ -803,6 +843,12 @@ const slateQuantityOrdered =
     "Synthetic-slate quantity is calculated by whole slates per course and includes the doubled first row."
   );
 
+  if (hasRidgeFinishingCourse) {
+    warnings.push(
+      "A separate ridge finishing course and lath have been included; its exact fixing position is set out at the ridge during fitting."
+    );
+  }
+
   return {
     pitchRule,
     courses,
@@ -811,6 +857,9 @@ const slateQuantityOrdered =
 
     standardSlateQuantityRaw: standardSlateQuantity,
     starterSlateQuantityRaw: starterSlateQuantity,
+    ridgeFinishingSlateQuantityRaw:
+      ridgeFinishingSlateQuantity,
+    hasRidgeFinishingCourse,
 
     grossSlateQuantityRaw,
 openingTileQuantityDeduction,

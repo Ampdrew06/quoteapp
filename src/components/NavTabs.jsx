@@ -10,6 +10,7 @@ const publicTabsLeft = [
 
 const adminTabsLeft = [
   ...publicTabsLeft,
+  { to: "/quote/lean-to/technical", label: "Technical" },
   { to: "/quote/lean-to/plan-manufacture", label: "Manufacture Book" },
     {
     to: "/tiles-laths?mode=auto",

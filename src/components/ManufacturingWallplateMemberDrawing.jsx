@@ -34,6 +34,7 @@ export default function ManufacturingWallplateMemberDrawing({
 
   ewbsMM = 0,
   iwbsMM = 0,
+  topCutOffSquareDeg = 0,
 
   externalLengthMM = 0,
   internalLengthMM = 0,
@@ -116,6 +117,7 @@ export default function ManufacturingWallplateMemberDrawing({
   vfcMM={vfcMM}
   ewbsMM={ewbsMM}
   iwbsMM={iwbsMM}
+  topCutOffSquareDeg={topCutOffSquareDeg}
 
   internalHorizontalRunMM={
     internalHorizontalRunMM
@@ -149,6 +151,7 @@ function WallbarDrawing({
   vfcMM,
   ewbsMM,
   iwbsMM,
+  topCutOffSquareDeg,
 
   internalHorizontalRunMM,
   externalWallplateHeightMM,
@@ -205,9 +208,18 @@ function WallbarDrawing({
     y: 0,
   };
 
+  const pitchRad =
+    finite(pitchDeg) * Math.PI / 180;
+
   const D = {
-    x: internalRun,
-    y: internalHeight,
+    x:
+      iwbs > 0
+        ? iwbs * Math.cos(pitchRad)
+        : internalRun,
+    y:
+      iwbs > 0
+        ? iwbs * Math.sin(pitchRad)
+        : internalHeight,
   };
 
   /*
@@ -217,84 +229,14 @@ function WallbarDrawing({
    * corresponding horizontal run can be derived without
    * introducing any new roof geometry.
    */
-  const externalVerticalRise =
-    externalHeight - vfc;
-
-  const externalHorizontalRun =
-    Math.sqrt(
-      Math.max(
-        0,
-        ewbs * ewbs -
-          externalVerticalRise *
-            externalVerticalRise
-      )
-    );
-
   const E = {
-    x:
-      A.x +
-      externalHorizontalRun,
-
-    y: externalHeight,
+    x: A.x + ewbs * Math.cos(pitchRad),
+    y: A.y + ewbs * Math.sin(pitchRad),
   };
-
-  /*
-   * Included angle at E between:
-   *
-   * external slope A-E
-   * end cut E-D
-   *
-   * This comes directly from the resolved member profile.
-   */
-  const angleBetween = (
-    ax,
-    ay,
-    bx,
-    by
-  ) => {
-    const aLength =
-      Math.hypot(ax, ay);
-
-    const bLength =
-      Math.hypot(bx, by);
-
-    if (
-      aLength < 0.000001 ||
-      bLength < 0.000001
-    ) {
-      return 0;
-    }
-
-    const dot =
-      ax * bx + ay * by;
-
-    const cosAngle =
-      Math.max(
-        -1,
-        Math.min(
-          1,
-          dot / (aLength * bLength)
-        )
-      );
-
-    return (
-      Math.acos(cosAngle) *
-      180 /
-      Math.PI
-    );
-  };
-
-  const topCutAngleDeg =
-    angleBetween(
-      A.x - E.x,
-      A.y - E.y,
-      D.x - E.x,
-      D.y - E.y
-    );
 
   const topCutSawSettingDeg = Math.max(
     0,
-    90 - topCutAngleDeg
+    finite(topCutOffSquareDeg)
   );
 
   /*
@@ -422,7 +364,7 @@ function WallbarDrawing({
   const angleStyle = {
     ...textStyle,
     fill: "#dc2626",
-    fontSize: 11,
+    fontSize: 16,
   };
 
   return (
@@ -523,25 +465,22 @@ function WallbarDrawing({
         {dim(hfcMM, 0)} mm
       </text>
 
-      {/* Roof pitch instruction at the foot datum. */}
-      
+      {/* Roof-pitch foot cut. */}
       <text
-  x={c.x + 25}
-  y={c.y + 1}
-  style={angleStyle}
->
-  {dim(pitchDeg, 1)}°
-</text>
-
-      {/* Practical saw setting for the top / R22 mating cut. */}
-    
-      <text
-        x={e.x +40}
-        y={e.y + 31}
-        textAnchor="end"
+        x={c.x + 12}
+        y={c.y - 8}
         style={angleStyle}
       >
-        {dim(topCutSawSettingDeg, 1)}° 
+        {dim(pitchDeg, 1)}°
+      </text>
+
+      {/* Equal mitre for the top / R22 mating cut. */}
+      <text
+        x={e.x + 10}
+        y={e.y + 20}
+        style={angleStyle}
+      >
+        {dim(topCutSawSettingDeg, 1)}°
       </text>
     </svg>
   );
@@ -629,13 +568,13 @@ function HorizontalWallplateDrawing({
       {/* Practical saw settings for the two mating end cuts. */}
 
       <line x1={leftX} y1={extY} x2={leftX + 34} y2={extY + 27} stroke="#dc2626" strokeWidth="1.5" />
-      <text x={leftX + 39} y={extY + 25} fontSize="11" fontWeight="800" fill="#dc2626">
-        {dim(leftEndCutOffSquareDeg, 1)}° 
+      <text x={leftX + 39} y={extY + 25} fontSize="20" fontWeight="800" fill="#dc2626">
+        {dim(leftEndCutOffSquareDeg, 1)}°
       </text>
 
       <line x1={rightX} y1={extY} x2={rightX - 34} y2={extY + 27} stroke="#dc2626" strokeWidth="1.5" />
-      <text x={rightX - 39} y={extY + 25} textAnchor="end" fontSize="11" fontWeight="800" fill="#dc2626">
-       {dim(rightEndCutOffSquareDeg, 1)}° 
+      <text x={rightX - 39} y={extY + 25} textAnchor="end" fontSize="20" fontWeight="800" fill="#dc2626">
+        {dim(rightEndCutOffSquareDeg, 1)}°
       </text>
 
       {/* INTERNAL / BOTTOM LENGTH DIMENSION */}

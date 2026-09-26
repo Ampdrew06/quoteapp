@@ -1,7 +1,8 @@
 import { calculateHippedLeanToGeometry } from "./hippedLeanToGeometry";
+import { calculateWallplateMitreGeometry } from "./wallplateMitreGeometry";
 
 describe("Hipped Lean-To horizontal wallplate saw settings", () => {
-  test("derives separate left and right off-square cuts from the resolved profile", () => {
+  test("bisects each side pitch across equal-depth mating members", () => {
     const geometry = calculateHippedLeanToGeometry({
       widthMM: 5870,
       projectionMM: 3230,
@@ -27,6 +28,22 @@ describe("Hipped Lean-To horizontal wallplate saw settings", () => {
     expect(leftDeg).toBeGreaterThan(0);
     expect(rightDeg).toBeGreaterThan(0);
     expect(leftDeg).toBeCloseTo(rightDeg, 8);
+    expect(leftDeg).toBeCloseTo(
+      geometry.leftSidePitchDeg / 2,
+      8
+    );
+    expect(rightDeg).toBeCloseTo(
+      geometry.rightSidePitchDeg / 2,
+      8
+    );
+    expect(geometry.leftWallbarTopCutOffSquareDeg).toBeCloseTo(
+      leftDeg,
+      8
+    );
+    expect(geometry.rightWallbarTopCutOffSquareDeg).toBeCloseTo(
+      rightDeg,
+      8
+    );
 
     const reconstructedLengthDifferenceMM =
       Math.tan((leftDeg * Math.PI) / 180) * geometry.wallplateHeightMM +
@@ -36,6 +53,27 @@ describe("Hipped Lean-To horizontal wallplate saw settings", () => {
       geometry.horizontalWallplateExternalLengthMM -
         geometry.horizontalWallplateInternalLengthMM,
       6
+    );
+  });
+
+  test("produces matching 16.4 degree cuts for the ordered 32.8 degree roof", () => {
+    const result = calculateWallplateMitreGeometry({
+      sidePitchDeg: 32.8,
+      memberDepthMM: 220,
+      wallbarExternalSlopeMM: 1930,
+      wallbarHorizontalFootCutMM: 167,
+      wallbarVerticalFootCutMM: 160,
+    });
+
+    expect(result.wallbarTopCutOffSquareDeg).toBeCloseTo(16.4, 8);
+    expect(result.horizontalWallplateCutOffSquareDeg).toBeCloseTo(16.4, 8);
+    expect(result.mitreOffsetMM).toBeCloseTo(
+      220 * Math.tan((16.4 * Math.PI) / 180),
+      8
+    );
+    expect(result.cutFaceLengthMM).toBeCloseTo(
+      220 / Math.cos((16.4 * Math.PI) / 180),
+      8
     );
   });
 });

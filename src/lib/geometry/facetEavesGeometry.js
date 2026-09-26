@@ -26,10 +26,11 @@ const roundUpToIncrement = (value, increment) => {
 /**
  * Creates a rafter-foot profile at a supplied pitch.
  *
- * The effective profile depth is:
+ * The profile depth is the nominal timber depth.
  *
- * nominal 220 mm rafter depth
- * + agreed 5 mm practical tolerance
+ * A manufacturing tolerance may be retained in the returned
+ * diagnostics, but it must not enlarge the timber used by the
+ * geometry. Front and side profiles are cut from the same stock.
  *
  * The formula is:
  *
@@ -71,8 +72,7 @@ const calculateFacetFootProfile = ({
   );
 
   const effectiveProfileDepthMM =
-    resolvedRafterDepthMM +
-    resolvedProfileToleranceMM;
+    resolvedRafterDepthMM;
 
   const resolvedHorizontalFootRunMM = Math.max(
     0,
@@ -171,6 +171,7 @@ const solveFacetForTargetVerticalFootCut = ({
   profileToleranceMM,
   minimumSoffitMM,
   manufacturingRoundIncrementMM,
+  manufacturingClearanceMM,
 }) => {
   const resolvedPitchDeg =
     toFiniteNumber(pitchDeg);
@@ -200,9 +201,17 @@ const solveFacetForTargetVerticalFootCut = ({
     toFiniteNumber(minimumSoffitMM, 25)
   );
 
+  const resolvedManufacturingClearanceMM = Math.max(
+    0,
+    toFiniteNumber(manufacturingClearanceMM, 2)
+  );
+
+  // Use the same nominal stock depth as the reference/front
+  // profile. The tolerance is a workshop allowance only; adding
+  // it here previously treated a 220 mm side rafter as 225 mm and
+  // incorrectly increased the calculated side HFC.
   const effectiveProfileDepthMM =
-    resolvedRafterDepthMM +
-    resolvedProfileToleranceMM;
+    resolvedRafterDepthMM;
 
   const targetVFC = Math.max(
     0,
@@ -227,6 +236,10 @@ const solveFacetForTargetVerticalFootCut = ({
 
       manufacturedSoffitMM: 0,
       manufacturedHorizontalFootRunMM: 0,
+      timberHorizontalFootCutMM: 0,
+      manufacturedPlumbCutHeightMM: 0,
+      manufacturingClearanceMM:
+        resolvedManufacturingClearanceMM,
 
       mitreTrimAllowanceMM: 0,
       rawManufacturedSoffitMM: 0,
@@ -292,6 +305,33 @@ const solveFacetForTargetVerticalFootCut = ({
     resolvedFrameThicknessMM +
     manufacturedSoffitMM;
 
+  // The rounded dimension belongs to the 9 mm ply base. Timber
+  // members finish slightly inside that external edge so normal
+  // timber and cutting variation cannot leave them standing proud.
+  const timberHorizontalFootCutMM = Math.max(
+    0,
+    manufacturedHorizontalFootRunMM -
+      resolvedManufacturingClearanceMM
+  );
+
+  const manufacturedTimberProfile =
+    calculateFacetFootProfile({
+      pitchDeg: resolvedPitchDeg,
+      horizontalFootRunMM:
+        timberHorizontalFootCutMM,
+      frameThicknessMM:
+        resolvedFrameThicknessMM,
+      rafterDepthMM:
+        resolvedRafterDepthMM,
+      profileToleranceMM:
+        resolvedProfileToleranceMM,
+    });
+
+  const manufacturedPlumbCutHeightMM =
+    toFiniteNumber(
+      manufacturedTimberProfile.verticalFootCutMM
+    );
+
   return {
     valid:
       Number.isFinite(matchedSoffitMM) &&
@@ -309,6 +349,10 @@ const solveFacetForTargetVerticalFootCut = ({
 
     manufacturedSoffitMM,
     manufacturedHorizontalFootRunMM,
+    timberHorizontalFootCutMM,
+    manufacturedPlumbCutHeightMM,
+    manufacturingClearanceMM:
+      resolvedManufacturingClearanceMM,
 
     /*
      * Compatibility fields.
@@ -341,11 +385,22 @@ const solveFacetForTargetVerticalFootCut = ({
         horizontalExtensionMM:
           matchedHorizontalFootRunMM,
 
+        manufacturedBaseWidthMM:
+          manufacturedHorizontalFootRunMM,
+
+        manufacturedHorizontalFootCutMM:
+          timberHorizontalFootCutMM,
+
+        rafterFootClearanceMM:
+          resolvedManufacturingClearanceMM,
+
         verticalDropMM:
           profile.verticalFallAcrossFootMM,
 
         plumbCutHeightMM:
           matchedPlumbCutHeightMM,
+
+        manufacturedPlumbCutHeightMM,
 
         rafterDepthMM:
           resolvedRafterDepthMM,
@@ -388,6 +443,7 @@ export function solveFacetEavesGeometry({
 
   minimumSoffitMM = 25,
   manufacturingRoundIncrementMM = 5,
+  manufacturingClearanceMM = 2,
 
   minimumReferenceSoffitMM = 25,
   maximumReferenceSoffitMM = 1000,
@@ -459,6 +515,11 @@ export function solveFacetEavesGeometry({
     )
   );
 
+  const resolvedManufacturingClearanceMM = Math.max(
+    0,
+    toFiniteNumber(manufacturingClearanceMM, 2)
+  );
+
   const evaluateReferenceSoffit = (
     referenceSoffitMM
   ) => {
@@ -503,6 +564,10 @@ export function solveFacetEavesGeometry({
 
           manufacturedSoffitMM: 0,
           manufacturedHorizontalFootRunMM: 0,
+          timberHorizontalFootCutMM: 0,
+          manufacturedPlumbCutHeightMM: 0,
+          manufacturingClearanceMM:
+            resolvedManufacturingClearanceMM,
 
           mitreTrimAllowanceMM: 0,
           rawManufacturedSoffitMM: 0,
@@ -529,6 +594,9 @@ export function solveFacetEavesGeometry({
 
           manufacturingRoundIncrementMM:
             roundIncrementMM,
+
+          manufacturingClearanceMM:
+            resolvedManufacturingClearanceMM,
         }),
       };
     };
@@ -682,6 +750,25 @@ export function solveFacetEavesGeometry({
 
     manufacturingRoundIncrementMM:
       roundIncrementMM,
+
+    manufacturingClearanceMM:
+      resolvedManufacturingClearanceMM,
+
+    referenceBaseWidthMM:
+      frameThicknessMM +
+      effectiveReferenceSoffitMM,
+
+    referenceTimberHorizontalFootCutMM:
+      toFiniteNumber(
+        resolved.referenceGeometry?.raw
+          ?.manufacturedHorizontalFootCutMM,
+        Math.max(
+          0,
+          frameThicknessMM +
+            effectiveReferenceSoffitMM -
+            resolvedManufacturingClearanceMM
+        )
+      ),
 
     frameThicknessMM,
     rafterDepthMM,

@@ -79,7 +79,11 @@ fasciaOrderSizeMM = 0,
   // Ring-beam configuration
   hasRingBeam = true,
   ringBeamLengthMM,
+  ringBeamInternalLengthMM,
+  ringBeamExternalLengthMM,
   ringBeamBaseWidthMM = 220,
+  ringBeamStartExtensionMM = 0,
+  ringBeamEndExtensionMM,
   ringBeamBayWidthsMM = [],
   ringBeamUpstandHeightMM = 195,
   ringBeamPirHeightMM = 185,
@@ -227,7 +231,17 @@ const resolvedFasciaOrderSizeMM = Math.max(
       resolvedRingBeamLengthMM > 0,
 
     lengthMM: resolvedRingBeamLengthMM,
+internalLengthMM: toFiniteNumber(
+  ringBeamInternalLengthMM,
+  resolvedInternalEavesLengthMM
+),
+externalLengthMM: toFiniteNumber(
+  ringBeamExternalLengthMM,
+  resolvedRingBeamLengthMM
+),
 baseWidthMM: ringBeamBaseWidthMM,
+startExtensionMM: ringBeamStartExtensionMM,
+endExtensionMM: ringBeamEndExtensionMM,
 
 pitchDeg: resolvedPitchDeg,
 soffitDepthMM: resolvedSoffitDepthMM,

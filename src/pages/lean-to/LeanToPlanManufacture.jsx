@@ -17,9 +17,11 @@ import {
 } from "../../lib/Manufacturing/manufacturingSequenceBuilder";
 import ManufacturingWallplateMemberDrawing from "../../components/ManufacturingWallplateMemberDrawing";
 import ManufacturingRoofMemberDrawing from "../../components/ManufacturingRoofMemberDrawing";
+import ManufacturingRingBeamDrawing from "../../components/ManufacturingRingBeamDrawing";
 import { buildJackRafterManufactureAudit } from "../../lib/Calculations/jackRafterManufactureAudit";
 import { groupProvisionalRoofMembers } from "../../lib/Manufacturing/groupProvisionalRoofMembers";
 import { buildFrontRafterManufactureProfiles } from "../../lib/Manufacturing/frontRafterManufactureProfiles";
+import { buildHippedLeanToRingBeamSchedule } from "../../lib/Manufacturing/ringBeamManufactureSchedule";
 import {
   resolveEdgeSupport,
   resolveTwoSidedExternalWidth,
@@ -1921,9 +1923,14 @@ const leftWallbarManufacture = hippedGeom
       iwbsMM:
         hippedGeom.leftInternalWallBarSlopeMM,
 
+      topCutOffSquareDeg:
+        hippedGeom.leftWallbarTopCutOffSquareDeg,
+
       internalHorizontalRunMM:
-        hippedGeom.leftFacetGeometry
-          ?.internalHorizontalRunMM,
+        hippedGeom.leftInternalWallBarSlopeMM *
+        Math.cos(
+          (hippedGeom.leftSidePitchDeg * Math.PI) / 180
+        ),
 
       externalWallplateHeightMM:
         hippedGeom.designExternalWallplateHeightMM,
@@ -1950,9 +1957,14 @@ const rightWallbarManufacture = hippedGeom
       iwbsMM:
         hippedGeom.rightInternalWallBarSlopeMM,
 
+      topCutOffSquareDeg:
+        hippedGeom.rightWallbarTopCutOffSquareDeg,
+
       internalHorizontalRunMM:
-        hippedGeom.rightFacetGeometry
-          ?.internalHorizontalRunMM,
+        hippedGeom.rightInternalWallBarSlopeMM *
+        Math.cos(
+          (hippedGeom.rightSidePitchDeg * Math.PI) / 180
+        ),
 
       externalWallplateHeightMM:
         hippedGeom.designExternalWallplateHeightMM,
@@ -2041,6 +2053,14 @@ const provisionalJackGroups = provisionalRoofMemberGroups.filter(
 );
 const provisionalFrontRafterGroups = provisionalRoofMemberGroups.filter(
   (group) => group.type === "boss-rafter" || group.type === "rafter"
+);
+
+const ringBeamManufactureSchedule = useMemo(
+  () =>
+    roofStyleKey === "hippedLeanTo" && hippedGeom
+      ? buildHippedLeanToRingBeamSchedule({ geometry: hippedGeom })
+      : null,
+  [roofStyleKey, hippedGeom]
 );
   //const roofSizeDisplay = `${round(iw)} × ${round(ip)} mm int / ${round(extWidthMM)} × ${round(extProjectionMM)} mm ext`;
 
@@ -3617,6 +3637,138 @@ const provisionalFrontRafterGroups = provisionalRoofMemberGroups.filter(
               group={group}
             />
           ))}
+        </div>
+      </div>
+    </section>
+  )}
+
+  {ringBeamManufactureSchedule?.valid && (
+    <section className="pm-page">
+      <div style={panel}>
+        <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 3 }}>
+          Hipped Lean-To Manufacture
+        </div>
+        <div style={{ ...sectionTitle, marginBottom: 2 }}>Ring-beams</div>
+        <div style={{ fontSize: 12, color: "#475569", marginBottom: 9 }}>
+          Matching assemblies are grouped automatically. Component quantities shown inside each card are per beam.
+        </div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+            gap: 10,
+            alignItems: "start",
+          }}
+        >
+          {ringBeamManufactureSchedule.groups.map((group) => (
+            <ManufacturingRingBeamDrawing
+              key={`ring-beam-${group.manufactureRefs.join("-")}`}
+              group={group}
+            />
+          ))}
+        </div>
+      </div>
+    </section>
+  )}
+
+  {false && ringBeamManufactureSchedule?.valid && (
+    <section className="pm-page">
+      <div style={panel}>
+        <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 3 }}>
+          Hipped Lean-To Manufacture
+        </div>
+        <div style={{ ...sectionTitle, marginBottom: 2 }}>
+          Ring-beam schedule — read only
+        </div>
+        <div style={{ fontSize: 12, color: "#92400e", marginBottom: 10 }}>
+          Validation stage only. These quantities do not yet replace Summary pricing or manufacturing output.
+        </div>
+
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr>
+              <th style={th}>Ref</th>
+              <th style={th}>Beam</th>
+              <th style={th}>Internal</th>
+              <th style={th}>External</th>
+              <th style={th}>Base width</th>
+              <th style={th}>Pitch</th>
+              <th style={th}>Manufactured soffit</th>
+              <th style={th}>VFC</th>
+              <th style={th}>Upstands</th>
+              <th style={th}>Clear bay widths</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ringBeamManufactureSchedule.members.map((member) => {
+              const beam = member.ringBeam;
+              const eaves = beam.eavesGeometry || {};
+              return (
+                <tr key={member.id}>
+                  <td style={td}><b>{member.manufactureRef}</b></td>
+                  <td style={td}>
+                    {member.side === "front"
+                      ? "Front ring-beam"
+                      : `${member.side === "left" ? "Left" : "Right"} side ring-beam`}
+                  </td>
+                  <td style={td}>{round(beam.internalLengthMM)} mm</td>
+                  <td style={td}>{round(beam.externalLengthMM)} mm</td>
+                  <td style={td}>{round(beam.baseWidthMM, 1)} mm</td>
+                  <td style={td}>{round(eaves.pitchDeg, 1)}°</td>
+                  <td style={td}>{round(eaves.soffitDepthMM)} mm</td>
+                  <td style={td}>{round(eaves.plumbCutHeightMM)} mm</td>
+                  <td style={td}>{beam.upstandCount}</td>
+                  <td style={{ ...td, fontSize: 11 }}>
+                    {(beam.bayWidthsMM || []).map((width) => round(width)).join(" / ")} mm
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+
+        <div style={{ ...sectionTitle, marginTop: 14, marginBottom: 7 }}>
+          Calculated component usage
+        </div>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr>
+              <th style={th}>Component</th>
+              <th style={th}>Calculated usage</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style={td}>30×90 PSE continuous ring-beam timber</td>
+              <td style={td}>{round(ringBeamManufactureSchedule.totals.pse30x90LengthM, 3)} m</td>
+            </tr>
+            <tr>
+              <td style={td}>9 mm ply base/soffit</td>
+              <td style={td}>{round(ringBeamManufactureSchedule.totals.ply9BaseAreaM2, 3)} m²</td>
+            </tr>
+            <tr>
+              <td style={td}>9 mm ply upstands</td>
+              <td style={td}>{round(ringBeamManufactureSchedule.totals.ply9UpstandAreaM2, 3)} m²</td>
+            </tr>
+            <tr>
+              <td style={td}>25×50 outer fixing lath</td>
+              <td style={td}>{round(ringBeamManufactureSchedule.totals.outerFixingLath25x50LengthM, 3)} m</td>
+            </tr>
+            <tr>
+              <td style={td}>25×50 upstand finishing pieces</td>
+              <td style={td}>{round(ringBeamManufactureSchedule.totals.finishingLath25x50LengthM, 3)} m</td>
+            </tr>
+            <tr>
+              <td style={td}>50 mm PIR to upstand faces</td>
+              <td style={td}>{round(ringBeamManufactureSchedule.totals.pir50AreaM2, 3)} m²</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div style={{ marginTop: 10, fontSize: 12, color: "#475569" }}>
+          Matching beams found: {ringBeamManufactureSchedule.groups.map((group) =>
+            `${group.manufactureRefs.join(" / ")} ×${group.quantity}`
+          ).join("; ")}
         </div>
       </div>
     </section>

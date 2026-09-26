@@ -15,7 +15,7 @@ import { computeLiteSlateLeanTo as computeLiteSlate } from "../../lib/Calculatio
 //import { computeMiscLeanTo } from "../../lib/miscCalc"; 
 import { useLocation, useNavigate } from "react-router-dom";
 import NavTabs from "../../components/NavTabs";
-import { buildLeanToTotals, buildLeanToQuoteBase } from "../../lib/leanToTotals";
+import { buildLeanToQuoteBase } from "../../lib/leanToTotals";
 import { buildAutomaticRoofTiling } from "../../lib/Calculations/automaticRoofTiling";
 import { buildQuoteTilingAdjustment } from "../../lib/Calculations/quoteTilingAdjustment";
 import { getCurrentCustomer } from "../../lib/customers";
@@ -668,14 +668,6 @@ const selectedCustomer =
     return {};
   }
 };
-const loadSummaryAdjustments = () => {
-  try {
-    return JSON.parse(localStorage.getItem("summary_adjustments") || "{}");
-  } catch {
-    return {};
-  }
-};
-
 const loadSummaryExclusionValues = () => {
   try {
     return JSON.parse(localStorage.getItem("summary_exclusion_values") || "{}");
@@ -985,12 +977,6 @@ const universalMaterialsCostForPricing =
   quoteBase.materialsCostForPricing +
   (quoteTilingAdjustment.valid ? quoteTilingAdjustment.adjustment : 0);
 
-const totals = useMemo(
-  () => buildLeanToTotals(totalsInput, summaryExclusions),
-  [totalsInput, summaryExclusions]
-);
-
-const summaryAdjustments = loadSummaryAdjustments();
 const summaryAdjustmentValues = loadSummaryAdjustmentValues();
 const summaryExclusionValues = loadSummaryExclusionValues();
 
@@ -1879,7 +1865,7 @@ onChange={(e) => {
             </label>
             {roofStyle !== "hippedLeanTo" && (
   <label>
-    Maximum finished height (mm)
+    Max finished height (mm)
 
     <input
       type="number"
@@ -2142,7 +2128,7 @@ setRequestedRightSidePitchDeg={
   </label>
 )}
 
-      <label> Delivery postcode {isAdmin ? "(optional)" : ""}
+      <label> Delivery postcode {isAdmin ? "(required)" : ""}
   <input
     type="text"
     value={deliveryPostcode}
@@ -2396,18 +2382,12 @@ frontRafterLayout={
                 <div>
   <b>External Finished Height</b>: {round(externalFinishedHeightMM)} mm
 </div>
-<p>
-  Rise:{" "}
-  {Math.round(
-    roofStyle === "hippedLeanTo"
-      ? hippedGeom?.riseMM ?? 0
-      : riseMM
-  )}{" "}
-  mm
-</p>
+
 <div>
   <b>Front Pitch</b>: {Number(pitchDeg || 0).toFixed(1)}°
 </div>
+{false && (
+<>
 {roofStyle === "hippedLeanTo" && hippedGeom && (
   <div
     style={{
@@ -2909,6 +2889,8 @@ rightWallBarVerticalFootCutMM={
     }
   />
 )}
+</>
+)}
                 <div>
                   <b>Tile</b>: {tileSystem === "britmet" ? "Britmet" : "LiteSlate"} — <b>{tileColor}</b>
                 </div>
@@ -2924,20 +2906,8 @@ rightWallBarVerticalFootCutMM={
   <h2 style={h2}>Your price</h2>
   <div style={{ display: "grid", gap: 6, fontSize: 16 }}>
     <div>
-      Materials subtotal (net): <b>£{(pricing.net ?? 0).toFixed(2)}</b>
+      Subtotal: <b>£{(pricing.net ?? 0).toFixed(2)}</b>
     </div>
-    <div style={{ color: "#b45309", fontSize: 13 }}>
-  Adjustment delta: £{adjustmentDelta.toFixed(2)}
-</div>
-<div style={{ color: "#6b7280", fontSize: 12 }}>
-  Adjustment keys: {Object.keys(summaryAdjustments).join(", ")}
-</div>
-<div style={{ color: "#6b7280", fontSize: 12 }}>
-  Available keys:
-  {(totals?.allLines || [])
-    .map((r) => r.key)
-    .join(", ")}
-</div>
     <div>
       VAT ({((pricing.vatRate ?? 0) * 100).toFixed(0)}%): £{(pricing.vat ?? 0).toFixed(2)}
     </div>
@@ -2946,7 +2916,7 @@ rightWallBarVerticalFootCutMM={
     </div>
   </div>
   <div style={{ color: "#6b7280", fontSize: 12, marginTop: 8 }}>
-    Includes tiles & ancillaries, fascia/soffit, gutters, tile starter, J-Section and membrane.
+    Quotation valid for 31 days from the date of issue.
   </div>
 </div>
           </div>

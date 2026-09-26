@@ -38,7 +38,7 @@ export default function ManufacturingRoofMemberDrawing({ group }) {
                 : "Hip"}
         </div>
         {group?.quantity > 1 && (
-          <div style={{ marginLeft: "auto", fontSize: 16, fontWeight: 800 }}>
+          <div style={{ marginLeft: "auto", fontSize: 20, fontWeight: 800 }}>
             ×{group.quantity}
           </div>
         )}
@@ -92,7 +92,7 @@ export default function ManufacturingRoofMemberDrawing({ group }) {
           {dim(profile.topVerticalCutMM)} mm
         </text>
 
-        <text x="91" y="124" fill="#dc2626" fontSize="12" fontWeight="800">
+        <text x="150" y="185" fill="#dc2626" fontSize="18" fontWeight="800">
           {dim(pitchDeg, 1)}°
         </text>
 

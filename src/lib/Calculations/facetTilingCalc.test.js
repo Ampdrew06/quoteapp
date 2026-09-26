@@ -140,6 +140,56 @@ expect(result.courses).toHaveLength(result.lathRows.length);
     );
   });
 
+  test("adds one finishing course and lath to each synthetic-slate facet ending at a ridge", () => {
+    const roof = calculateRoofTiling({
+      product: "liteSlate",
+      facets: [1, 2].map((number) => ({
+        id: `gable-${number}`,
+        label: `Gable ${number}`,
+        baseWidthMM: 3160,
+        topWidthMM: 3160,
+        heightMM: 2113,
+        pitchDeg: 25,
+        topEdgeType: "ridge",
+      })),
+    });
+
+    expect(roof.errors).toEqual([]);
+    expect(roof.tileQuantityOrdered).toBe(330);
+    expect(roof.lathLengthMM).toBeCloseTo(94800, 3);
+
+    roof.facets.forEach((facet) => {
+      expect(facet.hasRidgeFinishingCourse).toBe(true);
+      expect(facet.ridgeFinishingSlateQuantityRaw).toBe(11);
+      expect(facet.tileQuantityRaw).toBe(165);
+      expect(facet.lathRows).toHaveLength(15);
+      expect(facet.lathRows.at(-1)).toMatchObject({
+        kind: "ridgeFinishing",
+        widthMM: 3160,
+        setOutOnSite: true,
+      });
+    });
+  });
+
+  test("does not apply the ridge finishing rule to Britmet or Metrotile", () => {
+    ["britmetShingle", "metrotileShingle"].forEach((product) => {
+      const withoutRidge = calculateFacetTiling({
+        product,
+        facet: trapezoid,
+      });
+      const withRidge = calculateFacetTiling({
+        product,
+        facet: {
+          ...trapezoid,
+          topEdgeType: "ridge",
+        },
+      });
+
+      expect(withRidge.lathRows).toEqual(withoutRidge.lathRows);
+      expect(withRidge.tileQuantityRaw).toBe(withoutRidge.tileQuantityRaw);
+    });
+  });
+
   test("keeps the LiteSlate and Tapco steep gauges separate", () => {
     const liteSlate = calculateFacetTiling({
       product: "liteSlate",
@@ -586,7 +636,7 @@ test("deducts laths and steel-shingle coverage for a roof opening", () => {
 expect(
   withOpening.openingTileQuantityDeduction
 ).toBeCloseTo(
- 0.429 / 0.317475,
+  0.429 / 0.317475,
   6
 );
 });
