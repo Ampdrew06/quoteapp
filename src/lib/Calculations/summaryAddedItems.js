@@ -1,3 +1,4 @@
+/* global globalThis */
 const round = n => Number(Number(n).toFixed(2));
 const at = (object, path) => path.split('.').reduce((value, key) => value?.[key], object);
 const first = (m, ...paths) => paths.map(path => at(m, path)).find(value => value != null && Number.isFinite(Number(value)));

@@ -10,6 +10,7 @@ import { getCustomers } from "../../lib/customers";
 import React, { useMemo, useState, useEffect } from "react";
 import { getMaterials } from "../../lib/materials";
 import { computeTilesLathsBOM } from "../../lib/Calculations/tilesLathsCalc";
+import { computeLiteSlateLeanTo } from "../../lib/Calculations/liteslateCalc";
 //import { computeFasciaSoffitLeanTo } from "../../lib/fasciaSoffitCalc";
 //import { computeEdgeTrimsLeanTo } from "../../lib/edgeTrimsCalc";
 //import { computeGuttersLeanTo } from "../../lib/guttersCalc";
@@ -19,7 +20,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import NavTabs from "../../components/NavTabs";
 import { getCurrentCustomer } from "../../lib/customers";
 import { computePricing, computeLabourPricing, computeDeliveryPricing, getLabourPricingConfig, getDeliveryPricingConfig, getMarkupPricingConfig } from "../../lib/pricing";
-import { getNextQuoteNumber } from "../../lib/quotes";
+import { getNextQuoteNumber, saveQuote } from "../../lib/quotes";
 import TemplateGeometryVisualizer from "../../components/TemplateGeometryVisualizer";
 import WallplateGeometryVisualizer from "../../components/WallplateGeometryVisualizer";
 import HippedWallplateFrontVisualizer from "../../components/HippedWallplateFrontVisualizer";
@@ -1213,8 +1214,8 @@ const externalFinishedHeightMM =
 
   const tilesBom = useMemo(() => {
     // If LiteSlate selected, use the LiteSlate calculator
-    if (String(tileSystem).toLowerCase() === "liteslate" && typeof computeLiteSlate === "function") {
-      return computeLiteSlate(
+    if (String(tileSystem).toLowerCase() === "liteslate" && typeof computeLiteSlateLeanTo === "function") {
+      return computeLiteSlateLeanTo(
         {
           run_mm: extWidthMM,
           projection_mm: extProjectionMM,
@@ -1634,7 +1635,7 @@ manual_reference: manualReference,
     materials_snapshot_json: getMaterials(),
   };
 
-  const saved = await saveQuoteToCloud(record);
+  const saved = await saveQuote(record);
 
   if (!saved) {
     alert("Quote was not saved. Check the console for details.");

@@ -1,3 +1,4 @@
+/* global globalThis */
 const readObject = (storage, key) => {
   try { const value=JSON.parse(storage.getItem(key)||'{}'); return value && typeof value==='object' && !Array.isArray(value) ? value : {}; }
   catch { return {}; }
