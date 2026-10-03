@@ -74,8 +74,8 @@ orderUnit: r.orderUnit ?? r.order_unit ?? r.orderUom,
  * Inputs are the same ideas you already use in LeanToLanding:
  * widthMM/projMM internal, pitchDeg, walls/overhangs, colours, gutters, tileSystem.
  */
-export function buildLeanToTotals(inputs = {}, exclusions = {}) {
-  const m = getMaterials();
+export function buildLeanToTotals(inputs = {}, exclusions = {}, materialsOverride = null) {
+  const m = materialsOverride || getMaterials();
   const { isExcluded, sumCostFromLines } = buildExclusionFns(exclusions);
 
   // ---- inputs (internal) ----
@@ -556,6 +556,13 @@ const hippedGeom = isHippedLeanTo
 
       requestedRightSidePitchDeg:
         inputs.requestedRightSidePitchDeg ?? null,
+
+      sideSoffitMode:
+        inputs.sideSoffitMode ?? "automatic",
+      sideSoffitControlSide:
+        inputs.sideSoffitControlSide ?? "left",
+      specifiedSideSoffitMM:
+        inputs.specifiedSideSoffitMM ?? null,
 
       leftWall: Boolean(
         inputs.leftWall ??

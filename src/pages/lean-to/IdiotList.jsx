@@ -1,3 +1,10 @@
+import SummaryIdiotList from '../../components/SummaryIdiotList';
+import { buildSummaryMaterialsModel } from '../../lib/Calculations/summaryMaterialsModel';
+import { readSummaryPricingState } from '../../lib/Calculations/summaryPricingState';
+import { buildSummaryAddedItemLines } from "../../lib/Calculations/summaryAddedItems";
+import { buildHippedMiscellaneousIntegrationAudit } from "../../lib/Calculations/miscellaneousIntegrationAudit";
+import { integrateMiscellaneousSummary, miscellaneousSiteSupplyLines } from "../../lib/Calculations/miscellaneousSummaryIntegration";
+import { buildHippedLeanToInsulationAudit } from "../../lib/Calculations/insulationIntegrationAudit";
 // src/pages/lean-to/IdiotList.jsx
 import React, { useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
@@ -68,7 +75,7 @@ const jointsFromRunMM = (run_mm, piece_mm = 5000) =>
   Math.max(0, Math.ceil(num(run_mm) / piece_mm) - 1);
 
 // ---------- component ----------
-export default function IdiotList({ showNavTabs = true }) {
+function LegacyIdiotList({ showNavTabs = true }) {
   const q = loadInputs();       // ✅ SINGLE source of inputs
   const m = getMaterials();
 
@@ -249,7 +256,28 @@ const run_m = extWidthMM / 1000;
   }),
   [leanToTotals]
 );
-const miscLines = leanToTotals?.sections?.misc || [];
+const legacyMiscLines = leanToTotals?.sections?.misc || [];
+const miscGeometry = (q.roofStyle ?? q.roof_style ?? "leanTo") === "hippedLeanTo"
+  ? automaticRoofEdgeResult?.tiling?.geometry : null;
+const miscInsulation = miscGeometry ? buildHippedLeanToInsulationAudit({
+  roofInputs: q, geometry: miscGeometry,
+  internalLathCentresMM: Number(q.int_lath_centres_mm ?? 400),
+}) : null;
+const miscAudit = miscGeometry ? buildHippedMiscellaneousIntegrationAudit({
+  geometry: miscGeometry, roofInputs: q, materials: m,
+  internalAreaM2: miscInsulation?.superQuilt?.geometricAreaM2,
+  tileQuantity: automaticRoofEdgeResult?.tiling?.result?.tileQuantityOrdered,
+  tileSystem: automaticRoofEdgeResult?.tiling?.productId,
+  legacyLines: legacyMiscLines, insulationAudit: miscInsulation,
+  automaticResult: automaticRoofEdgeResult?.tiling?.result,
+  edgeModel: automaticRoofEdgeResult?.edgeModel,
+  edgeLines: automaticRoofEdgeResult?.bom?.lines || [],
+}) : null;
+let miscAdjustments = {};
+try { miscAdjustments = JSON.parse(localStorage.getItem("summary_adjustments") || "{}"); } catch (_) { /* retain base allowances */ }
+const miscLines = miscellaneousSiteSupplyLines(
+  integrateMiscellaneousSummary(miscAudit, legacyMiscLines), miscAudit?.lathAudit?.valid ? miscAdjustments : {});
+
 if (typeof window !== "undefined") {
   window.__pirDebug = {
     miscLines,
@@ -709,6 +737,10 @@ return {
 });
 
 
+  const addedSupplyRows = (section) => buildSummaryAddedItemLines(q.summaryAddedItems, m)
+    .filter(row => row.section === section && row.qty > 0)
+    .map(row => ({ item: row.label, qty: row.qty, units: row.units }));
+
   // ---- Total weight (sum all BOM lines) ----
   const allBomItems = [
   ...(tilesBom?.lines || []),
@@ -823,28 +855,28 @@ scan("miscLines", miscLines);
 
         {/* Two column boxed sections */}
         <div className="grid">
-          <Section title="Timber Elements" rows={rowsTimber} />
+          <Section title="Timber Elements" rows={[...rowsTimber, ...addedSupplyRows("timber")]} />
 
           <Section
             title={`Plastics Elements – ${plasticsFinishDisplay}`}
-            rows={rowsPlastics}
+            rows={[...rowsPlastics, ...addedSupplyRows("plastics")]}
           />
 
           <Section
             title={`Tile Elements – ${tileSystemDisplay}${
               tileColourDisplay ? " / " + tileColourDisplay : ""
             }`}
-            rows={rowsTilesForDisplay}
+            rows={[...rowsTilesForDisplay, ...addedSupplyRows("tiles")]}
           />
 
-          <Section title="Metal Elements" rows={finalRowsMetalForDisplay} />
+          <Section title="Metal Elements" rows={[...finalRowsMetalForDisplay, ...addedSupplyRows("metal")]} />
 
           <Section
             title={`Guttering – ${gutterColorDisplay} / ${gutterProfileDisplay}`}
-            rows={rowsGutters}
+            rows={[...rowsGutters, ...addedSupplyRows("gutters")]}
           />
 
-          <Section title="Miscellaneous" rows={rowsMisc} />
+          <Section title="Miscellaneous" rows={[...rowsMisc, ...addedSupplyRows("misc")]} />
         </div>
 
         <style>{`
@@ -927,3 +959,20 @@ function Section({ title, rows }) {
   );
 }
 
+
+// Share the integrated model with manufacture; retain the unaudited regular Lean-To list.
+export default function IdiotList({ showNavTabs = true, materialsModel = null, inputs = null }) {
+  const q = inputs || loadInputs();
+  const m = getMaterials();
+  const useIntegrated = materialsModel || (q.roofStyle ?? q.roof_style) === 'hippedLeanTo';
+  const model = useMemo(() => {
+    if (!useIntegrated) return null;
+    if (materialsModel) return materialsModel;
+    const controls = q.summaryPricingState ?? readSummaryPricingState();
+    return buildSummaryMaterialsModel({ inputs:q, materials:m,
+      exclusions:controls.exclusions ?? {}, adjustments:controls.adjustments ?? {},
+      addedItems:q.summaryAddedItems ?? [] });
+  }, [useIntegrated, materialsModel, q, m]);
+  if (!useIntegrated) return <LegacyIdiotList showNavTabs={showNavTabs} />;
+  return <div>{showNavTabs && <NavTabs />}<SummaryIdiotList model={model} materials={m} inputs={q} /></div>;
+}

@@ -76,4 +76,62 @@ describe("Hipped Lean-To horizontal wallplate saw settings", () => {
       8
     );
   });
+
+  test("matches the measured 7040 x 2910 physical roof datums", () => {
+    const geometry = calculateHippedLeanToGeometry({
+      widthMM: 7040,
+      projectionMM: 2910,
+      pitchDeg: 18,
+      soffitDepthMM: 150,
+      hippedSides: "both",
+      requestedLeftSidePitchDeg: 32.8,
+      requestedRightSidePitchDeg: 32.8,
+      materials: {
+        side_frame_thickness_mm: 70,
+        fascia_lip_mm: 25,
+        frame_on_mm: 70,
+        wallplate_thickness_mm: 63,
+        wallplate_height_mm: 220,
+        ring_beam_height_mm: 40,
+        rafter_spacing_mm: 665,
+      },
+    });
+
+    // The historical floor-foot top intersection remains a diagnostic.
+    // It is not the physical boss centre used in the finished assembly.
+    expect(
+      Math.abs(geometry.leftFacetFloorTopOffsetMM - 1470)
+    ).toBeLessThanOrEqual(10);
+    expect(
+      Math.abs(geometry.rightFacetFloorTopOffsetMM - 1470)
+    ).toBeLessThanOrEqual(10);
+
+    expect(geometry.resolvedLeftHipWidthMM).toBeCloseTo(
+      geometry.wallplateAssembly.left.bossCentrePositionMM, 7
+    );
+    expect(geometry.resolvedRightHipWidthMM).toBeCloseTo(
+      geometry.wallplateAssembly.right.bossCentrePositionMM, 7
+    );
+    // Historical specimen with explicit 32.8 degree side pitch:
+    // IWPL 4107, EWPL 4235, IWBS 1745.
+    // Small differences are retained for factory/measurement validation.
+    expect(
+      Math.abs(
+        geometry.horizontalWallplateInternalLengthMM - 4107
+      )
+    ).toBeLessThanOrEqual(10);
+    expect(
+      Math.abs(
+        geometry.horizontalWallplateExternalLengthMM - 4235
+      )
+    ).toBeLessThanOrEqual(10);
+    expect(
+      Math.abs(geometry.leftInternalWallBarSlopeMM - 1745)
+    ).toBeLessThanOrEqual(10);
+    expect(
+      Math.abs(geometry.rightInternalWallBarSlopeMM - 1745)
+    ).toBeLessThanOrEqual(10);
+
+    expect(geometry.designInternalWallplateHeightMM).toBeCloseTo(985.5, 0);
+  });
 });

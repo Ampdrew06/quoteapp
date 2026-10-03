@@ -14,6 +14,12 @@ export default function HippedLeanToOptions({
   setRequestedLeftSidePitchDeg,
   requestedRightSidePitchDeg,
   setRequestedRightSidePitchDeg,
+  sideSoffitMode,
+  setSideSoffitMode,
+  sideSoffitControlSide,
+  setSideSoffitControlSide,
+  specifiedSideSoffitMM,
+  setSpecifiedSideSoffitMM,
   setLeftHipWidthManual,
   setRightHipWidthManual,
   leftWall,
@@ -167,6 +173,74 @@ export default function HippedLeanToOptions({
     />{" "}
     Right Wall Present
   </label>
+</div>
+<div
+  style={{
+    marginTop: 12,
+    paddingTop: 12,
+    borderTop: "1px solid #d7dde5",
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
+    gap: 12,
+    alignItems: "end",
+  }}
+>
+  <label>
+    Side soffit requirement
+    <select
+      value={sideSoffitMode}
+      onChange={(event) => {
+        const value = event.target.value;
+        setSideSoffitMode(value);
+        persist({ sideSoffitMode: value });
+      }}
+      style={{ display: "block", width: "100%", marginTop: 4 }}
+    >
+      <option value="automatic">Automatic</option>
+      <option value="specified">Required Soffit Size</option>
+      <option value="none">No soffit</option>
+    </select>
+  </label>
+
+  {sideSoffitMode !== "automatic" && (
+    <label>
+      Controlling side
+      <select
+        value={sideSoffitControlSide}
+        onChange={(event) => {
+          const value = event.target.value;
+          setSideSoffitControlSide(value);
+          persist({ sideSoffitControlSide: value });
+        }}
+        style={{ display: "block", width: "100%", marginTop: 4 }}
+      >
+        {leftHip && <option value="left">Left side</option>}
+        {rightHip && <option value="right">Right side</option>}
+      </select>
+    </label>
+  )}
+
+  {sideSoffitMode === "specified" && (
+    <label>
+      Required Side Soffit (mm)
+      <input
+        type="number"
+        min="0"
+        step="1"
+        value={specifiedSideSoffitMM}
+        onChange={(event) => {
+          const value = event.target.value;
+          setSpecifiedSideSoffitMM(value);
+          persist({
+            specifiedSideSoffitMM:
+              value === "" ? null : Number(value),
+          });
+        }}
+        placeholder="e.g. 80"
+        style={{ display: "block", width: "100%", marginTop: 4 }}
+      />
+    </label>
+  )}
 </div>
 {(leftHipPitchTooLow || rightHipPitchTooLow) && (
   <div

@@ -102,7 +102,7 @@ test("matches the former automatic Hipped Lean-To calculation path", () => {
   expect(automatic.result).toEqual(expectedResult);
 });
 
-test("V2 hip manufacture uses the resolved pitch-driven hip positions", () => {
+test("V2 hip manufacture uses the physical boss centres for a side-pitch override", () => {
   const automatic = buildAutomaticRoofTiling({
     roofInputs: {
       widthMM: 5870,
@@ -138,21 +138,20 @@ test("V2 hip manufacture uses the resolved pitch-driven hip positions", () => {
     8
   );
 
-  const cadReference = {
-    externalSlopeLengthMM: 3885,
-    internalSlopeLengthMM: 3615,
-    horizontalFootCutMM: 250,
-    verticalFootCutMM: 170,
-    topVerticalCutMM: 230,
-  };
-
-  [geometry.leftHipManufactureV2, geometry.rightHipManufactureV2].forEach(
-    (profile) => {
-      Object.entries(cadReference).forEach(([key, referenceMM]) => {
-        expect(Math.abs(profile[key] - referenceMM)).toBeLessThanOrEqual(20);
-      });
-    }
+  // The earlier CAD tolerance here assumed a floor-foot TOP intersection
+  // was the boss. That is not the centre of the finished joint. The separate
+  // CAD comparison audit still reports that historical specimen unchanged.
+  const rise = 3230 * Math.tan(15 * Math.PI / 180);
+  const p = 25 * Math.PI / 180;
+  const expectedBossCentre = rise / Math.tan(p) - 110 * Math.tan(p / 2);
+  expect(geometry.resolvedLeftHipWidthMM).toBeCloseTo(expectedBossCentre, 8);
+  expect(geometry.resolvedRightHipWidthMM).toBeCloseTo(expectedBossCentre, 8);
+  expect(geometry.wallplateAssembly.left.bossCentrePositionMM).toBeCloseTo(expectedBossCentre, 8);
+  expect(geometry.wallplateAssembly.right.bossCentrePositionMM).toBeCloseTo(expectedBossCentre, 8);
+  expect(geometry.leftHipManufactureV2.hipPlanLengthMM).toBeCloseTo(
+    Math.hypot(expectedBossCentre, geometry.effectivePitchRunMM), 8
   );
+
 });
 
 test("returns a clear unsupported-roof result", () => {

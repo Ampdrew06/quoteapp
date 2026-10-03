@@ -82,6 +82,7 @@ const distancePointToSegment = (
 export default function RoofPlanDiagram({
   model,
   mode = "manufacture",
+  largePrint = false,
 }) {
   if (!model) {
     return null;
@@ -166,12 +167,17 @@ const slabSequence =
    * its real plan proportions.
    */
   const svgWidth = 1000;
-  const svgHeight = 620;
+  const svgHeight = largePrint
+    ? Math.min(1160, Math.max(700, roofHeightMM * (744 / roofWidthMM) + 354))
+    : 620;
+  const fonts = largePrint
+    ? { member: 20, position: 22, spacing: 19, marker: 20, hipPitch: 22, pitch: 24, dimension: 22 }
+    : { member: 12, position: 14, spacing: 11, marker: 13, hipPitch: 14, pitch: 16, dimension: 15 };
 
-  const marginLeft = 120;
-  const marginRight = 120;
-  const marginTop = 90;
-  const marginBottom = 120;
+  const marginLeft = largePrint ? 128 : 120;
+  const marginRight = largePrint ? 128 : 120;
+  const marginTop = largePrint ? 130 : 90;
+  const marginBottom = largePrint ? 224 : 120;
 
   const drawingWidth =
     svgWidth - marginLeft - marginRight;
@@ -242,8 +248,8 @@ pitchLabels.forEach((pitch) => {
       text,
       fontSize:
         pitch.metadata?.kind === "hip"
-          ? 14
-          : 16,
+          ? fonts.hipPitch
+          : fonts.pitch,
     })
   );
 });
@@ -252,33 +258,27 @@ pitchLabels.forEach((pitch) => {
  * R-series member references are also treated
  * as high-priority.
  */
+const memberLabelPositions = {};
 structuralLines.forEach((line) => {
-  const manufactureRef =
-    memberById?.[line.id]
-      ?.manufactureRef;
-
+  const manufactureRef = memberById?.[line.id]?.manufactureRef;
   if (!manufactureRef) return;
-
-  const start =
-    pointToSvg(line.start);
-
-  const end =
-    pointToSvg(line.end);
-
-  const x =
-    (start.x + end.x) / 2;
-
-  const y =
-    (start.y + end.y) / 2 - 10;
-
-  occupiedAnnotationBoxes.push(
-    makeTextBox({
-      x,
-      y,
-      text: manufactureRef,
-      fontSize: 12,
-    })
-  );
+  const start = pointToSvg(line.start), end = pointToSvg(line.end);
+  const sideInset = largePrint && line.type === "ring-beam" && Math.abs(start.x - end.x) < 0.01
+    ? (line.metadata?.side === "right" ? -32 : 32) : 0;
+  const baseX = (start.x + end.x) / 2 + sideInset;
+  const baseY = (start.y + end.y) / 2 - 10;
+  const candidates = largePrint
+    ? [0, -28, 28, -48, 48].map(dy => ({ x: baseX, y: baseY + dy }))
+    : [{ x: baseX, y: baseY }];
+  let chosen = candidates[0];
+  for (const candidate of candidates) {
+    const box = makeTextBox({ ...candidate, text: manufactureRef, fontSize: fonts.member });
+    if (!occupiedAnnotationBoxes.some(occupied => boxesOverlap(box, occupied, 5))) {
+      chosen = candidate; break;
+    }
+  }
+  memberLabelPositions[line.id] = chosen;
+  occupiedAnnotationBoxes.push(makeTextBox({ ...chosen, text: manufactureRef, fontSize: fonts.member }));
 });
 
 const resolveSlabLabelPosition = (
@@ -325,7 +325,7 @@ const resolveSlabLabelPosition = (
         x,
         y,
         text: slab.slabRef,
-        fontSize: 12,
+        fontSize: fonts.member,
       });
 
     const collidesWithLabel =
@@ -386,7 +386,7 @@ if (
       x: base.x,
       y: base.y,
       text: slab.slabRef,
-      fontSize: 12,
+      fontSize: fonts.member,
     });
 
   return {
@@ -541,11 +541,11 @@ case "ring-beam":
 {mode === "manufacture" &&
   manufactureRef && (
     <text
-      x={(start.x + end.x) / 2}
-      y={(start.y + end.y) / 2 - 10}
+      x={memberLabelPositions[line.id]?.x ?? (start.x + end.x) / 2}
+      y={memberLabelPositions[line.id]?.y ?? (start.y + end.y) / 2 - 10}
       textAnchor="middle"
       dominantBaseline="middle"
-      fontSize="12"
+      fontSize={fonts.member}
       fontWeight="700"
       fill="#1d4ed8"
     >
@@ -580,7 +580,7 @@ case "ring-beam":
               : "start"
           }
           dominantBaseline="middle"
-          fontSize="14"
+          fontSize={fonts.position}
           fontWeight="700"
           fill="#111827"
         >
@@ -596,7 +596,7 @@ case "ring-beam":
           Math.max(start.y, end.y) + 22
         }
         textAnchor="middle"
-        fontSize="14"
+        fontSize={fonts.position}
         fontWeight="700"
         fill="#111827"
       >
@@ -633,7 +633,7 @@ case "ring-beam":
         y={resolved.y}
         textAnchor="middle"
         dominantBaseline="middle"
-        fontSize="12"
+        fontSize={fonts.member}
         fontWeight="600"
         fill="#111827"
       >
@@ -666,7 +666,7 @@ case "ring-beam":
                     x={point.x}
                     y={point.y - 14}
                     textAnchor="middle"
-                    fontSize="13"
+                    fontSize={fonts.marker}
                     fontWeight="700"
                     fill="#111827"
                   >
@@ -695,7 +695,7 @@ case "ring-beam":
   y={point.y}
   textAnchor="middle"
   dominantBaseline="middle"
-  fontSize={isHipPitch ? "14" : "16"}
+  fontSize={isHipPitch ? fonts.hipPitch : fonts.pitch}
   fontWeight="700"
   fill={isHipPitch ? "#dc2626" : "#059669"}
 >
@@ -732,7 +732,7 @@ case "ring-beam":
       )
     );
 
-  const levelGap = 34;
+  const levelGap = largePrint ? 42 : 34;
 
   if (dimension.type === "spacing") {
   const axis =
@@ -766,9 +766,9 @@ case "ring-beam":
             : "start"
         }
         dominantBaseline="middle"
-        fontSize="11"
-        fontWeight="400"
-        fill="#6b7280"
+        fontSize={fonts.spacing}
+        fontWeight={largePrint ? "700" : "400"}
+        fill="#475569"
       >
         {roundMM(dimension.valueMM)}
       </text>
@@ -783,7 +783,7 @@ case "ring-beam":
     (start.x + end.x) / 2;
 
   const y =
-    Math.max(start.y, end.y) + 22;
+    Math.max(start.y, end.y) + (largePrint ? 54 : 22);
 
   return (
     <text
@@ -791,9 +791,9 @@ case "ring-beam":
       x={x}
       y={y}
       textAnchor="middle"
-      fontSize="11"
-      fontWeight="400"
-      fill="#6b7280"
+      fontSize={fonts.spacing}
+      fontWeight={largePrint ? "700" : "400"}
+      fill="#475569"
     >
       {roundMM(dimension.valueMM)}
     </text>
@@ -878,7 +878,8 @@ case "ring-beam":
           x={labelX}
           y={(y1 + y2) / 2}
           textAnchor="middle"
-          fontSize="15"
+          fontSize={fonts.dimension}
+          fontWeight={largePrint ? "600" : "400"}
           fill="#111827"
           transform={`rotate(-90 ${labelX} ${
             (y1 + y2) / 2
@@ -904,7 +905,7 @@ case "ring-beam":
 
   const y =
     placement === "below"
-      ? baseEdgeY + 45 + (level - 1) * levelGap
+      ? baseEdgeY + (largePrint ? 104 : 45) + (level - 1) * levelGap
       : baseEdgeY - 45 - (level - 1) * levelGap;
 
   const x1 = start.x;
@@ -968,7 +969,8 @@ case "ring-beam":
         x={(x1 + x2) / 2}
         y={labelY}
         textAnchor="middle"
-        fontSize="15"
+        fontSize={fonts.dimension}
+        fontWeight={largePrint ? "600" : "400"}
         fill="#111827"
       >
         {dimension.label}:{" "}

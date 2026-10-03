@@ -372,9 +372,10 @@ function WallbarDrawing({
       viewBox={`0 0 ${VB_W} ${VB_H}`}
       style={{
         width: "100%",
-        maxWidth: 600,
+        maxWidth: "100%",
         height: "auto",
         display: "block",
+        fontFamily: "Arial, sans-serif",
         margin: "0 auto",
       }}
     >
@@ -408,7 +409,7 @@ function WallbarDrawing({
         textAnchor="middle"
         style={{
           ...textStyle,
-          fontSize: 12,
+          fontSize: 15,
         }}
       >
         {dim(ewbsMM, 0)} mm
@@ -421,12 +422,12 @@ function WallbarDrawing({
       <text
         x={(c.x + d.x) / 2}
         y={
-          (c.y + d.y) / 2 + 20
+          (c.y + d.y) / 2 + 32
         }
         textAnchor="middle"
         style={{
           ...textStyle,
-          fontSize: 12,
+          fontSize: 15,
         }}
       >
         {dim(iwbsMM, 0)} mm
@@ -443,7 +444,7 @@ function WallbarDrawing({
         dominantBaseline="middle"
         style={{
           ...textStyle,
-          fontSize: 11,
+          fontSize: 14,
         }}
       >
         {dim(vfcMM, 0)} mm
@@ -459,7 +460,7 @@ function WallbarDrawing({
         textAnchor="middle"
         style={{
           ...textStyle,
-          fontSize: 11,
+          fontSize: 14,
         }}
       >
         {dim(hfcMM, 0)} mm
@@ -517,6 +518,7 @@ function HorizontalWallplateDrawing({
         width: "100%",
         height: "auto",
         display: "block",
+        fontFamily: "Arial, sans-serif",
       }}
     >
       {/* EXTERNAL / TOP LENGTH DIMENSION */}
@@ -545,7 +547,7 @@ function HorizontalWallplateDrawing({
         x={(leftX + rightX) / 2}
         y="39"
         textAnchor="middle"
-        fontSize="13"
+        fontSize="17"
         fontWeight="700"
       >
         Top length (EWPL): {dim(externalLengthMM, 1)} mm
@@ -596,7 +598,7 @@ function HorizontalWallplateDrawing({
         x={(leftX + rightX) / 2}
         y={bottomDimY + 22}
         textAnchor="middle"
-        fontSize="13"
+        fontSize="17"
         fontWeight="700"
       >
         Bottom length (IWPL): {dim(internalLengthMM, 1)} mm
@@ -612,7 +614,7 @@ function HorizontalWallplateDrawing({
         stroke="#111827"
         strokeWidth="2"
       />
-      <text x="48" y={floorY + 20} fontSize="12" fontWeight="700">
+      <text x="48" y={floorY + 20} fontSize="15" fontWeight="700">
         FACTORY FLOOR DATUM
       </text>
 
@@ -635,7 +637,7 @@ function HorizontalWallplateDrawing({
         y={(intY + floorY) / 2}
         textAnchor="middle"
         transform={`rotate(-90 ${heightDimX - 12} ${(intY + floorY) / 2})`}
-        fontSize="13"
+        fontSize="17"
         fontWeight="800"
       >
         {dim(internalHeightMM, 1)} mm
@@ -643,7 +645,7 @@ function HorizontalWallplateDrawing({
 
       {/* SECONDARY CHECK TO THE TOP EDGE */}
 
-      <text x="48" y="260" fontSize="12" fontWeight="600" fill="#334155">
+      <text x="48" y="260" fontSize="15" fontWeight="600" fill="#334155">
         Floor to top edge: {dim(externalHeightMM, 1)} mm
       </text>
     </svg>

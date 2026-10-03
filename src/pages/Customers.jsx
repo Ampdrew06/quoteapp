@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { getCustomers, saveCustomers } from "../lib/customers";
+import { getCustomers, saveCustomerRecord, deleteCustomerRecord } from "../lib/customers";
 import NavTabs from "../components/NavTabs";
 import { supabase } from "../lib/supabaseClient";
 
@@ -53,7 +53,7 @@ const testSupabase = async () => {
 
   console.log("SUPABASE TEST", { data, error });
 };
-  const saveCustomer = () => {
+  const saveCustomer = async () => {
     const id =
       form.id.trim() ||
       form.name
@@ -70,6 +70,7 @@ const testSupabase = async () => {
     const nextCustomer = {
   id,
   name: form.name.trim(),
+  username: customers.find(customer => customer.id === id)?.username || form.name.trim(),
   loginCode: form.loginCode.trim(),
   role: form.role,
   discountPct: Number(form.discountPct || 0),
@@ -88,15 +89,12 @@ const testSupabase = async () => {
   defaultExclusions: {},
 };
 
-    const next = customers.filter((c) => c.id !== id);
-    next.push(nextCustomer);
-
-    setCustomers(next);
-    saveCustomers(next).then((ok) => {
-  if (!ok) {
-    alert("Customer did not save to Supabase. Check the browser console.");
-  }
-});
+    const result = await saveCustomerRecord(nextCustomer);
+    if (result.error) {
+      alert(`Customer did not save: ${result.error}\nYour entered details have been retained.`);
+      return;
+    }
+    setCustomers(customers.filter(customer => customer.id !== id && customer.id !== result.customer.id).concat(result.customer));
 
     setForm({
       id: "",
@@ -130,16 +128,14 @@ const testSupabase = async () => {
   });
 };
 
-  const deleteCustomer = (id) => {
+  const deleteCustomer = async (id) => {
     if (!window.confirm("Delete this customer?")) return;
 
-    const next = customers.filter((c) => c.id !== id);
-    setCustomers(next);
-    saveCustomers(next).then((ok) => {
-  if (!ok) {
-    alert("Customer did not save to Supabase. Check the browser console.");
-  }
-});
+    if (!(await deleteCustomerRecord(id))) {
+      alert("Customer could not be deleted. The list has not been changed.");
+      return;
+    }
+    setCustomers(await getCustomers());
   };
 
   return (

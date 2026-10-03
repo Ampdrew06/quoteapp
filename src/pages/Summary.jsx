@@ -1,49 +1,14 @@
+import { resolveCustomerDeliveryMiles } from "../lib/customerRecords";
+import { persistSummaryPricingState } from "../lib/Calculations/summaryPricingState";
+import { buildSummaryMaterialsModel } from "../lib/Calculations/summaryMaterialsModel";
+import { buildSummaryItemCatalog, buildSummaryAddedItemLines, readSummaryAddedItems, writeSummaryAddedItems } from "../lib/Calculations/summaryAddedItems";
 // src/pages/Summary.jsx
 import React, { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { getMaterials } from "../lib/materials";
-import { computeTilesLathsBOM } from "../lib/Calculations/tilesLathsCalc";
-import { computeLiteSlateLeanTo } from "../lib/Calculations/liteslateCalc";
-import { computeFasciaSoffitLeanTo } from "../lib/Calculations/fasciaSoffitCalc";
-import { computeEdgeTrimsLeanTo } from "../lib/Calculations/edgeTrimsCalc";
-import { computeGuttersLeanTo } from "../lib/Calculations/guttersCalc";
-import { computeMiscLeanTo } from "../lib/Calculations/miscCalc";
 import NavTabs from "../components/NavTabs"; 
-import { getCurrentCustomer, getCustomers } from "../lib/customers";
-import {
-  computePricing,
-  computeLabourPricing,
-  computeDeliveryPricing,
-  getLabourPricingConfig,
-  saveLabourPricingConfig,
-  getDeliveryPricingConfig,
-  saveDeliveryPricingConfig,
-  getMarkupPricingConfig,
-  saveMarkupPricingConfig,
-} from "../lib/pricing";
-import {
-  applyWeightsToLines,
-  getFixedProductWeightKg,
-} from "../lib/utils/weights";
-import { computeTotalWeightKg } from "../lib/weightUtils";
-import { buildLeanToTotals, buildLeanToQuoteBase } from "../lib/leanToTotals";
-import { calculateLeanToGeometry } from "../lib/geometry/leanToGeometry";
-import { buildHippedLeanToTotals } from "../lib/hippedLeanToTotals";
-import { calculateHippedLeanToGeometry } from "../lib/geometry/hippedLeanToGeometry";
-import { buildAutomaticRoofTiling } from "../lib/Calculations/automaticRoofTiling";
-import { buildSummaryTilingComparison } from "../lib/Calculations/summaryTilingComparison";
-import { buildQuoteTilingAdjustment } from "../lib/Calculations/quoteTilingAdjustment";
-import {
-  applyUniversalTilingToSummaryLines,
-  selectSummaryExternalFixingLathM,
-} from "../lib/Calculations/summaryTilingBOM";
-import { buildAutomaticRoofEdgeBOM } from "../lib/Calculations/automaticRoofEdgeBOM";
-import {
-  applyAutomaticEdgeBOMToSummaryLines,
-  applyAutomaticHipBOMToSummaryTileLines,
-} from "../lib/Calculations/summaryEdgeBOM";
-import { buildProvisionalHippedLeanToTimber } from "../lib/Calculations/provisionalHippedLeanToTimber";
-
+import { getCustomers } from "../lib/customers";
+import { computePricing, computeLabourPricing, computeDeliveryPricing, getLabourPricingConfig, saveLabourPricingConfig, getDeliveryPricingConfig, saveDeliveryPricingConfig, getMarkupPricingConfig, saveMarkupPricingConfig } from "../lib/pricing";
 // adjust relative path if needed
 
 // adjust path if file structure differs
@@ -62,6 +27,7 @@ const firstPositiveNumber = (...values) => {
 
 // Normalise quantity for all lines (timber + tiles)
 const asQty = (line) => {
+  if (line.isAddedItem || (line.qty != null && Number(line.qty) === 0)) return Number(line.qty) || 0;
   return firstPositiveNumber(
     line.qty,
     line.count,
@@ -78,6 +44,7 @@ const asQty = (line) => {
 };
 const applyAdjustmentsToLines = (lines = [], adjustments = {}) => {
   return (lines || []).map((r) => {
+    if (r.isAddedItem) return r;
     const rawQty = asQty(r);
     const parsedAdj = Number(adjustments[r.key]);
     const adj = Number.isFinite(parsedAdj) ? parsedAdj : 0;
@@ -136,29 +103,12 @@ const asUnitPrice = (line) => {
 
 // Line cost = qty * unitPrice, with backward-compat fallbacks
 const asCost = (line) => {
-  const qty = asQty(line);
-  const unitPrice = asUnitPrice(line);
-
-  // Preferred path: qty × unitPrice (tiles, new stuff)
-  if (qty && unitPrice) {
-    return +(qty * unitPrice).toFixed(2);
+  if (line.qty != null && Number(line.qty) === 0) return 0;
+  // Explicit audited row totals, including configured zero prices, take precedence.
+  for (const value of [line.line, line.cost, line.totalCost, line.total_cost, line.total]) {
+    if (value != null && Number.isFinite(Number(value))) return Number(Number(value).toFixed(2));
   }
-
-  // 🔙 Backwards-compat for existing timber / legacy lines
-  const directCostCandidates = [
-    line.cost,
-    line.line,
-    line.totalCost,
-    line.total_cost,
-  ];
-
-  for (const v of directCostCandidates) {
-    if (v == null) continue;
-    const n = Number(v);
-    if (Number.isFinite(n) && n !== 0) return n;
-  }
-
-  return 0;
+  return Number((asQty(line) * asUnitPrice(line)).toFixed(2));
 };
 
 // Total line weight (kg) – prefer explicit totals, then qty × per-unit weight
@@ -244,6 +194,7 @@ const loadExclusions = () => {
 const saveExclusions = (obj) => {
   try {
     localStorage.setItem("summary_exclusions", JSON.stringify(obj || {}));
+    persistSummaryPricingState();
     window.dispatchEvent(new Event("summary_exclusions_updated"));
   } catch {
     // ignore
@@ -278,6 +229,7 @@ const loadAdjustments = () => {
 const saveAdjustments = (obj) => {
   try {
     localStorage.setItem("summary_adjustments", JSON.stringify(obj || {}));
+    persistSummaryPricingState();
     window.dispatchEvent(new Event("summary_adjustments_updated"));
   } catch {
     // ignore
@@ -401,7 +353,7 @@ const m = useMemo(
   // ---------- weights ----------
   const lineWeightKg = (r) => {
 
-  if (!r) return 0;
+  if (!r || r.isAddedItem) return 0;
 
   // 1) If the row already has a TOTAL weight field, use it
   const total =
@@ -793,7 +745,36 @@ useEffect(() => {
 };
 
 
-  const isExcluded = (key) => !!(ex && ex[String(key || "")]);
+  const [addedItems, setAddedItems] = useState(() => readSummaryAddedItems());
+  useEffect(() => {
+    const refresh = () => setAddedItems(readSummaryAddedItems());
+    window.addEventListener("leanToInputs_updated", refresh);
+    window.addEventListener("storage", refresh);
+    return () => {
+      window.removeEventListener("leanToInputs_updated", refresh);
+      window.removeEventListener("storage", refresh);
+    };
+  }, []);
+  const itemCatalog = buildSummaryItemCatalog(m);
+  const addedLines = buildSummaryAddedItemLines(addedItems, m);
+  const saveAddedItems = (next) => {
+    const saved = writeSummaryAddedItems(next);
+    setAddedItems(saved);
+    window.dispatchEvent(new Event("leanToInputs_updated"));
+    window.dispatchEvent(new Event("summary_adjustments_updated"));
+  };
+  const addItem = (section, catalogId) => {
+    if (!itemCatalog.some(item => item.section === section && item.id === catalogId && item.unitPrice != null) || addedItems.some(item => item.section === section && item.catalogId === catalogId)) return;
+    saveAddedItems([...addedItems, { section, catalogId, qty: 1, excluded: false }]);
+  };
+  const updateAddedItem = (row, patch) => saveAddedItems(addedItems.map(item =>
+    item.section === row.section && item.catalogId === row.catalogId ? { ...item, ...patch } : item));
+  const removeAddedItem = (row) => saveAddedItems(addedItems.filter(item =>
+    !(item.section === row.section && item.catalogId === row.catalogId)));
+  const withAddedItems = (lines, section) => [...lines, ...addedLines.filter(row => row.section === section)];
+  const isExcluded = (key) => String(key || "").startsWith("extra:")
+    ? !!addedLines.find(row => row.key === key)?.extraExcluded
+    : !!(ex && ex[String(key || "")]);
 
   const inputs = loadInputs();
 
@@ -839,2244 +820,17 @@ useEffect(() => {
   }
 
 
-  // ---------- derive basics from inputs ----------
-
-  const iw = Number(inputs.internalWidthMM || inputs.widthMM || 0);
-  const ip = Number(inputs.internalProjectionMM || inputs.projMM || 0);
-  const pitchDeg = Number(inputs.pitchDeg || inputs.pitch || 15);
-  // 🔷 Shared geometry (NEW)
-const sharedGeom = calculateLeanToGeometry({
-  widthMM: iw,
-  projectionMM: ip,
-  pitchDeg,
-  soffitDepthMM: Number(inputs.soffit_mm ?? inputs.eaves_overhang_mm ?? 150),
-  materials: m,
-});
-  const tileSystem = String(
-    inputs.tile_system || inputs.tileSystem || "britmet"
-  ).toLowerCase();
-
-    // ---------- shared external geometry for Summary ----------
-
-  const sft =
-    Number(inputs.side_frame_thickness_mm) ||
-    Number(m.side_frame_thickness_mm) ||
-    70;
-
-  const lip =
-    Number(inputs.fascia_lip_mm) ||
-    Number(m.fascia_lip_mm) ||
-    25;
-
-  const soff =
-  Number(sharedGeom.soffitDepthEffective ?? inputs.soffit_mm ?? inputs.eaves_overhang_mm ?? 150);
-
-  const frameOn =
-    Number(inputs.frame_on_mm) ||
-    Number(m.frame_on_mm) ||
-    70;
-
-  // External sizes
-  const extWidthMM = iw + 2 * (sft + lip);
-  const extWidthM = extWidthMM / 1000;
-
-  const extProjectionMM = ip + soff + frameOn;
-  const extProjectionM = extProjectionMM / 1000;
-
-  // ---------- TIMBER GEOMETRY (declare BEFORE any use) ----------
-  // --- REQUIRED geometry values (fix missing vars) ---
-const frameOnMM = Number(inputs.frame_on_mm ?? m.frame_on_mm ?? 70);
-const thetaRad = (pitchDeg * Math.PI) / 180 || 0;
-
-// 🔥 CRITICAL: use shared geometry for rafter length
-const timberRafterLenMM = Number(sharedGeom.rafterExternalLength ?? 0);
-const isHippedLeanToEarly =
-  (inputs.roofStyle ?? inputs.roof_style ?? "leanTo") === "hippedLeanTo";
-
-const hippedGeomEarly = isHippedLeanToEarly
-  ? calculateHippedLeanToGeometry({
-      widthMM: iw,
-      projectionMM: ip,
-      pitchDeg,
-      soffitDepthMM: Number(inputs.eavesOverhangMM ?? inputs.soffit_mm ?? 150),
-      materials: m,
-      hippedSides: inputs.hippedSides ?? "both",
-      leftHipWidthMM: Number(inputs.leftHipWidthMM ?? inputs.left_hip_width_mm ?? 0),
-      rightHipWidthMM: Number(inputs.rightHipWidthMM ?? inputs.right_hip_width_mm ?? 0),
-      requestedLeftSidePitchDeg:
-        inputs.requestedLeftSidePitchDeg ?? null,
-      requestedRightSidePitchDeg:
-        inputs.requestedRightSidePitchDeg ?? null,
-    })
-  : null;
-  const timberSpacing   = Number(m.rafter_spacing_mm ?? 665);
-  const timberFirstCtr  = Number(m.rafter_first_center_mm ?? 690);
-
-  let timberCentresCount = 0;
-  if (iw > 0 && timberSpacing > 0 && timberFirstCtr > 0) {
-    for (let c = timberFirstCtr; c <= iw; c += timberSpacing) {
-      timberCentresCount++;
-    }
-  }
-
-  // Edge rafters added (+2)
-  const raftersCount = Math.max(2, timberCentresCount + 2);
-
-  const plainRafterQty = isHippedLeanToEarly
-  ? Number(hippedGeomEarly?.plainRafterCount ?? 0)
-  : raftersCount;
-
-const leftJackRafterQty = isHippedLeanToEarly
-  ? Number(hippedGeomEarly?.leftJackRafterCount ?? 0)
-  : 0;
-
-const rightJackRafterQty = isHippedLeanToEarly
-  ? Number(hippedGeomEarly?.rightJackRafterCount ?? 0)
-  : 0;
-
-const leftSideIntermediateJackQty = isHippedLeanToEarly
-  ? Number(
-      hippedGeomEarly?.leftSideIntermediateJackCount ?? 0
-    )
-  : 0;
-
-const rightSideIntermediateJackQty = isHippedLeanToEarly
-  ? Number(
-      hippedGeomEarly?.rightSideIntermediateJackCount ?? 0
-    )
-  : 0;
-
-const jackRafterQty =
-  leftJackRafterQty +
-  rightJackRafterQty +
-  leftSideIntermediateJackQty +
-  rightSideIntermediateJackQty;
-
-const joistHangerQty = isHippedLeanToEarly
-  ? plainRafterQty
-  : raftersCount;
-
-  // Rafter length at pitch (to front)
-
-// ---------- PIR 50mm cradle on rafter webs (NOT baked into rafters) ----------
-// Ends are single-face, interior rafters are double-face
-const cradleStripWidthMM = 140; // web height for 220 Steico: 220 - 40 - 40
-
-// length per face: from wallplate to inside of ring-beam (exclude eaves overhang)
-const cradleProjectionMM = ip + frameOnMM; // deliberately NOT including eavesOverhangMM
-const cradleLenPerFaceMM = cradleProjectionMM / (Math.cos(thetaRad) || 1);
-
-// faces: (raftersCount - 2) interior rafters *2 faces + 2 end rafters *1 face
-const cradleFaces = Math.max(0, (raftersCount >= 2 ? (2 * raftersCount - 2) : 0));
-
-const cradleTotalLenM = (cradleFaces * cradleLenPerFaceMM) / 1000;
-const cradleAreaM2_raw = cradleTotalLenM * (cradleStripWidthMM / 1000);
-
-const cradleWastePct = Number(m?.pir50?.waste_pct ?? 0) || 0;
-const cradleAreaM2 = cradleAreaM2_raw * (1 + cradleWastePct / 100);
-
-const pir50SheetAreaM2 =
-  Number(m?.pir50?.sheet_w_m ?? 1.2) * Number(m?.pir50?.sheet_h_m ?? 2.4);
-
-const cradleOrderQty =
-  pir50SheetAreaM2 > 0 ? Math.ceil(cradleAreaM2 / pir50SheetAreaM2) : 0;
-
-const cradleWeightKg =
-  cradleAreaM2 * (Number(m?.pir50?.weight_kg_per_m2 ?? 0) || 0);
-
-
-// ---------- Steico joists + 25x50 laths (Summary only) ----------
-
-// Wallplate runs along external width
-const sftForSteico =
-  Number(inputs.side_frame_thickness_mm) ||
-  Number(m.side_frame_thickness_mm) ||
-  70;
-const lipForSteico =
-  Number(inputs.fascia_lip_mm) ||
-  Number(m.fascia_lip_mm) ||
-  25;
-
-const wallplate_m = (iw + 2 * (sftForSteico + lipForSteico)) / 1000;
-
-const provisionalHippedTimber = isHippedLeanToEarly
-  ? buildProvisionalHippedLeanToTimber({
-      roofInputs: inputs,
-      geometry: hippedGeomEarly,
-    })
-  : null;
-
-// Ordinary Lean-To rafters retain their established calculation. A Hipped
-// Lean-To instead totals the individually classified full rafters, jacks and
-// hips so that ring-beams sharing the R-series cannot enter the Steico total.
-const raftersTotal_m = isHippedLeanToEarly
-  ? Number(
-      provisionalHippedTimber?.totals?.steicoRoofMemberLengthMM ?? 0
-    ) / 1000
-  : (raftersCount * timberRafterLenMM) / 1000;
-
-// Total Steico length = rafters + wallplate
-let steicoTotal_m = raftersTotal_m + wallplate_m;
-
-// Pull price & weight per metre from materials
-const steicoPricePerM = Number(m.steico?.price_per_m ?? 0);
-const steicoWeightPerM = Number(m.steico?.weight_kg_per_m ?? 0);
-
-// Stock length for Steico
-const steicoStockLenM = Number(m.steico?.stock_len_m ?? 12);
-
-// How many bars to order
-const steicoOrderQty =
-  steicoStockLenM > 0 ? Math.ceil(steicoTotal_m / steicoStockLenM) : 0;
-  // ---------- 30×90 PSE ring-beam timber ----------
-// Continuous run along external width
-const pseRingBeamLen_m = extWidthM;
-
-// Price, weight, and stock from materials
-const psePricePerM = Number(m.pse30x90?.price_per_m ?? 0);
-const pseWeightPerM = Number(m.pse30x90?.weight_kg_per_m ?? 0);
-const pseStockLenM  = Number(m.pse30x90?.stock_len_m ?? 4.8) || 4.8;
-
-// Bars to order (can be joined if > stock length)
-const pseOrderQty =
-  pseStockLenM > 0 ? Math.ceil(pseRingBeamLen_m / pseStockLenM) : 0;
-
-  // ---------- 9mm Structural Ply (wallplate + ring-beam) ----------
-const extWidthPlyM = extWidthMM / 1000; // external width in metres
-
-const soffitVisibleHeightMM =
-  Number(inputs.soffit_mm ?? inputs.eaves_overhang_mm ?? 150) + 70;
-
-// 1) Ring-beam soffit strip (front run)
-const soffitStrip_m2 = extWidthPlyM * (soffitVisibleHeightMM / 1000);
-
-// 2) Wallplate full-face strip (220 mm high along external width)
-const wallplateFaceHeightMM = 220;
-const wallplateFace_m2 = extWidthPlyM * (wallplateFaceHeightMM / 1000);
-
-// 3) Ring-beam upstand “strips” (195 mm high along front run)
-const ringBeamUpstandHeightMM = 195;
-const ringBeamUpstands_m2 = extWidthPlyM * (ringBeamUpstandHeightMM / 1000);
-
-// 50mm PIR on inside face of ring-beam upstands (approx as continuous strip)
-const pir50UpstandHeightMM = 185;
-const pir50Upstands_m2 = extWidthPlyM * (pir50UpstandHeightMM / 1000);
-
-// Total 9 mm ply area used
-const totalPly9_m2 = soffitStrip_m2 + wallplateFace_m2 + ringBeamUpstands_m2;
-
-// 9 mm ply pricing/weight from materials
-const ply9PricePerM2 = Number(m.ply9mm?.price_per_m2 ?? 0);
-const ply9WeightPerM2 = Number(m.ply9mm?.weight_kg_per_m2 ?? 0);
-
-// Sheet size and order quantity (how many sheets to buy)
-const ply9SheetLenM = Number(m.ply9mm?.sheet_len_m ?? 2.4);
-const ply9SheetWidthM = Number(m.ply9mm?.sheet_width_m ?? 1.2);
-const ply9SheetAreaM2 = ply9SheetLenM * ply9SheetWidthM || 0;
-
-const ply9OrderQty =
-  ply9SheetAreaM2 > 0 ? Math.ceil(totalPly9_m2 / ply9SheetAreaM2) : 0;
-  // ---------- 18mm ply (wallplate internal infill only, for now) ----------
-
-  // 18mm ply pricing/weight from materials
-  const ply18PricePerM2 = Number(m.ply18mm?.price_per_m2 ?? 0);
-  const ply18WeightPerM2 = Number(m.ply18mm?.weight_kg_per_m2 ?? 0);
-
-  // sheet dimensions for ordering
-  const ply18SheetLenM = Number(m.ply18mm?.sheet_len_m ?? 2.4);
-  const ply18SheetWidthM = Number(m.ply18mm?.sheet_width_m ?? 1.2);
-  const ply18SheetArea_m2 = ply18SheetLenM * ply18SheetWidthM || 2.88;
-
-  // Wallplate internal infill strip:
-  // height = clear between Steico flanges ≈ 142 mm -> 0.142 m
-  const ply18WallplateInfillHeightM = 0.142;
-  const ply18WallplateInfillArea_m2 = extWidthM * ply18WallplateInfillHeightM;
-
-  // For now we only include this contribution; we can add ring-beam supports later
-  const totalPly18_m2 = Math.max(0, ply18WallplateInfillArea_m2);
-
-  // Sheets to order
-  const ply18OrderQty =
-    ply18SheetArea_m2 > 0 ? Math.ceil(totalPly18_m2 / ply18SheetArea_m2) : 0;
-
-
-  // ---------- Timber Elements (rafters & joists) ----------
-
-  const totalRafterRunMM = raftersCount * timberRafterLenMM;
-  const wallplateMM = extWidthMM;            // reuse shared external width
-  const totalTimberMM = totalRafterRunMM + wallplateMM;
-
-
-  // ---------- 25×50 laths (external + internal + chamfer) ----------
-
-  // External width run (front)
-  const intWidthM = iw / 1000;
-
-  // Slope length already known from timberRafterLenMM (mm)
-  const slopeLenMM = timberRafterLenMM;
-
-  // Tile gauge (mm) – fallback to 250 if not set
-  const gaugeMM = Number(inputs.gauge_mm || m.tile_britmet_gauge_mm || 250);
-
-  // Number of tile courses up the slope
-  const tileCourses =
-    pitchDeg > 0 && gaugeMM > 0
-      ? Math.ceil(slopeLenMM / gaugeMM)
-      : 0;
-
-  // External tiling laths (m)
-  const externalLathsM = tileCourses * extWidthM;
-
-  // Internal fixing laths – e.g. 400mm centres up the slope
-  const internalRows =
-    pitchDeg > 0
-      ? Math.ceil(slopeLenMM / 400)
-      : 0;
-  const internalLathsM = internalRows * intWidthM;
-
-// Chamfered front lath ≈ one full external width
-const chamferLathM = extWidthM;
-
-const automaticRoofTilingAudit = buildAutomaticRoofTiling({
-  roofInputs: inputs,
-  materials: m,
-});
-
-const automaticRoofEdgeResult = buildAutomaticRoofEdgeBOM({
-  roofInputs: inputs,
-  materials: m,
-  automaticRoofTiling: automaticRoofTilingAudit,
-});
-
-const legacyExternalFixingLathM =
-  Math.max(0, externalLathsM) +
-  Math.max(0, chamferLathM);
-
-const summaryExternalFixingLathM =
-  selectSummaryExternalFixingLathM({
-    legacyExternalFixingLathM,
-    automaticResult: automaticRoofTilingAudit.result,
+  const summaryMaterials = buildSummaryMaterialsModel({
+    inputs, materials: m, exclusions: ex, adjustments, addedItems,
   });
+  const {
+    timberLinesAdjusted, tilesLinesAdjusted, plasticsLinesAdjusted, metalLinesAdjusted, gutterLinesAdjusted,
+    miscLinesForSection, miscLinesForSectionAdjusted,
+    timberTotals, tilesTotals, plasticsTotals, metalTotals, gutterTotals, miscTotals,
+    totalsInput, totals, isHippedLeanToEarly, hippedInsulationIntegration,
+    lineChargeableCost, sectionTotals,
+  } = summaryMaterials;
 
-// Ring-beam upstand finishing laths:
-// one 25×50 per upstand, approx 0.617 m wide
-const upstandBayWidthM = 0.617; // matches your 617 mm upstand width
-const upstandCountForLaths = Math.max(0, raftersCount - 1);
-const ringBeamUpstandLathsM =
-  upstandCountForLaths * upstandBayWidthM;
-
-// Total lath length (all 25×50) in metres
-const totalLathsM =
-  Math.max(0, summaryExternalFixingLathM) +
-  Math.max(0, internalLathsM) +
-  Math.max(0, ringBeamUpstandLathsM);
-
-
-  // Convert to stock lengths using materials (e.g. 4.8m)
-  const lathStockM = Number(m.lath_stock_length_m ?? 4.8) || 4.8;
-
-  const lathLengths = totalLathsM > 0
-      ? Math.ceil(totalLathsM / lathStockM)
-      : 0;
-// Price & weight per metre for all 25×50 laths
-const lathPricePerM = Number(m.chamferLath?.price_per_m ?? 0);
-const lathWeightPerM = Number(m.chamferLath?.weight_kg_per_m ?? 0);
-
-  // ---------- Manual timber lines for Summary ----------
-
-  const timberManualLines = [
-    {
-      key: "steico_220_total_m",
-      label: "Steico 220 I-Joists",
-      qty: Number(steicoTotal_m.toFixed(2)), // total metres
-      units: "m",
-      order_qty: steicoOrderQty, // number of 12m bars
-      weight_kg: Number((steicoTotal_m * steicoWeightPerM).toFixed(2)),
-      line: Number((steicoTotal_m * steicoPricePerM).toFixed(2)),
-    },
-      {
-    key: "pse30x90_ringbeam",
-    label: "30×90 PSE",
-    qty: Number(pseRingBeamLen_m.toFixed(2)),  // metres along external width
-    units: "m",
-    order_qty: pseOrderQty,                   // number of 4.8 m bars
-    weight_kg: Number((pseRingBeamLen_m * pseWeightPerM).toFixed(2)),
-    line: Number((pseRingBeamLen_m * psePricePerM).toFixed(2)),
-  },
-    {
-      key: "laths_25x50_lengths",
-      label: `25×50 laths (${lathStockM.toFixed(2)} m lengths)`,
-      qty: Number(totalLathsM.toFixed(2)), // total metres of 25×50
-      units: "m",
-      order_qty: lathLengths, // number of stock lengths (e.g. 4.8m)
-      weight_kg: Number((totalLathsM * lathWeightPerM).toFixed(2)),
-      line: Number((totalLathsM * lathPricePerM).toFixed(2)),
-    },
-{
-  key: "ply9mm_strips_total_m2",
-  label: "9mm Structural Ply (soffit + wallplate face + ring-beam upstands)",
-  qty: Number(totalPly9_m2.toFixed(2)),           // m² actually used
-  units: "m²",
-  order_qty: ply9OrderQty,                        // number of sheets to order
-  weight_kg: Number((totalPly9_m2 * ply9WeightPerM2).toFixed(2)),
-  line: Number((totalPly9_m2 * ply9PricePerM2).toFixed(2)),   // base cost (no waste)
-},
-    {
-      key: "ply18mm_wallplate_infill",
-      label: "18mm Structural Ply (wallplate internal infill)",
-      qty: Number(totalPly18_m2.toFixed(2)),     // m² used
-      units: "m²",
-      order_qty: ply18OrderQty,                  // sheets to order
-      weight_kg: Number((totalPly18_m2 * ply18WeightPerM2).toFixed(2)),
-      line: Number((totalPly18_m2 * ply18PricePerM2).toFixed(2)), // base cost
-    },
-  ];
-  // ---------- Manual METAL lines for Summary (Lean-To) ----------
-
-// Watercourse (only when a side abuts a wall)
-// (We treat either side being "wall" as meaning we need watercourse)
-const leftIsWall =
-  ((typeof inputs.left_exposed === "boolean" ? inputs.left_exposed : inputs.leftExposed) ?? false) === false;
-
-const rightIsWall =
-  ((typeof inputs.right_exposed === "boolean" ? inputs.right_exposed : inputs.rightExposed) ?? false) === false;
-
-const needsWatercourse = leftIsWall || rightIsWall;
-
-// Pull unit price & weight from materials
-// (flat keys first, nested metal fallback as safety)
-const watercoursePriceEach = Number(
-  m.watercourse_price_each ?? m.metal?.watercourse?.price_per_piece ?? 0
-);
-const watercourseWeightEach = Number(
-  m.watercourse_weight_kg_each ?? m.metal?.watercourse?.weight_kg_per_piece ?? 0
-);
-
-const joistHangerPriceEach = Number(
-  m.joist_hanger_price_each ?? m.metal?.joist_hanger?.price_each ?? 0
-);
-
-const joistHangerWeightEach = Number(
-  m.joist_hanger_weight_kg_each ?? m.metal?.joist_hanger?.weight_kg_each ?? 0
-);
-
-
-// Quantity logic (watercourse on wall abutment sides)
-// If both sides are walls → 2, if one wall → 1
-const watercourseQty =
-  needsWatercourse ? (leftIsWall && rightIsWall ? 2 : 1) : 0;
-// Tile starter (3.0 m lengths) — used along the front run (external width)
-const tileStarterStockLenM = 3.0;
-
-// Use the roof front run length (external width) as metres needed
-const tileStarterUsedM = (Number(extWidthMM || 0) / 1000) || 0;
-
-// Material prices/weights are stored per 3m length, derive per-m if needed
-const tileStarterPriceEach = Number(
-  m.tile_starter_price_each ?? m.metal?.tile_starter?.price_each ?? 0
-);
-const tileStarterWeightEach = Number(
-  m.tile_starter_weight_kg_each ?? m.metal?.tile_starter?.weight_kg_each ?? 0
-);
-
-const tileStarterPricePerM =
-  Number(m.tile_starter_price_per_m ?? 0) ||
-  (tileStarterPriceEach > 0 ? tileStarterPriceEach / tileStarterStockLenM : 0);
-
-const tileStarterWeightPerM =
-  Number(m.tile_starter_weight_kg_per_m ?? 0) ||
-  (tileStarterWeightEach > 0 ? tileStarterWeightEach / tileStarterStockLenM : 0);
-
-// Order qty (how many 3m lengths you must buy)
-const tileStarterOrderQty =
-  tileStarterStockLenM > 0 ? Math.ceil(tileStarterUsedM / tileStarterStockLenM) : 0;
-
-// Chargeable metres rule: last piece charged as full length if > half used
-const tileStarterFullLens = tileStarterStockLenM > 0 ? Math.floor(tileStarterUsedM / tileStarterStockLenM) : 0;
-const tileStarterRemainderM = tileStarterUsedM - tileStarterFullLens * tileStarterStockLenM;
-
-const tileStarterChargeableM =
-  tileStarterFullLens * tileStarterStockLenM +
-  (tileStarterRemainderM > (tileStarterStockLenM / 2) ? tileStarterStockLenM : tileStarterRemainderM);
-
-const legacyMetalManualLines = [
-  {
-  key: "tile_starter",
-  _k: "tile_starter",
-  label: "Tile starter (3.0 m length)",
-  qty: Number(tileStarterUsedM.toFixed(2)),
-  units: "m",
-  order_qty: tileStarterOrderQty,
-  weight_kg: Number((tileStarterUsedM * tileStarterWeightPerM).toFixed(2)),
-  line: Number((tileStarterChargeableM * tileStarterPricePerM).toFixed(2)),
-},
-
-  // Watercourse (only if needed)
-  ...(watercourseQty > 0
-    ? [
-        {
-  key: "watercourse",
-  _k: "watercourse",
-  label: "Watercourse",
-          qty: watercourseQty,
-          units: "Lengths",
-          order_qty: watercourseQty,
-          weight_kg: Number(
-            (watercourseQty * watercourseWeightEach).toFixed(2)
-          ),
-          line: Number(
-            (watercourseQty * watercoursePriceEach).toFixed(2)
-          ),
-        },
-      ]
-    : []),
-
-  // Joist hangers (always)
-  {
-  key: "joist_hangers",
-  _k: "joist_hangers",
-  label: "Joist Hangers",
-  qty: joistHangerQty,
-  units: "Ea",
-  order_qty: joistHangerQty,
-  weight_kg: Number(
-    (joistHangerQty * joistHangerWeightEach).toFixed(2)
-  ),
-  line: Number(
-    (joistHangerQty * joistHangerPriceEach).toFixed(2)
-  ),
-},
-...(jackRafterQty > 0
-  ? [
-      {
-        key: "jack_rafter_hooks",
-        _k: "jack_rafter_hooks",
-        label: "Jack Rafter Hooks",
-        qty: jackRafterQty,
-        units: "Ea",
-        order_qty: jackRafterQty,
-        weight_kg: Number(
-          (jackRafterQty * getFixedProductWeightKg("jack_rafter_hooks")).toFixed(2)
-        ),
-        line: Number(
-          (
-            jackRafterQty *
-            Number(
-              m.jack_rafter_hook_price_each ??
-                m.metal?.jack_rafter_hook?.price_each ??
-                0
-            )
-          ).toFixed(2)
-        ),
-      },
-      {
-        key: "jack_rafter_brackets",
-        _k: "jack_rafter_brackets",
-        label: "Jack Rafter Brackets",
-        qty: jackRafterQty,
-        units: "Ea",
-        order_qty: jackRafterQty,
-        weight_kg: Number(
-          (jackRafterQty * getFixedProductWeightKg("jack_rafter_brackets")).toFixed(2)
-        ),
-        line: Number(
-          (
-            jackRafterQty *
-            Number(
-              m.jack_rafter_bracket_price_each ??
-                m.metal?.jack_rafter_bracket?.price_each ??
-                0
-            )
-          ).toFixed(2)
-        ),
-      },
-    ]
-  : []),
-
-];
-
-const summaryEdgeBOM = applyAutomaticEdgeBOMToSummaryLines({
-  lines: legacyMetalManualLines,
-  automaticEdgeResult: automaticRoofEdgeResult,
-});
-
-const metalManualLines = summaryEdgeBOM.lines;
-
-
-
-  // Use 12m stock unless overridden in materials
-  const stockLenMM = Number(m.timber_stock_length_mm || 12000) || 12000;
-  const timberFullLengths =
-    totalTimberMM > 0
-      ? Math.max(1, Math.ceil(totalTimberMM / stockLenMM))
-      : 0;
-
-  // Basic timber / lath / ring-beam summary for this page
-  const LATH_STOCK_M = Number(m.lath_stock_length_m || 4.8) || 4.8;
-
-
-  // ---------- BOM + totals (single source of truth) ----------
-  const exclusions = (() => {
-  try {
-    return JSON.parse(localStorage.getItem("summary_exclusions") || "{}");
-  } catch {
-    return {};
-  }
-})();
-
-
-// Map whatever is in localStorage(leanToInputs) into the canonical shape
-// that buildLeanToTotals() expects (same as LeanToLanding).
-const totalsInput = {
-  roofStyle: inputs.roofStyle ?? inputs.roof_style ?? "leanTo",
-hippedSides: inputs.hippedSides ?? "both",
-leftHipWidthMM: Number(inputs.leftHipWidthMM ?? inputs.left_hip_width_mm ?? 0),
-rightHipWidthMM: Number(inputs.rightHipWidthMM ?? inputs.right_hip_width_mm ?? 0),
-requestedLeftSidePitchDeg:
-  inputs.requestedLeftSidePitchDeg ?? null,
-requestedRightSidePitchDeg:
-  inputs.requestedRightSidePitchDeg ?? null,
-
-  widthMM: Number(inputs.internalWidthMM ?? inputs.widthMM ?? inputs.widthMM ?? 0),
-  projMM: Number(inputs.internalProjectionMM ?? inputs.projMM ?? inputs.projectionMM ?? 0),
-  pitchDeg: Number(inputs.pitchDeg ?? inputs.pitch_deg ?? 15),
-
-
-  // Prefer explicit wall flags if present, otherwise invert exposed flags
-  leftWall:  typeof inputs.leftWall === "boolean"
-    ? inputs.leftWall
-    : (typeof inputs.left_wall_present === "boolean"
-        ? inputs.left_wall_present
-        : (typeof inputs.left_exposed === "boolean" ? !inputs.left_exposed : false)),
-
-  rightWall: typeof inputs.rightWall === "boolean"
-    ? inputs.rightWall
-    : (typeof inputs.right_wall_present === "boolean"
-        ? inputs.right_wall_present
-        : (typeof inputs.right_exposed === "boolean" ? !inputs.right_exposed : false)),
-
-  // Overhangs: support both naming schemes you’ve used
-  eavesOverhangMM: Number(inputs.eavesOverhangMM ?? inputs.soffit_mm ?? 150),
-  leftOverhangMM:  Number(inputs.leftOverhangMM  ?? inputs.left_overhang_mm  ?? 0),
-  rightOverhangMM: Number(inputs.rightOverhangMM ?? inputs.right_overhang_mm ?? 0),
-
-  // System + finishes: support both naming schemes
-  tileSystem:     inputs.tileSystem     ?? inputs.tile_system     ?? "britmet",
-  plasticsColor:  inputs.plasticsColor  ?? inputs.plastics_color  ?? "White",
-  gutterProfile:  inputs.gutterProfile  ?? inputs.gutter_profile  ?? "square",
-  gutterOutlet:   inputs.gutterOutlet   ?? inputs.gutter_outlet   ?? "left",
-  gutterColor:    inputs.gutterColor    ?? inputs.gutter_color    ?? "black",
-};
-
-const isHippedLeanTo = totalsInput.roofStyle === "hippedLeanTo";
-
-const hippedGeom = isHippedLeanTo
-  ? calculateHippedLeanToGeometry({
-      widthMM: totalsInput.widthMM,
-      projectionMM: totalsInput.projMM,
-      pitchDeg: totalsInput.pitchDeg,
-      soffitDepthMM: totalsInput.eavesOverhangMM,
-      materials: m,
-      hippedSides: totalsInput.hippedSides,
-      leftHipWidthMM: totalsInput.leftHipWidthMM,
-      rightHipWidthMM: totalsInput.rightHipWidthMM,
-      requestedLeftSidePitchDeg: totalsInput.requestedLeftSidePitchDeg,
-      requestedRightSidePitchDeg: totalsInput.requestedRightSidePitchDeg,
-    })
-  : null;
-
-const totals = isHippedLeanTo
-  ? buildHippedLeanToTotals(totalsInput, exclusions)
-  : buildLeanToTotals(totalsInput, exclusions);
-
-const tilingComparison = buildSummaryTilingComparison({
-  legacyTileLines: totals?.sections?.tiles || [],
-  legacyExternalLathM: legacyExternalFixingLathM,
-  automaticResult: automaticRoofTilingAudit.result,
-});
-
-const summaryTilingBOM = applyUniversalTilingToSummaryLines({
-  lines: totals.allLines || [],
-  automaticResult: automaticRoofTilingAudit.result,
-});
-
-// This is the canonical calculator output list (tiles+plastics+edge+gutters+misc)
-// This is the canonical calculator output list (tiles+plastics+edge+gutters+misc)
-const baseLines = (summaryTilingBOM.lines || [])
-  .filter((r) => String(r.key || "").toLowerCase() !== "membrane")
-  .map((r) => ({
-    ...r,
-    _k: `${String(r.key || "").toLowerCase()} ${String(r.label || r.name || "").toLowerCase()}`,
-  }));
-  // ===== Patch missing unit prices from materials =====
-const withUnitPrice = (line, unitPrice) => {
-  const p = Number(unitPrice || 0);
-  if (!(p > 0)) return line;
-
-  // only patch if current line has no price
-  const existing = Number(line.unitPrice ?? line.unit ?? 0);
-  if (existing > 0) return line;
-
-  return { ...line, unitPrice: p, unit: p };
-};
-
-const profile = String(inputs?.gutter_profile || "square").toLowerCase();
-
-// helper: always set unit price fields (Summary uses these via asUnitPrice/asCost)
-const forceUnitPrice = (line, unit) => {
-  const n = Number(unit);
-  if (!Number.isFinite(n)) return line;
-  return {
-    ...line,
-    unit: n,
-    unitPrice: n,
-    priceEach: n,
-  };
-};
-const withUnitPriceRecalc = (line, unitPrice) => {
-  const p = Number(unitPrice || 0);
-  if (!(p > 0)) return line;
-
-  const existing = Number(line.unitPrice ?? line.unit ?? 0);
-  if (existing > 0) return line;
-
-  const qty = Number(line.order_qty ?? line.orderQty ?? line.qty ?? 0) || 0;
-  const total = Number((qty * p).toFixed(2));
-
-  return {
-    ...line,
-    unit: p,
-    unitPrice: p,
-    priceEach: p,
-    line: total,
-    total,
-  };
-};
-// helper: force unit price + recalc total using qty (NOT order_qty)
-// needed for lines priced per m / per m² where total should be qty × unit
-const forceUnitPriceRecalcByQty = (line, unitPrice) => {
-  const p = Number(unitPrice || 0);
-  if (!(p > 0)) return line;
-
-  const qty = Number(line.qty ?? line.quantity ?? 0) || 0;
-  const total = Number((qty * p).toFixed(2));
-
-  return {
-    ...line,
-    unit: p,
-    unitPrice: p,
-    priceEach: p,
-    line: total,
-    total,
-  };
-};
-const patchUnitPricesFromMaterials = (line) => {
-  const k = String(line.key || "").toLowerCase();
-  const txt = `${line._k || ""} ${line.label || ""} ${line.name || ""}`
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .trim();
-
-  // ---------- gutters ----------
-  if (k === "g_len")    return forceUnitPrice(line, m?.[`gutter_${profile}_length_4m_price`]);
-  if (k === "g_union")  return forceUnitPrice(line, m?.[`gutter_${profile}_union_price`]);
-  if (k === "g_brkt")   return forceUnitPrice(line, m?.[`gutter_${profile}_bracket_price`]);
-  if (k === "g_outlet") return forceUnitPrice(line, m?.[`gutter_${profile}_running_outlet_price`]);
-  if (k === "g_stop")   return forceUnitPrice(line, m?.[`gutter_${profile}_stop_end_price`]);
-
-  // ---------- downpipes ----------
-  if (k === "dp_len")   return forceUnitPrice(line, m?.dp_length_2_5m_price);
-  if (k === "dp_bend")  return forceUnitPrice(line, m?.dp_bend_price);
-  if (k === "dp_shoe")  return forceUnitPrice(line, m?.dp_shoe_price);
-  if (k === "dp_clip")  return forceUnitPrice(line, m?.dp_clip_price);
-  if (k === "dp_adapt" || k === "dp_adaptor") return forceUnitPrice(line, m?.dp_adaptor_price);
-
-  // ---------- misc ----------
-  if (k === "breather_membrane")
-    return forceUnitPrice(line, m?.breather_roll_price_each ?? m?.breather_membrane_price_each);
-  // 50mm PIR cradle (priced per m², qty is m² used)
-if (k === "pir50_cradle") {
-  const perM2 = Number(m?.pir50?.price_per_m2 ?? m?.pir50_per_m2 ?? 0) || 0;
-  return perM2 > 0 ? forceUnitPriceRecalcByQty(line, perM2) : line;
-}
-// --- misc fixings (these rows arrive with totals but no unit, so we MUST recalc) ---
-if (k === "polytop_pins")
-  return withUnitPriceRecalc(line, m?.polytop_pins_price_per_box ?? m?.polytopPins?.price_per_box);
-
-if (k === "screws_rafter_eaves")
-  return withUnitPriceRecalc(line, m?.screws_3x10_price_per_box);
-
-if (k === "screws_lath_fixings")
-  return withUnitPriceRecalc(line, m?.screws_2x8_price_per_box);
-
-if (k === "screws_tile_fixings")
-  return withUnitPriceRecalc(line, m?.screws_1x8_price_per_box);
-// ---------- timber: 25×50 laths + 9mm structural ply ----------
-
-// 25×50 laths are priced per metre in Summary (qty = total metres)
-if (k === "laths_25x50_lengths" || k === "laths_25x50_total_m") {
-  const perM =
-    Number(m?.lath25x50?.price_per_m ?? 0) ||
-    Number(m?.lath_25x50_price_per_m ?? 0) ||
-    0;
-
-  return perM > 0 ? forceUnitPriceRecalcByQty(line, perM) : line;
-}
-
-// 9mm ply is priced per m² in Summary (qty = m² used)
-if (k === "ply9mm_strips_total_m2") {
-  const sheetLen = Number(m?.ply9mm?.sheet_len_m ?? 2.4);
-  const sheetWid = Number(m?.ply9mm?.sheet_width_m ?? 1.2);
-  const area = sheetLen * sheetWid || 2.88;
-
-  // Prefer the editable per-sheet price if present (your test key)
-  const perM2 =
-    (Number(m?.ply9_sheet_price ?? 0) / area) ||
-    Number(m?.ply9mm?.price_per_m2 ?? 0) ||
-    0;
-
-  return perM2 > 0 ? forceUnitPriceRecalcByQty(line, perM2) : line;
-}
-// 30×90 PSE is priced per metre (qty = total metres)
-if (k === "pse30x90_ringbeam") {
-  // Materials editor saves this as a flat key
-  const perM =
-    Number(m?.ringbeam_pse90x30_per_m ?? 0) ||
-    Number(m?.pse30x90?.price_per_m ?? 0) ||
-    0;
-
-  return perM > 0 ? forceUnitPriceRecalcByQty(line, perM) : line;
-}
-
-// 18mm structural ply is priced per m² (qty = m² used)
-if (k === "ply18mm_wallplate_infill") {
-  const sheetLen =
-    Number(m?.ply18mm?.sheet_len_m ?? 2.4) ||
-    Number(m?.ply18?.sheet_len_m ?? 2.4);
-
-  const sheetWid =
-    Number(m?.ply18mm?.sheet_width_m ?? 1.2) ||
-    Number(m?.ply18?.sheet_width_m ?? 1.2);
-
-  const area = (sheetLen * sheetWid) || 2.88;
-
-  // IMPORTANT: you edit ply18_sheet_price, and ply18_per_m2 may be stale.
-  const perM2 =
-    (Number(m?.ply18_sheet_price ?? 0) / area) ||
-    Number(m?.ply18_per_m2 ?? 0) ||
-    Number(m?.ply18mm?.price_per_m2 ?? 0) ||
-    0;
-
-  return perM2 > 0 ? forceUnitPriceRecalcByQty(line, perM2) : line;
-}
-  // SuperQuilt: choose 12m² vs 15m² from label text and use Materials editable prices
-  if (k === "superquilt") {
-    const want15 = txt.includes("15");
-    const unit = Number(
-      want15
-        ? (m?.superquilt_15m_price_each ?? m?.superquilt_15m2_price_ex_vat ?? 0)
-        : (m?.superquilt_12m_price_each ?? m?.superquilt_12m2_price_ex_vat ?? 0)
-    ) || 0;
-
-    // only override if we have a valid unit price
-    return unit > 0 ? forceUnitPrice(line, unit) : line;
-  }
-
-// 100mm PIR (currently keyed as slab100 in baselines)
-if (k === "slab100") {
-  return {
-    ...line,
-    label: "100mm PIR insulation (sheet)",
-    name: "100mm PIR insulation (sheet)",
-    _k: "slab100 100mm PIR insulation (sheet)",
-    units: line.unitLabel ?? line.units ?? line.unit ?? "m²",
-    order_qty: line.orderQty ?? line.qty_order ?? line.order_qty ?? "—",
-    weight_kg: Number(line.totalWeightKg ?? line.weight_kg ?? 0),
-    cost: Number(line.total ?? line.line ?? 0),
-  };
-}
-
-  // ---------- plastics ----------
-  // vented fascia is charged per metre — editable in Materials
-  if (k === "vent") {
-    const unit = Number(m?.fascia_vent_price_per_m ?? 0) || 0;
-    return unit > 0 ? forceUnitPrice(line, unit) : line;
-  }
-
-  // J-section price depends on white vs foiled (use label text)
-  if (k === "j_section") {
-    const isFoiled = /anthracite|black|rosewood|golden[_\s-]*oak|foil|foiled/.test(txt);
-    const unit = Number(
-      isFoiled
-        ? (m?.fascia_j_section_foiled_price ?? m?.j_section_price_each_foiled ?? 0)
-        : (m?.fascia_j_section_white_price ?? m?.j_section_price_each_white ?? 0)
-    ) || 0;
-    return unit > 0 ? forceUnitPrice(line, unit) : line;
-  }
-
-  // fascia corners: use the “90 ext 300” keys (your storage shows these are the real ones)
-if (k === "fascia_corners") {
-  const isFoiled = /anthracite|black|rosewood|golden[_\s-]*oak|foil|foiled/.test(txt);
-  const unit = Number(
-    isFoiled
-      ? (m?.fascia_corner_90_ext_300_foiled_price ?? m?.fascia_corner_price_each_foiled ?? 0)
-      : (m?.fascia_corner_90_ext_300_white_price ?? m?.fascia_corner_price_each_white ?? 0)
-  ) || 0;
-  return unit > 0 ? forceUnitPrice(line, unit) : line;
-}
-
-// fascia joints
-if (k === "fascia_joints") {
-  const isFoiled = /anthracite|black|rosewood|golden[_\s-]*oak|foil|foiled/.test(txt);
-  const unit = Number(
-    isFoiled
-      ? (m?.fascia_joint_300_foiled_price ?? m?.fascia_joint_price_each_foiled ?? 0)
-      : (m?.fascia_joint_300_white_price ?? m?.fascia_joint_price_each_white ?? 0)
-  ) || 0;
-  return unit > 0 ? forceUnitPrice(line, unit) : line;
-}
-
-return line;
-};
-
-// IMPORTANT: use this patched list everywhere below
-const baseLinesPriced = (baseLines || []).map(patchUnitPricesFromMaterials);
-const baseLinesPricedWeighted = applyWeightsToLines(baseLinesPriced, m);
-
-if (typeof window !== "undefined") {
-  window.__SUMMARY_BASELINES__ = baseLines || [];
-  window.__SUMMARY_BASELINES_PRICED__ = baseLinesPriced || [];
-  window.__SUMMARY_BASELINES_PRICED_WEIGHTED__ = baseLinesPricedWeighted || [];
-}
-if (typeof window !== "undefined") {
-  console.log(
-    "SUMMARY baseLines keys (first 80):",
-    (baseLines || []).slice(0, 80).map((r) => r.key)
-  );
-
-  const insRows = (baseLines || []).filter((r) => {
-    const t = `${r.key || ""} ${r._k || ""} ${r.label || ""} ${r.name || ""}`.toLowerCase();
-    return (
-      t.includes("pir") ||
-      t.includes("slab") ||
-      t.includes("insul") ||
-      String(r.key || "").toLowerCase().includes("slab")
-    );
-  });
-
-  console.log(
-    "SUMMARY insulation-ish rows in baseLines:",
-    insRows.map((r) => ({
-      key: r.key,
-      label: r.label,
-      qty: r.qty,
-      unit: r.unit,
-      units: r.units,
-      order_qty: r.order_qty,
-      weight_kg: r.weight_kg,
-      priceEach: r.priceEach,
-      line: r.line ?? r.total,
-    }))
-  );
-}
-
-// ===============================
-// 3) Everything else uses baseLines
-// ===============================
-const isPlastics = (k) =>
-  /(fascia|soffit|vent(?!ilator)|j[_-]?(section|trim))/.test(k);
-
-const isGutter = (k) =>
-  /(gutter|^dp_|downpipe|^g_(len|union|brkt|outlet|stop)\b|stop[_\s-]?end|running[_\s-]?outlet|bracket|union)/.test(k);
-
-
-// ✅ Now filter from the weighted version
-const plasticsLines = baseLinesPricedWeighted.filter((r) =>
-  isPlastics(String(r._k || "").toLowerCase())
-);
-
-const gutterLines = baseLinesPricedWeighted.filter((r) =>
-  isGutter(String(r._k || "").toLowerCase()) ||
-  isGutter(String(r.key || "").toLowerCase())
-);
-// etc…
-if (typeof window !== "undefined") {
-  console.log(
-    "🧱 DBG weight fields sample:",
-    (baseLinesPriced || []).slice(0, 15).map(r => ({
-      key: r.key,
-      label: r.label,
-      qty: r.order_qty ?? r.qty,
-      weightEachKg: r.weightEachKg,
-      weightPerUnitKg: r.weightPerUnitKg,
-      unitWeightKg: r.unitWeightKg,
-      totalWeightKg: r.totalWeightKg,
-      weight_kg_each: r.weight_kg_each,
-      total_weight_kg: r.total_weight_kg,
-    }))
-  );
-}
-if (typeof window !== "undefined") {
-  const debugCovering = (baseLinesPriced || []).filter(r => {
-    const k = String(r._k || r.key || "").toLowerCase();
-    const label = String(r.label || "").toLowerCase();
-    return (
-      label.includes("verge") ||
-      label.includes("barge") ||
-      label.includes("dry verge") ||
-      k.includes("verge") ||
-      label.includes("liteslate")
-    );
-  });
-  console.log("🧱 DBG Summary verge/covering lines:", debugCovering);
-}
-if (typeof window !== "undefined") {
-  const rawTiles = (baseLines || []).filter(r => {
-    const k = String(r._k || r.key || "").toLowerCase();
-    const label = String(r.label || "").toLowerCase();
-    return k.includes("tile") || label.includes("tile") || label.includes("liteslate");
-  });
-  console.log("🧱 DBG baseLines tile-ish:", rawTiles);
-}
-console.log("✅ SUMMARY LOG TEST – I am running");
-// 🔍 DEBUG – Inspect tile lines reaching Summary
-if (typeof window !== "undefined") {
-  const debugTiles = (baseLinesPriced || []).filter(r => {
-    const k = String(r._k || r.key || "").toLowerCase();
-    const label = String(r.label || "").toLowerCase();
-    return (
-      k.includes("tile") ||
-      label.includes("tile") ||
-      label.includes("liteslate")
-    );
-  });
-
-  console.log("🧱 DBG Summary tile lines:", debugTiles);
-}
-
-// ✅ Debug AFTER baseLines is defined
-if (typeof window !== "undefined") {
-  const pirRows = (baseLines || []).filter((r) => {
-    const t = `${r.key || ""} ${r._k || ""} ${r.label || ""}`.toLowerCase();
-    return t.includes("pir") || String(r.key || "").toLowerCase().includes("pir");
-  });
-  console.log("SUMMARY PIR rows in baseLines:", pirRows);
-}
-
-console.log(
-  "SUMMARY baseLines (key/qty/weights):",
-  baseLines.map((l) => ({
-    key: l.key,
-    label: l.label,
-    qty: l.qty,
-    unit: l.unit,
-    priceEach: l.priceEach,
-    line: l.line ?? l.total,
-
-    unitWeightKg:
-      l.unitWeightKg ??
-      l.weight_kg_each ??
-      l.weightKgEach ??
-      l.weightEachKg ??
-      null,
-
-    totalWeightKg:
-      l.totalWeightKg ??
-      l.total_weight_kg ??
-      l.weightKg ??
-      l.weight_kg ??
-      null,
-  }))
-);
-
-
-
-
-  // ---------- (DUPLICATE) Timber Elements block - COMMENTED OUT to avoid redeclarations ----------
-  /*
-  // ---- Timber Elements from geometry (for Summary only) ----
-  const timberSpacing = Number(m.rafter_spacing_mm ?? 665);
-  const timberFirstCtr = Number(m.rafter_first_center_mm ?? 690);
-
-  let timberCentresCount = 0;
-  for (let c = timberFirstCtr; c <= iw; c += timberSpacing) {
-    timberCentresCount++;
-  }
-
-  const raftersCount = Math.max(2, timberCentresCount + 2);
-
-  const eavesOverhangMM = Number(inputs.eaves_overhang_mm ?? inputs.soffit_mm ?? 150);
-  const frameOnMM = Number(inputs.frame_on_mm ?? 70);
-
-  const thetaRad = (pitchDeg * Math.PI) / 180 || 0;
-  const timberExtProjectionMM = ip + eavesOverhangMM + frameOnMM;
-  const rafterLenMM = timberExtProjectionMM / (Math.cos(thetaRad) || 1);
-  const timberRafterLenMM = rafterLenMM;
-
-  const wallplate_m = iw / 1000;
-  const raftersTotal_m = (raftersCount * timberRafterLenMM) / 1000;
-
-  const timberManualLines = [
-    { key: "rafters_count", label: "Rafters", qty: raftersCount, units: "Ea" },
-    { key: "rafter_length_each_mm", label: "Rafter length (each)", qty: Math.round(timberRafterLenMM), units: "mm" },
-    { key: "rafters_total_m", label: "Rafters total run", qty: Number(raftersTotal_m.toFixed(2)), units: "m" },
-    // ...
-  ];
-  */
-
-    // ---------- normalise all lines ----------
-
-const lineChargeableCost = (r) => {
-  const base = asCost(r);
-  if (!isTimberChargeableKey(r.key)) return base; // no uplift outside timber
-  return base * (1 + wasteFractionForKey(r.key)); // apply waste uplift only for Timber
-};
-
-  // ---------- classification rules ----------
-
-  // Tile-related items (Britmet / LiteSlate) but NOT watercourse, tile starter or fixings
-  const isTile = (k) => {
-    // push these into other buckets instead:
-    if (/watercourse/.test(k)) return false;
-    if (/tile_starter/.test(k)) return false;
-    if (/fixings?_pack|fixings?|screws?/.test(k)) return false;
-
-    // everything else obviously tile-ish stays in Tile Elements
-    return /(tile|slate|britmet|liteslate|verge|barge|ridge|eaves_guard|touchup)/.test(
-      k
-    );
-  };
-
-    // Plastics = fascia, soffit, vents, J-Section / J-Trim
-// Match anywhere in key OR label (k already includes both, lowercased)
-
-
-
-  // Metal bits = tile starter, joist hangers, trims, WATERCOURSE
-  // (J-Section is now treated as plastics, not metal)
-  const isMetal = (k) => {
-  const s = String(k || "").toLowerCase();
-  return (
-    /tile[\s_-]*starter/.test(s) ||
-    /joist[\s_-]*hanger(s)?/.test(s) ||   // catches joist_hanger, joist hanger, joist-hangers, etc.
-    /watercourse/.test(s)
-  );
-};
-
-
-
-
-
-  // Misc = insulation, tapes, screws, pins, breather, TILE FIXINGS, etc.
-  const isMisc = (k) =>
-    /breather|slab100|superquilt|expanding|polytop|alu|lath_fixings|rafter_eaves|screws|fixings?_pack/.test(
-      k
-    );
-
-
-  const isTimber = (k) =>
-    /(timber_rafters|timber_full_lengths|timber_ringbeam|lath_external|lath_internal|lath_chamfer_front)/.test(
-      k
-    );
-    const isTimberChargeableKey = (key) => {
-  const k = String(key || "").toLowerCase();
-  return (
-    k === "steico_220_total_m" ||
-    k === "pse30x90_ringbeam" ||
-    k === "laths_25x50_lengths" ||
-    k === "laths_25x50_total_m" ||
-    k === "ply9mm_strips_total_m2" ||
-    k === "ply18mm_wallplate_infill"
-  );
-};
-
-  const wasteFractionForKey = (key) => {
-    const k = String(key || "").toLowerCase();
-
-    // Global default = 10% if nothing else specified
-    const defaultFrac =
-      (Number(m.global_waste_percent ?? 10) || 0) / 100;
-
-    // Steico 220 I-joists
-    if (k === "steico_220_total_m") {
-      const pct = Number(m.steico?.waste_percent);
-      return Number.isFinite(pct) ? pct / 100 : defaultFrac;
-    }
-
-    // 25x50 laths (we've used both keys over time, so cover both)
-    if (
-      k === "laths_25x50_total_m" ||
-      k === "laths_25x50_lengths"
-    ) {
-      const pct = Number(m.chamferLath?.waste_percent);
-      return Number.isFinite(pct) ? pct / 100 : defaultFrac;
-    }
-
-    // 9mm structural ply (soffit + wallplate face + ring-beam upstands)
-    if (k === "ply9mm_strips_total_m2") {
-      const pct = Number(
-        m.ply9mm?.waste_percent ?? m.ply9mm?.waste_pct
-      );
-      return Number.isFinite(pct) ? pct / 100 : defaultFrac;
-    }
-
-  // 18mm structural ply (wallplate internal infill)
-  if (k === "ply18mm_wallplate_infill") {
-    const pct = Number(
-      m.ply18mm?.waste_percent ?? m.ply18mm?.waste_pct
-    );
-    return Number.isFinite(pct) ? pct / 100 : defaultFrac;
-  }
-
-  // 30x90 PSE ring-beam
-  if (k === "pse30x90_ringbeam") {
-    const pct = Number(
-      m.pse30x90?.waste_percent ?? m.pse30x90?.waste_pct
-    );
-    return Number.isFinite(pct) ? pct / 100 : defaultFrac;
-  }
-
-    // For now, everything else also gets the default waste %
-    return defaultFrac;
-  };
-
-// Combine manual timber geometry lines + any existing timber items from calculators
-const timberFilteredLines = baseLinesPriced.filter((r) => isTimber(r._k));
-
-const hipTimberLines = [];
-
-const timberLines = [
-  ...timberManualLines,
-  ...hipTimberLines,
-  ...timberFilteredLines,
-].map(patchUnitPricesFromMaterials);
-
-if (typeof window !== "undefined") {
-  window.__SUMMARY_TIMBER_LINES__ = timberLines;
-}
-const isLiteSlateSystem = tileSystem === "liteslate";
-let tilesLines = baseLines
-  .filter((r) => {
-    const key = String(r._k || "").toLowerCase();
-
-    // Touch-up kit is NOT used with LiteSlate
-    if (tileSystem === "liteslate" && key.includes("touch")) {
-      return false;
-    }
-
-    // Everything that still looks like a tile item
-    return isTile(key);
-  })
-  .map((r) => {
-    const key = String(r._k || "").toLowerCase();
-
-    const isMainTilesRow =
-      key.includes("tiles") &&
-      !key.includes("verge") &&
-      !key.includes("barge") &&
-      !key.includes("starter") &&
-      !key.includes("water") &&
-      !key.includes("fix") &&
-      !key.includes("touch");
-
-    const isVergeRow =
-      key.includes("verge") || key.includes("barge");
-
-    const isFixingsRow =
-      key.includes("fix") && key.includes("pack");
-
-    const isTouchupRow =
-      key.includes("touch");
-
-        // ---------- Main tiles row ----------
-if (isMainTilesRow) {
-  let row = {
-    ...r,
-    label: isLiteSlateSystem ? "LiteSlate tiles" : "Britmet tiles",
-  };
-
-  // ✅ leave qty as produced by baseLines
-  return row;
-}
-
-// ---------- Verge / Dry Verge ----------
-if (isVergeRow) {
-  let row = { ...r };
-
-  if (isLiteSlateSystem) {
-    // For LiteSlate, just relabel LiteSlate verge as "Dry Verge"
-    row.label = "Dry Verge";
-    return row;
-  }
-
-  // ✅ leave qty as produced by baseLines
-  return row;
-}
-
-// ---------- Fixings & Touch-up ----------
-if (isFixingsRow) {
-  // ✅ leave qty as produced by baseLines
-  return r;
-}
-
-if (isTouchupRow) {
-  // ✅ leave qty as produced by baseLines
-  return r;
-}
-
-// Everything else unchanged
-return r;
-
-  });
-
-const summaryHipBOM = applyAutomaticHipBOMToSummaryTileLines({
-  lines: tilesLines,
-  automaticEdgeResult: automaticRoofEdgeResult,
-});
-
-if (summaryHipBOM.valid) {
-  tilesLines = summaryHipBOM.lines;
-}
-
-console.log(
-  "DBG plasticsLines sample:",
-  (plasticsLines || []).slice(0, 10).map(r => ({
-    key: r.key, label: r.label, qty: r.qty, unit: r.unit, units: r.units, qtyDisplay: r.qtyDisplay,
-    used_m: r.used_m, run_m: r.run_m, length_m: r.length_m, total_m: r.total_m,
-    stock_len_m: r.stock_len_m
-  }))
-);
-
-// Raw metal rows (from calculators + manual)
-const metalLinesRaw = [
-  ...(baseLines || []).filter((r) => {
-    const k = String(r?._k || r?.key || r?.label || "").toLowerCase();
-    if (k.includes("tile_starter") || k.includes("tile starter")) return false;
-    return isMetal(r._k);
-  }),
-  ...(metalManualLines || []),
-];
-if (typeof window !== "undefined") {
-  console.log(
-    "DBG metalLinesRaw",
-    (metalLinesRaw || []).map((r) => ({
-      key: r.key,
-      _k: r._k,
-      label: r.label,
-      qty: r.qty,
-      order_qty: r.order_qty,
-      weight_kg: r.weight_kg,
-      line: r.line,
-    }))
-  );
-}
-// De-dupe metal rows by key/label so items can never appear twice
-const metalLines = (() => {
-
-
-  // Pick the "best" row per id (prefer rows with line/order_qty/weight_kg)
-  const bestById = new Map();
-
-  const score = (row) => {
-    let s = 0;
-    if (row?.order_qty !== undefined) s += 2;
-    if (row?.line !== undefined) s += 3;
-    if (row?.weight_kg !== undefined) s += 1;
-    // secondary preference if you ever use these elsewhere
-    if (row?.total !== undefined) s += 2;
-    if (row?.priceEach !== undefined) s += 1;
-    return s;
-  };
-
-  (metalLinesRaw || []).forEach((r) => {
-    const id = String(r.key || r.label || r.name || "").toLowerCase().trim();
-    if (!id) return;
-
-    const prev = bestById.get(id);
-    if (!prev || score(r) > score(prev)) {
-      bestById.set(id, r);
-    }
-  });
-
-  // Keep original order, but only include the chosen "best" row for each id
-  const seen = new Set();
-  const out = [];
-
-  (metalLinesRaw || []).forEach((r) => {
-    const id = String(r.key || r.label || r.name || "").toLowerCase().trim();
-    if (!id) return;
-
-    if (seen.has(id)) return;
-
-    const best = bestById.get(id);
-    if (best === r) {
-      seen.add(id);
-      out.push(r);
-    }
-  });
-if (typeof window !== "undefined") {
-  console.log(
-    "DBG metalLines final",
-    (out || []).map((r) => ({
-      key: r.key,
-      _k: r._k,
-      label: r.label,
-      qty: r.qty,
-      order_qty: r.order_qty,
-      weight_kg: r.weight_kg,
-      line: r.line,
-    }))
-  );
-}
-    if (isHippedLeanTo && hippedGeom) {
-  const bossQty = Number(hippedGeom.bossQty || 0);
-  const sparHookQty = Number(hippedGeom.sparHookQty || 0);
-
-  if (bossQty > 0) {
-    out.push({
-      key: "boss_rafter_terminal",
-      label: "Boss / Rafter Terminal",
-      qty: bossQty,
-      order_qty: bossQty,
-      units: "Ea",
-      weight_kg:
-        bossQty * getFixedProductWeightKg("boss_rafter_terminal"),
-      line:
-        bossQty *
-        Number(
-          m.boss_rafter_terminal_price_each ??
-            m.boss_price_each ??
-            m.metal?.boss_rafter_terminal?.price_each ??
-            0
-        ),
-    });
-  }
-
-  if (sparHookQty > 0) {
-    out.push({
-      key: "spar_hook",
-      label: "Spar Hook",
-      qty: sparHookQty,
-      order_qty: sparHookQty,
-      units: "Ea",
-      weight_kg: sparHookQty * getFixedProductWeightKg("spar_hook"),
-      line:
-        sparHookQty *
-        Number(
-          m.spar_hook_price_each ??
-            m.metal?.spar_hook?.price_each ??
-            0
-        ),
-    });
-  }
-}
-
-  return out;
-})();
-
-// 🔍 DEBUG: inspect raw gutter lines before any weighting logic
-if (typeof window !== "undefined") {
-  console.log(
-    "DBG gutterLines sample:",
-    (gutterLines || []).map((r) => ({
-      key: r.key,
-      _k: r._k,
-      label: r.label,
-      qty: r.qty,
-      order_qty: r.order_qty,
-      unit: r.unit,
-      units: r.units,
-    }))
-  );
-}
-
-// ⚠️ NOTE: Misc items can appear twice (from calculators/BOM + manual rows).
-// If that happens, we must dedupe by keeping the row that has price/weight/order_qty (same rule as Metal).
-
-// 1) Manual misc rows (add items here as needed)
-
-// ---------- 50mm PIR totals (cradle + ring-beam upstands) ----------
-const pir50TotalM2 = cradleAreaM2 + (pir50Upstands_m2 || 0);
-
-const pir50TotalOrderQty =
-  pir50SheetAreaM2 > 0 ? Math.ceil(pir50TotalM2 / pir50SheetAreaM2) : 0;
-
-const pir50KgPerM2 = Number(m?.pir50?.weight_kg_per_m2 ?? 0) || 0;
-const cradleWeightMult = Number(m?.pir50_cradle_weight_multiplier ?? 1) || 1;
-const upstandWeightMult = 1; // upstands not machined (make a knob later if needed)
-
-const pir50TotalWeightKg =
-  (cradleAreaM2 * pir50KgPerM2 * cradleWeightMult) +
-  ((pir50Upstands_m2 || 0) * pir50KgPerM2);
-
-// 1) Manual misc rows (add items here as needed)
-const miscManualLines = [
-  ...(pir50TotalM2 > 0
-    ? [
-        {
-          key: "pir50_cradle",
-          label: "50mm PIR (cradle + upstands)",
-          qty: Number(pir50TotalM2.toFixed(3)),
-          units: "m²",
-          order_qty: pir50TotalOrderQty,
-          weight_kg: Number(pir50TotalWeightKg.toFixed(2)),
-        },
-      ]
-    : []),
-];
-
-// 2) Raw misc rows (from calculators/BOM + manual)
-const miscLinesRaw = [
-  ...(baseLinesPriced || []).filter(
-    (r) =>
-      isMisc(r._k) &&
-      !isTimber(r._k) &&
-      !isTile(r._k) &&
-      !isPlastics(r._k) &&
-      !isMetal(r._k) &&
-      !isGutter(r._k)
-  ),
-  ...(miscManualLines || []),
-].map(patchUnitPricesFromMaterials);
-
-// 3) De-dupe misc rows (keep the "best" row per key — priced rows win)
-const miscLines = (() => {
-  const bestById = new Map();
-
-  const score = (row) => {
-    let s = 0;
-    if (row?.order_qty !== undefined) s += 2;
-    if (row?.line !== undefined) s += 3;
-    if (row?.weight_kg !== undefined) s += 1;
-    if (row?.total !== undefined) s += 2;
-    if (row?.priceEach !== undefined) s += 1;
-    return s;
-  };
-
-  (miscLinesRaw || []).forEach((r) => {
-    const id =
-  String(r.key || "").toLowerCase() === "superquilt"
-    ? `superquilt|${String(r.label || r.name || "").toLowerCase().trim()}`
-    : String(r.key || r.label || r.name || "").toLowerCase().trim();
-    if (!id) return;
-
-    const prev = bestById.get(id);
-    if (!prev || score(r) > score(prev)) bestById.set(id, r);
-  });
-
-  const seen = new Set();
-  const out = [];
-
-  (miscLinesRaw || []).forEach((r) => {
-    const id =
-  String(r.key || "").toLowerCase() === "superquilt"
-    ? `superquilt|${String(r.label || r.name || "").toLowerCase().trim()}`
-    : String(r.key || r.label || r.name || "").toLowerCase().trim();
-    if (!id) return;
-    if (seen.has(id)) return;
-
-    const best = bestById.get(id);
-    if (best === r) {
-      seen.add(id);
-      out.push(r);
-    }
-  });
-
-  return out;
-})();
-// --- Reorder Misc: place 50mm PIR above 100mm PIR ---
-const miscLinesOrdered = [...miscLines].sort((a, b) => {
-  const aKey = (a.key || "").toLowerCase();
-  const bKey = (b.key || "").toLowerCase();
-
-  if (aKey === "pir50_cradle" && bKey === "slab100") return -1;
-  if (aKey === "slab100" && bKey === "pir50_cradle") return 1;
-
-  return 0;
-});
-// ✅ DEBUG: expose final misc lines (deduped + priced)
-if (typeof window !== "undefined") {
-  window.__SUMMARY_MISC_LINES__ = miscLines;
-}
-// ---- Patch weights onto misc rows (without touching qty/cost logic) ----
-// ✅ Use the same proven weight filler you used for baseLinesPricedWeighted
-const miscLinesWithWeights = applyWeightsToLines(miscLines || [], m);
-// ---- Override weights for roll items using USED area (but keep qty=1 roll for ordering/charging) ----
-const toM2 = (mm2) => Number(mm2 || 0) / 1_000_000;
-
-const iw2 = Number(inputs?.internalWidthMM ?? 0);
-const ip2 = Number(inputs?.internalProjectionMM ?? 0);
-const lo2 = Number(inputs?.left_overhang_mm ?? 0);
-const ro2 = Number(inputs?.right_overhang_mm ?? 0);
-const eo2 = Number(inputs?.eaves_overhang_mm ?? 0);
-
-const pitchDeg2 = Number(inputs?.pitchDeg ?? 0);
-const pitchRad2 = (pitchDeg2 * Math.PI) / 180;
-const slopeFactor = pitchDeg2 > 0 ? 1 / Math.cos(pitchRad2) : 1;
-
-// Plan areas (m²)
-const internalPlanM2 = toM2(iw2 * ip2);
-const externalPlanM2 = toM2((iw2 + lo2 + ro2) * (ip2 + eo2));
-
-// Sloped “surface” areas (m²)
-const internalUsedM2 = Number((internalPlanM2 * slopeFactor).toFixed(4));
-const externalUsedM2 = Number((externalPlanM2 * slopeFactor).toFixed(4));
-
-// Breather roll coverage (m²)
-const breatherCoverM2 =
-  Number(m?.breather_roll_width_m ?? m?.breatherMembrane?.roll_width_m ?? 0) *
-  Number(m?.breather_roll_length_m ?? m?.breatherMembrane?.roll_length_m ?? 0);
-
-// SuperQuilt roll coverage (m²) — infer 12/15 from label
-const superquiltCoverM2FromLabel = (label) => {
-  const t = String(label || "").toLowerCase();
-  if (t.includes("15")) return 15;
-  if (t.includes("12")) return 12;
-
-  // fallback: try options
-  const SQ12 = (m?.superquilt_options || []).find((o) => Number(o?.coverage_m2) === 12);
-  const SQ15 = (m?.superquilt_options || []).find((o) => Number(o?.coverage_m2) === 15);
-  return Number(SQ12?.coverage_m2 ?? SQ15?.coverage_m2 ?? 12);
-};
-
-// New array with corrected "used weight" totals for these roll items
-const miscLinesWithUsedWeights = [...(miscLinesWithWeights || [])]
-  .sort((a, b) => {
-    const aKey = (a.key || "").toLowerCase();
-    const bKey = (b.key || "").toLowerCase();
-
-    if (aKey === "pir50_cradle" && bKey === "slab100") return -1;
-    if (aKey === "slab100" && bKey === "pir50_cradle") return 1;
-
-    return 0;
-  })
-  .map((r) => {
-  const key = String(r?.key || "").toLowerCase();
-  const label = String(r?.label || "");
-  const txt = `${key} ${label}`.toLowerCase();
-
-  // Breather membrane: weight based on external USED m², qty stays 1 roll
-  if (key === "breather_membrane" || txt.includes("breather")) {
-    const rollKg = Number(m?.breather_roll_weight_kg ?? m?.breatherMembrane?.weight_kg_per_roll ?? 0);
-    const cover = Number(breatherCoverM2 || 0);
-    const kgPerM2 = cover > 0 ? rollKg / cover : 0;
-    const usedKg = Number((externalUsedM2 * kgPerM2).toFixed(2));
-
-    return {
-      ...r,
-      used_m2: externalUsedM2,
-      weight_kg: usedKg,
-      // keep weight_kg_each as-is (it currently represents per-roll) unless you want otherwise
-    };
-  }
-
-  // SuperQuilt: weight based on internal USED m², qty stays 1 roll
-  if (key === "superquilt" || txt.includes("superquilt")) {
-  const rollKg = Number(m?.superquilt_roll_weight_kg ?? 0);
-  const coverM2 = superquiltCoverM2FromLabel(label);
-  const qty = Number(r?.qty ?? 0);
-
-  // total supplied SuperQuilt coverage across all SQ rows
-  const allSqRows = (miscLinesWithWeights || []).filter((x) => {
-    const xKey = String(x?.key || "").toLowerCase();
-    const xTxt = String(x?.label || x?.name || "").toLowerCase();
-    return xKey === "superquilt" || xTxt.includes("superquilt");
-  });
-
-  const totalSqCoverage = allSqRows.reduce((sum, x) => {
-    const xCover = superquiltCoverM2FromLabel(x?.label || x?.name || "");
-    const xQty = Number(x?.qty ?? 0);
-    return sum + (xCover * xQty);
-  }, 0);
-
-  const thisCoverage = coverM2 * qty;
-  const usedM2Share =
-    totalSqCoverage > 0
-      ? Number(((internalUsedM2 * thisCoverage) / totalSqCoverage).toFixed(2))
-      : internalUsedM2;
-
-  const kgPerM2 = coverM2 > 0 ? rollKg / coverM2 : 0;
-  const usedKg = Number((usedM2Share * kgPerM2).toFixed(2));
-
-  return {
-    ...r,
-    used_m2: usedM2Share,
-    weight_kg: usedKg,
-  };
-}
-
-  return r;
-});
-
-  // ---------- totals per section (cost respects exclude; weight never does) ----------
-
-  const sectionTotals = (lines = [], applyWaste = false) => {
-  let cost = 0;            // base cost (no waste uplift)
-  let weight = 0;          // total weight
-  let chargeableCost = 0;  // cost including waste uplift (only when applyWaste)
-
-  (lines || []).forEach((r) => {
-    const base = asCost(r);
-    const w = lineWeightKg(r);
-
-    if (!isExcluded(r.key)) {
-      cost += base;
-      chargeableCost += applyWaste
-        ? base * (1 + wasteFractionForKey(r.key))
-        : base;
-    }
-
-    if (Number.isFinite(w)) weight += w;
-  });
-
-  return { cost, weight, chargeableCost };
-};
-const timberLinesAdjusted = applyAdjustmentsToLines(timberLines, adjustments);
-const tilesLinesAdjusted = applyAdjustmentsToLines(tilesLines, adjustments);
-const timberTotals   = sectionTotals(timberLinesAdjusted, true);
-const tilesTotals    = sectionTotals(tilesLinesAdjusted, false);
-  // ------------------------------
-// USED-WEIGHT PATCH (Plastics + Gutters)
-// Weight should reflect *used metres* (or m² where applicable) even if pricing/ordering is per-length.
-// This patch DOES NOT rely on frontRunM/soffitRunM etc. It reads whatever the row already contains.
-// ------------------------------
-
-const pickUsedMetres = (r) => {
-  // Try the most common “used length” fields first
-  const candidates = [
-    r.used_m,
-    r.usedM,
-    r.length_used_m,
-    r.lengthUsedM,
-    r.run_m,
-    r.runM,
-    r.total_m,
-    r.totalM,
-    r.len_m,
-    r.lenM,
-    r.length_m,
-    r.lengthM,
-    r.m, // sometimes used by older code
-  ];
-
-  for (const v of candidates) {
-    const n = Number(v);
-    if (Number.isFinite(n) && n > 0) return n;
-  }
-
-  return 0;
-};
-const mmToM = (mm) => Number(mm || 0) / 1000;
-
-
-
-const normaliseQty = (r) => Number(r.order_qty ?? r.orderQty ?? r.qty ?? 0) || 0;
-const getUnit = (r) => String(r?.unit || "").toLowerCase().trim();
-
-// If the row is already expressed in metres, treat qty as used metres.
-// (Ordering may still be per-length elsewhere, but weight needs used metres.)
-const inferUsedMetresFromUnit = (r, fallbackStockLenM) => {
-  const unit = getUnit(r);
-  const qty = normaliseQty(r);
-  const stockLen = Number(r.stock_len_m ?? r.stockLenM ?? fallbackStockLenM ?? 0) || 0;
-
-  if (unit === "m" || unit === "metre" || unit === "metres") {
-    // If qty is a sensible cut length (<= stock length), assume it’s the used metres
-    if (qty > 0 && stockLen > 0 && qty <= stockLen * 1.01) return qty;
-
-    // If qty is already a “run length” (often bigger than stock), still accept it
-    if (qty > 0 && stockLen === 0) return qty;
-  }
-
-  return 0;
-};
-// ------------------------------
-// PLASTICS USED-LENGTH HELPERS
-// ------------------------------
-
-// External width used for fascia lengths (your rule):
-// internal width + frame-on for exposed sides + fascia lip for exposed sides (when no side overhang)
-const plasticsExternalWidthUsedM = (inputs) => {
-  const iw = Number(inputs?.internalWidthMM ?? 0);
-  const frameOn = Number(inputs?.frame_on_mm ?? 70);     // your default assumption is 70
-  const lip = Number(inputs?.fascia_lip_mm ?? 25);       // lip 25mm each side (when applicable)
-
-  const leftExposed = !!inputs?.left_exposed;
-  const rightExposed = !!inputs?.right_exposed;
-
-  const lo = Number(inputs?.left_overhang_mm ?? 0);
-  const ro = Number(inputs?.right_overhang_mm ?? 0);
-
-  // Frames only count where the side is exposed
-  const frameMm = (leftExposed ? frameOn : 0) + (rightExposed ? frameOn : 0);
-
-  // Lip only matters when that side is exposed AND there is NO overhang on that side
-  const lipMm =
-    (leftExposed && lo <= 0 ? lip : 0) +
-    (rightExposed && ro <= 0 ? lip : 0);
-
-  // Side overhangs add to width if used
-  const usedMm = iw + frameMm + lipMm + lo + ro;
-
-  return Number(mmToM(usedMm).toFixed(3));
-};
-
-// Soffit “front run” = internal width + eaves both sides
-const plasticsSoffitRunUsedM = (inputs) => {
-  const iw = Number(inputs?.internalWidthMM ?? 0);
-  const eo = Number(inputs?.eaves_overhang_mm ?? 0);
-  const usedMm = iw + (2 * eo);
-  return Number(mmToM(usedMm).toFixed(3));
-};
-
-// End fascia runs (left/right) — use internal projection + front eaves overhang.
-// (This matches your “front overhang exists” logic; back is a wall/ledger so no rear overhang.)
-const plasticsEndFasciaRunUsedM = (inputs) => {
-  const ip = Number(inputs?.internalProjectionMM ?? 0);
-  const eo = Number(inputs?.eaves_overhang_mm ?? 0);
-  const usedMm = ip + eo;
-  return Number(mmToM(usedMm).toFixed(3));
-};
-
-const patchLinesUsedWeight = (lines, getKgPerM, fallbackStockLenM) => {
-  return (lines || []).map((r) => {
-    const txt = `${r.key || ""} ${r._k || ""} ${r.label || ""} ${r.name || ""}`.toLowerCase();
-        // 🔍 DEBUG: gutter rows only
-    if (txt.includes("gutter")) {
-      console.group("SUMMARY GUTTER ROW");
-      console.log("key:", r.key);
-      console.log("label:", r.label);
-      console.log("txt:", txt);
-      console.log("qty:", r.qty, "order_qty:", r.order_qty);
-      console.log("unit:", r.unit, "units:", r.units);
-      console.log("inputs.gutter_profile:", inputs?.gutter_profile);
-      console.log("kgPerM returned:", getKgPerM(r, txt));
-      console.groupEnd();
-    }
-
-        // ✅ GUTTERS/DOWNPIPES fittings: ITEM weights (kg each), not kg/m
-    // Only gutters length line uses kg/m (handled later by kgPerM logic)
-    const qtyEach = normaliseQty(r);
-
-    const fitKgEach = (() => {
-      // ---- gutter fittings ----
-      if (txt.includes("gutter") && txt.includes("bracket"))
-        return Number(m?.gutter_bracket_weight_kg ?? m?.gutter_bracket_weight_kg_each ?? 0);
-
-      if (txt.includes("gutter") && txt.includes("union"))
-        return Number(m?.gutter_union_weight_kg ?? m?.gutter_union_weight_kg_each ?? 0);
-
-      if (txt.includes("running outlet") || (txt.includes("gutter") && txt.includes("outlet")))
-        return Number(m?.gutter_outlet_weight_kg ?? m?.running_outlet_weight_kg_each ?? 0);
-
-      if (txt.includes("stop end") || txt.includes("stop-end"))
-        return Number(m?.gutter_stop_end_weight_kg ?? m?.stop_end_weight_kg_each ?? 0);
-
-      // ---- downpipe fittings ----
-      // (you said: downpipe LENGTH itself is kg each, not kg/m)
-      if (txt.includes("downpipe") && (txt.includes("length") || txt.includes(" m")))
-        return Number(m?.dp_length_weight_kg_each ?? m?.downpipe_length_weight_kg ?? 0);
-
-      if (txt.includes("bend") || txt.includes("offset"))
-        return Number(m?.downpipe_bend_weight_kg ?? m?.dp_bend_weight_kg_each ?? 0);
-
-      if (txt.includes("shoe"))
-        return Number(m?.downpipe_shoe_weight_kg ?? m?.dp_shoe_weight_kg_each ?? 0);
-
-      if (txt.includes("clip"))
-        return Number(m?.downpipe_clip_weight_kg ?? m?.dp_clip_weight_kg_each ?? 0);
-
-      if (txt.includes("adapt") || txt.includes("adaptor") || txt.includes("adapter"))
-        return Number(m?.downpipe_adaptor_weight_kg ?? m?.dp_adaptor_weight_kg_each ?? m?.dp_adapt_weight_kg_each ?? 0);
-
-      return 0;
-    })();
-
-    // If we found a fitting weight, apply it right here and bail out
-    if (fitKgEach > 0 && qtyEach > 0) {
-      return {
-        ...r,
-        weight_kg_each: fitKgEach,
-        weight_kg: Number((qtyEach * fitKgEach).toFixed(2)),
-      };
-    }
-
-    // ✅ Plastics: prefer geometry-derived “used metres” so weights aren’t qty×5m round numbers
-// Fascia uses external width run, soffit uses soffit run.
-// (Pricing still stays per stock length; we’re only fixing WEIGHT.)
-let usedMFromGeometry = 0;
-if (txt.includes("fascia")) usedMFromGeometry = plasticsExternalWidthUsedM(inputs);
-if (txt.includes("soffit")) usedMFromGeometry = plasticsSoffitRunUsedM(inputs);
-
-     // ✅ Vented fascia / vent add-ons: not a shipped physical item, so NO WEIGHT
-    // (keep this very specific so it doesn't accidentally match normal fascia rows)
-    const isVentedAddon =
-      txt.includes("vent fascia") ||
-      txt.includes("vented fascia") ||
-      txt.includes("vent disc") ||
-      txt.includes("ventilation disc");
-
-    if (isVentedAddon) {
-      return { ...r, weight_kg: 0, weight_kg_each: 0 };
-    }
-        // ✅ Per-item plastics (NOT length weighted)
-    // Fascia corners are discrete fittings, so weight must be qty × kg_each
-    const k = String(r?.key || "").toLowerCase();
-
-    if (k === "fascia_corners" || txt.includes("fascia") && txt.includes("corner")) {
-      const qty = normaliseQty(r);
-
-      // Prefer editable material key if present, else fallback default
-      const each = Number(m?.fascia_corner_weight_kg_each ?? 0.25) || 0;
-
-      return {
-        ...r,
-        weight_kg_each: each,
-        weight_kg: Number((qty * each).toFixed(2)),
-      };
-    }
-
-// ✅ Downpipe LENGTH is a shipped *piece* (e.g. 2.5m), so weight is PER ITEM not per metre.
-if (txt.includes("downpipe") && txt.includes("length")) {
-  const each = Number(
-    m?.dp_length_weight_kg_each ??
-    m?.downpipe_length_weight_kg_each ??
-    0
-  );
-
-  const qty = normaliseQty(r);
-
-  return {
-    ...r,
-    weight_kg_each: each,
-    weight_kg: Number((qty * each).toFixed(2)),
-  };
-}
-    // ✅ Guttering + downpipe fittings are ITEM weights (kg each), not length weights
-    const keyLower = String(r?.key || "").toLowerCase();
-
-
-    const itemWeightEach = (() => {
-      // Downpipe LENGTH (your rule: treat as item weight per 2.5m length)
-      if (k === "downpipe" || txt.includes("downpipe length")) {
-        // prefer a dedicated key if you add it; fallback to your existing field if that's what you've got
-        return Number(m?.downpipe_length_weight_kg_each ?? m?.downpipe_weight_kg_each ?? m?.downpipe_weight_kg_per_m ?? 0);
-      }
-
-      // Downpipe fittings
-      if (txt.includes("offset") || txt.includes("bend")) return Number(m?.downpipe_bend_weight_kg_each ?? 0);
-      if (txt.includes("shoe")) return Number(m?.downpipe_shoe_weight_kg_each ?? 0);
-      if (txt.includes("clip")) return Number(m?.downpipe_clip_weight_kg_each ?? 0);
-      if (txt.includes("adaptor") || txt.includes("adapter")) return Number(m?.downpipe_adaptor_weight_kg_each ?? 0);
-
-      // Gutter fittings
-      if (txt.includes("bracket")) return Number(m?.gutter_bracket_weight_kg_each ?? 0);
-      if (txt.includes("union")) return Number(m?.gutter_union_weight_kg_each ?? 0);
-      if (txt.includes("stop end")) return Number(m?.gutter_stop_end_weight_kg_each ?? 0);
-      if (txt.includes("outlet")) return Number(m?.gutter_outlet_weight_kg_each ?? 0);
-      if (txt.includes("corner")) return Number(m?.gutter_corner_weight_kg_each ?? 0);
-
-      return 0;
-    })();
-
-    if (itemWeightEach > 0) {
-      const qty = normaliseQty(r);
-      return {
-        ...r,
-        weight_kg_each: itemWeightEach,
-        weight_kg: Number((qty * itemWeightEach).toFixed(2)),
-      };
-    }
-
-    // Only apply kg/m to TRUE length-run items
-const isLengthItem =
-  txt.includes("fascia") ||
-  txt.includes("soffit") ||
-  // gutter LENGTH ONLY (not brackets/unions/stop-ends/corners/outlets)
-  (txt.includes("gutter") &&
-    (txt.includes(" length") || txt.includes(" 4m") || txt.includes(" 4 m"))) ||
-  txt.includes("j-section") ||
-  txt.includes("h-section");
-
-
-
-    if (!isLengthItem) return r;
-    // ✅ For plastics, force used lengths from geometry (NOT qty * stock length)
-    if (txt.includes("fascia") || txt.includes("soffit") || txt.includes("end fascia")) {
-      const kgPerM = Number(getKgPerM(r, txt) || 0);
-      if (kgPerM > 0) {
-        // Front fascia board uses external width used
-        if (txt.includes("fascia") && !txt.includes("end fascia") && !txt.includes("corners")) {
-          const usedM = plasticsExternalWidthUsedM(inputs);
-          return {
-            ...r,
-            used_m: usedM,
-            weight_kg: Number((usedM * kgPerM).toFixed(2)),
-          };
-        }
-
-        // Soffit board uses soffit run used
-        if (txt.includes("soffit")) {
-          const usedM = plasticsSoffitRunUsedM(inputs);
-          return {
-            ...r,
-            used_m: usedM,
-            weight_kg: Number((usedM * kgPerM).toFixed(2)),
-          };
-        }
-
-        // End fascia is per side — multiply by number of exposed sides
-        if (txt.includes("end fascia")) {
-          const perSideM = plasticsEndFasciaRunUsedM(inputs);
-          const sides = (inputs?.left_exposed ? 1 : 0) + (inputs?.right_exposed ? 1 : 0);
-          const usedM = Number((perSideM * Math.max(1, sides)).toFixed(3));
-          return {
-            ...r,
-            used_m: usedM,
-            weight_kg: Number((usedM * kgPerM).toFixed(2)),
-          };
-        }
-      }
-    }
-
-    const kgPerM = Number(getKgPerM(r, txt) || 0);
-    if (kgPerM <= 0) return r; // if you haven't defined kg/m yet, leave it alone
-    // If unit is metres, qty may already be the used length
-    const inferred = inferUsedMetresFromUnit(r, fallbackStockLenM);
-    if (inferred > 0) {
-      return {
-        ...r,
-        used_m: inferred,
-        weight_kg: Number((inferred * kgPerM).toFixed(2)),
-      };
-    }
-
-    const usedM = pickUsedMetres(r);
-    if (usedM > 0) {
-      return {
-        ...r,
-        used_m: usedM,
-        weight_kg: Number((usedM * kgPerM).toFixed(2)),
-      };
-    }
-if (usedMFromGeometry > 0) {
-  return {
-    ...r,
-    used_m: usedMFromGeometry,
-    weight_kg: Number((usedMFromGeometry * kgPerM).toFixed(2)),
-  };
-}
-
-    // Fallback if the row doesn’t carry a used length:
-    // estimate used length as qty * stock length (still better than “0”, and matches current ordering behaviour)
-    const qty = normaliseQty(r);
-    const stockLen = Number(r.stock_len_m ?? r.stockLenM ?? fallbackStockLenM ?? 0) || 0;
-    if (qty > 0 && stockLen > 0) {
-      const estUsedM = qty * stockLen;
-      return {
-        ...r,
-        used_m: estUsedM,
-        weight_kg: Number((estUsedM * kgPerM).toFixed(2)),
-      };
-    }
-
-    return r;
-  });
-};
-
-// Plastics kg/m (you already have these in Materials)
-const plasticsKgPerM = (r, txt) => {
-  const finish = String(inputs?.plastics_finish || "").toLowerCase(); // "white" or "foiled"
-  const isFoiled = finish.includes("foil");
-
-  const fasciaKgPerM = Number(
-    isFoiled ? m?.fascia_weight_kg_per_m_foiled : m?.fascia_weight_kg_per_m_white
-  ) || 0;
-
-  const soffitKgPerM = Number(
-    isFoiled ? m?.soffit_weight_kg_per_m_foiled : m?.soffit_weight_kg_per_m_white
-  ) || 0;
-
-  if (txt.includes("soffit")) return soffitKgPerM;
-  if (txt.includes("fascia")) return fasciaKgPerM;
-
-  return 0;
-};
-
-
-// Gutters kg/m — ONLY for the gutter LENGTH row (not brackets/fittings, not downpipe)
-const guttersKgPerM = (r, txt) => {
-  const profile = String(inputs?.gutter_profile || "").toLowerCase(); // "square" | "round" | "ogee"
-  const keyLower = String(r?.key || "").toLowerCase();
-
-  // ✅ Your gutter length row is keyed as "g_len"
-  // Also allow other possible gutter-length keys if they appear later.
-  const isGutterLengthKey =
-    keyLower === "g_len" ||
-    keyLower === "gutter" ||
-    keyLower === "gutter_len" ||
-    keyLower === "gutter_length";
-
-  // Secondary safety: label text clearly shows it's a length row
-  const looksLikeLengthRow =
-    txt.includes("gutter") && (txt.includes("m length") || txt.includes("× 4.0 m") || txt.includes(" length"));
-
-  const isGutterLength = isGutterLengthKey || looksLikeLengthRow;
-  if (!isGutterLength) return 0;
-
-  if (profile.includes("square")) return Number(m?.gutter_square_weight_kg_per_m ?? 0);
-  if (profile.includes("round"))  return Number(m?.gutter_round_weight_kg_per_m ?? 0);
-  if (profile.includes("ogee"))   return Number(m?.gutter_ogee_weight_kg_per_m ?? 0);
-
-  // fallback
-  return Number(m?.gutter_square_weight_kg_per_m ?? 0);
-};
-
-
-
-
-
-// Apply patches
-const plasticsLinesWithUsedWeights = patchLinesUsedWeight(
-  plasticsLines,
-  plasticsKgPerM,
-  Number(m?.fascia_stock_length_m ?? 5) // stock lengths are already in Materials
-);
-
-const gutterLinesWithUsedWeights = patchLinesUsedWeight(
-  gutterLines,
-  guttersKgPerM,
-  Number(m?.gutter_length_m ?? 4)
-);
-// ------------------------------
-// GUTTER FITTINGS: ITEM WEIGHTS (kg each)
-// - gutter length row stays as-is (already kg/m)
-// - all other gutter/downpipe fittings use kg_each from Materials
-// ------------------------------
-const gutterLinesFinal = (gutterLinesWithUsedWeights || []).map((r) => {
-
-  // ✅ FORCE correct stop-end quantity in Summary
-  if (String(r?.key || "").toLowerCase() === "g_stop") {
-    const outletType = String(
-      inputs?.gutter_outlet_type ??
-      inputs?.outlet_type ??
-      inputs?.gutter_outlet ??
-      ""
-    ).toLowerCase();
-
-    const fixedQty = outletType.includes("stop") ? 1 : 2;
-
-    r = {
-      ...r,
-      qty: fixedQty,
-      order_qty: fixedQty,
-    };
-  }
-
-  const k2 = String(r?.key || "").toLowerCase();
-  const t2 = `${r.key || ""} ${r._k || ""} ${r.label || ""} ${r.name || ""}`.toLowerCase();
-
-  // Leave the gutter length row alone (already handled by kg/m patch)
-  if (k2 === "g_len") return r;
-
-  const qty = Number(r.order_qty ?? r.orderQty ?? r.qty ?? 0) || 0;
-
-  const kgEach = (() => {
-    if (k2 === "dp_len" || t2.includes("downpipe length")) {
-      return Number(m?.dp_length_weight_kg_each ?? m?.downpipe_length_weight_kg ?? 0);
-    }
-    if (k2.includes("bracket") || t2.includes("bracket")) {
-      return Number(m?.gutter_bracket_weight_kg ?? m?.gutter_bracket_weight_kg_each ?? 0);
-    }
-    if (k2.includes("union") || t2.includes("union")) {
-      return Number(m?.gutter_union_weight_kg ?? m?.gutter_union_weight_kg_each ?? 0);
-    }
-    if (k2.includes("stop") || t2.includes("stop end")) {
-      return Number(m?.gutter_stop_end_weight_kg ?? m?.stop_end_weight_kg_each ?? 0);
-    }
-    if (k2.includes("outlet") || t2.includes("outlet")) {
-      return Number(m?.gutter_outlet_weight_kg ?? m?.running_outlet_weight_kg_each ?? 0);
-    }
-    if (k2.includes("bend") || t2.includes("bend")) {
-      return Number(m?.downpipe_bend_weight_kg ?? m?.dp_bend_weight_kg_each ?? 0);
-    }
-    if (k2.includes("shoe") || t2.includes("shoe")) {
-      return Number(m?.downpipe_shoe_weight_kg ?? m?.dp_shoe_weight_kg_each ?? 0);
-    }
-    if (k2.includes("clip") || t2.includes("clip")) {
-      return Number(m?.downpipe_clip_weight_kg ?? m?.dp_clip_weight_kg_each ?? 0);
-    }
-    if (k2.includes("adapt") || t2.includes("adaptor") || t2.includes("adapter")) {
-      return Number(m?.downpipe_adaptor_weight_kg ?? m?.dp_adaptor_weight_kg_each ?? m?.dp_adapt_weight_kg_each ?? 0);
-    }
-    return 0;
-  })();
-
-  if (kgEach <= 0) return r;
-
-  const totalKg = qty > 0 ? Number((qty * kgEach).toFixed(2)) : 0;
-
-  return {
-    ...r,
-    weight_kg_each: kgEach,
-    weight_kg: totalKg,
-  };
-});
-// TEMP DEBUG: gutter fitting weights (remove after test)
-if (typeof window !== "undefined") {
-  const sample = (gutterLinesFinal || []).slice(0, 12).map((r) => ({
-    key: r.key,
-    label: r.label,
-    qty: r.qty,
-    order_qty: r.order_qty,
-    weight_kg_each: r.weight_kg_each,
-    weight_kg: r.weight_kg,
-  }));
-
-  console.log("DBG gutterLinesFinal sample:", sample);
-
-  console.log("DBG m item-weight keys:", {
-    gutter_bracket_weight_kg: m?.gutter_bracket_weight_kg,
-    gutter_union_weight_kg: m?.gutter_union_weight_kg,
-    gutter_stop_end_weight_kg: m?.gutter_stop_end_weight_kg,
-    gutter_outlet_weight_kg: m?.gutter_outlet_weight_kg,
-    downpipe_length_weight_kg: m?.downpipe_length_weight_kg,
-    dp_length_weight_kg_each: m?.dp_length_weight_kg_each,
-    downpipe_bend_weight_kg: m?.downpipe_bend_weight_kg,
-    downpipe_shoe_weight_kg: m?.downpipe_shoe_weight_kg,
-    downpipe_clip_weight_kg: m?.downpipe_clip_weight_kg,
-    downpipe_adaptor_weight_kg: m?.downpipe_adaptor_weight_kg,
-  });
-}
-
-const plasticsLinesAdjusted = applyAdjustmentsToLines(plasticsLinesWithUsedWeights, adjustments);
-const metalLinesAdjusted = applyAdjustmentsToLines(metalLines, adjustments);
-const gutterLinesAdjusted = applyAdjustmentsToLines(gutterLinesFinal, adjustments);
-const miscLinesAdjusted = applyAdjustmentsToLines(miscLinesWithUsedWeights, adjustments);
-  const plasticsTotals = sectionTotals(plasticsLinesAdjusted, false);
-  const metalTotals    = sectionTotals(metalLinesAdjusted, false);
-  const gutterTotals   = sectionTotals(gutterLinesAdjusted, false);
-  
-  const pirOrder = ["pir50_cradle", "slab100"];
-
-const miscLinesForSection = [...(miscLinesWithUsedWeights || [])].sort((a, b) => {
-  const ai = pirOrder.indexOf(a.key);
-  const bi = pirOrder.indexOf(b.key);
-
-  if (ai !== -1 && bi !== -1) return ai - bi;
-  if (ai !== -1) return -1;
-  if (bi !== -1) return 1;
-
-  return 0;
-});
-const miscLinesForSectionAdjusted = applyAdjustmentsToLines(
-  miscLinesForSection,
-  adjustments
-);
-const miscTotals = sectionTotals(miscLinesForSectionAdjusted, false);
-  
-
-  
   // Decide what to show in the Units column
 const displayUnits = (r) => {
   // 1) Prefer explicit unit label if provided
@@ -3099,7 +853,7 @@ const displayUnits = (r) => {
 
 // ---------- table renderer with footer row ----------
 
-const Section = ({ title, lines, totals, showChargeable }) => {
+const Section = ({ title, section, lines, totals, showChargeable }) => {
   const tdRight = { ...td, textAlign: "right" };
 
   // Sum of chargeable cost (cost + waste uplift) for this section
@@ -3177,11 +931,16 @@ const rowCostForManualChanges =
   key={(r.key || r.label || r.name || "row") + "-" + idx}
   style={isExcluded(r.key) ? { opacity: 0.55 } : undefined}
 >
-  <td style={td}>{r.label || r.name || r.item || r.key}</td>
+  <td style={td}>
+    {r.label || r.name || r.item || r.key}
+    {r.price_unconfigured && r.isAddedItem && <span style={{ color: "#92400e" }}> — price unconfigured</span>}
+    {r.isAddedItem && <button type="button" onClick={() => removeAddedItem(r)}
+      style={{ marginLeft: 6, fontSize: 11 }} aria-label={`Remove ${r.label}`}>Remove</button>}
+  </td>
   <td style={td}>{Number.isFinite(qty) ? qty : "—"}</td>
   <td style={td}>{Number.isFinite(orderQty) ? orderQty : "—"}</td>
   <td style={td}>{displayUnits(r)}</td>
-  <td style={td}>{fmtKg(w)}</td>
+  <td style={td} title={r.isAddedItem ? "Supplied extra; excluded from installed roof weight" : undefined}>{r.isAddedItem ? "—" : fmtKg(w)}</td>
   <td style={tdRight}>{fmtMoney(baseCost)}</td>
   {showChargeable && <td style={tdRight}>{fmtMoney(chargeable)}</td>}
 
@@ -3190,8 +949,8 @@ const rowCostForManualChanges =
     <input
       type="checkbox"
       checked={isExcluded(r.key)}
-      onChange={() => toggle(r.key, rowCostForManualChanges)}
-      title="Exclude cost (weight still included)"
+      onChange={() => r.isAddedItem ? updateAddedItem(r, { excluded: !r.extraExcluded }) : toggle(r.key, rowCostForManualChanges)}
+      title={r.isAddedItem ? "Exclude extra cost; item remains on the supply list" : "Exclude cost (weight still included)"}
     />
 
     <input
@@ -3203,12 +962,18 @@ const rowCostForManualChanges =
     fontSize: 11,
     boxSizing: "border-box",
   }}
-  defaultValue={adjustments[r.key] ?? ""}
+  key={r.isAddedItem ? `${r.key}:${r.qty}` : r.key}
+  defaultValue={r.isAddedItem ? (r.qty - 1 || "") : (adjustments[r.key] ?? "")}
   placeholder="+/-"
   onBlur={(e) => {
     console.log("ADJUSTMENT BLUR", r.key, e.target.value);
 
     const raw = e.target.value;
+    if (r.isAddedItem) {
+      if (raw === "" || Number.isFinite(Number(raw))) updateAddedItem(r, { qty: Math.max(0, 1 + (Number(raw) || 0)) });
+      else e.target.value = String(r.qty - 1 || "");
+      return;
+    }
     const next = { ...adjustments };
 
     const nextValues = loadAdjustmentValues();
@@ -3249,6 +1014,21 @@ saveAdjustmentValues(nextValues);
     );
   })}
 
+  <tr>
+    <td style={td} colSpan={showChargeable ? 8 : 7}>
+      <select aria-label={`Add item to ${title}`} value=""
+        onChange={(event) => addItem(section, event.target.value)}
+        style={{ width: "100%", maxWidth: 560, padding: "6px 8px" }}>
+        <option value="">Add item…</option>
+        {itemCatalog.filter(item => item.section === section &&
+          !addedItems.some(added => added.section === section && added.catalogId === item.id)).map(item => (
+          <option key={item.id} value={item.id} disabled={item.unitPrice == null}>
+            {item.label} — {item.unitPrice == null ? "set price in Materials" : `${fmtMoney(item.unitPrice)} / ${item.units}`}
+          </option>
+        ))}
+      </select>
+    </td>
+  </tr>
   {/* Footer total row moved to the bottom */}
   <tr>
     <td style={{ ...td, fontWeight: 700 }}>Total</td>
@@ -3284,13 +1064,7 @@ saveAdjustmentValues(nextValues);
 const leanToWeightTotals = sectionTotals(totals.allLines || [], false);
 
 // Overall totals
-const overallCost =
-  timberTotals.cost +
-  tilesTotals.cost +
-  plasticsTotals.cost +
-  metalTotals.cost +
-  gutterTotals.cost +
-  miscTotals.cost;
+const overallCost = summaryMaterials.materialsBaseCost;
 
 const overallWeight =
   timberTotals.weight +
@@ -3302,7 +1076,9 @@ const overallWeight =
 
 // --- Plasterboard calculation ---
 const roofAreaM2 =
-  (totalsInput?.widthMM || 0) *
+  isHippedLeanToEarly && hippedInsulationIntegration?.valid
+    ? hippedInsulationIntegration.superQuilt.geometricAreaM2
+    : (totalsInput?.widthMM || 0) *
   (totalsInput?.projMM || 0) /
   1_000_000;
 
@@ -3329,21 +1105,6 @@ console.log("SUMMARY_WEIGHT_DEBUG", {
 });
 
 // Only timber is chargeable (waste uplift). Lean-to materials pricing comes straight from totals.
-
-const quoteBase = buildLeanToQuoteBase(inputs, exclusions);
-
-const quoteTilingAdjustment = buildQuoteTilingAdjustment({
-  legacyTileLines: quoteBase?.totals?.sections?.tiles || [],
-  legacyExternalFixingLathM:
-    quoteBase?.tilingPricingBasis?.legacyExternalFixingLathM,
-  automaticResult: automaticRoofTilingAudit?.result,
-  lathPricePerM: quoteBase?.tilingPricingBasis?.lathPricePerM,
-  lathWastePercent: quoteBase?.tilingPricingBasis?.lathWastePercent,
-});
-
-const universalMaterialsCostForPricing =
-  (quoteBase?.materialsCostForPricing ?? 0) +
-  (quoteTilingAdjustment.valid ? quoteTilingAdjustment.adjustment : 0);
 
 const labourFeatures = {
   roofVent: false,
@@ -3403,7 +1164,9 @@ if (typeof window !== "undefined") {
   } catch {}
 }
 
-const deliveryDistanceMiles = Number(savedInputs.deliveryDistanceMiles || 0);
+const selectedCustomerId = savedInputs.selectedCustomerId || "retail";
+const deliveryCustomer = customers.find(customer => customer.id === selectedCustomerId);
+const deliveryDistanceMiles = resolveCustomerDeliveryMiles(savedInputs.deliveryDistanceMiles, deliveryCustomer);
 
 const deliveryResult = computeDeliveryPricing(
   deliveryDistanceMiles,
@@ -3411,8 +1174,6 @@ const deliveryResult = computeDeliveryPricing(
 );
 
 const deliveryCost = deliveryResult.deliveryCost;
-const selectedCustomerId = savedInputs.selectedCustomerId || "retail";
-
 let discountPct = 0;
 
 if (selectedCustomerId !== "retail") {
@@ -3425,32 +1186,10 @@ if (selectedCustomerId !== "retail") {
     0
   );
 }
-const allOriginalSectionLines = [
-  ...(timberLines || []),
-  ...(tilesLines || []),
-  ...(plasticsLinesWithUsedWeights || []),
-  ...(metalLines || []),
-  ...(gutterLinesFinal || []),
-  ...(miscLinesForSection || []),
-];
-
-const adjustmentValues = loadAdjustmentValues();
-const exclusionValues = loadExclusionValues();
-
-const pricingAdjustmentDelta = [
-  ...Object.values(adjustmentValues),
-  ...Object.values(exclusionValues),
-].reduce((sum, value) => {
-  const n = Number(value);
-  return Number.isFinite(n) ? sum + n : sum;
-}, 0);
-
-const adjustedMaterialsCostForPricing =
-  universalMaterialsCostForPricing + pricingAdjustmentDelta;
+const adjustedMaterialsCostForPricing = summaryMaterials.materialsCostForPricing;
 console.log("SUMMARY_PRICE_DEBUG", {
   discountPct,
   adjustedMaterialsCostForPricing,
-  quoteTilingAdjustment,
   deliveryCost,
   labourCost: labour.labourCost,
 });
@@ -3469,31 +1208,7 @@ const pricing = computePricing(
   }
 );
 
-/*console.log("PRICING_COMPARE", {
-  page: "Summary",
-  materialsCostForPricing: quoteBase?.materialsCostForPricing,
-  delivery_flat: m?.delivery_flat,
-  profit_pct: m?.profit_pct,
-  vat_rate: m?.vat_rate,
-  net: pricing?.net,
-  vat: pricing?.vat,
-  gross: pricing?.gross,
 
-  // geometry + options that MUST match LeanToLanding
-  widthMM: totalsInput?.widthMM,
-  projMM: totalsInput?.projMM,
-  pitchDeg: totalsInput?.pitchDeg,
-  leftWall: totalsInput?.leftWall,
-  rightWall: totalsInput?.rightWall,
-  eavesOverhangMM: totalsInput?.eavesOverhangMM,
-  leftOverhangMM: totalsInput?.leftOverhangMM,
-  rightOverhangMM: totalsInput?.rightOverhangMM,
-  tileSystem: totalsInput?.tileSystem,
-  gutterProfile: totalsInput?.gutterProfile,
-  gutterOutlet: totalsInput?.gutterOutlet,
-  gutterColor: totalsInput?.gutterColor,
-});
-*/
 
 const pricingMaterialsCost = adjustedMaterialsCostForPricing;
 const delivery = pricing.delivery;
@@ -3549,75 +1264,16 @@ return (
         weight remains included for final overall weight purposes.
       </p>
 
-      {tilingComparison && (
-        <div
-          style={{
-            marginBottom: 14,
-            padding: 12,
-            border: "2px solid #2563eb",
-            borderRadius: 7,
-            background: "#eff6ff",
-          }}
-        >
-          <h3 style={{ margin: "0 0 6px", fontSize: 16 }}>
-            Tile/lath integration audit
-          </h3>
-          <p style={{ margin: "0 0 10px", fontSize: 13, color: "#374151" }}>
-            The Summary now uses the universal quantities. This panel retains
-            the previous calculation for comparison while we validate the change.
-          </p>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-              gap: 10,
-              fontSize: 13,
-            }}
-          >
-            <div>
-              <b>Legacy tile quantity</b>
-              <br />
-              {tilingComparison.legacyTileQuantity ?? "Not found"}
-            </div>
-            <div>
-              <b>Universal tile quantity</b>
-              <br />
-              {tilingComparison.universalTileQuantity}
-            </div>
-            <div>
-              <b>Tile difference</b>
-              <br />
-              {tilingComparison.tileDifference == null
-                ? "Not available"
-                : `${tilingComparison.tileDifference >= 0 ? "+" : ""}${tilingComparison.tileDifference}`}
-            </div>
-            <div>
-              <b>Legacy external fixing lath</b>
-              <br />
-              {tilingComparison.legacyExternalLathM.toFixed(3)} m
-            </div>
-            <div>
-              <b>Universal external fixing lath</b>
-              <br />
-              {tilingComparison.universalExternalLathM.toFixed(3)} m
-            </div>
-            <div>
-              <b>External-lath difference</b>
-              <br />
-              {tilingComparison.externalLathDifferenceM >= 0 ? "+" : ""}
-              {tilingComparison.externalLathDifferenceM.toFixed(3)} m
-            </div>
-          </div>
-        </div>
-      )}
-
-      <Section title="Timber Elements" lines={timberLinesAdjusted} totals={timberTotals} showChargeable />
-      <Section title="Tile Elements" lines={tilesLinesAdjusted} totals={tilesTotals} showChargeable={false} />
-      <Section title="Plastics Elements" lines={plasticsLinesAdjusted} totals={plasticsTotals} showChargeable={false} />
-      <Section title="Metal Elements" lines={metalLinesAdjusted} totals={metalTotals} showChargeable={false} />
-      <Section title="Guttering Elements" lines={gutterLinesAdjusted} totals={gutterTotals} showChargeable={false} />
-      <Section title="Miscellaneous" lines={miscLinesForSectionAdjusted} totals={miscTotals} showChargeable={false} />
+      <p style={{ fontSize: 13, color: "#4b5563" }}>
+        Use <b>Add item</b> for supplied extras, then <b>+/−</b> to change their quantity.
+        Extra costs are included in the quotation; installed roof weight remains unchanged.
+      </p>
+      <Section section="timber" title="Timber Elements" lines={timberLinesAdjusted} totals={timberTotals} showChargeable />
+      <Section section="tiles" title="Tile Elements" lines={tilesLinesAdjusted} totals={tilesTotals} showChargeable={false} />
+      <Section section="plastics" title="Plastics Elements" lines={plasticsLinesAdjusted} totals={plasticsTotals} showChargeable={false} />
+      <Section section="metal" title="Metal Elements" lines={metalLinesAdjusted} totals={metalTotals} showChargeable={false} />
+      <Section section="gutters" title="Guttering Elements" lines={gutterLinesAdjusted} totals={gutterTotals} showChargeable={false} />
+      <Section section="misc" title="Miscellaneous" lines={miscLinesForSectionAdjusted} totals={miscTotals} showChargeable={false} />
 
       {/* Overall Totals Summary */}
       <div
@@ -3639,6 +1295,11 @@ return (
         <p style={{ margin: 0, fontSize: 13 }}>
           <b>Total Cost (after exclusions, base):</b>{" "}
           {fmtMoney(overallCost)}
+        </p>
+
+        <p style={{ margin: 0, fontSize: 13 }}>
+          <b>Materials total used for pricing (sum of Elements):</b>{" "}
+          {fmtMoney(summaryMaterials.materialsCostForPricing)}
         </p>
 
         <p style={{ margin: 0, fontSize: 13 }}>
@@ -3664,14 +1325,14 @@ return (
             }}
           >
             <p style={{ margin: 0 }}>
-              <b>Pricing reconciliation:</b> visible section total{" "}
+              <b>Pricing reconciliation:</b> base material total{" "}
               {fmtMoney(overallCost)} → pricing materials base{" "}
               {fmtMoney(pricingMaterialsCost)}
             </p>
             <p style={{ margin: "4px 0 0" }}>
               <b>Adjustment applied:</b> {fmtMoney(pricingAdjustment)}{" "}
               <span style={{ color: "#6b7280" }}>
-                (includes timber waste / chargeable uplift)
+                (timber chargeable uplift only; quantity changes and exclusions are already included)
               </span>
             </p>
           </div>

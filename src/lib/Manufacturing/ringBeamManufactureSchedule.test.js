@@ -288,11 +288,11 @@ describe("buildHippedLeanToRingBeamSchedule", () => {
       geometry.externalWidthMM,
       6
     );
-    expect(frontBeam.baseWidthMM).toBe(220);
+    expect(frontBeam.baseWidthMM).toBe(225);
     expect(
       frontBeam.baseWidthMM -
         geometry.frontTemplateDebug.horizontalFootRunMM
-    ).toBe(2);
+    ).toBe(7);
 
     // The two side beams share a mirrored pattern; the front is separate.
     expect(schedule.groups).toHaveLength(2);

@@ -82,8 +82,8 @@ const sumIncludedCost = (lines, isExcluded) =>
     .filter((line) => !isExcluded(line.key))
     .reduce((total, line) => total + num(line.line ?? line.total), 0);
 
-export function buildHippedLeanToTotals(inputs = {}, exclusions = {}) {
-  const base = buildLeanToTotals(inputs, exclusions);
+export function buildHippedLeanToTotals(inputs = {}, exclusions = {}, materialsOverride = null) {
+  const base = buildLeanToTotals(inputs, exclusions, materialsOverride);
   const hippedSides = inputs.hippedSides ?? "both";
   const hasLeftHip = hippedSides === "left" || hippedSides === "both";
   const hasRightHip = hippedSides === "right" || hippedSides === "both";

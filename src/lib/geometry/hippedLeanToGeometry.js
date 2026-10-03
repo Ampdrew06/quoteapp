@@ -8,23 +8,11 @@ import { solveFacetEavesGeometry } from "./facetEavesGeometry";
 import { buildFacetGeometry } from "../Manufacturing/facetGeometryBuilder";
 import { buildDefaultFrontRafterLayout } from "../Manufacturing/rafterLayoutBuilder";
 import { calculateWallplateMitreGeometry } from "./wallplateMitreGeometry";
+import { calculateWallplateAssemblyGeometry } from "./wallplateAssemblyGeometry";
+import { calculateWallplateBossGeometry, resolveDefaultBossPositionMM } from "./wallplateBossGeometry";
 
 const degToRad = (deg) => (Number(deg) * Math.PI) / 180;
 const radToDeg = (rad) => (Number(rad) * 180) / Math.PI;
-
-const calcSidePitchDeg = ({
-  riseMM,
-  hipWidthMM,
-}) => {
-  const rise = Number(riseMM) || 0;
-  const hipWidth = Number(hipWidthMM) || 0;
-
-  if (!rise || !hipWidth) return 0;
-
-  return radToDeg(
-    Math.atan2(rise, hipWidth)
-  );
-};
 
 const MIN_OPEN_SIDE_SOFFIT_MM = 25;
 
@@ -33,11 +21,6 @@ const SPAR_HOOK_TO_BOSS_OFFSET_MM = 105;
 
 const SPAR_HOOK_TO_WALLPLATE_FACE_MM = 156;
 
-// Temporary migration switch.
-//
-// true  = use pitch-driven Timberlite HP once resolved
-// false = fall back to the existing/manual HP workflow
-const USE_PITCH_DRIVEN_GEOMETRY = true;
 // Global minimum default centre spacing used when
 // automatically laying out rafters.
 //
@@ -55,13 +38,18 @@ export function calculateHippedLeanToGeometry({
 
   // Current/manual HP inputs.
   // Retained for compatibility and future admin override.
-  leftHipWidthMM = 1000,
-  rightHipWidthMM = 1000,
+  leftHipWidthMM = null,
+  rightHipWidthMM = null,
 
-  // New normal design inputs.
-  // When supplied, these will eventually become authoritative.
+  // Optional side-pitch overrides move the physical boss centre.
   requestedLeftSidePitchDeg = null,
   requestedRightSidePitchDeg = null,
+
+  // Optional side-led eaves rule. Blank/automatic preserves the
+  // established front-led calculation.
+  sideSoffitMode = "automatic",
+  sideSoffitControlSide = "left",
+  specifiedSideSoffitMM = null,
 
     leftWall = false,
   rightWall = false,
@@ -85,61 +73,11 @@ export function calculateHippedLeanToGeometry({
   const hasLeftHip = hippedSides === "left" || hippedSides === "both";
   const hasRightHip = hippedSides === "right" || hippedSides === "both";
 
-  // ======================================================
-// LEGACY / MANUAL HIP-POSITION INPUTS
-//
-// These are retained for:
-// - compatibility during migration
-// - future admin manual override
-//
-// They are NOT yet being replaced in this step.
-// ======================================================
-
+// Hip positions refer to the BOSS CENTRE (joint B), not either timber endpoint.
 const manualLeftHipWidthMM = hasLeftHip
-  ? Number(leftHipWidthMM || 0)
-  : 0;
-
+  ? resolveDefaultBossPositionMM(leftHipWidthMM, projection) : 0;
 const manualRightHipWidthMM = hasRightHip
-  ? Number(rightHipWidthMM || 0)
-  : 0;
-
-// Has the new pitch-driven workflow actually been requested?
-const hasRequestedLeftSidePitch =
-  hasLeftHip &&
-  Number.isFinite(Number(requestedLeftSidePitchDeg)) &&
-  Number(requestedLeftSidePitchDeg) > 0;
-
-const hasRequestedRightSidePitch =
-  hasRightHip &&
-  Number.isFinite(Number(requestedRightSidePitchDeg)) &&
-  Number(requestedRightSidePitchDeg) > 0;
-
-// Migration-mode decisions.
-// These will be used once the pitch-derived HP has been
-// calculated farther down the file.
-const usePitchDrivenLeft =
-  USE_PITCH_DRIVEN_GEOMETRY &&
-  hasRequestedLeftSidePitch;
-
-const usePitchDrivenRight =
-  USE_PITCH_DRIVEN_GEOMETRY &&
-  hasRequestedRightSidePitch;
-
-// TEMPORARY compatibility aliases.
-//
-// Everything below still behaves exactly as before until
-// we deliberately migrate the dependent calculations.
-const leftHipWidth = manualLeftHipWidthMM;
-const rightHipWidth = manualRightHipWidthMM;
-
-const centreWidth = Math.max(
-  0,
-  width - leftHipWidth - rightHipWidth
-);
-
-  // 1) Boss / hip positions in plan
-const leftBossX = leftHipWidth;
-const rightBossX = width - rightHipWidth;
+  ? resolveDefaultBossPositionMM(rightHipWidthMM, projection) : 0;
 
 // ======================================================
 // TWO SEPARATE VERTICAL DATUMS
@@ -183,6 +121,24 @@ const designInternalWallplateHeightMM =
 const designExternalWallplateHeightMM =
   designInternalWallplateHeightMM + wallplateHeightMM;
 
+// Solve the equal-depth joint about the physical boss centre. All plan,
+// manufacturing and facet consumers receive these same resolved positions.
+const leftBossGeometry = hasLeftHip ? calculateWallplateBossGeometry({
+  riseMM: designRiseMM, memberDepthMM: wallplateHeightMM,
+  bossCentrePositionMM: manualLeftHipWidthMM,
+  requestedSidePitchDeg: requestedLeftSidePitchDeg,
+}) : null;
+const rightBossGeometry = hasRightHip ? calculateWallplateBossGeometry({
+  riseMM: designRiseMM, memberDepthMM: wallplateHeightMM,
+  bossCentrePositionMM: manualRightHipWidthMM,
+  requestedSidePitchDeg: requestedRightSidePitchDeg,
+}) : null;
+const leftHipWidth = leftBossGeometry?.bossCentrePositionMM ?? 0;
+const rightHipWidth = rightBossGeometry?.bossCentrePositionMM ?? 0;
+const centreWidth = Math.max(0, width - leftHipWidth - rightHipWidth);
+const leftBossX = leftHipWidth;
+const rightBossX = width - rightHipWidth;
+
 // Corrected Timberlite hip geometry diagnostic.
 // Uses the same effective pitch run as the front-rafter geometry.
 const effectivePitchRunMM =
@@ -224,46 +180,10 @@ const rightHipTrueLengthMM = hasRightHip
   ? Math.hypot(rightHipPlanLengthMM, riseMM)
   : 0;
 
-// 4) Side roof plane pitches
-//
-// Normal future mode:
-// requested side pitch is authoritative.
-//
-// Current compatibility mode:
-// if no requested pitch is supplied, derive pitch
-// from the existing hip-position input exactly as before.
-
-const resolvedLeftSidePitchDeg = hasLeftHip
-  ? (
-      Number.isFinite(Number(requestedLeftSidePitchDeg)) &&
-      Number(requestedLeftSidePitchDeg) > 0
-        ? Number(requestedLeftSidePitchDeg)
-        : calcSidePitchDeg({
-            riseMM: designRiseMM,
-            hipWidthMM: leftHipWidth,
-          })
-    )
-  : 0;
-
-const resolvedRightSidePitchDeg = hasRightHip
-  ? (
-      Number.isFinite(Number(requestedRightSidePitchDeg)) &&
-      Number(requestedRightSidePitchDeg) > 0
-        ? Number(requestedRightSidePitchDeg)
-        : calcSidePitchDeg({
-            riseMM: designRiseMM,
-            hipWidthMM: rightHipWidth,
-          })
-    )
-  : 0;
-
-// Keep the existing public names for compatibility.
-// Everything below can continue using these names.
-const leftSidePitchDeg =
-  resolvedLeftSidePitchDeg;
-
-const rightSidePitchDeg =
-  resolvedRightSidePitchDeg;
+// A side pitch override moves the physical boss centre; the default
+// instead keeps projection / 2 (or an explicit centre-distance input).
+const leftSidePitchDeg = leftBossGeometry?.pitchDeg ?? 0;
+const rightSidePitchDeg = rightBossGeometry?.pitchDeg ?? 0;
 
   // 7) Manufacturing / fittings
 const bossQty = (hasLeftHip ? 1 : 0) + (hasRightHip ? 1 : 0);
@@ -300,6 +220,32 @@ const facetEavesRule = solveFacetEavesGeometry({
     MIN_OPEN_SIDE_SOFFIT_MM,
 
   manufacturingRoundIncrementMM: 5,
+
+  sideSoffitControl:
+    (
+      sideSoffitMode === "specified" &&
+      Number(specifiedSideSoffitMM) > 0
+    ) || sideSoffitMode === "none"
+      ? {
+          mode: sideSoffitMode,
+          side:
+            sideSoffitControlSide === "right"
+              ? "right"
+              : "left",
+          requestedProjectionMM:
+            specifiedSideSoffitMM,
+        }
+      : null,
+
+  fasciaThicknessMM: Number(
+    materials?.fascia_thickness_mm ?? 10
+  ),
+  plyProjectionAllowanceMM: Number(
+    materials?.ply_projection_allowance_mm ?? 5
+  ),
+  fasciaLipMM: Number(
+    materials?.fascia_lip_mm ?? 25
+  ),
 });
 // ======================================================
 // TEMPORARY RAFTER-TEMPLATE DIAGNOSTICS
@@ -505,65 +451,51 @@ const leftFacetGeometry = hasLeftHip
 
 // ======================================================
 // PITCH-DERIVED HIP POSITIONS
-//
-// Timberlite design rule:
-//
-// Side pitch is authoritative.
-//
-// Starting from the top of the side VFC, extend the
-// external edge of the wall-bar at the requested side
-// pitch until it intersects the external/top wallplate
-// datum.
-//
-// HP is then measured horizontally from the internal
-// foot datum (end of HFC) to that intersection.
-//
-// This is currently DIAGNOSTIC ONLY.
-// It does not yet replace the legacy HP inputs elsewhere.
-// ======================================================
+// Original facet intersections use a foot on the floor. They remain
+// diagnostics for historical comparisons, not boss setting-out positions.
+// Retain the old floor-foot top intersections as diagnostics only.
+const leftFacetFloorTopOffsetMM = leftFacetGeometry?.intersectionOffsetMM ?? 0;
+const rightFacetFloorTopOffsetMM = rightFacetGeometry?.intersectionOffsetMM ?? 0;
+const leftPitchDerivedHipWidthMM = leftHipWidth;
+const rightPitchDerivedHipWidthMM = rightHipWidth;
 
-// ======================================================
-// AUTHORITATIVE FACET INTERSECTION GEOMETRY
-//
-// Hip position and wall-bar slopes now come from the
-// reusable roof-style-independent facet geometry builder.
-// ======================================================
+const wallbarSlopeFromRingBeamTop = ({
+  exists,
+  pitchDeg: facetPitchDeg,
+  floorDatumSlopeMM,
+}) => {
+  if (!exists) return 0;
 
-const leftPitchDerivedHipWidthMM =
-  hasLeftHip &&
-  leftFacetGeometry?.valid
-    ? Number(
-        leftFacetGeometry
-          .intersectionOffsetMM ?? 0
-      )
-    : 0;
+  const sine = Math.sin(degToRad(facetPitchDeg));
 
-const rightPitchDerivedHipWidthMM =
-  hasRightHip &&
-  rightFacetGeometry?.valid
-    ? Number(
-        rightFacetGeometry
-          .intersectionOffsetMM ?? 0
-      )
-    : 0;
+  if (Math.abs(sine) < 0.000001) return 0;
 
-  const leftExternalWallBarSlopeMM =
-  hasLeftHip &&
-  leftFacetGeometry?.valid
-    ? Number(
-        leftFacetGeometry
-          .externalWallBarSlopeMM ?? 0
-      )
-    : 0;
+  // The facet builder also resolves the pitch-derived hip position,
+  // whose factory-floor datum remains correct. A manufactured wallbar,
+  // however, begins on top of the 40 mm ring-beam. Remove that datum
+  // height from the slope length without moving the resolved hip.
+  return Math.max(
+    0,
+    Number(floorDatumSlopeMM || 0) -
+      ringBeamHeightMM / sine
+  );
+};
+
+const leftExternalWallBarSlopeMM =
+  wallbarSlopeFromRingBeamTop({
+    exists: hasLeftHip && leftFacetGeometry?.valid,
+    pitchDeg: leftSidePitchDeg,
+    floorDatumSlopeMM:
+      leftFacetGeometry?.externalWallBarSlopeMM,
+  });
 
 const rightExternalWallBarSlopeMM =
-  hasRightHip &&
-  rightFacetGeometry?.valid
-    ? Number(
-        rightFacetGeometry
-          .externalWallBarSlopeMM ?? 0
-      )
-    : 0;
+  wallbarSlopeFromRingBeamTop({
+    exists: hasRightHip && rightFacetGeometry?.valid,
+    pitchDeg: rightSidePitchDeg,
+    floorDatumSlopeMM:
+      rightFacetGeometry?.externalWallBarSlopeMM,
+  });
 
 const leftWallplateMitre = hasLeftHip
   ? calculateWallplateMitreGeometry({
@@ -605,57 +537,41 @@ const rightInternalWallBarSlopeMM =
 // be recalculated by manufacture drawings.
 // ======================================================
 
-const horizontalWallplateExternalLengthMM =
-  Math.max(
-    0,
-    width -
-      (hasLeftHip
-        ? Number(
-            leftFacetGeometry?.intersectionOffsetMM ?? 0
-          )
-        : 0) -
-      (hasRightHip
-        ? Number(
-            rightFacetGeometry?.intersectionOffsetMM ?? 0
-          )
-        : 0)
-  );
-
-const horizontalWallplateInternalLengthMM = Math.max(
-  0,
-  horizontalWallplateExternalLengthMM -
-    (leftWallplateMitre?.mitreOffsetMM ?? 0) -
-    (rightWallplateMitre?.mitreOffsetMM ?? 0)
-);
-  // ======================================================
-// RESOLVED HIP POSITIONS
-//
-// From this point onwards the geometry should use only
-// these values.
-//
-// During migration:
-//
-// • Customer mode
-//     → pitch-derived HP
-//
-// • Admin / legacy mode
-//     → manual HP
-// ======================================================
-
-const resolvedLeftHipWidthMM =
-  usePitchDrivenLeft
-    ? leftPitchDerivedHipWidthMM
-    : manualLeftHipWidthMM;
-
-const resolvedRightHipWidthMM =
-  usePitchDrivenRight
-    ? rightPitchDerivedHipWidthMM
-    : manualRightHipWidthMM;
+// Use the finished wallbar endpoints AFTER the ring-beam datum correction.
+// Facet intersections belong to a different (floor-foot) construction and
+// cannot also be used as finished horizontal bottom endpoints.
+const wallplateAssembly = calculateWallplateAssemblyGeometry({
+  internalWidthMM: width,
+  memberDepthMM: wallplateHeightMM,
+  ringBeamHeightMM,
+  externalWallplateHeightMM: designExternalWallplateHeightMM,
+  left: hasLeftHip ? {
+    pitchDeg: leftSidePitchDeg,
+    externalSlopeMM: leftExternalWallBarSlopeMM,
+    horizontalFootCutMM: leftHorizontalFootRunMM,
+    verticalFootCutMM: facetEavesRule.left?.matchedPlumbCutHeightMM ?? 0,
+  } : null,
+  right: hasRightHip ? {
+    pitchDeg: rightSidePitchDeg,
+    externalSlopeMM: rightExternalWallBarSlopeMM,
+    horizontalFootCutMM: rightHorizontalFootRunMM,
+    verticalFootCutMM: facetEavesRule.right?.matchedPlumbCutHeightMM ?? 0,
+  } : null,
+});
+wallplateAssembly.valid = wallplateAssembly.valid &&
+  (!hasLeftHip || Boolean(leftBossGeometry?.valid)) &&
+  (!hasRightHip || Boolean(rightBossGeometry?.valid));
+const horizontalWallplateInternalLengthMM = wallplateAssembly.valid
+  ? wallplateAssembly.internalLengthMM : 0;
+const horizontalWallplateExternalLengthMM = wallplateAssembly.valid
+  ? wallplateAssembly.externalLengthMM : 0;
+// All downstream geometry uses the physical joint centre B.
+const resolvedLeftHipWidthMM = leftHipWidth;
+const resolvedRightHipWidthMM = rightHipWidth;
  // ======================================================
 // RESOLVED PLAN / BOSS GEOMETRY
 //
-// These are the authoritative plan positions that will
-// progressively replace the legacy/manual HP geometry.
+// These are the authoritative plan positions, measured to boss centre B.
 // ======================================================
 
 const resolvedLeftBossXMM =
@@ -873,8 +789,10 @@ const externalWidthMM =
 
 const externalProjectionMM =
   projection +
-  frameOnMM +
-  effectiveFrontSoffitMM;
+  Number(
+    facetEavesRule.referenceBaseWidthMM ??
+      (frameOnMM + effectiveFrontSoffitMM)
+  );
 
   // ======================================================
 // FINISHED TILED-SURFACE GEOMETRY
@@ -1617,6 +1535,10 @@ rightHorizontalFootRunMM,
 
 leftPitchDerivedHipWidthMM,
 rightPitchDerivedHipWidthMM,
+leftFacetFloorTopOffsetMM,
+rightFacetFloorTopOffsetMM,
+leftBossGeometry,
+rightBossGeometry,
 
 leftExternalWallBarSlopeMM,
 leftInternalWallBarSlopeMM,
@@ -1624,6 +1546,7 @@ leftInternalWallBarSlopeMM,
 rightExternalWallBarSlopeMM,
 rightInternalWallBarSlopeMM,
 
+wallplateAssembly,
 horizontalWallplateExternalLengthMM,
 horizontalWallplateInternalLengthMM,
 horizontalWallplateLeftEndCutOffSquareDeg,
@@ -1649,6 +1572,22 @@ frontSoffitAdjustmentMM:
 facetEavesSolutionValid:
   Boolean(
     facetEavesRule.solutionValid
+  ),
+
+sideSoffitMode:
+  facetEavesRule.sideSoffitControl?.mode ?? "automatic",
+
+sideSoffitControlSide:
+  facetEavesRule.sideSoffitControl?.side ?? null,
+
+specifiedSideSoffitMM:
+  facetEavesRule.sideSoffitControl?.mode === "specified"
+    ? Number(specifiedSideSoffitMM) || 0
+    : null,
+
+controlledSidePlyBaseWidthMM:
+  Number(
+    facetEavesRule.sideSoffitControl?.plyBaseWidthMM ?? 0
   ),
 
   frontFinishedFasciaHeightMM:

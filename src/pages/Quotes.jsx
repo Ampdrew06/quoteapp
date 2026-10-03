@@ -1,3 +1,4 @@
+import { restoreSummaryPricingState } from "../lib/Calculations/summaryPricingState";
 // src/pages/Quotes.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -67,6 +68,9 @@ export default function Quotes() {
 
     if (item.inputs_json) {
       localStorage.setItem("leanToInputs", JSON.stringify(item.inputs_json));
+      restoreSummaryPricingState(item.inputs_json);
+      window.dispatchEvent(new Event("summary_exclusions_updated"));
+      window.dispatchEvent(new Event("summary_adjustments_updated"));
     }
 
     localStorage.setItem("auto_show_quote", "1");

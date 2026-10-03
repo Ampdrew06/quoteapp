@@ -2019,6 +2019,23 @@ setHasUnsavedChanges(false);
         priceKey: "duct_tape_roll_price_each",
         priceLabel: "£ / roll",
       },
+      {
+        label: "D4 Wood Glue — factory allowance",
+        priceKey: "d4_glue_price_per_tub",
+        priceLabel: "£ / tub",
+      },
+      {
+        label: '1½" × 10 Screws — factory use',
+        priceKey: "screws_1_5x10_price_per_box",
+        priceLabel: "£ / box",
+        unitsKey: "screws_1_5x10_units_per_box",
+      },
+      {
+        label: "Spar-hook Rivets — factory use",
+        priceKey: "spar_hook_rivets_price_per_box",
+        priceLabel: "£ / box",
+        unitsKey: "spar_hook_rivets_units_per_box",
+      },
       // EPDM & adhesives
       {
         label: "EPDM Rubber",
@@ -2063,6 +2080,7 @@ setHasUnsavedChanges(false);
       },
       {
         label: "32mm Drywall Screws",
+        unitsKey: "drywall_screws_32mm_units_per_box",
         priceKey: "drywall_screws_32mm_price_per_box",
         priceLabel: "£ / box",
       },
@@ -2103,6 +2121,15 @@ setHasUnsavedChanges(false);
         </label>
 
 
+        {item.unitsKey && (
+          <label style={{ display: "block", marginBottom: 6 }}>
+            Units per box
+            <input type="number" min="1" step="1"
+              value={m[item.unitsKey] ?? ""}
+              onChange={(e) => set(item.unitsKey, num(e.target.value))}
+              style={{ marginLeft: 8, width: 130 }} />
+          </label>
+        )}
         {item.weightKey && item.weightLabel && (
   <label style={{ display: "block" }}>
     {item.weightLabel}

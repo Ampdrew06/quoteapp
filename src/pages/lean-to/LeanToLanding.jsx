@@ -1,3 +1,6 @@
+import { readSummaryPricingState } from "../../lib/Calculations/summaryPricingState";
+import { buildSummaryMaterialsModel } from "../../lib/Calculations/summaryMaterialsModel";
+import { readSummaryAddedItems } from "../../lib/Calculations/summaryAddedItems";
 // src/pages/lean-to/LeanToLanding.jsx
 import PlanDiagramHippedLeanTo from "../../components/PlanDiagramHippedLeanTo";
 import { calculateHippedLeanToGeometry } from "../../lib/geometry/hippedLeanToGeometry";
@@ -11,37 +14,17 @@ import { computeTilesLathsBOM } from "../../lib/Calculations/tilesLathsCalc";
 //import { computeEdgeTrimsLeanTo } from "../../lib/edgeTrimsCalc";
 //import { computeGuttersLeanTo } from "../../lib/guttersCalc";
 import PlanDiagramLeanTo from "../../components/PlanDiagramLeanTo";
-import { computeLiteSlateLeanTo as computeLiteSlate } from "../../lib/Calculations/liteslateCalc";
 //import { computeMiscLeanTo } from "../../lib/miscCalc"; 
 import { useLocation, useNavigate } from "react-router-dom";
 import NavTabs from "../../components/NavTabs";
-import { buildLeanToQuoteBase } from "../../lib/leanToTotals";
-import { buildAutomaticRoofTiling } from "../../lib/Calculations/automaticRoofTiling";
-import { buildQuoteTilingAdjustment } from "../../lib/Calculations/quoteTilingAdjustment";
 import { getCurrentCustomer } from "../../lib/customers";
-import {
-  computePricing,
-  computeLabourPricing,
-  computeDeliveryPricing,
-  getLabourPricingConfig,
-  getDeliveryPricingConfig,
-  getMarkupPricingConfig,
-} from "../../lib/pricing";
-import {
-  saveQuote as saveQuoteToCloud,
-  getNextQuoteNumber,
-} from "../../lib/quotes";
+import { computePricing, computeLabourPricing, computeDeliveryPricing, getLabourPricingConfig, getDeliveryPricingConfig, getMarkupPricingConfig } from "../../lib/pricing";
+import { getNextQuoteNumber } from "../../lib/quotes";
 import TemplateGeometryVisualizer from "../../components/TemplateGeometryVisualizer";
 import WallplateGeometryVisualizer from "../../components/WallplateGeometryVisualizer";
 import HippedWallplateFrontVisualizer from "../../components/HippedWallplateFrontVisualizer";
-import {
-  resolveEdgeSupport,
-  resolveTwoSidedExternalWidth,
-} from "../../lib/geometry/supportGeometry";
-import {
-  computeLeanToManufactureGeometry,
-  solveLeanToPitchForMaximumFinishedHeight,
-} from "../../lib/leanToManufactureGeometry";
+import { resolveEdgeSupport, resolveTwoSidedExternalWidth } from "../../lib/geometry/supportGeometry";
+import { computeLeanToManufactureGeometry, solveLeanToPitchForMaximumFinishedHeight } from "../../lib/leanToManufactureGeometry";
 
 // adjust path if file structure differs
 
@@ -133,11 +116,14 @@ const grid2Responsive = {
   const [rightHipWidthManual, setRightHipWidthManual] = useState(false);
   const [requestedLeftSidePitchDeg, setRequestedLeftSidePitchDeg] = useState("");
   const [requestedRightSidePitchDeg, setRequestedRightSidePitchDeg] = useState("");
+  const [sideSoffitMode, setSideSoffitMode] = useState("automatic");
+  const [sideSoffitControlSide, setSideSoffitControlSide] = useState("left");
+  const [specifiedSideSoffitMM, setSpecifiedSideSoffitMM] = useState("");
   const activeHippedSides = leftHip && rightHip ? "both" : leftHip ? "left" : rightHip ? "right" : "none";
   const getDefaultHipWidth = (projection) => {
   const p = Number(projection) || 0;
   if (!p) return 1000;
-  return Math.round(p * 0.5);
+  return p * 0.5;
 };
 
 
@@ -246,6 +232,18 @@ if (saved.requestedRightSidePitchDeg !== undefined) {
     String(saved.requestedRightSidePitchDeg)
   );
 }
+if (saved.sideSoffitMode) {
+  setSideSoffitMode(saved.sideSoffitMode);
+}
+if (saved.sideSoffitControlSide) {
+  setSideSoffitControlSide(saved.sideSoffitControlSide);
+}
+if (
+  saved.specifiedSideSoffitMM !== undefined &&
+  saved.specifiedSideSoffitMM !== null
+) {
+  setSpecifiedSideSoffitMM(String(saved.specifiedSideSoffitMM));
+}
     // Walls: your stored shape uses left_exposed/right_exposed
 if (typeof saved.left_exposed === "boolean") {
   setLeftWall(!saved.left_exposed);
@@ -323,6 +321,13 @@ useEffect(() => {
       ? null
       : Number(requestedRightSidePitchDeg),
 
+  sideSoffitMode,
+  sideSoffitControlSide,
+  specifiedSideSoffitMM:
+    specifiedSideSoffitMM === ""
+      ? null
+      : Number(specifiedSideSoffitMM),
+
   left_exposed: !leftWall,
   right_exposed: !rightWall,
 
@@ -350,6 +355,9 @@ useEffect(() => {
   rightHipWidthMM,
   requestedLeftSidePitchDeg,
   requestedRightSidePitchDeg,
+  sideSoffitMode,
+  sideSoffitControlSide,
+  specifiedSideSoffitMM,
   leftSupportDepthMM,
   rightSupportDepthMM,
 ]);
@@ -520,10 +528,17 @@ const hippedGeom =
     ? null
     : Number(requestedLeftSidePitchDeg),
 
-requestedRightSidePitchDeg:
+        requestedRightSidePitchDeg:
   requestedRightSidePitchDeg === ""
     ? null
     : Number(requestedRightSidePitchDeg),
+
+        sideSoffitMode,
+        sideSoffitControlSide,
+        specifiedSideSoffitMM:
+          specifiedSideSoffitMM === ""
+            ? null
+            : Number(specifiedSideSoffitMM),
 
         requestedLeftSidePitchDeg:
   requestedLeftSidePitchDeg === ""
@@ -704,6 +719,8 @@ useEffect(() => {
   // ——— Persist to match the rest of the app ———
 const persistInputs = (opts = {}) => {
   const payload = {
+  summaryAddedItems: readSummaryAddedItems(),
+  summaryPricingState: readSummaryPricingState(),
 
     // core sizes
     internalWidthMM: widthMM === "" ? null : Number(widthMM),
@@ -731,6 +748,13 @@ requestedRightSidePitchDeg:
   requestedRightSidePitchDeg === ""
     ? null
     : Number(requestedRightSidePitchDeg),
+
+    sideSoffitMode,
+    sideSoffitControlSide,
+    specifiedSideSoffitMM:
+      specifiedSideSoffitMM === ""
+        ? null
+        : Number(specifiedSideSoffitMM),
 
 
     // customer / reference
@@ -900,6 +924,13 @@ const totalsInput = useMemo(
         ? null
         : num(requestedRightSidePitchDeg, 0),
 
+    sideSoffitMode,
+    sideSoffitControlSide,
+    specifiedSideSoffitMM:
+      specifiedSideSoffitMM === ""
+        ? null
+        : num(specifiedSideSoffitMM, 0),
+
     widthMM: num(widthMM, 0),
     projMM: num(projMM, 0),
     pitchDeg: num(pitchDeg, 15),
@@ -927,6 +958,9 @@ const totalsInput = useMemo(
     rightHipWidthMM,
     requestedLeftSidePitchDeg,
     requestedRightSidePitchDeg,
+    sideSoffitMode,
+    sideSoffitControlSide,
+    specifiedSideSoffitMM,
     widthMM,
     projMM,
     pitchDeg,
@@ -949,45 +983,15 @@ const totalsInput = useMemo(
 );
 */
 const summaryExclusions = loadSummaryExclusions();
-
-const quoteBase = useMemo(
-  () => buildLeanToQuoteBase(totalsInput, summaryExclusions),
-  [totalsInput, summaryExclusions]
-);
-
-const automaticRoofTiling = useMemo(
-  () => buildAutomaticRoofTiling({ roofInputs: totalsInput, materials: m }),
-  [totalsInput, m]
-);
-
-const quoteTilingAdjustment = useMemo(
-  () =>
-    buildQuoteTilingAdjustment({
-      legacyTileLines: quoteBase?.totals?.sections?.tiles || [],
-      legacyExternalFixingLathM:
-        quoteBase?.tilingPricingBasis?.legacyExternalFixingLathM,
-      automaticResult: automaticRoofTiling?.result,
-      lathPricePerM: quoteBase?.tilingPricingBasis?.lathPricePerM,
-      lathWastePercent: quoteBase?.tilingPricingBasis?.lathWastePercent,
-    }),
-  [quoteBase, automaticRoofTiling]
-);
-
-const universalMaterialsCostForPricing =
-  quoteBase.materialsCostForPricing +
-  (quoteTilingAdjustment.valid ? quoteTilingAdjustment.adjustment : 0);
-
-const summaryAdjustmentValues = loadSummaryAdjustmentValues();
-const summaryExclusionValues = loadSummaryExclusionValues();
-
-const adjustmentDelta = [
-  ...Object.values(summaryAdjustmentValues),
-  ...Object.values(summaryExclusionValues),
-].reduce((sum, value) => {
-  const n = Number(value);
-  return Number.isFinite(n) ? sum + n : sum;
-}, 0);
-
+let summaryQuantityAdjustments = {};
+try { summaryQuantityAdjustments = JSON.parse(localStorage.getItem("summary_adjustments") || "{}"); } catch (_) { /* use base quantities */ }
+let savedSummaryInputs = {};
+try { savedSummaryInputs = JSON.parse(localStorage.getItem("leanToInputs") || "{}"); } catch (_) { /* use current design */ }
+const summaryMaterials = buildSummaryMaterialsModel({
+  inputs: { ...savedSummaryInputs, ...totalsInput }, materials: m, exclusions: summaryExclusions,
+  adjustments: summaryQuantityAdjustments, addedItems: readSummaryAddedItems(),
+});
+const universalMaterialsCostForPricing = summaryMaterials.materialsCostForPricing;
 
 const pricing = useMemo(() => {
   const labourConfig = getLabourPricingConfig();
@@ -1053,12 +1057,10 @@ console.log("DO_PRICE_DEBUG", {
   selectedCustomer,
   discountPct,
   materialsCostForPricing: universalMaterialsCostForPricing,
-  quoteTilingAdjustment,
-  adjustmentDelta,
   deliveryDistanceMiles,
 });
 return computePricing(
-  universalMaterialsCostForPricing + adjustmentDelta,
+  universalMaterialsCostForPricing,
   {
     ...m,
     profit_pct: markupConfig.profitPct,
@@ -1071,8 +1073,6 @@ return computePricing(
 );
 }, [
   universalMaterialsCostForPricing,
-  quoteTilingAdjustment,
-  adjustmentDelta,
   summaryAdjustmentTick,
   m,
   widthMM,
@@ -1482,6 +1482,9 @@ setShowQuote(true);
     setRightHipWidthMM("1000");
     setRequestedLeftSidePitchDeg("");
     setRequestedRightSidePitchDeg("");
+    setSideSoffitMode("automatic");
+    setSideSoffitControlSide("left");
+    setSpecifiedSideSoffitMM("");
     setEavesOverhang(150);
     setLeftOverhang("");
     setRightOverhang("");
@@ -1526,6 +1529,8 @@ if (!isAdmin && !manualReference) {
   }
 
   const payload = {
+  summaryAddedItems: readSummaryAddedItems(),
+  summaryPricingState: readSummaryPricingState(),
   widthMM,
   projMM,
   pitchDeg,
@@ -1546,6 +1551,13 @@ if (!isAdmin && !manualReference) {
     requestedRightSidePitchDeg === ""
       ? null
       : Number(requestedRightSidePitchDeg),
+
+  sideSoffitMode,
+  sideSoffitControlSide,
+  specifiedSideSoffitMM:
+    specifiedSideSoffitMM === ""
+      ? null
+      : Number(specifiedSideSoffitMM),
 
   leftWall,
   rightWall,
@@ -1612,6 +1624,8 @@ manual_reference: manualReference,
     status: "quote",
     inputs_json: payload,
     pricing_json: {
+      materialsCost: summaryMaterials.materialsCostForPricing,
+      materialSections: summaryMaterials.pricingSections,
       net: Number((pricing.net ?? 0).toFixed(2)),
       vat: Number((pricing.vat ?? 0).toFixed(2)),
       gross: Number((pricing.gross ?? 0).toFixed(2)),
@@ -1865,7 +1879,7 @@ onChange={(e) => {
             </label>
             {roofStyle !== "hippedLeanTo" && (
   <label>
-    Max finished height (mm)
+    Max Finished Height (mm)
 
     <input
       type="number"
@@ -2078,6 +2092,12 @@ requestedRightSidePitchDeg={
 setRequestedRightSidePitchDeg={
   setRequestedRightSidePitchDeg
 }
+    sideSoffitMode={sideSoffitMode}
+    setSideSoffitMode={setSideSoffitMode}
+    sideSoffitControlSide={sideSoffitControlSide}
+    setSideSoffitControlSide={setSideSoffitControlSide}
+    specifiedSideSoffitMM={specifiedSideSoffitMM}
+    setSpecifiedSideSoffitMM={setSpecifiedSideSoffitMM}
     setLeftHipWidthManual={setLeftHipWidthManual}
     setRightHipWidthManual={setRightHipWidthManual}
     leftWall={leftWall}
@@ -2128,7 +2148,7 @@ setRequestedRightSidePitchDeg={
   </label>
 )}
 
-      <label> Delivery postcode {isAdmin ? "(required)" : ""}
+      <label>Delivery postcode (required)
   <input
     type="text"
     value={deliveryPostcode}
@@ -2382,7 +2402,6 @@ frontRafterLayout={
                 <div>
   <b>External Finished Height</b>: {round(externalFinishedHeightMM)} mm
 </div>
-
 <div>
   <b>Front Pitch</b>: {Number(pitchDeg || 0).toFixed(1)}°
 </div>
@@ -2830,64 +2849,7 @@ frontRafterLayout={
   />
 )}
 {roofStyle === "hippedLeanTo" && hippedGeom && (
-  <HippedWallplateFrontVisualizer
-    internalWidthMM={hippedGeom.widthMM}
-
-    leftHipPositionMM={
-      hippedGeom.leftHipWidthMM
-    }
-
-    rightHipPositionMM={
-      hippedGeom.rightHipWidthMM
-    }
-
-    leftSidePitchDeg={
-      hippedGeom.leftSidePitchDeg
-    }
-
-    rightSidePitchDeg={
-      hippedGeom.rightSidePitchDeg
-    }
-
-    internalWallplateHeightMM={
-      hippedGeom.designInternalWallplateHeightMM
-    }
-
-    externalWallplateHeightMM={
-      hippedGeom.designExternalWallplateHeightMM
-    }
-
-    wallplateSectionHeightMM={
-      hippedGeom.wallplateHeightMM ?? 220
-    }
-leftWallBarFootRunMM={
-  hippedGeom.leftTemplateDebug?.horizontalFootRunMM ?? 0
-}
-
-rightWallBarFootRunMM={
-  hippedGeom.rightTemplateDebug?.horizontalFootRunMM ??
-  hippedGeom.leftTemplateDebug?.horizontalFootRunMM ??
-  0
-}
-leftWallBarVerticalFootCutMM={
-  hippedGeom.leftPlumbCutHeightMM
-}
-
-rightWallBarVerticalFootCutMM={
-  hippedGeom.rightPlumbCutHeightMM
-}
-    externalWidthMM={
-      hippedGeom.externalWidthMM
-    }
-
-    leftExternalAllowanceMM={
-      hippedGeom.leftExternalAllowanceMM
-    }
-
-    rightExternalAllowanceMM={
-      hippedGeom.rightExternalAllowanceMM
-    }
-  />
+  <HippedWallplateFrontVisualizer geometry={hippedGeom} />
 )}
 </>
 )}
@@ -2916,7 +2878,7 @@ rightWallBarVerticalFootCutMM={
     </div>
   </div>
   <div style={{ color: "#6b7280", fontSize: 12, marginTop: 8 }}>
-    Quotation valid for 31 days from the date of issue.
+    Quotations are valid for 31 days.
   </div>
 </div>
           </div>

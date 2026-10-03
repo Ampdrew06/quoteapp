@@ -115,6 +115,12 @@ export function buildAutomaticRoofTiling({
         roofInputs.requestedLeftSidePitchDeg ?? null,
       requestedRightSidePitchDeg:
         roofInputs.requestedRightSidePitchDeg ?? null,
+      sideSoffitMode:
+        roofInputs.sideSoffitMode ?? "automatic",
+      sideSoffitControlSide:
+        roofInputs.sideSoffitControlSide ?? "left",
+      specifiedSideSoffitMM:
+        roofInputs.specifiedSideSoffitMM ?? null,
     });
   }
 

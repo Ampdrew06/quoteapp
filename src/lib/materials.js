@@ -82,7 +82,7 @@ metal: {
   boss_rafter_terminal: { price_each: 0, weight_kg_each: 0 },
   reinforcement_plate: { price_each: 0, weight_kg_each: 0 },
   gable_strap: { price_each: 0, weight_kg_each: 0 },
-  watercourse: { price_per_piece: 0, effective_cover_mm: 2950, weight_kg_per_piece: 0 },
+  watercourse: { price_per_piece: 0, effective_cover_mm: 2450, weight_kg_per_piece: 0 },
 },
 
 
@@ -183,7 +183,7 @@ chamferLath: {
   watercourse: {
     price_per_piece: 4.00,       // £ per piece
     piece_len_mm: 3000,
-    effective_cover_mm: 2950,    // 50 mm overlap
+    effective_cover_mm: 2450,    // 50 mm overlap
     weight_kg_per_piece: 0.90,
   },
   // ---------- Site consumables & fixings ----------
@@ -438,7 +438,7 @@ plaster_bead_foiled_price: 0,
     // --- Metal items ---
   metal: {
     tile_starter: { price_each: 12.00, weight_kg_each: 2.7, },
-     watercourse: { price_per_piece: 4.00, piece_len_mm: 3000, effective_cover_mm: 2950, weight_kg_per_piece: 0.90, },
+     watercourse: { price_per_piece: 4.00, piece_len_mm: 2500, effective_cover_mm: 2450, weight_kg_per_piece: 0.45, },
     joist_hanger: { price_each: 0.49, weight_kg_each: 0.9, },
 
     // future-proofing (safe defaults)
@@ -1392,6 +1392,12 @@ pir50_cradle_weight_multiplier: true,
       j_section_weight_kg_each_foiled:    true,
 
 // Fixings & Miscellaneous (Materials page keys)
+d4_glue_price_per_tub: true,
+screws_1_5x10_price_per_box: true,
+screws_1_5x10_units_per_box: true,
+spar_hook_rivets_price_per_box: true,
+spar_hook_rivets_units_per_box: true,
+drywall_screws_32mm_units_per_box: true,
 fixings_pack_price_each: true,
 fixings_pack_weight_kg_each: true,
 
@@ -1680,6 +1686,14 @@ if (typeof window !== "undefined") {
   window.__MATERIALS_DEBUG__ = out;
   window.__MATERIALS_DEBUG_META__ = { PATH: "TRY", ts: Date.now() };
 }
+// Current product specification overrides obsolete steel stock/weight saved values.
+// Preserve the user's configured watercourse price.
+out.watercourse_piece_cover_mm = 2450;
+out.watercourse_weight_kg = 0.45;
+out.watercourse_weight_kg_each = 0.45;
+out.metal = { ...out.metal, watercourse: { ...out.metal?.watercourse,
+  piece_len_mm: 2500, effective_cover_mm: 2450,
+  weight_kg_each: 0.45, weight_kg_per_piece: 0.45 } };
 return out;
 
   } catch (e) {
@@ -1827,6 +1841,14 @@ if (typeof window !== "undefined") {
   window.__MATERIALS_DEBUG__ = out;
 }
 
+// Current product specification overrides obsolete steel stock/weight saved values.
+// Preserve the user's configured watercourse price.
+out.watercourse_piece_cover_mm = 2450;
+out.watercourse_weight_kg = 0.45;
+out.watercourse_weight_kg_each = 0.45;
+out.metal = { ...out.metal, watercourse: { ...out.metal?.watercourse,
+  piece_len_mm: 2500, effective_cover_mm: 2450,
+  weight_kg_each: 0.45, weight_kg_per_piece: 0.45 } };
 return out;
 
   }

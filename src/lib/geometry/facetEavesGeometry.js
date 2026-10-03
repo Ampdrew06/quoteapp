@@ -23,6 +23,23 @@ const roundUpToIncrement = (value, increment) => {
   );
 };
 
+const normaliseSideSoffitControl = (control) => {
+  const mode = String(control?.mode ?? "automatic");
+
+  if (mode !== "specified" && mode !== "none") {
+    return null;
+  }
+
+  return {
+    mode,
+    side: control?.side === "right" ? "right" : "left",
+    requestedProjectionMM: Math.max(
+      0,
+      toFiniteNumber(control?.requestedProjectionMM)
+    ),
+  };
+};
+
 /**
  * Creates a rafter-foot profile at a supplied pitch.
  *
@@ -445,6 +462,13 @@ export function solveFacetEavesGeometry({
   manufacturingRoundIncrementMM = 5,
   manufacturingClearanceMM = 2,
 
+  // Optional reverse-solving rule. When present, the selected side
+  // establishes the common VFC and the front is derived from it.
+  sideSoffitControl = null,
+  fasciaThicknessMM = 10,
+  plyProjectionAllowanceMM = 5,
+  fasciaLipMM,
+
   minimumReferenceSoffitMM = 25,
   maximumReferenceSoffitMM = 1000,
 }) {
@@ -518,6 +542,27 @@ export function solveFacetEavesGeometry({
   const resolvedManufacturingClearanceMM = Math.max(
     0,
     toFiniteNumber(manufacturingClearanceMM, 2)
+  );
+
+  const resolvedSideSoffitControl =
+    normaliseSideSoffitControl(sideSoffitControl);
+
+  const resolvedFasciaThicknessMM = Math.max(
+    0,
+    toFiniteNumber(fasciaThicknessMM, 10)
+  );
+
+  const resolvedPlyProjectionAllowanceMM = Math.max(
+    0,
+    toFiniteNumber(plyProjectionAllowanceMM, 5)
+  );
+
+  const resolvedFasciaLipMM = Math.max(
+    0,
+    toFiniteNumber(
+      fasciaLipMM ?? materials?.fascia_lip_mm,
+      25
+    )
   );
 
   const evaluateReferenceSoffit = (
@@ -630,6 +675,248 @@ export function solveFacetEavesGeometry({
       right,
     };
   };
+
+  /*
+   * Explicit side-soffit mode.
+   *
+   * The customer's dimension is the complete projection from the
+   * external frame edge to the external fascia face. It therefore
+   * drives the side ply-base width and the side timber foot cut.
+   *
+   * "none" is a separate construction rule: retain only the
+   * compulsory 25 mm finishing-fascia lip outside the frame.
+   */
+  if (resolvedSideSoffitControl) {
+    const requestedControllingSide =
+      resolvedSideSoffitControl.side;
+
+    const controllingSide =
+      requestedControllingSide === "left" && !hasLeftFacet && hasRightFacet
+        ? "right"
+        : requestedControllingSide === "right" && !hasRightFacet && hasLeftFacet
+          ? "left"
+          : requestedControllingSide;
+
+    const controllingSideExists =
+      controllingSide === "left"
+        ? hasLeftFacet
+        : hasRightFacet;
+
+    const controllingPitchDeg =
+      controllingSide === "left"
+        ? leftPitchDeg
+        : rightPitchDeg;
+
+    if (controllingSideExists) {
+      const controllingPlyBaseWidthMM =
+        resolvedSideSoffitControl.mode === "none"
+          ? frameThicknessMM + resolvedFasciaLipMM
+          : Math.max(
+              0,
+              frameThicknessMM +
+                resolvedSideSoffitControl.requestedProjectionMM -
+                resolvedFasciaThicknessMM -
+                resolvedPlyProjectionAllowanceMM
+            );
+
+      const controllingTimberFootCutMM = Math.max(
+        0,
+        controllingPlyBaseWidthMM -
+          resolvedManufacturingClearanceMM
+      );
+
+      const controllingProfile = calculateFacetFootProfile({
+        pitchDeg: controllingPitchDeg,
+        horizontalFootRunMM: controllingTimberFootCutMM,
+        frameThicknessMM,
+        rafterDepthMM,
+        profileToleranceMM,
+      });
+
+      const targetPlumbCutHeightMM = Math.max(
+        0,
+        toFiniteNumber(controllingProfile.verticalFootCutMM)
+      );
+
+      const solveAtPitch = (pitch) =>
+        solveFacetForTargetVerticalFootCut({
+          targetVerticalFootCutMM: targetPlumbCutHeightMM,
+          pitchDeg: pitch,
+          frameThicknessMM,
+          rafterDepthMM,
+          profileToleranceMM,
+          minimumSoffitMM: 0,
+          manufacturingRoundIncrementMM: roundIncrementMM,
+          manufacturingClearanceMM:
+            resolvedManufacturingClearanceMM,
+        });
+
+      const reference = solveAtPitch(
+        resolvedReferencePitchDeg
+      );
+
+      const makeMissingSide = () => ({
+        exists: false,
+        valid: true,
+        minimumSatisfied: true,
+        pitchDeg: 0,
+        matchedSoffitMM: 0,
+        matchedHorizontalFootRunMM: 0,
+        matchedPlumbCutHeightMM: 0,
+        plumbCutDifferenceMM: 0,
+        manufacturedSoffitMM: 0,
+        manufacturedHorizontalFootRunMM: 0,
+        timberHorizontalFootCutMM: 0,
+        manufacturedPlumbCutHeightMM: 0,
+        manufacturingClearanceMM:
+          resolvedManufacturingClearanceMM,
+        mitreTrimAllowanceMM: 0,
+        rawManufacturedSoffitMM: 0,
+        geometry: null,
+      });
+
+      const makeControlledSide = () => ({
+        exists: true,
+        valid: controllingProfile.valid,
+        minimumSatisfied: true,
+        pitchDeg: toFiniteNumber(controllingPitchDeg),
+        matchedSoffitMM:
+          controllingTimberFootCutMM - frameThicknessMM,
+        matchedHorizontalFootRunMM:
+          controllingTimberFootCutMM,
+        matchedPlumbCutHeightMM:
+          targetPlumbCutHeightMM,
+        plumbCutDifferenceMM: 0,
+        manufacturedSoffitMM:
+          controllingPlyBaseWidthMM - frameThicknessMM,
+        manufacturedHorizontalFootRunMM:
+          controllingPlyBaseWidthMM,
+        timberHorizontalFootCutMM:
+          controllingTimberFootCutMM,
+        manufacturedPlumbCutHeightMM:
+          targetPlumbCutHeightMM,
+        manufacturingClearanceMM:
+          resolvedManufacturingClearanceMM,
+        mitreTrimAllowanceMM: 0,
+        rawManufacturedSoffitMM:
+          controllingPlyBaseWidthMM - frameThicknessMM,
+        geometry: {
+          pitchDeg: toFiniteNumber(controllingPitchDeg),
+          plumbCutHeight: targetPlumbCutHeightMM,
+          soffitDepthEffective:
+            controllingPlyBaseWidthMM - frameThicknessMM,
+          raw: {
+            pitchDeg: toFiniteNumber(controllingPitchDeg),
+            effectiveSoffitMM:
+              controllingPlyBaseWidthMM - frameThicknessMM,
+            frameThicknessMM,
+            horizontalExtensionMM:
+              controllingTimberFootCutMM,
+            manufacturedBaseWidthMM:
+              controllingPlyBaseWidthMM,
+            manufacturedHorizontalFootCutMM:
+              controllingTimberFootCutMM,
+            rafterFootClearanceMM:
+              resolvedManufacturingClearanceMM,
+            verticalDropMM:
+              controllingProfile.verticalFallAcrossFootMM,
+            plumbCutHeightMM:
+              targetPlumbCutHeightMM,
+            manufacturedPlumbCutHeightMM:
+              targetPlumbCutHeightMM,
+            rafterDepthMM,
+            profileToleranceMM,
+            effectiveProfileDepthMM: rafterDepthMM,
+            projectedProfileHeightMM:
+              controllingProfile.projectedProfileHeightMM,
+          },
+        },
+      });
+
+      const buildSideFromConstraint = (side, exists, pitch) => {
+        if (!exists) return makeMissingSide();
+        if (side === controllingSide) return makeControlledSide();
+
+        return {
+          exists: true,
+          ...solveAtPitch(pitch),
+        };
+      };
+
+      const left = buildSideFromConstraint(
+        "left",
+        hasLeftFacet,
+        leftPitchDeg
+      );
+
+      const right = buildSideFromConstraint(
+        "right",
+        hasRightFacet,
+        rightPitchDeg
+      );
+
+      const referenceBaseWidthMM = roundUpToIncrement(
+        reference.matchedHorizontalFootRunMM +
+          resolvedManufacturingClearanceMM +
+          resolvedPlyProjectionAllowanceMM,
+        roundIncrementMM
+      );
+
+      const effectiveReferenceSoffitMM = Math.max(
+        0,
+        referenceBaseWidthMM -
+          frameThicknessMM -
+          resolvedPlyProjectionAllowanceMM
+      );
+
+      const referenceGeometry = calculateLeanToGeometry({
+        widthMM: 1000,
+        projectionMM: 1000,
+        pitchDeg: resolvedReferencePitchDeg,
+        soffitDepthMM: effectiveReferenceSoffitMM,
+        materials,
+      });
+
+      return {
+        requestedReferenceSoffitMM: requestedSoffitMM,
+        effectiveReferenceSoffitMM,
+        referenceSoffitAdjusted: true,
+        referenceSoffitAdjustmentMM:
+          effectiveReferenceSoffitMM - requestedSoffitMM,
+        adjustmentReason: "side-soffit-control",
+        solutionValid:
+          controllingProfile.valid && reference.valid,
+        referencePitchDeg: resolvedReferencePitchDeg,
+        targetPlumbCutHeightMM,
+        commonFinishedFasciaHeightMM: toFiniteNumber(
+          referenceGeometry?.fasciaHeight
+        ),
+        commonFasciaOrderSizeMM: toFiniteNumber(
+          referenceGeometry?.fasciaOrderSize
+        ),
+        minimumSoffitMM: resolvedMinimumSoffitMM,
+        manufacturingRoundIncrementMM: roundIncrementMM,
+        manufacturingClearanceMM:
+          resolvedManufacturingClearanceMM,
+        referenceBaseWidthMM,
+        referenceTimberHorizontalFootCutMM:
+          reference.matchedHorizontalFootRunMM,
+        frameThicknessMM,
+        rafterDepthMM,
+        profileToleranceMM,
+        referenceGeometry,
+        left,
+        right,
+        sideSoffitControl: {
+          ...resolvedSideSoffitControl,
+          side: controllingSide,
+          plyBaseWidthMM: controllingPlyBaseWidthMM,
+          timberHorizontalFootCutMM:
+            controllingTimberFootCutMM,
+        },
+      };
+    }
+  }
 
   /*
    * First test the requested front soffit.
@@ -754,9 +1041,13 @@ export function solveFacetEavesGeometry({
     manufacturingClearanceMM:
       resolvedManufacturingClearanceMM,
 
+    // The front ply extends 5 mm beyond the nominal soffit datum.
+    // This preserves the established 150 mm input while correctly
+    // manufacturing a 225 mm base on a 70 mm frame.
     referenceBaseWidthMM:
       frameThicknessMM +
-      effectiveReferenceSoffitMM,
+      effectiveReferenceSoffitMM +
+      profileToleranceMM,
 
     referenceTimberHorizontalFootCutMM:
       toFiniteNumber(

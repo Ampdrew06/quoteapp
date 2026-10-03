@@ -1,3 +1,4 @@
+import { customerFromRecord, customerToRecord } from "./customerRecords";
 import { supabase } from "./supabaseClient";
 
 export const CURRENT_CUSTOMER_KEY = "quoteapp_current_customer_v1";
@@ -53,16 +54,7 @@ export async function getCustomers() {
       return defaultCustomers;
     }
 
-    return Array.isArray(data)
-  ? data.map((customer) => ({
-      id: customer.id,
-      name: customer.name || "",
-      username: customer.username || "",
-      loginCode: customer.login_code || "",
-      role: customer.role || "trade",
-      discountPct: Number(customer.discount_pct || 0),
-    }))
-  : [];
+    return Array.isArray(data) ? data.map(customerFromRecord) : [];
   } catch (err) {
     console.error("GET CUSTOMERS FAILED", err);
     return defaultCustomers;
@@ -74,61 +66,36 @@ export async function getCustomers() {
   (simple replace strategy for now)
 */
 
-export async function saveCustomers(customers) {
+// Update existing UUIDs in place; never delete the customer list as part of saving.
+export async function saveCustomerRecord(customer) {
   try {
-    // Delete existing
-    const { error: deleteError } = await supabase
-  .from("customers")
-  .delete()
-  .not("id", "is", null);
-
-    if (deleteError) {
-      console.error("DELETE CUSTOMERS ERROR", deleteError);
-      return false;
-    }
-
-    // Insert new
-    const rowsToInsert = (customers || []).map((customer) => {
-  const row = {
-  name: customer.name || "",
-  username: customer.username || customer.name || "",
-  login_code: customer.loginCode || "",
-  role: customer.role || "trade",
-  discount_pct: Number(customer.discountPct || 0),
-};
-
-  // Only send id if it is already a real Supabase UUID.
-  // Do not send old localStorage ids like "test_trade" or "admin_andrew".
-  if (
-  customer.id &&
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-    customer.id
-  )
-) {
-  row.id = customer.id;
-} else {
-  row.id = crypto.randomUUID();
-}
-
-  return row;
-});
-
-const { error: insertError } = await supabase
-  .from("customers")
-  .insert(rowsToInsert);
-
-    if (insertError) {
-      console.error("INSERT CUSTOMERS ERROR", insertError);
-      return false;
-    }
-
+    const row = customerToRecord(customer, () => crypto.randomUUID());
+    const { data, error } = await supabase.from("customers").upsert(row, { onConflict: "id" }).select("*").single();
+    if (error) return { customer: null, error: error.message || "Customer save failed." };
+    const saved = customerFromRecord(data);
+    const current = getCurrentCustomer();
+    if (current?.id === saved.id) setCurrentCustomer({ ...current, ...saved });
     window.dispatchEvent(new Event("quoteapp_customers_updated"));
-
-    return true;
-  } catch (err) {
-    console.error("SAVE CUSTOMERS FAILED", err);
-    return false;
+    return { customer: saved, error: null };
+  } catch (error) {
+    return { customer: null, error: error.message || "Customer save failed." };
   }
+}
+export async function deleteCustomerRecord(id) {
+  try {
+    const { error } = await supabase.from("customers").delete().eq("id", id);
+    if (error) return false;
+    window.dispatchEvent(new Event("quoteapp_customers_updated"));
+    return true;
+  } catch { return false; }
+}
+// Retained for callers outside the Customers page; saves without replacing the table.
+export async function saveCustomers(customers) {
+  for (const customer of customers || []) {
+    const saved = await saveCustomerRecord(customer);
+    if (saved.error) return false;
+  }
+  return true;
 }
 
 /*
@@ -152,16 +119,7 @@ export async function findCustomerByLoginCode(code) {
       return null;
     }
 
-    return data
-  ? {
-      id: data.id,
-      name: data.name || "",
-      username: data.username || "",
-      loginCode: data.login_code || "",
-      role: data.role || "trade",
-      discountPct: Number(data.discount_pct || 0),
-    }
-  : null;
+    return data ? customerFromRecord(data) : null;
   } catch (err) {
     console.error("LOGIN LOOKUP FAILED", err);
     return null;
