@@ -1,3 +1,5 @@
+import { alignChamferedLathEaves } from "./alignChamferedLathEaves";
+import { applyRectangularRingBeamJoints } from '../Manufacturing/rectangularRingBeamJoints';
 // src/lib/geometry/HippedLeanToGeometry.js
 
 import { calculateLeanToGeometry } from "./leanToGeometry";
@@ -121,6 +123,12 @@ const designInternalWallplateHeightMM =
 const designExternalWallplateHeightMM =
   designInternalWallplateHeightMM + wallplateHeightMM;
 
+// Same finished covering-height convention as the regular Lean-To solver.
+// The horizontal wallplate top is not the finished sloping roof surface.
+const finishedRoofHeightMM = ringBeamHeightMM + designRiseMM +
+  (wallplateHeightMM + 25 + 3) / Math.cos(degToRad(pitchDeg));
+
+
 // Solve the equal-depth joint about the physical boss centre. All plan,
 // manufacturing and facet consumers receive these same resolved positions.
 const leftBossGeometry = hasLeftHip ? calculateWallplateBossGeometry({
@@ -190,12 +198,12 @@ const bossQty = (hasLeftHip ? 1 : 0) + (hasRightHip ? 1 : 0);
 // Each boss receives the hip plus the aligned front-section rafter.
 // Both timber connections use a pair of spar hooks: 4 hooks per boss.
 const sparHookQty = bossQty * 4;
-const hipTopCutDeg = 19;
+const hipTopCutDeg = Math.min(18, Math.max(leftHipPitchDeg, rightHipPitchDeg));
 const frontSoffitMM = base.soffitDepthEffective || 0;
 
 const requestedFrontSoffitMM = frontSoffitMM;
 
-const facetEavesRule = solveFacetEavesGeometry({
+const facetEavesRule = alignChamferedLathEaves(solveFacetEavesGeometry({
   requestedReferenceSoffitMM:
     requestedFrontSoffitMM,
 
@@ -246,7 +254,7 @@ const facetEavesRule = solveFacetEavesGeometry({
   fasciaLipMM: Number(
     materials?.fascia_lip_mm ?? 25
   ),
-});
+}));
 // ======================================================
 // TEMPORARY RAFTER-TEMPLATE DIAGNOSTICS
 //
@@ -693,6 +701,9 @@ const leftHipManufactureV2 = hasLeftHip
 
       sideHorizontalAllowanceMM:
         leftHipHorizontalAllowanceMM,
+      frontBaseWidthMM:facetEavesRule.referenceBaseWidthMM,
+      sideBaseWidthMM:leftHorizontalFootRunMM,
+      perimeterProjectionRunMM:projection,
     })
   : null;
 
@@ -711,6 +722,9 @@ const rightHipManufactureV2 = hasRightHip
 
       sideHorizontalAllowanceMM:
         rightHipHorizontalAllowanceMM,
+      frontBaseWidthMM:facetEavesRule.referenceBaseWidthMM,
+      sideBaseWidthMM:rightHorizontalFootRunMM,
+      perimeterProjectionRunMM:projection,
     })
   : null;
 // Temporary compatibility aliases.
@@ -1414,14 +1428,25 @@ fasciaOrderSizeMM:
   ringBeamBayWidthsMM:
     frontRingBeamBayWidthsMM,
 });
-const facets = [
-  leftFacet,
-  frontFacet,
-  rightFacet,
-].filter((facet) => facet.exists);
+const facets = applyRectangularRingBeamJoints({
+  facets:[leftFacet,frontFacet,rightFacet].filter(facet=>facet.exists),
+  widthMM:width,projectionMM:projection,externalWidthMM,externalProjectionMM,
+  leftAllowanceMM:leftExternalAllowanceMM,rightAllowanceMM:rightExternalAllowanceMM,
+});
 
+  // Reuse the regular Lean-To manufacture calculation with the resolved
+  // front soffit, rather than its internal-projection-only slope alias.
+  const frontRafterManufactureGeometry = calculateLeanToGeometry({
+    widthMM: width, projectionMM: projection, pitchDeg,
+    soffitDepthMM: effectiveFrontSoffitMM, materials,
+  });
   return {
   ...base,
+  rafterExternalLength: frontRafterManufactureGeometry.raw.manufacturedExternalSlopeLengthMM,
+  rafterInternalLength: frontRafterManufactureGeometry.raw.internalRafterLengthMM,
+  frontRafterManufactureGeometry,
+  finishedRoofHeightMM,
+  chamferedLathAlignment: facetEavesRule.chamferedLathAlignment,
 
   frontPitchDeg: Number(pitchDeg) || 0,
   leftSidePitchDeg,

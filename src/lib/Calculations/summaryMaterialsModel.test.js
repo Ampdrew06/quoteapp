@@ -19,8 +19,8 @@ test('quotation materials equal all six displayed sections using timber chargeab
  const model=build();
  expect(Object.keys(model.sections)).toEqual(['timber','tiles','plastics','metal','gutters','misc']);
  expect(model.materialsCostForPricing).toBe(displaySum(model));
- expect(model.pricingSections.tiles).toBe(387.66);
- expect(model.pricingSections.gutters).toBe(84.15);
+ expect(model.pricingSections.tiles).toBe(418.26);
+ expect(model.pricingSections.gutters).toBe(72.96);
  expect(model.materialsCostForPricing>model.materialsBaseCost).toBe(true);
 });
 test('exclusions remove exact current rows once, retaining material weight',()=>{
@@ -62,7 +62,7 @@ test('live dimensions and Materials changes recalculate rather than reusing a Su
  const base=build(),resized=build({inputs:{...roof,widthMM:5000}});
  expect(resized.materialsCostForPricing!==base.materialsCostForPricing).toBe(true);
  const revised=build({materials:{...materials,gutter_square_length_4m_price:10.63}});
- expect(round(revised.materialsCostForPricing-base.materialsCostForPricing)).toBe(4);
+ expect(round(revised.materialsCostForPricing-base.materialsCostForPricing)).toBe(3);
 });
 test('markup, discount and VAT apply once after the reconciled material total',()=>{
  const model=build();
@@ -80,4 +80,15 @@ test('saved quotations retain pricing controls, and opening an older quote clear
  restoreSummaryPricingState({},storage);expect(readSummaryPricingState(storage)).toEqual({exclusions:{},adjustments:{}});
  restoreSummaryPricingState(saved,storage);expect(readSummaryPricingState(storage)).toEqual(state);
  expect(build({...readSummaryPricingState(storage)}).materialsCostForPricing).toBe(before.materialsCostForPricing);
+});
+
+test('manufacture fascia coverage and Summary ordering use the same lip convention',()=>{
+ const model=build();
+ const audit=model.integratedPlasticsAudit;
+ expect(audit.rows[0].structuralFasciaHeightMM).toBe(model.manufactureGeometry.frontFinishedFasciaHeightMM);
+ expect(audit.rows[0].fasciaWidthMM).toBe(250);
+ expect(model.manufactureGeometry.commonFasciaOrderSizeMM).toBe(250);
+ expect(model.sections.plastics.lines.find(row=>row.key==='fascia').label.includes('250')).toBe(true);
+ expect(model.sections.gutters.lines.find(row=>row.key==='g_len').qty).toBe(3);
+ expect(model.sections.gutters.lines.find(row=>row.key==='g_brkt').qty).toBe(15);
 });

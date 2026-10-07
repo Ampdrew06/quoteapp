@@ -7,8 +7,8 @@ test('uses four stock lengths and one front union rather than joining around cor
  expect(result.counts.corners90).toBe(2); expect(result.totalRunM).toBe(13.626);
 });
 test('uses spacing brackets only, without extras for unions or corners',()=>{
- expect(run().rows.map(row=>row.brackets)).toEqual([11,5,5]); expect(run().counts.brackets).toBe(21);
- expect(run({materials:{gutter_bracket_spacing_mm:1000}}).counts.brackets).toBe(19);
+ expect(run().rows.map(row=>row.brackets)).toEqual([10,4,5]); expect(run().counts.brackets).toBe(19);
+ expect(run({materials:{gutter_bracket_spacing_mm:1000}}).counts.brackets).toBe(15);
 });
 test('supplies complete single round downpipe assembly and two stop ends',()=>{
  const counts=run().counts;
@@ -28,4 +28,12 @@ test('respects configured zero prices and reports unconfigured corner price',()=
 test('rejects missing geometry and invalid bracket spacing',()=>{
  expect(buildHippedGutteringIntegrationAudit().valid).toBe(false);
  expect(run({materials:{gutter_bracket_spacing_mm:0}}).valid).toBe(false);
+});
+
+test('shares a side offcut across the front of the 4050 by 2885 roof',()=>{
+ const result=run({edgeModel:{valid:true,edges:[['front',4356],['left',3106],['right',3106]].map(([side,lengthMM])=>({id:side,side,lengthMM,kind:'eaves'}))}});
+ expect(result.counts.lengths).toBe(3); expect(result.counts.unions).toBe(1);
+ expect(result.rows.map(row=>row.brackets)).toEqual([6,4,5]);
+ expect(result.counts.brackets).toBe(15);
+ expect(result.stockPlan.boards.some(board=>board.pieces.length===2)).toBe(true);
 });

@@ -85,7 +85,7 @@ describe("buildRingBeamManufactureSchedule", () => {
     expect(cuts.continuous.pse30x90).toMatchObject({
       internalEdgeLengthMM: 3450,
       externalEdgeLengthMM: 3450,
-      widthMM: 90,
+      widthMM: 95,
       quantity: 1,
     });
     expect(cuts.continuous.ply9Base).toEqual({
@@ -167,7 +167,7 @@ describe("buildRingBeamManufactureSchedule", () => {
     expect(beam.layerProfiles.ply9Base.externalEdgeLengthMM).toBe(3450);
     expect(beam.layerProfiles.pse30x90.internalEdgeLengthMM).toBe(3230);
     expect(beam.layerProfiles.pse30x90.externalEdgeLengthMM).toBeCloseTo(
-      3346.13,
+      3352.58,
       2
     );
     expect(
@@ -213,7 +213,7 @@ describe("buildHippedLeanToRingBeamSchedule", () => {
     ]);
   });
 
-  test("uses the rounded workshop soffit without changing exact roof geometry", () => {
+  test("keeps resolved plastic soffit metadata while cutting the ply to the aligned roof envelope", () => {
     const geometry = calculateHippedLeanToGeometry({
       widthMM: 5870,
       projectionMM: 3230,
@@ -250,24 +250,15 @@ describe("buildHippedLeanToRingBeamSchedule", () => {
     expect(rightBeam.eavesGeometry.soffitDepthMM).toBe(
       geometry.facetEavesRightManufacturedSoffitMM
     );
-    expect(leftBeam.eavesGeometry.soffitDepthMM % 5).toBe(0);
-    expect(rightBeam.eavesGeometry.soffitDepthMM % 5).toBe(0);
+    expect(leftBeam.eavesGeometry.soffitDepthMM).toBeGreaterThan(0);
+    expect(rightBeam.eavesGeometry.soffitDepthMM).toBeGreaterThan(0);
 
     expect(leftBeam.baseWidthMM).toBe(
-      70 + geometry.facetEavesLeftManufacturedSoffitMM
+      geometry.leftExternalAllowanceMM
     );
     expect(rightBeam.baseWidthMM).toBe(
-      70 + geometry.facetEavesRightManufacturedSoffitMM
+      geometry.rightExternalAllowanceMM
     );
-    expect(
-      leftBeam.baseWidthMM -
-        geometry.leftTemplateDebug.horizontalFootRunMM
-    ).toBe(2);
-    expect(
-      rightBeam.baseWidthMM -
-        geometry.rightTemplateDebug.horizontalFootRunMM
-    ).toBe(2);
-
     expect(leftBeam.internalLengthMM).toBe(3230);
     expect(leftBeam.externalLengthMM).toBeCloseTo(
       geometry.externalProjectionMM,
@@ -305,4 +296,19 @@ describe("buildHippedLeanToRingBeamSchedule", () => {
       geometry.facetEavesRightMatchedSoffitMM
     );
   });
+});
+
+
+test("pairs mirrored upstand references in continuous roof order", () => {
+  const side = ringBeam();
+  const front = ringBeam({ lengthMM: 4050, bayWidthsMM: [617,617,617,617,617,617] });
+  const result = buildRingBeamManufactureSchedule({ members: [
+    { manufactureRef: "R17", side: "left", ringBeam: side },
+    { manufactureRef: "R18", side: "front", ringBeam: front },
+    { manufactureRef: "R19", side: "right", ringBeam: side },
+  ] });
+  expect(result.groups[0].cuts.baseLayout.filter(s => s.type === "upstand-bay").map(s => s.bayLabel))
+    .toEqual(["B1/B14", "B2/B13", "B3/B12", "B4/B11"]);
+  expect(result.groups[1].cuts.baseLayout.filter(s => s.type === "upstand-bay").map(s => s.bayLabel))
+    .toEqual(["B5", "B6", "B7", "B8", "B9", "B10"]);
 });

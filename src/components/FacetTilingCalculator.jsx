@@ -70,6 +70,7 @@ export function RoofTilingTotals({ result, itemWord }) {
           <strong>Provisional order</strong>
           <br />
           {result.tileQuantityOrdered} {itemWord}
+          <div style={{fontSize:13,marginTop:4}}>{result.tileQuantityRounded} rounded + {result.orderAllowanceTiles} allowance</div>
         </div>
 
         <div>

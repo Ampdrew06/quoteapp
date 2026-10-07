@@ -1,3 +1,7 @@
+import SteelTileCourseAudit from '../../components/SteelTileCourseAudit';
+import CentralBossTrussAudit from "../../components/CentralBossTrussAudit";
+import { buildHipPerimeterCutAudit } from "../../lib/Calculations/hipPerimeterCutAudit";
+import { buildChamferedLathHeightAudit } from "../../lib/Calculations/chamferedLathHeightAudit";
 import { buildHippedMiscellaneousIntegrationAudit } from "../../lib/Calculations/miscellaneousIntegrationAudit";
 import { buildHippedMetalIntegrationAudit } from "../../lib/Calculations/metalIntegrationAudit";
 import { buildHippedGutteringIntegrationAudit } from "../../lib/Calculations/gutteringIntegrationAudit";
@@ -9,7 +13,7 @@ import HippedWallplateFrontVisualizer from "../../components/HippedWallplateFron
 import { getMaterials } from "../../lib/materials";
 import { externalFacetAreaM2, coveringWeightRates } from "../../lib/Calculations/installedCoveringWeights";
 import { buildSummaryTilingComparison } from "../../lib/Calculations/summaryTilingComparison";
-import { buildAutomaticRoofTiling } from "../../lib/Calculations/automaticRoofTiling";
+import { buildIntegratedAutomaticRoofTiling as buildAutomaticRoofTiling } from "../../lib/Calculations/integratedAutomaticRoofTiling";
 import { buildAutomaticRoofEdgeBOM } from "../../lib/Calculations/automaticRoofEdgeBOM";
 import { buildHippedPlasticsIntegrationAudit } from "../../lib/Calculations/plasticsIntegrationAudit";
 import { buildHipRidgeLathIntegrationAudit } from "../../lib/Calculations/hipRidgeLathIntegrationAudit";
@@ -492,6 +496,10 @@ export default function LeanToTechnical() {
       : null,
   });
 
+  const hipPerimeterAudit = isHipped ? buildHipPerimeterCutAudit({ geometry }) : null;
+
+  const chamferedLathAudit = isHipped ? buildChamferedLathHeightAudit({ geometry }) : null;
+
   const plasticsAudit = isHipped ? buildHippedPlasticsIntegrationAudit({
     geometry, edgeModel: edgeResult?.edgeModel, materials,
     legacyLines: quoteTotals.sections?.plastics || [],
@@ -533,6 +541,8 @@ export default function LeanToTechnical() {
           Visualisers, geometry diagnostics and read-only integration evidence for the current Design/Options roof.
         </p>
 
+        <CentralBossTrussAudit />
+
         <section style={panel}>
           <h2 style={{ marginTop: 0 }}>Quotation adjustment diagnostics</h2>
           <p style={{ marginTop: 0, color: "#64748b" }}>
@@ -550,6 +560,68 @@ export default function LeanToTechnical() {
             </div>
           </div>
         </section>
+
+        {hipPerimeterAudit && (
+          <section style={panel}>
+            <h2 style={{marginTop:0}}>Hip perimeter cut — integrated centreline calculation</h2>
+            <p>Live calculation using the actual front and side ply-base widths and a 45mm-wide hip. The initial square toe covers the full timber width; excess is trimmed to the outside perimeter after assembly. Hip VFC is independent of adjacent rafters and factory packers remain required.</p>
+            <p>The confirmed hip centreline passes through the internal corner. The existing internal hip endpoint is retained; the full internal plan controls the perimeter footprint. These cuts now feed the manufacture book and Summary timber schedule.</p>
+            {hipPerimeterAudit.errors.map(error=><p key={error} style={{color:"#b91c1c"}}>{error}</p>)}
+            <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
+              <thead><tr>{["Hip / corner datum","Front / side base","Current HFC","Candidate HFC","Candidate VFC","Internal slope","Current external","Candidate external","Trim range","VFC across trimmed foot"].map(label=><th key={label} style={th}>{label}</th>)}</tr></thead>
+              <tbody>{hipPerimeterAudit.rows.map(row=><tr key={row.id}>
+                <td style={td}>{row.side}: {row.datum}</td>
+                <td style={td}>{round(row.frontBaseWidthMM,2)} / {round(row.sideBaseWidthMM,2)}mm</td>
+                {[row.currentHfcMM,row.horizontalFootCutMM,row.verticalFootCutMM,row.internalSlopeLengthMM,row.currentExternalMM,row.externalSlopeLengthMM,row.trimLengthRangeMM].map((value,index)=><td key={index} style={td}>{round(value,2)}mm</td>)}
+                <td style={td}>{round(row.verticalFootCutMM,2)}–{round(row.maximumTrimmedVfcMM,2)}mm</td>
+              </tr>)}</tbody>
+            </table></div>
+            <p>The plan below shows the confirmed left hip datum. Pink is the assembled base, brown is the initial hip footprint, and red dashed is the square toe before trimming. The black dot is the internal corner. The ply seam is an assembly joint, not an outside trimming boundary.</p>
+            <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>{hipPerimeterAudit.rows.filter(row=>row.side==="left" || !geometry?.hasLeftHip).map(row=>{
+              const ux=row.acrossWidthDirection,uy=row.projectionDirection;
+              const scale=0.7, ox=190, oy=90;
+              const point=(x,y)=>`${ox+x*scale},${oy-y*scale}`;
+              const low=row.centreOffsetMM-row.timberWidthMM/2,high=row.centreOffsetMM+row.timberWidthMM/2;
+              const hipPoint=(s,t)=>point(s*uy-t*ux,-s*ux-t*uy);
+              const toe=row.horizontalFootCutMM;
+              return <div key={row.id} style={{width:280}}>
+                <b>{row.datum}</b>
+                <svg viewBox="0 0 280 300" role="img" aria-label={`${row.side} hip ${row.datum} footprint`} style={{width:"100%"}}>
+                  <path d={`M ${point(-row.sideBaseWidthMM,100)} L ${point(0,100)} L ${point(0,0)} L ${point(100,0)} L ${point(100,-row.frontBaseWidthMM)} L ${point(-row.sideBaseWidthMM,-row.frontBaseWidthMM)} Z`} fill="#f9a8d4" stroke="#64748b" />
+                  <polygon points={`${hipPoint(low,-120)} ${hipPoint(high,-120)} ${hipPoint(high,toe)} ${hipPoint(low,toe)}`} fill="#a16207" fillOpacity="0.6" stroke="#78350f" />
+                  <line x1={ox+(low*uy-toe*ux)*scale} y1={oy-(-low*ux-toe*uy)*scale} x2={ox+(high*uy-toe*ux)*scale} y2={oy-(-high*ux-toe*uy)*scale} stroke="#dc2626" strokeWidth="2" strokeDasharray="4 3" />
+                  <circle cx={ox} cy={oy} r="3" fill="#111827" />
+                  {row.intersectionPoints.map((p,i)=><circle key={i} cx={ox+p.xMM*scale} cy={oy-p.yMM*scale} r="3" fill="#2563eb" />)}
+                </svg>
+              </div>;
+            })}</div>
+            <h3>Spar-hook top cuts — integrated rule</h3>
+            <p>Member pitch capped at 18°. External edge change below holds the internal endpoint fixed. Above 18° the top cut is no longer plumb; its cut length is measured along that cut.</p>
+            <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
+              <thead><tr>{["Member","Pitch","Top cut off square","Top cut length","External edge change"].map(label=><th key={label} style={th}>{label}</th>)}</tr></thead>
+              <tbody>{hipPerimeterAudit.hookRows.map(row=><tr key={row.id}><td style={td}>{row.label}</td><td style={td}>{round(row.pitchDeg,2)}°</td><td style={td}>{round(row.topCutOffSquareDeg,2)}°</td><td style={td}>{round(row.topCutLengthMM,2)}mm</td><td style={td}>{round(row.externalEdgeAdjustmentMM,2)}mm</td></tr>)}</tbody>
+            </table></div>
+          </section>
+        )}
+
+        {chamferedLathAudit && (
+          <section style={panel}>
+            <h2 style={{ marginTop:0 }}>Chamfered lath perimeter height — integrated calculation</h2>
+            <p>25×50 lath: 50mm face against the rafter, 25mm thickness perpendicular to its slope. The outside vertical height added is 25 ÷ cos(pitch). Compare VFC plus lath height at the same external face.</p>
+            {chamferedLathAudit.errors.map(error=><p key={error} style={{color:"#b91c1c"}}>{error}</p>)}
+            {chamferedLathAudit.valid && <>
+              <p>Keep the {chamferedLathAudit.controlId} facet as the controlling requirement. Target finished height above the HFC: {round(chamferedLathAudit.targetFinishedHeightMM,2)}mm. Current height difference: {round(chamferedLathAudit.currentHeightSpreadMM,2)}mm.</p>
+              <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
+                <thead><tr>{["Facet","Pitch","Current HFC","Current VFC","Lath vertical height","Current finished height","Candidate HFC","Candidate VFC","Candidate finished height","External edge change"].map(label=><th key={label} style={th}>{label}</th>)}</tr></thead>
+                <tbody>{chamferedLathAudit.rows.map(row=><tr key={row.id}>
+                  <td style={td}>{row.label}</td><td style={td}>{round(row.pitchDeg,2)}°</td>
+                  {[row.hfcMM,row.vfcMM,row.lathVerticalHeightMM,row.finishedHeightMM,row.candidateHfcMM,row.candidateVfcMM,row.candidateFinishedHeightMM,row.externalEdgeChangeMM].map((value,index)=><td key={index} style={td}>{round(value,2)}mm</td>)}
+                </tr>)}</tbody>
+              </table></div>
+              <p style={{color:"#92400e"}}>The chamfered-lath alignment now feeds the live hipped geometry, manufacture profiles and Summary. Candidate values check the current resolved cuts; their corrections should now be zero apart from displayed rounding. Physical factory checks remain necessary.</p>
+            </>}
+          </section>
+        )}
 
         {miscAudit && (
           <section style={panel}>
@@ -728,6 +800,7 @@ export default function LeanToTechnical() {
           </section>
         )}
 
+      <SteelTileCourseAudit automaticRoofTiling={automatic} roofInputs={roofInputs} />
       {tilingComparison && (
         <div
           style={{
@@ -741,6 +814,19 @@ export default function LeanToTechnical() {
           <h3 style={{ margin: "0 0 6px", fontSize: 16 }}>
             Tile/lath integration audit
           </h3>
+          {automatic?.result && <>
+            <p><b>Tile order:</b> {automatic.tileOrderIntegration?.applied ? <>{automatic.tileOrderIntegration.tilesUsed} from the staggered fitting sequence</> : <>{Number(automatic.result.tileQuantityRaw).toFixed(4)} raw → {automatic.result.tileQuantityRounded} rounded</>} + {automatic.result.orderAllowanceTiles} allowance = <b>{automatic.result.tileQuantityOrdered} ordered</b>. The allowance is included once for the whole roof.</p>
+            {automatic.tileOrderIntegration?.applied && <p>Summary, pricing and the Idiot List use this sequence quantity. The Home Tile Calcs tool retains its existing calculation.</p>}
+            {automatic.tileOrderIntegration && !automatic.tileOrderIntegration.applied && <p style={{color:'#b91c1c'}}>Sequence ordering could not be integrated: {automatic.tileOrderIntegration.errors.join(' ')} The earlier quantity remains; review before ordering.</p>}
+            <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
+              <thead><tr>{["External tiling facet","Base width","Top width","Sloping height"].map(label=><th key={label} style={th}>{label}</th>)}</tr></thead>
+              <tbody>{(automatic.geometry?.facets || []).map(facet=>{
+                const tiling=facet.geometry?.tiling || {};
+                return <tr key={facet.id}><td style={td}>{facet.label}</td>{[tiling.baseWidthMM,tiling.topWidthMM,tiling.heightMM].map((value,index)=><td key={index} style={td}>{Number(value ?? 0).toFixed(1)}mm</td>)}</tr>;
+              })}</tbody>
+            </table></div>
+          </>}
+
           <p style={{ margin: "0 0 10px", fontSize: 13, color: "#374151" }}>
             The Summary now uses the universal quantities. This panel retains
             the previous calculation for comparison while we validate the change.
@@ -1160,7 +1246,7 @@ export default function LeanToTechnical() {
                     </thead>
                     <tbody>
                       <tr>
-                        <td style={td}>30×90 PSE continuous ring-beam timber</td>
+                        <td style={td}>30×95 PSE continuous ring-beam timber</td>
                         <td style={td}>{round(ringBeamIntegrationAudit?.currentSummaryQuantityM, 3)} m</td>
                         <td style={td}>{round(ringBeamIntegrationAudit?.manufactureQuantityM, 3)} m</td>
                         <td style={td}>
@@ -1295,7 +1381,7 @@ export default function LeanToTechnical() {
                         </thead>
                         <tbody>
                           {[
-                            ["30×90 PSE", ringBeamSummaryConsolidation.lines.pse30x90],
+                            ["30×95 PSE", ringBeamSummaryConsolidation.lines.pse30x90],
                             ["9 mm Structural Ply", ringBeamSummaryConsolidation.lines.ply9mm],
                             ["25×50 laths", ringBeamSummaryConsolidation.lines.lath25x50],
                             ["50 mm PIR", ringBeamSummaryConsolidation.lines.pir50],
@@ -1340,7 +1426,7 @@ export default function LeanToTechnical() {
                 <h3>Calculated component usage</h3>
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
                   <tbody>
-                    <tr><td style={td}>30×90 PSE continuous ring-beam timber</td><td style={td}>{round(ringSchedule.totals.pse30x90LengthM, 3)} m</td></tr>
+                    <tr><td style={td}>30×95 PSE continuous ring-beam timber</td><td style={td}>{round(ringSchedule.totals.pse30x90LengthM, 3)} m</td></tr>
                     <tr><td style={td}>9 mm ply base/soffit</td><td style={td}>{round(ringSchedule.totals.ply9BaseAreaM2, 3)} m²</td></tr>
                     <tr><td style={td}>9 mm ply upstands</td><td style={td}>{round(ringSchedule.totals.ply9UpstandAreaM2, 3)} m²</td></tr>
                     <tr><td style={td}>25×50 outer fixing lath</td><td style={td}>{round(ringSchedule.totals.outerFixingLath25x50LengthM, 3)} m</td></tr>

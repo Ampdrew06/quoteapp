@@ -708,7 +708,7 @@ return (
             <tbody>
               <tr><td className="p-2">9 mm ply soffit (220 mm width)</td><td className="p-2">{round(frontRingbeam.soffit9_area_m2, 3)} m²</td><td className="p-2">£{prices.ply9_per_m2.toFixed(2)}</td><td className="p-2">£{round(frontRingbeam.costs.lines.soffit9, 2).toFixed(2)}</td></tr>
               <tr><td className="p-2">50×25 fixing lath (outer)</td><td className="p-2">{round(frontRingbeam.lath50x25_m, 3)} m</td><td className="p-2">£{prices.lath_50x25_per_m.toFixed(2)}</td><td className="p-2">£{round(frontRingbeam.costs.lines.lath50x25, 2).toFixed(2)}</td></tr>
-              <tr><td className="p-2">90×30 PSE with groove (inner)</td><td className="p-2">{round(frontRingbeam.pse90x30_m, 3)} m</td><td className="p-2">£{prices.ringbeam_pse90x30_per_m.toFixed(2)}</td><td className="p-2">£{round(frontRingbeam.costs.lines.pse90x30, 2).toFixed(2)}</td></tr>
+              <tr><td className="p-2">95×30 PSE with groove (inner)</td><td className="p-2">{round(frontRingbeam.pse90x30_m, 3)} m</td><td className="p-2">£{prices.ringbeam_pse90x30_per_m.toFixed(2)}</td><td className="p-2">£{round(frontRingbeam.costs.lines.pse90x30, 2).toFixed(2)}</td></tr>
               <tr><td className="p-2">Upstands: 9 mm ply pieces</td><td className="p-2">{frontRingbeam.upstandCount} pcs ({round(frontRingbeam.upstandAreaPerPiece_m2, 3)} m² each)</td><td className="p-2">£{prices.ply9_per_m2.toFixed(2)} / m²</td><td className="p-2">£{round(frontRingbeam.costs.lines.upstand_ply9, 2).toFixed(2)}</td></tr>
               <tr><td className="p-2">PIR 50 mm (both faces / upstand)</td><td className="p-2">{frontRingbeam.upstandCount} pcs ({round(frontRingbeam.pirAreaPerPiece_m2, 3)} m² each)</td><td className="p-2">£{prices.pir50_per_m2.toFixed(2)} / m²</td><td className="p-2">£{round(frontRingbeam.costs.lines.pir50, 2).toFixed(2)}</td></tr>
               <tr><td className="p-2">25×50 finishing lath</td><td className="p-2">{round(frontRingbeam.finishLath25x50_m, 3)} m</td><td className="p-2">£{prices.lath_25x50_per_m.toFixed(2)}</td><td className="p-2">£{round(frontRingbeam.costs.lines.lath25x50, 2).toFixed(2)}</td></tr>
@@ -771,7 +771,7 @@ return (
       </tr>
 
       <tr>
-        <td className="p-2">30×90 PSE</td>
+        <td className="p-2">30×95 PSE</td>
         <td className="p-2">
           {round(frontRingbeam.pse90x30_m, 3)} m
         </td>

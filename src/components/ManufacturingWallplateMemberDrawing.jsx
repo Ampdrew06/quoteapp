@@ -39,6 +39,7 @@ export default function ManufacturingWallplateMemberDrawing({
   externalLengthMM = 0,
   internalLengthMM = 0,
 
+  finishedHeightMM = null,
   externalHeightMM = 0,
   internalHeightMM = 0,
   leftEndCutOffSquareDeg = 0,
@@ -135,6 +136,7 @@ export default function ManufacturingWallplateMemberDrawing({
         <HorizontalWallplateDrawing
           externalLengthMM={externalLengthMM}
           internalLengthMM={internalLengthMM}
+          finishedHeightMM={finishedHeightMM}
           externalHeightMM={externalHeightMM}
           internalHeightMM={internalHeightMM}
           leftEndCutOffSquareDeg={leftEndCutOffSquareDeg}
@@ -488,6 +490,7 @@ function WallbarDrawing({
 }
 
 function HorizontalWallplateDrawing({
+  finishedHeightMM,
   externalLengthMM,
   internalLengthMM,
   externalHeightMM,
@@ -646,7 +649,7 @@ function HorizontalWallplateDrawing({
       {/* SECONDARY CHECK TO THE TOP EDGE */}
 
       <text x="48" y="260" fontSize="15" fontWeight="600" fill="#334155">
-        Floor to top edge: {dim(externalHeightMM, 1)} mm
+        {Number(finishedHeightMM) > 0 ? `Finished tiled height: ${dim(finishedHeightMM, 1)} mm` : `Floor to top edge: ${dim(externalHeightMM, 1)} mm`}
       </text>
     </svg>
   );

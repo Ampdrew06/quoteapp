@@ -30,7 +30,7 @@ steico: {
   waste_percent: 10,        // % waste, editable in Materials page
 },
 pse30x90: {
-  // 30×90 PSE ring-beam timber
+  // 30×95 PSE ring-beam timber
   price_per_m: 1.28,        // £/m
   weight_kg_per_m: 1.4,     // kg/m (approx.)
   stock_len_m: 4.8,         // standard PSE stock length
@@ -88,7 +88,7 @@ metal: {
 
   // ---------- Ring-beam materials ----------
   ringBeam: {
-  timber_price_per_m: 1.28,   // £/m for 30×90 PSE
+  timber_price_per_m: 1.28,   // £/m for 30×95 PSE
   stock_len_m: 4.8,           // standard stock length
   price_per_bar: 6.14,        // 1.28 * 4.8
   routing_price_per_m: 0.00,  // £/m for groove (labour)

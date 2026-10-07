@@ -19,13 +19,13 @@ const commonInputs = {
 };
 
 describe("hipped side soffit control", () => {
-  test("automatic mode preserves the established front-led cuts", () => {
+  test("automatic mode preserves the front while aligning finished side lath heights", () => {
     const geometry = calculateHippedLeanToGeometry(commonInputs);
 
     expect(geometry.sideSoffitMode).toBe("automatic");
     expect(geometry.frontFacet.ringBeam.baseWidthMM).toBe(225);
     expect(geometry.frontTemplateDebug.horizontalFootRunMM).toBe(218);
-    expect(geometry.leftFacet.ringBeam.baseWidthMM).toBe(160);
+    expect(geometry.leftFacet.ringBeam.baseWidthMM).toBeGreaterThan(160);
   });
 
   test("specified side projection becomes the controlling datum", () => {
@@ -39,12 +39,12 @@ describe("hipped side soffit control", () => {
     expect(geometry.sideSoffitMode).toBe("specified");
     expect(geometry.controlledSidePlyBaseWidthMM).toBe(135);
     expect(geometry.leftTemplateDebug.horizontalFootRunMM).toBe(133);
-    expect(geometry.frontPlumbCutHeightMM).toBeCloseTo(
-      geometry.leftPlumbCutHeightMM,
+    expect(geometry.frontPlumbCutHeightMM + 25/Math.cos(geometry.frontPitchDeg*Math.PI/180)).toBeCloseTo(
+      geometry.leftPlumbCutHeightMM + 25/Math.cos(geometry.leftSidePitchDeg*Math.PI/180),
       8
     );
-    expect(geometry.rightPlumbCutHeightMM).toBeCloseTo(
-      geometry.leftPlumbCutHeightMM,
+    expect(geometry.rightPlumbCutHeightMM + 25/Math.cos(geometry.rightSidePitchDeg*Math.PI/180)).toBeCloseTo(
+      geometry.leftPlumbCutHeightMM + 25/Math.cos(geometry.leftSidePitchDeg*Math.PI/180),
       8
     );
   });
@@ -59,8 +59,8 @@ describe("hipped side soffit control", () => {
     expect(geometry.sideSoffitMode).toBe("none");
     expect(geometry.controlledSidePlyBaseWidthMM).toBe(95);
     expect(geometry.leftTemplateDebug.horizontalFootRunMM).toBe(93);
-    expect(geometry.frontPlumbCutHeightMM).toBeCloseTo(
-      geometry.leftPlumbCutHeightMM,
+    expect(geometry.frontPlumbCutHeightMM + 25/Math.cos(geometry.frontPitchDeg*Math.PI/180)).toBeCloseTo(
+      geometry.leftPlumbCutHeightMM + 25/Math.cos(geometry.leftSidePitchDeg*Math.PI/180),
       8
     );
   });

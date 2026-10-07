@@ -1,3 +1,4 @@
+import { calculateFasciaCutHeight } from "../Manufacturing/fasciaCutHeight";
 const positive = (value) => Math.max(0, Number(value) || 0);
 const nextWidth = (widths, required) => widths.map(Number).filter(Number.isFinite)
   .sort((a, b) => a - b).find((width) => width >= required) ?? null;
@@ -114,8 +115,10 @@ export function buildHippedPlasticsIntegrationAudit({ geometry = null, edgeModel
     const profile = facet?.ringBeam?.eavesGeometry;
     const runM = positive(edge.lengthMM) / 1000;
     const vfcMM = positive(profile?.plumbCutHeightMM);
-    const finishedFasciaHeightMM = vfcMM + 40 + 9 + 30;
-    const fasciaWidthMM = profile ? nextWidth(materials.fascia_stock_sizes_mm || [200, 225, 250, 300, 400], finishedFasciaHeightMM + 10) : null;
+    const structuralFasciaHeightMM = positive(geometry.frontFinishedFasciaHeightMM ?? profile?.finishedFasciaHeightMM) || vfcMM + 40 + 9 + 30;
+    const fasciaCut = calculateFasciaCutHeight(structuralFasciaHeightMM);
+    const finishedFasciaHeightMM = fasciaCut?.externalCutHeightMM ?? 0;
+    const fasciaWidthMM = profile ? nextWidth(materials.fascia_stock_sizes_mm || [200, 225, 250, 300, 400], fasciaCut?.coverageHeightMM) : null;
     const soffitGeometryMM = positive(profile?.soffitDepthMM);
     const soffitWidthMM = soffitGeometryMM > 0 ? nextWidth(widths, soffitGeometryMM) : 0;
     if (!profile || !vfcMM || !fasciaWidthMM) errors.push(`Missing resolved eaves profile: ${edge.id}`);
@@ -123,7 +126,7 @@ export function buildHippedPlasticsIntegrationAudit({ geometry = null, edgeModel
     const fasciaQty = Math.ceil(runM / fasciaStockM);
     const soffitQty = soffitWidthMM > 0 ? Math.ceil(runM / soffitStockM) : 0;
     return { edgeId: edge.id, side: edge.side, runM,
-      vfcMM, finishedFasciaHeightMM, legacyFasciaWidthMM: positive(profile?.fasciaOrderSizeMM),
+      vfcMM, structuralFasciaHeightMM, fasciaCut, finishedFasciaHeightMM, legacyFasciaWidthMM: positive(profile?.fasciaOrderSizeMM),
       fasciaWidthMM, fasciaQty, fasciaStockM,
       fasciaCost: fasciaPrices[fasciaWidthMM] == null ? null : fasciaQty * positive(fasciaPrices[fasciaWidthMM]),
       soffitGeometryMM, soffitWidthMM, soffitQty, soffitStockM,
@@ -151,7 +154,7 @@ export function buildHippedPlasticsIntegrationAudit({ geometry = null, edgeModel
     remainingOpenVerges: (edgeModel.edges || []).filter((edge) => edge.kind === "openVerge")
       .map((edge) => ({ edgeId: edge.id, runM: positive(edge.lengthMM) / 1000 })),
     assumptions: [
-      "Reveal Liner cover = resolved VFC + 40mm ring beam + 9mm soffit + 30mm chamfered lath. Add 10mm return lip to select nominal stock width.",
+      "Reveal Liner stock width is measured from the internal lip to the top edge. External cut height = ceiling(structural height + 10mm soffit + 10mm lip) minus 5mm starter clearance. Select stock covering the external cut height minus the 10mm lip.",
       "Eaves runs use structural external perimeter lengths, excluding the tile overhang into guttering.",
       "Row quantities are standalone run comparisons. Order totals use a fitting layout with shared suitable offcuts and centred full front boards; the factory still supplies full lengths.",
       "Front soffit uses its own stock width. Matching side strips may share a wider board when both finished widths plus the rip saw kerf fit. The factory supplies full lengths; trimming is a fitting/preparation requirement.",

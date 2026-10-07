@@ -43,7 +43,7 @@ export function buildRingBeam({
   upstandHeightMM = 195,
   pirHeightMM = 185,
   pirFacesPerBay = 2,
-  pseWidthMM = 90,
+  pseWidthMM = 95,
   outerLathWidthMM = 50,
   memberSlotWidthMM = 48,
 }) {

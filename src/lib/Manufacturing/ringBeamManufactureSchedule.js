@@ -150,7 +150,7 @@ export function buildRingBeamManufactureCuts(ringBeam = null) {
         ...(ringBeam.layerProfiles?.pse30x90 || {
           internalEdgeLengthMM: internalLengthMM,
           externalEdgeLengthMM: externalLengthMM,
-          widthMM: 90,
+          widthMM: 95,
         }),
         quantity: 1,
       },
@@ -188,6 +188,17 @@ export function buildRingBeamManufactureSchedule({ members = [] } = {}) {
         referenceNumber(b.manufactureRef)
     );
 
+  // Number bays around the roof: left wall to front, across front,
+  // then right front to wall. The right drawing itself runs wall to front.
+  let nextBayNumber = 1;
+  const bayReferences = new Map();
+  validMembers.forEach((member) => {
+    const count = (member.ringBeam.bayWidthsMM || []).length;
+    const refs = Array.from({ length: count }, (_, index) => `B${nextBayNumber + index}`);
+    nextBayNumber += count;
+    bayReferences.set(member, member.side === "right" ? refs.reverse() : refs);
+  });
+
   const grouped = new Map();
   validMembers.forEach((member) => {
     const ringBeam = member.ringBeam;
@@ -196,6 +207,7 @@ export function buildRingBeamManufactureSchedule({ members = [] } = {}) {
       internalLengthMM: rounded(ringBeam.internalLengthMM, 1),
       externalLengthMM: rounded(ringBeam.externalLengthMM, 1),
       baseWidthMM: rounded(ringBeam.baseWidthMM, 1),
+      layerPatterns: Object.fromEntries(Object.entries(ringBeam.layerProfiles || {}).map(([key,p]) => [key,{width:rounded(p.widthMM,3),inner:rounded(p.internalEdgeLengthMM,3),outer:rounded(p.externalEdgeLengthMM,3),ends:[rounded(p.startOuterExtensionMM,3),rounded(p.endOuterExtensionMM,3)].sort((a,b)=>a-b),square:[rounded(p.startSquareLegMM,3),rounded(p.endSquareLegMM,3)].sort((a,b)=>a-b)}])),
       // Mirrored end arrangements share a workshop pattern; different
       // corner geometries remain separate groups.
       endExtensionsMM: [
@@ -229,7 +241,17 @@ export function buildRingBeamManufactureSchedule({ members = [] } = {}) {
       .map((member) => member.manufactureRef)
       .filter(Boolean),
     sides: group.members.map((member) => member.side),
-    cuts: buildRingBeamManufactureCuts(group.ringBeam),
+    cuts: (() => {
+      const cuts = buildRingBeamManufactureCuts(group.ringBeam);
+      let bayIndex = 0;
+      cuts.baseLayout = cuts.baseLayout.map((segment) => {
+        if (segment.type !== "upstand-bay") return segment;
+        const bayLabel = group.members.map((member) => bayReferences.get(member)[bayIndex]).join("/");
+        bayIndex += 1;
+        return { ...segment, bayLabel };
+      });
+      return cuts;
+    })(),
   }));
 
   return {

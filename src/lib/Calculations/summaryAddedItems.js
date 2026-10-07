@@ -14,7 +14,7 @@ export function buildSummaryItemCatalog(m = {}) {
   const steicoStock=Number(m.steico?.stock_len_m)||12;
   stock('timber','steico',`Steico 220 I-joist — ${steicoStock}m stock`,'Length',steicoStock,'steico.price_per_m');
   const pseStock=Number(m.ringBeam?.stock_len_m ?? m.pse30x90?.stock_len_m)||4.8;
-  stock('timber','pse',`30×90 PSE — ${pseStock}m stock`,'Length',pseStock,'ringBeam.timber_price_per_m','ringbeam_pse90x30_per_m','pse30x90.price_per_m');
+  stock('timber','pse',`30×95 PSE — ${pseStock}m stock`,'Length',pseStock,'ringBeam.timber_price_per_m','ringbeam_pse90x30_per_m','pse30x90.price_per_m');
   stock('timber','lath25','25×50 lath — 4.8m stock','Length',4.8,'lath25x50.price_per_m','lath_50x25_per_m','chamferLath.price_per_m');
   field('timber','lath19','19×38 lath — 4.8m stock','Length','lath19x38_bar_price');
   for (const [id,label,key,path] of [['ply9','9mm structural ply','ply9_sheet_price','ply9mm.price_per_m2'],['ply18','18mm structural ply','ply18_sheet_price','ply18mm.price_per_m2'],['osb18','18mm OSB','osb18_sheet_price','osb18.price_per_m2']]) {

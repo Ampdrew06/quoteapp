@@ -13,7 +13,11 @@ export default function ManufacturingRoofMemberDrawing({ group }) {
   const isBossRafter = group?.type === "boss-rafter";
   const isRegularRafter = group?.type === "rafter";
   const references = (group?.manufactureRefs || []).join(" / ");
+  const hookMember = isBossRafter || group?.type === "hip";
   const pitchDeg = profile.hipPitchDeg ?? profile.facetPitchDeg;
+
+  const topCutAngle = profile.topCutOffSquareDeg ?? pitchDeg;
+  const topX = 422 - (profile.topCutDepartsFromPlumb ? Math.min(26, Math.max(0, pitchDeg-topCutAngle)*2) : 0);
 
   return (
     <div
@@ -57,44 +61,46 @@ export default function ManufacturingRoofMemberDrawing({ group }) {
         </defs>
 
         <path
-          d="M 72 133 L 72 174 L 143 174 L 422 91 L 422 43 Z"
+          d={`M 72 133 L 72 174 L 143 174 L 422 91 L ${topX} 43 Z`}
           fill="#f8fafc"
           stroke="#1f2937"
           strokeWidth="2.5"
           strokeLinejoin="round"
         />
 
-        <text x="236" y="65" textAnchor="middle" fontSize="16" fontWeight="700">
+        <text x="236" y="65" textAnchor="middle" fontSize="19" fontWeight="700">
           {dim(profile.externalSlopeLengthMM)} mm
         </text>
-        <text x="286" y="151" textAnchor="middle" fontSize="16" fontWeight="700">
+        <text x="286" y="151" textAnchor="middle" fontSize="19" fontWeight="700">
           {dim(profile.internalSlopeLengthMM)} mm
         </text>
 
         <line x1="72" y1="194" x2="143" y2="194" stroke="#64748b" strokeWidth="1.3" />
         <line x1="72" y1="184" x2="72" y2="204" stroke="#64748b" />
         <line x1="143" y1="184" x2="143" y2="204" stroke="#64748b" />
-        <text x="107" y="216" textAnchor="middle" fontSize="15" fontWeight="700">
+        <text x="107" y="216" textAnchor="middle" fontSize="18" fontWeight="700">
           {dim(profile.horizontalFootCutMM)} mm
         </text>
 
         <line x1="51" y1="133" x2="51" y2="174" stroke="#64748b" strokeWidth="1.3" />
         <line x1="43" y1="133" x2="60" y2="133" stroke="#64748b" />
         <line x1="43" y1="174" x2="60" y2="174" stroke="#64748b" />
-        <text x="39" y="158" textAnchor="middle" fontSize="15" fontWeight="700" transform="rotate(-90 39 158)">
+        <text x="39" y="158" textAnchor="middle" fontSize="18" fontWeight="700" transform="rotate(-90 39 158)">
           {dim(profile.verticalFootCutMM)} mm
         </text>
 
-        <line x1="445" y1="43" x2="445" y2="91" stroke="#64748b" strokeWidth="1.3" />
-        <line x1="436" y1="43" x2="454" y2="43" stroke="#64748b" />
+        <line x1={topX+23} y1="43" x2="445" y2="91" stroke="#64748b" strokeWidth="1.3" />
+        <line x1={topX+14} y1="43" x2={topX+32} y2="43" stroke="#64748b" />
         <line x1="436" y1="91" x2="454" y2="91" stroke="#64748b" />
-        <text x="463" y="68" textAnchor="middle" fontSize="15" fontWeight="700" transform="rotate(-90 463 68)">
+        <text x="463" y="68" textAnchor="middle" fontSize="18" fontWeight="700" transform="rotate(-90 463 68)">
           {dim(profile.topVerticalCutMM)} mm
         </text>
 
         <text x="150" y="185" fill="#dc2626" fontSize="18" fontWeight="800">
           {dim(pitchDeg, 1)}°
         </text>
+
+        {hookMember && <text x="345" y="232" textAnchor="middle" fill="#dc2626" fontSize="15" fontWeight="800">Top cut {dim(topCutAngle,1)}° off square</text>}
 
         {isJack && (
           <>
@@ -110,7 +116,7 @@ export default function ManufacturingRoofMemberDrawing({ group }) {
             />
             <line x1="422" y1="32" x2="422" y2="18" stroke="#64748b" />
             <line x1="469" y1="99" x2="469" y2="18" stroke="#64748b" strokeDasharray="4 3" />
-            <text x="445" y="15" textAnchor="middle" fontSize="13" fontWeight="700">
+            <text x="445" y="15" textAnchor="middle" fontSize="16" fontWeight="700">
               {dim(profile.hipCentrelineSetbackMM)} mm
             </text>
             <text x="475" y="119" textAnchor="end" fontSize="12" fill="#475569">
@@ -120,6 +126,9 @@ export default function ManufacturingRoofMemberDrawing({ group }) {
         )}
       </svg>
 
+      {hookMember && profile.topCutDepartsFromPlumb && <div style={{fontSize:12,fontWeight:700}}>Top-end dimension is the length along the angled cut, not its vertical height.</div>}
+      {group?.type === "hip" && profile.perimeterFootprint && <div style={{fontSize:12,fontWeight:700}}>Initial square toe — trim excess to the perimeter after assembly. Hip packers required. VFC across trimmed foot: {dim(profile.verticalFootCutMM,1)}–{dim(profile.trimmedVfcMaxMM,1)}mm.</div>}
+      {isJack && profile.connectionGeometry && <div style={{fontSize:12,fontWeight:700}}>Closest-corner plan clearance: {dim(profile.connectionGeometry.closestCornerGapMM,1)}mm. Opposite-corner gap: {dim(profile.connectionGeometry.farCornerGapMM,1)}mm.</div>}
       <div style={{ fontSize: 11, color: "#b45309", fontWeight: 700 }}>
         {isBossRafter
           ? `${dim(profile.bossTerminalAllowanceMM)} mm provisional boss-terminal allowance — factory check pending`

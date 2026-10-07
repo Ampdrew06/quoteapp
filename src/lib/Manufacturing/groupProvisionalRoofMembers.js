@@ -31,6 +31,7 @@ export function groupProvisionalRoofMembers(
       horizontalFootCutMM: rounded(profile.horizontalFootCutMM, precisionMM),
       verticalFootCutMM: rounded(profile.verticalFootCutMM, precisionMM),
       topVerticalCutMM: rounded(profile.topVerticalCutMM, precisionMM),
+      topCutOffSquareDeg: rounded(profile.topCutOffSquareDeg ?? profile.hipPitchDeg ?? profile.facetPitchDeg, precisionDeg),
       hipCentrelineSetbackMM:
         member.type === "jack-rafter"
           ? rounded(profile.hipCentrelineSetbackMM, precisionMM)

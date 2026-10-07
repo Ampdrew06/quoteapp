@@ -1,4 +1,5 @@
 // src/pages/lean-to/LeanToPlanManufacture.jsx
+import PlasticsCuttingGuide from "../../components/PlasticsCuttingGuide";
 import React, { useEffect, useMemo, useState } from "react";
 import { getMaterials } from "../../lib/materials";
 import PlanDiagramLeanToManufacture from "../../components/PlanDiagramLeanToManufacture";
@@ -447,7 +448,7 @@ const overallBlankLengthMM = Math.floor(
   const fasciaLengthMM = ringBeamLengthMM;
   const soffitLengthMM = ringBeamLengthMM;
   const fasciaOrderSizeMM = manufactureGeom.fasciaOrderSizeMM;
-  const finishedFasciaHeightMM = manufactureGeom.finishedFasciaHeightMM;
+  const finishedFasciaHeightMM = manufactureGeom.fasciaExternalCutHeightMM;
 
   const pirSheetLengthMM = 2400;
   const pirSheetWidthMM = 1200;
@@ -693,11 +694,10 @@ rightWall,
   ]
 );
 const resolvedLeftBossMM =
-  hippedGeom?.leftFacetGeometry?.intersectionOffsetMM ?? 0;
+  hippedGeom?.resolvedLeftBossXMM ?? 0;
 
 const resolvedRightBossMM =
-  iw -
-  (hippedGeom?.rightFacetGeometry?.intersectionOffsetMM ?? 0);
+  hippedGeom?.resolvedRightBossXMM ?? iw;
 
 const resolvedBetweenBossesMM =
   Math.max(
@@ -3186,6 +3186,7 @@ const ringBeamManufactureSchedule = useMemo(
       manufactureRef="R22"
       quantity={1}
       memberType="horizontal-wallplate"
+      finishedHeightMM={hippedGeom.finishedRoofHeightMM}
 
       externalLengthMM={
         hippedGeom
@@ -3321,34 +3322,14 @@ const ringBeamManufactureSchedule = useMemo(
     </section>
   )}
 
-  {ringBeamManufactureSchedule?.valid && (
-    <section className="pm-page">
-      <div style={panel}>
-        <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 3 }}>
-          Hipped Lean-To Manufacture
-        </div>
-        <div style={{ ...sectionTitle, marginBottom: 2 }}>Ring-beams</div>
-        <div style={{ fontSize: 12, color: "#475569", marginBottom: 9 }}>
-          Matching assemblies are grouped automatically. Component quantities shown inside each card are per beam.
-        </div>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-            gap: 10,
-            alignItems: "start",
-          }}
-        >
-          {ringBeamManufactureSchedule.groups.map((group) => (
-            <ManufacturingRingBeamDrawing
-              key={`ring-beam-${group.manufactureRefs.join("-")}`}
-              group={group}
-            />
-          ))}
-        </div>
+  {ringBeamManufactureSchedule?.valid && ringBeamManufactureSchedule.groups.map(group => (
+    <section className="pm-page" key={`ring-beam-page-${group.manufactureRefs.join('-')}`}>
+      <div style={{...panel,padding:'3mm 2mm'}}>
+        <div style={{...sectionTitle,fontSize:16,marginBottom:7}}>Ring-beams</div>
+        <ManufacturingRingBeamDrawing group={group} />
       </div>
     </section>
-  )}
+  ))}
 
   {false && ringBeamManufactureSchedule?.valid && (
     <section className="pm-page">
@@ -3418,7 +3399,7 @@ const ringBeamManufactureSchedule = useMemo(
           </thead>
           <tbody>
             <tr>
-              <td style={td}>30×90 PSE continuous ring-beam timber</td>
+              <td style={td}>30×95 PSE continuous ring-beam timber</td>
               <td style={td}>{round(ringBeamManufactureSchedule.totals.pse30x90LengthM, 3)} m</td>
             </tr>
             <tr>
@@ -3452,143 +3433,12 @@ const ringBeamManufactureSchedule = useMemo(
       </div>
     </section>
   )}
+  <section className="pm-page pm-plastics-guide-page">
+    <div style={panel}><PlasticsCuttingGuide audit={planSummary?.integratedPlasticsAudit} /></div>
+  </section>
   <section className="pm-page pm-manufacture-reference-page">
     <div style={panel}>
       <div style={{ ...sectionTitle, fontSize: 16 }}>Manufacture reference</div>
-      <div style={{ ...panel, marginBottom: 12 }}>
-  <div style={sectionTitle}>Fascia & Soffit Manufacture</div>
-
-  <table style={{ width: "100%", borderCollapse: "collapse" }}>
-    <thead>
-      <tr>
-        <th style={th}>Facet</th>
-        <th style={th}>Plumb Cut</th>
-        <th style={th}>Finished Fascia</th>
-        <th style={th}>Fascia Size</th>
-        <th style={th}>Manufactured Soffit</th>
-      </tr>
-    </thead>
-
-    <tbody>
-      <tr>
-        <td style={td}>
-          <b>Front</b>
-        </td>
-
-        <td style={td}>
-          {Math.round(hippedGeom?.frontPlumbCutHeightMM ?? 0)} mm
-        </td>
-
-        <td style={td}>
-          {Math.round(
-            hippedGeom?.frontFinishedFasciaHeightMM ?? 0
-          )} mm
-        </td>
-
-        <td style={td}>
-          {Math.round(
-            hippedGeom?.frontFasciaOrderSizeMM ??
-              hippedGeom?.commonFasciaOrderSizeMM ??
-              0
-          )} mm
-        </td>
-
-        <td style={td}>
-          {Math.round(
-            hippedGeom?.effectiveFrontSoffitMM ??
-              hippedGeom?.frontSoffitMM ??
-              0
-          )} mm
-        </td>
-      </tr>
-
-      {hippedGeom?.leftSideRingBeam?.exists && (
-        <tr>
-          <td style={td}>
-            <b>Left Side</b>
-          </td>
-
-          <td style={td}>
-            {Math.round(
-              hippedGeom?.leftPlumbCutHeightMM ?? 0
-            )} mm
-          </td>
-
-          <td style={td}>
-            {Math.round(
-              hippedGeom?.leftFinishedFasciaHeightMM ?? 0
-            )} mm
-          </td>
-
-          <td style={td}>
-            {Math.round(
-              hippedGeom?.leftFasciaOrderSizeMM ??
-                hippedGeom?.commonFasciaOrderSizeMM ??
-                0
-            )} mm
-          </td>
-
-          <td style={td}>
-            {Math.round(
-              hippedGeom?.facetEavesLeftManufacturedSoffitMM ??
-                hippedGeom?.leftRoundedManufacturedSoffitMM ??
-                0
-            )} mm
-          </td>
-        </tr>
-      )}
-
-      {hippedGeom?.rightSideRingBeam?.exists && (
-        <tr>
-          <td style={td}>
-            <b>Right Side</b>
-          </td>
-
-          <td style={td}>
-            {Math.round(
-              hippedGeom?.rightPlumbCutHeightMM ?? 0
-            )} mm
-          </td>
-
-          <td style={td}>
-            {Math.round(
-              hippedGeom?.rightFinishedFasciaHeightMM ?? 0
-            )} mm
-          </td>
-
-          <td style={td}>
-            {Math.round(
-              hippedGeom?.rightFasciaOrderSizeMM ??
-                hippedGeom?.commonFasciaOrderSizeMM ??
-                0
-            )} mm
-          </td>
-
-          <td style={td}>
-            {Math.round(
-              hippedGeom?.facetEavesRightManufacturedSoffitMM ??
-                hippedGeom?.rightRoundedManufacturedSoffitMM ??
-                0
-            )} mm
-          </td>
-        </tr>
-      )}
-    </tbody>
-  </table>
-
-  <div
-    style={{
-      marginTop: 10,
-      fontSize: 13,
-      color: "#374151",
-    }}
-  >
-    One common fascia size for all active roof facets:{" "}
-    <b>
-      {Math.round(hippedGeom?.commonFasciaOrderSizeMM ?? 0)} mm
-    </b>
-  </div>
-      </div>
 
       <div style={{ ...panel, marginBottom: 12 }}>
         <div style={sectionTitle}>Roof Geometry & Components</div>
@@ -3625,9 +3475,9 @@ const ringBeamManufactureSchedule = useMemo(
                 {hippedGeom?.plainRafterCount ?? 0}
               </td>
 
-              <td style={th}>Hip Top Cut</td>
+              <td style={th}>Hip Top Cut — off square</td>
               <td style={td}>
-                {Number(hippedGeom?.hipTopCutDeg ?? 0).toFixed(1)}°
+                {[hippedGeom?.leftHipManufactureV2,hippedGeom?.rightHipManufactureV2].filter(profile=>profile?.valid).map((profile,index)=><div key={index}>{Number(profile.topCutOffSquareDeg ?? profile.hipPitchDeg).toFixed(1)}°</div>)}
               </td>
             </tr>
 
@@ -3750,7 +3600,7 @@ const ringBeamManufactureSchedule = useMemo(
     background: #fff !important;
   }
 
-  .pm-checklist-page { max-height: none; overflow: visible; height: auto; }
+  .pm-plastics-guide-page, .pm-checklist-page { max-height: none; overflow: visible; height: auto; }
 
   .pm-page:last-child {
     break-after: auto;

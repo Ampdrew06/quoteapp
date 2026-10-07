@@ -1,3 +1,4 @@
+import CentralBossIntegrationGate from '../components/CentralBossIntegrationGate';
 // src/app/routes.js
 
 import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
@@ -35,7 +36,7 @@ export default function AppRoutes() {
         {/* Default redirect to /quote */}
         <Route path="/" element={<Navigate to="/quote" replace />} />
 
-        <Route path="/summary" element={<Summary />} />
+        <Route path="/summary" element={<CentralBossIntegrationGate><Summary /></CentralBossIntegrationGate>} />
 
         <Route path="/customers" element={<Customers />} />
 
@@ -46,10 +47,10 @@ export default function AppRoutes() {
         <Route path="/quote/lean-to" element={<LeanToLanding />} />
 
         {/* Technical visualisers and read-only calculation audits */}
-        <Route path="/quote/lean-to/technical" element={<LeanToTechnical />} />
+        <Route path="/quote/lean-to/technical" element={<CentralBossIntegrationGate><LeanToTechnical /></CentralBossIntegrationGate>} />
 
         {/* Combined Plan + Manufacture (print-ready) */}
-        <Route path="/quote/lean-to/plan-manufacture" element={<LeanToPlanManufacture />} />
+        <Route path="/quote/lean-to/plan-manufacture" element={<CentralBossIntegrationGate><LeanToPlanManufacture /></CentralBossIntegrationGate>} />
 
         {/* (Optional) keep the simple plan page if you still link to it */}
         {/* <Route path="/quote/lean-to/plan" element={<LeanToPlan />} /> */}
@@ -61,11 +62,11 @@ export default function AppRoutes() {
         <Route path="/materials" element={<Materials />} />
 
         {/* Tiles & Laths manual calculator */}
-        <Route path="/tiles-laths" element={<TilesLaths />} />
+        <Route path="/tiles-laths" element={<CentralBossIntegrationGate automaticTilesOnly><TilesLaths /></CentralBossIntegrationGate>} />
 
         {/* Placeholder for other designs */}
         <Route path="/design/:design" element={<DesignPlaceholder />} />
-        <Route path="/idiot-list" element={<IdiotList />} />
+        <Route path="/idiot-list" element={<CentralBossIntegrationGate><IdiotList /></CentralBossIntegrationGate>} />
         {/* Catch-all → /quote */}
         <Route path="*" element={<Navigate to="/quote" replace />} />
         <Route path="/quotes" element={<Quotes />} />

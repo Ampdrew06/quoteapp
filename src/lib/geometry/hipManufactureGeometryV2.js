@@ -1,3 +1,4 @@
+import { calculateHipPerimeterIntersection, calculateSparHookEnd } from "./hipPerimeterIntersection";
 // lib/Geometry/hipManufactureGeometryV2.js
 
 const DEG_TO_RAD = Math.PI / 180;
@@ -26,6 +27,8 @@ export function calculateHipManufactureGeometryV2({
 
   frontHorizontalAllowanceMM,
   sideHorizontalAllowanceMM,
+  frontBaseWidthMM, sideBaseWidthMM, hipTimberWidthMM = 45,
+  perimeterProjectionRunMM,
 }) {
   const hipWidth = Math.max(0, finiteNumber(hipWidthMM));
   const effectivePitchRun = Math.max(
@@ -139,9 +142,21 @@ export function calculateHipManufactureGeometryV2({
   const projectionDirection =
     effectivePitchRun / hipPlanLengthMM;
 
-  const horizontalFootCutMM =
+  const projectedHorizontalFootCutMM =
     sideHorizontalAllowance * acrossWidthDirection +
     frontHorizontalAllowance * projectionDirection;
+
+  // The supplied footprint widths activate the confirmed centreline datum.
+  // Without them, retain the isolated historical reference calculation.
+  const usesPerimeter = frontBaseWidthMM !== undefined || sideBaseWidthMM !== undefined;
+  const perimeterFootprint = usesPerimeter ? calculateHipPerimeterIntersection({
+    widthRunMM:hipWidth, projectionRunMM:perimeterProjectionRunMM ?? effectivePitchRun,
+    sideBaseWidthMM, frontBaseWidthMM, timberWidthMM:hipTimberWidthMM,
+    centreOffsetMM:0,
+  }) : null;
+  if(usesPerimeter && !perimeterFootprint.valid) return {valid:false,reason:perimeterFootprint.error};
+  const horizontalFootCutMM = usesPerimeter ? perimeterFootprint.horizontalFootCutMM : projectedHorizontalFootCutMM;
+  const hookEnd = calculateSparHookEnd({pitchDeg:hipPitchDeg,depthMM:hipDepth});
 
   /*
    * FULL VERTICAL DEPTH OF THE 220 mm HIP
@@ -170,6 +185,8 @@ export function calculateHipManufactureGeometryV2({
     topVerticalCutMM - riseAcrossHorizontalFootMM
   );
 
+  if(usesPerimeter && verticalFootCutMM<=0) return {valid:false,reason:"The centred hip toe exceeds the timber depth; a positive VFC is required."};
+
   /*
    * EXTERNAL FINISHED EDGE A→D
    *
@@ -183,7 +200,7 @@ export function calculateHipManufactureGeometryV2({
     topVerticalCutMM * hipPitchSin;
 
   const externalSlopeLengthMM =
-    internalSlopeLengthMM + externalMinusInternalMM;
+    internalSlopeLengthMM + externalMinusInternalMM + hookEnd.externalEdgeAdjustmentMM;
 
   return {
     valid: true,
@@ -202,7 +219,14 @@ export function calculateHipManufactureGeometryV2({
     // Finished measurable timber edges
     internalSlopeLengthMM,
     externalSlopeLengthMM,
-    topVerticalCutMM,
+    topVerticalCutMM:hookEnd.topCutLengthMM,
+    topCutLengthMM:hookEnd.topCutLengthMM,
+    topCutOffSquareDeg:hookEnd.topCutOffSquareDeg,
+    topCutDepartsFromPlumb:hookEnd.departsFromPlumb,
+    sparHookExternalEdgeAdjustmentMM:hookEnd.externalEdgeAdjustmentMM,
+    perimeterFootprint,
+    footCutRule:usesPerimeter?'centreline-at-inner-corner':'historical-projected-reference',
+    trimmedVfcMaxMM:usesPerimeter ? topVerticalCutMM-perimeterFootprint.firstTrimDistanceMM*hipPitchTan : verticalFootCutMM,
     horizontalFootCutMM,
     verticalFootCutMM,
 
@@ -234,7 +258,7 @@ export function calculateHipManufactureGeometryV2({
         Math.round(externalSlopeLengthMM),
 
       topVerticalCutMM:
-        Math.round(topVerticalCutMM),
+        Math.round(hookEnd.topCutLengthMM),
 
       horizontalFootCutMM:
         Math.round(horizontalFootCutMM),

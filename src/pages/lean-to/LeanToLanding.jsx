@@ -1,3 +1,5 @@
+import CentralBossDesignPreview from '../../components/CentralBossDesignPreview';
+import {buildCentralBossDesign,normalizeBossArrangementInputs} from '../../lib/geometry/centralBossDesign';
 import { readSummaryPricingState } from "../../lib/Calculations/summaryPricingState";
 import { buildSummaryMaterialsModel } from "../../lib/Calculations/summaryMaterialsModel";
 import { readSummaryAddedItems } from "../../lib/Calculations/summaryAddedItems";
@@ -20,7 +22,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import NavTabs from "../../components/NavTabs";
 import { getCurrentCustomer } from "../../lib/customers";
 import { computePricing, computeLabourPricing, computeDeliveryPricing, getLabourPricingConfig, getDeliveryPricingConfig, getMarkupPricingConfig } from "../../lib/pricing";
-import { getNextQuoteNumber, saveQuote } from "../../lib/quotes";
+import { getNextQuoteNumber, saveQuote as saveQuoteToCloud } from "../../lib/quotes";
 import TemplateGeometryVisualizer from "../../components/TemplateGeometryVisualizer";
 import WallplateGeometryVisualizer from "../../components/WallplateGeometryVisualizer";
 import HippedWallplateFrontVisualizer from "../../components/HippedWallplateFrontVisualizer";
@@ -108,6 +110,8 @@ const grid2Responsive = {
   const [leftSupportDepthMM, setLeftSupportDepthMM] = useState(70);
   const [rightSupportDepthMM, setRightSupportDepthMM] = useState(70);
   const [roofStyle, setRoofStyle] = useState(location.state?.roofStyle || "leanTo");
+  const [bossArrangement, setBossArrangement] = useState("offset");
+  const isCentralBoss = roofStyle === "hippedLeanTo" && bossArrangement === "central";
   const [hippedSides, setHippedSides] = useState(location.state?.hippedSides || "both");
   const [leftHip, setLeftHip] = useState(true);
   const [rightHip, setRightHip] = useState(true);
@@ -120,7 +124,7 @@ const grid2Responsive = {
   const [sideSoffitMode, setSideSoffitMode] = useState("automatic");
   const [sideSoffitControlSide, setSideSoffitControlSide] = useState("left");
   const [specifiedSideSoffitMM, setSpecifiedSideSoffitMM] = useState("");
-  const activeHippedSides = leftHip && rightHip ? "both" : leftHip ? "left" : rightHip ? "right" : "none";
+  const activeHippedSides = isCentralBoss ? "both" : leftHip && rightHip ? "both" : leftHip ? "left" : rightHip ? "right" : "none";
   const getDefaultHipWidth = (projection) => {
   const p = Number(projection) || 0;
   if (!p) return 1000;
@@ -169,7 +173,11 @@ useEffect(() => {
   return;
 }
 
-    const saved = JSON.parse(raw) || {};
+    const stored = JSON.parse(raw) || {};
+    const saved = {...stored,...(stored.bossArrangement === 'central' ? stored.offsetBossConfiguration : {})};
+    setBossArrangement(stored.bossArrangement === 'central' ? 'central' : 'offset');
+    if (saved.leftHipWidthManual !== undefined) setLeftHipWidthManual(Boolean(saved.leftHipWidthManual));
+    if (saved.rightHipWidthManual !== undefined) setRightHipWidthManual(Boolean(saved.rightHipWidthManual));
 
     // Width: prefer internalWidthMM, fall back to widthMM
     const savedWidth =
@@ -224,13 +232,13 @@ if (saved.rightHipWidthMM !== undefined) {
 }
 if (saved.requestedLeftSidePitchDeg !== undefined) {
   setRequestedLeftSidePitchDeg(
-    String(saved.requestedLeftSidePitchDeg)
+    saved.requestedLeftSidePitchDeg == null ? "" : String(saved.requestedLeftSidePitchDeg)
   );
 }
 
 if (saved.requestedRightSidePitchDeg !== undefined) {
   setRequestedRightSidePitchDeg(
-    String(saved.requestedRightSidePitchDeg)
+    saved.requestedRightSidePitchDeg == null ? "" : String(saved.requestedRightSidePitchDeg)
   );
 }
 if (saved.sideSoffitMode) {
@@ -305,6 +313,8 @@ useEffect(() => {
     : Number(maximumFinishedHeightMM),
 
   roofStyle,
+  bossArrangement,
+  offsetBossConfiguration: {leftHip,rightHip,leftHipWidthMM,rightHipWidthMM,leftHipWidthManual,rightHipWidthManual,requestedLeftSidePitchDeg,requestedRightSidePitchDeg},
   hippedSides: activeHippedSides,
 
   leftHip,
@@ -336,7 +346,8 @@ useEffect(() => {
   rightSupportDepthMM,
 };
 
-    localStorage.setItem("leanToInputs", JSON.stringify(merged));
+    localStorage.setItem("leanToInputs", JSON.stringify(normalizeBossArrangementInputs(merged)));
+    window.dispatchEvent(new Event("leanToInputs_updated"));
   } catch (e) {
     console.warn("Failed to save leanToInputs", e);
   }
@@ -354,6 +365,9 @@ useEffect(() => {
   rightHip,
   leftHipWidthMM,
   rightHipWidthMM,
+  leftHipWidthManual,
+  rightHipWidthManual,
+  bossArrangement,
   requestedLeftSidePitchDeg,
   requestedRightSidePitchDeg,
   sideSoffitMode,
@@ -399,6 +413,7 @@ window.dispatchEvent(new Event("summary_adjustments_updated"));
         setRightWall(false);
         setRoofStyle(location.state?.roofStyle || "leanTo");
         setHippedSides(location.state?.hippedSides || "both");
+        setBossArrangement("offset");
         setLeftHipWidthManual(false);
         setRightHipWidthManual(false);
         setLeftHip(true);
@@ -432,7 +447,7 @@ const persist = (patch) => {
   );
 
   const next = { ...cur, ...patch };
-  localStorage.setItem("leanToInputs", JSON.stringify(next));
+  localStorage.setItem("leanToInputs", JSON.stringify(normalizeBossArrangementInputs(next)));
 
   if (hasChanged) clearSummaryAdjustments();
 };
@@ -453,7 +468,6 @@ const [summaryAdjustmentTick, setSummaryAdjustmentTick] = useState(0);
   });
   const minTilePitchDeg = tileSystem === "liteslate" ? 12 : 15;
   const maximumHeightIsActive =
-  roofStyle !== "hippedLeanTo" &&
   maximumFinishedHeightMM !== "";
 
 const maximumHeightPitchSolutionDeg = useMemo(() => {
@@ -465,11 +479,17 @@ const maximumHeightPitchSolutionDeg = useMemo(() => {
     internalProjectionMM: num(projMM),
     maximumFinishedHeightMM:
       num(maximumFinishedHeightMM),
+    ...(roofStyle === 'hippedLeanTo' ? {
+      ringBeamHeightMM: Number(m.ring_beam_height_mm ?? 40),
+      rafterDepthMM: Number(m.wallplate_height_mm ?? 220),
+    } : {}),
   });
 }, [
   maximumHeightIsActive,
   projMM,
   maximumFinishedHeightMM,
+  roofStyle,
+  m,
 ]);
 
 const maximumHeightIsImpossible =
@@ -511,6 +531,9 @@ useEffect(() => {
 ]);
 
 
+const centralDesignInputs = {roofStyle,bossArrangement,widthMM:num(widthMM),projMM:num(projMM),pitchDeg:num(pitchDeg,15),
+  soffit_mm:num(eavesOverhangMM,150),sideSoffitMode,sideSoffitControlSide,specifiedSideSoffitMM};
+const centralDesign = isCentralBoss ? buildCentralBossDesign({inputs:centralDesignInputs,materials:m}) : null;
 const hippedGeom =
   roofStyle === "hippedLeanTo"
     ? calculateHippedLeanToGeometry({
@@ -559,10 +582,10 @@ requestedRightSidePitchDeg:
     : null;
 
 const leftSidePitchDeg =
-  hippedGeom?.leftSidePitchDeg ?? 0;
+  (isCentralBoss ? centralDesign?.sidePitchDeg : hippedGeom?.leftSidePitchDeg) ?? 0;
 
 const rightSidePitchDeg =
-  hippedGeom?.rightSidePitchDeg ?? 0;
+  (isCentralBoss ? centralDesign?.sidePitchDeg : hippedGeom?.rightSidePitchDeg) ?? 0;
 
 const leftHipPitchTooLow =
   roofStyle === "hippedLeanTo" &&
@@ -733,6 +756,8 @@ const persistInputs = (opts = {}) => {
     : Number(maximumFinishedHeightMM),
     selectedCustomerId,
     roofStyle,
+    bossArrangement,
+  offsetBossConfiguration: {leftHip,rightHip,leftHipWidthMM,rightHipWidthMM,leftHipWidthManual,rightHipWidthManual,requestedLeftSidePitchDeg,requestedRightSidePitchDeg},
     hippedSides: activeHippedSides,
     leftHip,
     rightHip,
@@ -809,7 +834,7 @@ deliveryDistanceMiles:
 showQuote: opts.overrideShowQuote ?? showQuote,
   };
 
-  localStorage.setItem("leanToInputs", JSON.stringify(payload));
+  localStorage.setItem("leanToInputs", JSON.stringify(normalizeBossArrangementInputs(payload)));
   window.dispatchEvent(new Event("leanToInputs_updated"));
 };
 
@@ -911,6 +936,8 @@ const exclusions = useMemo(() => ({}), []); // Landing = no exclusions (customer
 const totalsInput = useMemo(
   () => ({
     roofStyle,
+    bossArrangement,
+  offsetBossConfiguration: {leftHip,rightHip,leftHipWidthMM,rightHipWidthMM,leftHipWidthManual,rightHipWidthManual,requestedLeftSidePitchDeg,requestedRightSidePitchDeg},
     hippedSides: activeHippedSides,
     leftHip,
     rightHip,
@@ -957,6 +984,9 @@ const totalsInput = useMemo(
     rightHip,
     leftHipWidthMM,
     rightHipWidthMM,
+    leftHipWidthManual,
+    rightHipWidthManual,
+    bossArrangement,
     requestedLeftSidePitchDeg,
     requestedRightSidePitchDeg,
     sideSoffitMode,
@@ -1206,9 +1236,9 @@ const leanToManufactureGeom = useMemo(
   ]
 );
 
-const externalFinishedHeightMM =
-  leanToManufactureGeom
-    .calculatedMaximumFinishedHeightMM;
+const externalFinishedHeightMM = roofStyle === 'hippedLeanTo'
+  ? hippedGeom?.finishedRoofHeightMM ?? 0
+  : leanToManufactureGeom.calculatedMaximumFinishedHeightMM;
 
   // ——— Minimal BOMs ———
 
@@ -1366,6 +1396,7 @@ const missingPostcode = !isAdmin && !String(deliveryPostcode || "").trim();
 const hasDeliveryPostcode = !missingPostcode;
 
 const canQuote =
+  !isCentralBoss &&
   !missingWidth &&
   !missingProjection &&
   hasDeliveryPostcode;
@@ -1421,6 +1452,7 @@ return miles;
 };
 
   const onGetQuote = async () => {
+  if (isCentralBoss) { setQuoteError("Central-boss pricing is pending truss integration. The design preview is shown below."); return; }
   setQuoteError("");
 
   if (!Number(widthMM) || !Number(projMM)) {
@@ -1475,6 +1507,7 @@ setShowQuote(true);
     setRoofStyle(location.state?.roofStyle || roofStyle || "leanTo");
     setHippedSides(location.state?.hippedSides || "both");
 
+    setBossArrangement("offset");
     setLeftHip(true);
     setRightHip(true);
     setLeftHipWidthManual(false);
@@ -1516,9 +1549,9 @@ setShowQuote(true);
     window.dispatchEvent(new Event("summary_adjustments_updated"));
   };
 
-  const saveQuote = async () => {
+  const handleSaveQuote = async () => {
+  if (isCentralBoss) { alert("Central-boss design is remembered locally. Saving a priced quotation is pending truss integration."); return; }
   const manualReference = (quoteRef || "").trim();
-const nextQuoteNumber = await getNextQuoteNumber();
 if (!isAdmin && !manualReference) {
   alert("Please enter a customer reference before saving.");
   return;
@@ -1529,6 +1562,8 @@ if (!isAdmin && !manualReference) {
     return;
   }
 
+  try {
+  const nextQuoteNumber = await getNextQuoteNumber();
   const payload = {
   summaryAddedItems: readSummaryAddedItems(),
   summaryPricingState: readSummaryPricingState(),
@@ -1536,7 +1571,11 @@ if (!isAdmin && !manualReference) {
   projMM,
   pitchDeg,
 
+  maximumFinishedHeightMM: maximumFinishedHeightMM === '' ? null : Number(maximumFinishedHeightMM),
+
   roofStyle,
+  bossArrangement,
+  offsetBossConfiguration: {leftHip,rightHip,leftHipWidthMM,rightHipWidthMM,leftHipWidthManual,rightHipWidthManual,requestedLeftSidePitchDeg,requestedRightSidePitchDeg},
   hippedSides: activeHippedSides,
   leftHip,
   rightHip,
@@ -1623,7 +1662,7 @@ manual_reference: manualReference,
     customer_name: customerForQuote?.name || "",
     roof_style: "lean-to",
     status: "quote",
-    inputs_json: payload,
+    inputs_json: normalizeBossArrangementInputs(payload),
     pricing_json: {
       materialsCost: summaryMaterials.materialsCostForPricing,
       materialSections: summaryMaterials.pricingSections,
@@ -1635,7 +1674,7 @@ manual_reference: manualReference,
     materials_snapshot_json: getMaterials(),
   };
 
-  const saved = await saveQuote(record);
+  const saved = await saveQuoteToCloud(record);
 
   if (!saved) {
     alert("Quote was not saved. Check the console for details.");
@@ -1643,6 +1682,10 @@ manual_reference: manualReference,
   }
 
   alert(`Quote ${nextQuoteNumber} saved.`);
+  } catch (error) {
+    console.error("SAVE QUOTE FROM DESIGN/OPTIONS FAILED", error);
+    alert("Quote was not saved. Please try again. If it still fails, check the console for details.");
+  }
 };
   /*
 const manufactureGeom = useMemo(
@@ -1695,7 +1738,7 @@ const displayExtProjectionMM =
 </h1>
         </div>
         <p style={{ color: "#555", marginTop: 0, marginBottom: 14 }}>
-          Enter your sizes and options below. We’ll show a plan preview and your price. 
+          {isCentralBoss ? "Enter your sizes and options below to preview the central-boss design." : "Enter your sizes and options below. We’ll show a plan preview and your price."} 
           Frame thickness is defaulted to 70mm, please confirm this when ordering.
         </p>
 
@@ -1878,7 +1921,6 @@ onChange={(e) => {
   </div>
 )}
             </label>
-            {roofStyle !== "hippedLeanTo" && (
   <label>
     Max Finished Height (mm)
 
@@ -1930,7 +1972,7 @@ onChange={(e) => {
       </div>
     )}
   </label>
-)}
+
 
 {roofStyle !== "hippedLeanTo" && (
   <div
@@ -2072,13 +2114,17 @@ onChange={(e) => {
 {roofStyle === "hippedLeanTo" && (
   <div style={{ gridColumn: "1 / -1" }}>
     <HippedLeanToOptions
-    leftHip={leftHip}
+    isAdmin={isAdmin}
+    bossArrangement={bossArrangement}
+    onBossArrangementChange={value=>{setBossArrangement(value);setQuoteError('');persist({bossArrangement:value});}}
+    centralBossPositionMM={num(widthMM)/2}
+    leftHip={isCentralBoss || leftHip}
     setLeftHip={setLeftHip}
-    rightHip={rightHip}
+    rightHip={isCentralBoss || rightHip}
     setRightHip={setRightHip}
-    leftHipWidthMM={leftHipWidthMM}
+    leftHipWidthMM={isCentralBoss ? num(widthMM)/2 : leftHipWidthMM}
     setLeftHipWidthMM={setLeftHipWidthMM}
-    rightHipWidthMM={rightHipWidthMM}
+    rightHipWidthMM={isCentralBoss ? num(widthMM)/2 : rightHipWidthMM}
     setRightHipWidthMM={setRightHipWidthMM}
     requestedLeftSidePitchDeg={
   requestedLeftSidePitchDeg
@@ -2264,9 +2310,12 @@ onKeyDown={(e) => {
 >
             <button
               onClick={onGetQuote}
+              disabled={isCentralBoss}
               style={{ ...primaryBtn, width: "100%" }}
               title={
-  !Number(widthMM) || !Number(projMM)
+  isCentralBoss
+    ? "Central-boss pricing is pending truss integration"
+    : !Number(widthMM) || !Number(projMM)
     ? "Enter width & projection first"
     : !hasDeliveryPostcode
     ? "Enter delivery postcode first"
@@ -2285,11 +2334,13 @@ onKeyDown={(e) => {
             
 
             <button
-              onClick={saveQuote}
+              onClick={handleSaveQuote}
               style={{ ...primaryBtn, width: "100%", background: "#10b981", borderColor: "#10b981" }}
               disabled={!canQuote || (!isAdmin && !quoteRef.trim())}
 title={
-  !canQuote
+  isCentralBoss
+    ? "Central-boss design is remembered locally; quotation saving is pending truss integration"
+    : !canQuote
     ? "Enter the required roof details first"
     : !isAdmin && !quoteRef.trim()
     ? "Please enter a customer reference"
@@ -2310,7 +2361,8 @@ title={
         </div>
 
         {/* Results */}
-        {showQuote && (
+        {isCentralBoss && <CentralBossDesignPreview inputs={centralDesignInputs} materials={m} />}
+        {showQuote && !isCentralBoss && (
           <div id="quote-result" style={{ marginTop: 16, display: "grid", gap: 14 }}>
             {/* Plan preview */}
             <div style={card}>

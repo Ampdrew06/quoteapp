@@ -40,7 +40,9 @@ describe("buildJackRafterManufactureAudit", () => {
     });
 
     expect(result.valid).toBe(true);
-    expect(result.setbackMM).toBe(40);
+    expect(result.setbackMM).toBeNull();
+    expect(result.closestCornerGapMM).toBe(5);
+    expect(result.jacks.every(jack=>jack.profile.connectionGeometry.valid)).toBe(true);
     expect(result.jacks).toHaveLength(4);
     expect(result.jacks.map((jack) => jack.facetId)).toEqual([
       "F1",

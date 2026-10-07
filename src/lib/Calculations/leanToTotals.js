@@ -621,7 +621,7 @@ const sparHookQty = isHippedLeanTo
   const steicoTotal_m = raftersTotal_m + wallplate_m;
   const steicoBaseCost = steicoTotal_m * Number(m.steico?.price_per_m ?? 0);
 
-  // 30×90 PSE ring beam (base cost)
+  // 30×95 PSE ring beam (base cost)
   const pseBaseCost = extWidthM * Number(m.pse30x90?.price_per_m ?? 0);
 
   // 9mm ply (base cost)

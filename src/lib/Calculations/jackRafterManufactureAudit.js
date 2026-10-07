@@ -1,3 +1,4 @@
+import { calculateJackHipSetback } from "../geometry/hipPerimeterIntersection";
 import { calculateJackRafterManufactureGeometry } from "../geometry/jackRafterManufactureGeometry";
 import { buildHippedLeanToManufacturingSequence } from "../Manufacturing/manufacturingSequenceBuilder";
 
@@ -16,17 +17,20 @@ const buildAuditJack = ({
   hipCentrelinePlanRunMM,
   horizontalFootCutMM,
   verticalFootCutMM,
+  connection,
 }) => {
+  if(!connection?.valid) return null;
   const profile = calculateJackRafterManufactureGeometry({
     facetPitchDeg: pitchDeg,
     hipCentrelinePlanRunMM,
-    hipCentrelineSetbackMM: 40,
+    hipCentrelineSetbackMM: connection.hipCentrelineSetbackMM,
     horizontalFootCutMM,
     verticalFootCutMM,
     timberDepthMM: 220,
   });
 
   if (!profile.valid) return null;
+  profile.connectionGeometry = connection;
 
   return {
     id: member.id,
@@ -53,14 +57,19 @@ export function buildJackRafterManufactureAudit({
   }
 
   const widthMM = finite(
-    roofInputs.widthMM ?? roofInputs.internalWidthMM
+    roofInputs.widthMM ?? roofInputs.internalWidthMM ?? geometry.widthMM
   );
   const projectionMM = finite(
-    roofInputs.projMM ?? roofInputs.internalProjectionMM
+    roofInputs.projMM ?? roofInputs.projectionMM ?? roofInputs.internalProjectionMM ?? geometry.projectionMM
   );
   const effectivePitchRunMM = finite(geometry.effectivePitchRunMM);
   const leftHipWidthMM = finite(geometry.resolvedLeftHipWidthMM);
   const rightHipWidthMM = finite(geometry.resolvedRightHipWidthMM);
+
+  const connectionFor=(hipWidthMM,facet)=>calculateJackHipSetback({
+    hipWidthRunMM:hipWidthMM,hipProjectionRunMM:projectionMM,facet,
+  });
+  if(projectionMM<=0 || effectivePitchRunMM<=0) return {valid:false,jacks:[],errors:["Positive projection and wallplate-face run are required."]};
 
   const frontPitchDeg = finite(geometry.frontPitchDeg);
   const leftPitchDeg = finite(geometry.leftSidePitchDeg);
@@ -79,6 +88,8 @@ export function buildJackRafterManufactureAudit({
 
   (geometry.frontRafterLayoutV2?.leftJackRafters || []).forEach((member) => {
     const centreMM = finite(member.centreMM);
+    // Front cut profiles use the verified wallplate-face pitch run, as do
+    // plain/boss rafters; their lower-edge datum is not the house-wall line.
     const intersectionRunMM =
       leftHipWidthMM > 0
         ? effectivePitchRunMM * (centreMM / leftHipWidthMM)
@@ -91,6 +102,7 @@ export function buildJackRafterManufactureAudit({
       side: "left",
       positionMM: centreMM,
       pitchDeg: frontPitchDeg,
+      connection:connectionFor(leftHipWidthMM,'front'),
       hipCentrelinePlanRunMM: intersectionRunMM,
       horizontalFootCutMM: frontHfcMM,
       verticalFootCutMM: frontVfcMM,
@@ -116,6 +128,7 @@ export function buildJackRafterManufactureAudit({
       side: "right",
       positionMM: centreMM,
       pitchDeg: frontPitchDeg,
+      connection:connectionFor(rightHipWidthMM,'front'),
       hipCentrelinePlanRunMM: intersectionRunMM,
       horizontalFootCutMM: frontHfcMM,
       verticalFootCutMM: frontVfcMM,
@@ -143,9 +156,12 @@ export function buildJackRafterManufactureAudit({
         0,
         projectionMM - centreFromWallMM
       );
+      // Side positions are distances from the house wall along the full
+      // internal projection. Do not divide that full-plan distance by the
+      // shortened front wallplate-face run (the former proportional error).
       const intersectionRunMM =
-        effectivePitchRunMM > 0
-          ? hipWidthMM * (distanceFromFrontMM / effectivePitchRunMM)
+        projectionMM > 0
+          ? hipWidthMM * (distanceFromFrontMM / projectionMM)
           : 0;
 
       const jack = buildAuditJack({
@@ -158,6 +174,7 @@ export function buildJackRafterManufactureAudit({
         side,
         positionMM: centreFromWallMM,
         pitchDeg,
+        connection:connectionFor(hipWidthMM,'side'),
         hipCentrelinePlanRunMM: intersectionRunMM,
         horizontalFootCutMM: hfcMM,
         verticalFootCutMM: vfcMM,
@@ -206,7 +223,10 @@ export function buildJackRafterManufactureAudit({
   return {
     valid: orderedJacks.length > 0,
     jacks: orderedJacks,
-    setbackMM: 40,
+    setbackMM: null,
+    closestCornerGapMM:5,
+    setbackRule:"hip-face-plus-square-jack-end",
+    referenceRule:"front-wallplate-face-profile / side-full-internal-plan",
     errors:
       orderedJacks.length > 0
         ? []

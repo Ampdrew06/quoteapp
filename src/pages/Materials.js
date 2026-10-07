@@ -496,7 +496,7 @@ setHasUnsavedChanges(false);
 
 
 
-        {/* Ring-beam (front) – 30×90 PSE */}
+        {/* Ring-beam (front) – 30×95 PSE */}
 <div
   style={{
     border: "1px solid #ddd",
@@ -512,7 +512,7 @@ setHasUnsavedChanges(false);
       gap: 12,
     }}
   >
-    <div style={{ fontSize: 15, fontWeight: 600 }}>30×90 PSE</div>
+    <div style={{ fontSize: 15, fontWeight: 600 }}>30×95 PSE</div>
 
     <div style={{ flex: 1 }} />
 

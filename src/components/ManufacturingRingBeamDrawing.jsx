@@ -29,6 +29,13 @@ function LayerDrawing({ label, profile, markerId }) {
   const innerX2 =
     outerX2 - visualInset(Math.max(0, endOuter - endInner));
 
+  const outline = profile?.outline;
+  const minX = outline ? Math.min(...outline.map(p=>p.xMM)) : 0;
+  const maxX = outline ? Math.max(...outline.map(p=>p.xMM)) : longest;
+  const map = p => ({x:180+(p.xMM-minX)*390/Math.max(1,maxX-minX),y:35+p.yMM*47/Math.max(1,widthMM)});
+  const path = outline ? outline.map((p,i)=>`${i?'L':'M'} ${map(p).x} ${map(p).y}`).join(' ')+' Z' : `M ${innerX1} 35 L ${innerX2} 35 L ${outerX2} 82 L ${outerX1} 82 Z`;
+  const topStart=outline?map({xMM:0,yMM:0}).x:innerX1;
+  const topEnd=outline?map({xMM:internalLengthMM,yMM:0}).x:innerX2;
   return (
     <svg
       viewBox="0 0 620 128"
@@ -38,27 +45,42 @@ function LayerDrawing({ label, profile, markerId }) {
     >
       <text x="12" y="67" fontSize="14" fontWeight="800">{label}</text>
       <path
-        d={`M ${innerX1} 35 L ${innerX2} 35 L ${outerX2} 82 L ${outerX1} 82 Z`}
+        d={path}
         fill="#f8fafc"
         stroke="#1f2937"
         strokeWidth="2"
         strokeLinejoin="round"
       />
 
-      <line x1={innerX1} y1="20" x2={innerX2} y2="20" stroke="#64748b" markerStart={`url(#${markerId})`} markerEnd={`url(#${markerId})`} />
-      <text x={(innerX1 + innerX2) / 2} y="15" textAnchor="middle" fontSize="12" fontWeight="700">
+      <line x1={topStart} y1="20" x2={topEnd} y2="20" stroke="#64748b" markerStart={`url(#${markerId})`} markerEnd={`url(#${markerId})`} />
+      <text x={(topStart + topEnd) / 2} y="15" textAnchor="middle" fontSize="15" fontWeight="700">
         Internal {dim(internalLengthMM)} mm
       </text>
 
       <line x1={outerX1} y1="99" x2={outerX2} y2="99" stroke="#64748b" markerStart={`url(#${markerId})`} markerEnd={`url(#${markerId})`} />
-      <text x={(outerX1 + outerX2) / 2} y="118" textAnchor="middle" fontSize="12" fontWeight="700">
+      <text x={(outerX1 + outerX2) / 2} y="118" textAnchor="middle" fontSize="15" fontWeight="700">
         External {dim(externalLengthMM)} mm
       </text>
 
+      {outline && <text x="180" y="30" fontSize="12" fill="#dc2626" fontWeight="700">{profile.startMitreDeg ? '45°' : 'Square'}</text>}
+      {outline && <text x="570" y="30" textAnchor="end" fontSize="12" fill="#dc2626" fontWeight="700">{profile.endMitreDeg ? '45°' : 'Square'}</text>}
+      {outline && [
+        { extension: startOuter, leg: profile.startSquareLegMM, x: 180, side: "start" },
+        { extension: endOuter, leg: profile.endSquareLegMM, x: 570, side: "end" },
+      ].filter(end => end.extension > 0 && finite(end.leg) > 0).map(end => {
+        const top = 35 + end.extension * 47 / Math.max(1, widthMM);
+        const dx = end.side === "start" ? 20 : -20;
+        return <g key={end.side}>
+          <line x1={end.x + dx} y1={top} x2={end.x + dx} y2="82" stroke="#64748b" />
+          <line x1={end.x} y1={top} x2={end.x + dx + (dx > 0 ? 4 : -4)} y2={top} stroke="#64748b" />
+          <line x1={end.x} y1="82" x2={end.x + dx + (dx > 0 ? 4 : -4)} y2="82" stroke="#64748b" />
+          <text x={end.x + dx + (dx > 0 ? 6 : -6)} y={(top + 82) / 2 + 4} textAnchor={dx > 0 ? "start" : "end"} fontSize="13" fontWeight="800">{dim(end.leg)} mm</text>
+        </g>;
+      })}
       <line x1="164" y1="35" x2="164" y2="82" stroke="#64748b" />
       <line x1="157" y1="35" x2="171" y2="35" stroke="#64748b" />
       <line x1="157" y1="82" x2="171" y2="82" stroke="#64748b" />
-      <text x="150" y="61" textAnchor="middle" fontSize="11" fontWeight="700" transform="rotate(-90 150 61)">
+      <text x="150" y="61" textAnchor="middle" fontSize="13" fontWeight="700" transform="rotate(-90 150 61)">
         {dim(widthMM, 1)} mm
       </text>
     </svg>
@@ -100,7 +122,7 @@ function BaseLayoutDrawing({ cuts }) {
               {!isSlot && (
                 <>
                   <text x={segmentX + segmentWidth / 2} y={y + 20} textAnchor="middle" fontSize="10" fontWeight="800">
-                    B{segment.bayNumber}
+                    {segment.bayLabel || `B${segment.bayNumber}`}
                   </text>
                   <text x={segmentX + segmentWidth / 2} y={y + 37} textAnchor="middle" fontSize="10" fontWeight="700">
                     {dim(segment.widthMM)}
@@ -113,7 +135,7 @@ function BaseLayoutDrawing({ cuts }) {
         <line x1={x} y1="91" x2={x + width} y2="91" stroke="#64748b" />
         <line x1={x} y1="84" x2={x} y2="98" stroke="#64748b" />
         <line x1={x + width} y1="84" x2={x + width} y2="98" stroke="#64748b" />
-        <text x={x + width / 2} y="108" textAnchor="middle" fontSize="11" fontWeight="700">
+        <text x={x + width / 2} y="108" textAnchor="middle" fontSize="13" fontWeight="700">
           Internal layout {dim(totalMM)} mm
         </text>
       </svg>
@@ -164,7 +186,7 @@ export default function ManufacturingRingBeamDrawing({ group }) {
         </defs>
       </svg>
 
-      <LayerDrawing label="30×90 PSE" profile={cuts.continuous?.pse30x90} markerId={markerId} />
+      <LayerDrawing label="30×95 PSE" profile={cuts.continuous?.pse30x90} markerId={markerId} />
       <LayerDrawing label="9 mm ply base" profile={cuts.continuous?.ply9Base} markerId={markerId} />
       <LayerDrawing label="25×50 outer lath" profile={cuts.continuous?.outerLath25x50} markerId={markerId} />
 
@@ -172,6 +194,9 @@ export default function ManufacturingRingBeamDrawing({ group }) {
         Mitre shapes enlarged for clarity; always work to the printed dimensions.
       </div>
 
+      {cuts.continuous?.ply9Base?.outline && <div style={{fontSize:12,margin:'5px 0'}}>
+        Ply corner: {cuts.continuous.ply9Base.startMitreDeg ? `start 45° then ${dim(cuts.continuous.ply9Base.startSquareLegMM,1)} mm square leg` : 'start square'} · {cuts.continuous.ply9Base.endMitreDeg ? `end 45° then ${dim(cuts.continuous.ply9Base.endSquareLegMM,1)} mm square leg` : 'end square'}.
+      </div>}
       <BaseLayoutDrawing cuts={cuts} />
 
       <div style={{ marginTop: 3, padding: "7px 9px", background: "#f8fafc", border: "1px solid #dbe3ec", borderRadius: 4, fontSize: 10 }}>

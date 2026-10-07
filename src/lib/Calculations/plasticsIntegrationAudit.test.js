@@ -9,7 +9,7 @@ const edgeModel = { valid: true, edges: [
   { id: "hip", kind: "hip", side: "left", lengthMM: 3752 },
 ] };
 const run = (extra = {}) => buildHippedPlasticsIntegrationAudit({ geometry, edgeModel, ...extra });
-test("uses resolved VFC plus construction cover and nominal return lip", () => {
+test("uses resolved finished coverage without adding a return lip", () => {
   const result = run();
   expect(result.rows.map(row => row.fasciaWidthMM)).toEqual([250, 250]);
   expect(result.rows[0].vfcMM).toBe(159.8);
@@ -44,7 +44,7 @@ test("pools side offcuts for symmetric front joints while keeping soffit widths 
   const right = { ...geometry.facets[1], id: "right" };
   const result = run({ geometry: { facets: [...geometry.facets, right] }, edgeModel: {
     valid: true, edges: [...edgeModel.edges, { id: "right", kind: "eaves", side: "right", lengthMM: 3135, facetIds: ["right"] }] } });
-  expect(result.rows[0].finishedFasciaHeightMM).toBe(238.8);
+  expect(result.rows[0].finishedFasciaHeightMM).toBe(245);
   expect(result.totals.fasciaQty).toBe(3);
   expect(result.totals.straightJoints).toBe(2);
   expect(result.totals.frontHipCornerCount).toBe(2);
@@ -97,4 +97,13 @@ test("selects adaptable 135-degree fascia corner for unusual angles", () => {
   expect(fasciaCornerStockAngle(90)).toBe(90);
   expect(fasciaCornerStockAngle(135)).toBe(135);
   expect(fasciaCornerStockAngle(150)).toBe(135);
+});
+
+test('234mm finished cover orders 250mm and exact 250mm coverage stays in 250mm stock',()=>{
+ for (const height of [234,245]) {
+  const result=run({geometry:{...geometry,frontFinishedFasciaHeightMM:height}});
+  expect(result.rows.map(row=>row.fasciaWidthMM)).toEqual([250,250]);
+  expect(result.rows[0].structuralFasciaHeightMM).toBe(height);
+  expect(result.rows[0].finishedFasciaHeightMM).toBe(height+15);
+ }
 });

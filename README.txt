@@ -1,0 +1,7 @@
+Apply over v55. Technical audit only; Home Tile Calcs and Summary pricing/ordering/Idiot List quantities unchanged.
+Fresh cut-starter fallback now applies to any row when neither the existing offcut nor the row-above alternative can supply a nominal staggered starter. Whole new starter tile counted; unusable or unverified trim not credited. Row-above reuse remains first choice.
+Display now distinguishes available starter coverage from the smaller fitted section. The 200mm minimum applies to reusable available cover (295mm physical with rib), not to the final section fitted from that larger piece.
+Original 4050 x 2885 fixture: all facets complete nominal sequence, 54 tiles consumed + 2 spares = 56 provisional. Current Summary remains 51. This is not a validated order: 300mm depth diagrams project nominal positions, and first-course placement/top trimming/actual ribs still require physical validation. Factory observed consumption is not used to tune constants.
+39 lightweight local checks passed; changed JS/JSX parsed. Run real app checks:
+npm test -- --watchAll=false --runInBand --runTestsByPath src/lib/Calculations/squaredSteelTileOffcut.test.js src/lib/Calculations/steelTileStaggerAudit.test.js src/lib/Calculations/steelTileCourseAudit.test.js src/lib/Calculations/tileOrderAllowanceRegression.test.js src/lib/Calculations/automaticRoofTiling.test.js src/lib/Calculations/summaryTilingBOM.test.js
+npm run build

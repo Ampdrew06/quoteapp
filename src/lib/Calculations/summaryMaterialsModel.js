@@ -7,7 +7,7 @@ import { applyWeightsToLines, getFixedProductWeightKg } from "../utils/weights";
 import { calculateLeanToGeometry } from "../geometry/leanToGeometry";
 import { buildHippedLeanToTotals } from "../hippedLeanToTotals";
 import { calculateHippedLeanToGeometry } from "../geometry/hippedLeanToGeometry";
-import { buildAutomaticRoofTiling } from "./automaticRoofTiling";
+import { buildIntegratedAutomaticRoofTiling as buildAutomaticRoofTiling } from "./integratedAutomaticRoofTiling";
 import { applyUniversalTilingToSummaryLines, selectSummaryExternalFixingLathM } from "./summaryTilingBOM";
 import { buildHipRidgeLathIntegrationAudit } from "./hipRidgeLathIntegrationAudit";
 import { buildHippedPlasticsIntegrationAudit } from "./plasticsIntegrationAudit";
@@ -785,7 +785,7 @@ const steicoStockLenM = Number(m.steico?.stock_len_m ?? 12);
 // How many bars to order
 const steicoOrderQty =
   steicoStockLenM > 0 ? Math.ceil(steicoTotal_m / steicoStockLenM) : 0;
-  // ---------- 30×90 PSE ring-beam timber ----------
+  // ---------- 30×95 PSE ring-beam timber ----------
 // Continuous run along external width
 const pseRingBeamLen_m =
   integratedRingBeam.quantities.pse30x90LengthM;
@@ -968,7 +968,7 @@ const lathWeightPerM = Number(m.chamferLath?.weight_kg_per_m ?? 0);
     },
       {
     key: "pse30x90_ringbeam",
-    label: "30×90 PSE",
+    label: "30×95 PSE",
     qty: Number(pseRingBeamLen_m.toFixed(2)),  // metres along external width
     units: "m",
     order_qty: pseOrderQty,                   // number of 4.8 m bars
@@ -1501,7 +1501,7 @@ if (k === "ply9mm_strips_total_m2") {
 
   return perM2 > 0 ? forceUnitPriceRecalcByQty(line, perM2) : line;
 }
-// 30×90 PSE is priced per metre (qty = total metres)
+// 30×95 PSE is priced per metre (qty = total metres)
 if (k === "pse30x90_ringbeam") {
   // Materials editor saves this as a flat key
   const perM =
@@ -2843,7 +2843,9 @@ const miscTotals = sectionTotals(miscLinesForSectionAdjusted, false);
   const installedWeightKg = materialsWeightKg + plasterboardWeightKg;
   return {
     sections, pricingSections, materialsCostForPricing, materialsBaseCost,
+    tileOrderIntegration: automaticRoofTilingAudit.tileOrderIntegration || null,
     quantityAdjustments: adjustments,
+    integratedPlasticsAudit, integratedGutterAudit,
     manufactureGeometry: isHippedLeanToEarly ? hippedGeomEarly : null,
     materialsWeightKg, plasterboardWeightKg, installedWeightKg,
     timberLinesAdjusted, tilesLinesAdjusted, plasticsLinesAdjusted, metalLinesAdjusted, gutterLinesAdjusted,

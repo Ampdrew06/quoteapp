@@ -7,7 +7,7 @@ test('replaces legacy front-only quantities and weights installed perimeter, not
  expect(lines.find(row=>row.key==='g_len').qty).toBe(4);
  expect(lines.find(row=>row.key==='g_len').line).toBe(38.52);
  expect(lines.find(row=>row.key==='g_len').weight_kg).toBe(8.52);
- expect(lines.find(row=>row.key==='g_brkt').qty).toBe(21);
+ expect(lines.find(row=>row.key==='g_brkt').qty).toBe(19);
  expect(lines.find(row=>row.key==='g_stop').qty).toBe(2);
 });
 test('keeps adaptor adjustment key and omits adaptor for round gutters',()=>{

@@ -1,3 +1,4 @@
+import { calculateFasciaCutHeight } from "./Manufacturing/fasciaCutHeight";
 // src/lib/leanToManufactureGeometry.js
 
 const num = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
@@ -457,10 +458,11 @@ const legacyFasciaPlumbCutHeightMM =
 const finishedFasciaHeightMM =
   legacyFasciaPlumbCutHeightMM + fasciaOffsetMM;
 
-  // 8) Practical fascia ordering reference
+  const fasciaCut = calculateFasciaCutHeight(finishedFasciaHeightMM);
+  // 8) Reveal Liner coverage: internal lip to top edge, no allowance deducted.
   const fasciaOrderingReferenceMM = Math.max(
   0,
-  Math.floor(finishedFasciaHeightMM - fasciaAllowanceMM)
+  fasciaCut?.coverageHeightMM ?? 0
 );
 
   // 9) Order fascia size using PRACTICAL reference, not perfect geometry
@@ -517,6 +519,8 @@ manufacturedPlumbCutHeightMM: Number(
 manufacturedOverallBlankLengthMM: Number(
   manufacturedOverallBlankLengthMM.toFixed(2)
 ),
+    fasciaCut,
+    fasciaExternalCutHeightMM: fasciaCut?.externalCutHeightMM ?? 0,
     finishedFasciaHeightMM: Number(finishedFasciaHeightMM.toFixed(2)),
 
     finishedFasciaAlignmentDatumMM: Number(finishedFasciaAlignmentDatumMM.toFixed(2)),

@@ -1,6 +1,7 @@
+import { calculateSparHookEnd } from "../geometry/hipPerimeterIntersection";
 import { buildHippedLeanToManufacturingSequence } from "./manufacturingSequenceBuilder";
 
-export const BOSS_RAFTER_TERMINAL_ALLOWANCE_MM = 140;
+export const BOSS_RAFTER_TERMINAL_ALLOWANCE_MM = 150;
 
 const finite = (value, fallback = 0) => {
   const number = Number(value);
@@ -10,8 +11,8 @@ const finite = (value, fallback = 0) => {
 /**
  * Creates manufacture profiles for the full front-facet rafters.
  * Boss rafters retain the ordinary five-sided profile but finish early at the
- * boss/rafter terminal. The 140 mm slope allowance is provisional pending a
- * physical factory check.
+ * boss/rafter terminal. The 150 mm slope allowance is confirmed by the factory
+ * measurements of the test roof.
  */
 export function buildFrontRafterManufactureProfiles({ geometry = null } = {}) {
   if (!geometry) return [];
@@ -41,6 +42,7 @@ export function buildFrontRafterManufactureProfiles({ geometry = null } = {}) {
   return (geometry.frontRafterLayoutV2?.centreRafters || [])
     .map((member) => {
       const isBossRafter = member.role === "boss-rafter";
+      const hookEnd = isBossRafter ? calculateSparHookEnd({pitchDeg}) : null;
       const terminalAllowanceMM = isBossRafter
         ? BOSS_RAFTER_TERMINAL_ALLOWANCE_MM
         : 0;
@@ -57,12 +59,16 @@ export function buildFrontRafterManufactureProfiles({ geometry = null } = {}) {
             baseInternalSlopeLengthMM > terminalAllowanceMM,
           facetPitchDeg: pitchDeg,
           externalSlopeLengthMM:
-            baseExternalSlopeLengthMM - terminalAllowanceMM,
+            baseExternalSlopeLengthMM - terminalAllowanceMM + (hookEnd?.externalEdgeAdjustmentMM || 0),
           internalSlopeLengthMM:
             baseInternalSlopeLengthMM - terminalAllowanceMM,
           horizontalFootCutMM,
           verticalFootCutMM,
-          topVerticalCutMM,
+          topVerticalCutMM:hookEnd?.topCutLengthMM ?? topVerticalCutMM,
+          topCutLengthMM:hookEnd?.topCutLengthMM ?? topVerticalCutMM,
+          topCutOffSquareDeg:hookEnd?.topCutOffSquareDeg ?? pitchDeg,
+          topCutDepartsFromPlumb:hookEnd?.departsFromPlumb ?? false,
+          sparHookExternalEdgeAdjustmentMM:hookEnd?.externalEdgeAdjustmentMM ?? 0,
           bossTerminalAllowanceMM: terminalAllowanceMM,
         },
       };

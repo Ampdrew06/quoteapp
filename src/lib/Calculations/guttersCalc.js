@@ -59,9 +59,9 @@ export function computeGuttersLeanTo(inputs = {}, materials = {}) {
   else if (outlet === "both")                   { outlets = 2; stopEnds = 0; }
   else                                          { outlets = 0; stopEnds = 2; } // 'none'
 
-  // brackets: every spacing + one at start, plus 2 per union (either side of join)
+  // Approximate spacing allowance plus one; unions and corners need no extra brackets.
   const baseBrackets = run_mm > 0 ? Math.ceil(run_mm / Math.max(1, bracket_spacing_mm)) + 1 : 0;
-  const brackets     = baseBrackets + unions * 2;
+  const brackets     = baseBrackets;
 
   // ------ counts (downpipes, per outlet) ------
   const pipes             = outlets;                 // 1 per outlet

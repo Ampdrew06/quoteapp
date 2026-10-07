@@ -390,7 +390,7 @@ export default function PlanManufacture() {
         <ol style={{ paddingLeft: 18, lineHeight: 1.6, fontSize: 15 }}>
           <li><b>Rafters</b>: {rafterCount} pcs — top edge <b>{round(i.B_mm)} mm</b> each (plumb cut {round(90 - i.pitchDeg,1)}° from horizontal).</li>
           <li><b>Wallplate (Steico 220)</b>: length ≈ <b>{round(i.extWidthMM)} mm</b>.</li>
-          <li><b>Front ring-beam</b> (PSE 90×30): length ≈ <b>{round(i.extWidthMM)} mm</b>.</li>
+          <li><b>Front ring-beam</b> (PSE 95×30): length ≈ <b>{round(i.extWidthMM)} mm</b>.</li>
           <li><b>50×25 fixing lath</b>: run ≈ <b>{round(i.extWidthMM)} mm</b>.</li>
           <li><b>9 mm ply soffit</b>: width 220 mm × length <b>{round(i.extWidthMM)} mm</b>.</li>
           <li><b>Upstands</b>: {Math.max(rafterCount - 1, 0)} pcs (each ~617 × 195 mm; PIR faces 185 mm tall).</li>

@@ -2,6 +2,7 @@
 import React from "react";
 
 export default function HippedLeanToOptions({
+  isAdmin=false,bossArrangement="offset",onBossArrangementChange,centralBossPositionMM=0,
   leftHip,
   setLeftHip,
   rightHip,
@@ -34,6 +35,7 @@ export default function HippedLeanToOptions({
   rightHipPitchTooLow,
   persist,
 }) {
+  const central = bossArrangement === "central";
   return (
   <div
     style={{
@@ -47,11 +49,17 @@ export default function HippedLeanToOptions({
     }}
   >
     <h3 style={{ margin: "0 0 10px 0" }}>Hip Configuration</h3>
+    {isAdmin && <label style={{display:'block',marginBottom:12}}>Boss arrangement
+      <select value={bossArrangement} onChange={e=>onBossArrangementChange(e.target.value)} style={{display:'block',marginTop:4,padding:6}}>
+        <option value="offset">Offset bosses</option><option value="central">Single central boss</option>
+      </select>
+    </label>}
+    {central && <p>Both hips meet one boss at {Number(centralBossPositionMM).toFixed(1)}mm from the internal left frame. Side pitches are calculated automatically. Gusset / closure bottom width: 595mm. {isAdmin ? 'Design preview; costing and manufacture integration pending.' : 'Admin-managed design.'}</p>}
 
    <div
   style={{
     display: "grid",
-    gridTemplateColumns: "repeat(4, 1fr)",
+    gridTemplateColumns: "repeat(auto-fit, minmax(185px, 1fr))",
     gap: "12px",
     alignItems: "center",
   }}
@@ -59,6 +67,7 @@ export default function HippedLeanToOptions({
   <label>
   <input
     type="checkbox"
+    disabled={central}
     checked={leftHip}
     onChange={(e) => setLeftHip(e.target.checked)}
   />{" "}
@@ -69,7 +78,8 @@ export default function HippedLeanToOptions({
         type="number"
         step="0.1"
         placeholder="Side pitch"
-        value={requestedLeftSidePitchDeg}
+        disabled={central}
+        value={central ? Number(leftSidePitchDeg).toFixed(1) : requestedLeftSidePitchDeg}
         onChange={(e) =>
           setRequestedLeftSidePitchDeg(e.target.value)
         }
@@ -105,6 +115,7 @@ export default function HippedLeanToOptions({
   <label>
   <input
     type="checkbox"
+    disabled={central}
     checked={rightHip}
     onChange={(e) => setRightHip(e.target.checked)}
   />{" "}
@@ -115,7 +126,8 @@ export default function HippedLeanToOptions({
         type="number"
         step="0.1"
         placeholder="Side pitch"
-        value={requestedRightSidePitchDeg}
+        disabled={central}
+        value={central ? Number(rightSidePitchDeg).toFixed(1) : requestedRightSidePitchDeg}
         onChange={(e) =>
           setRequestedRightSidePitchDeg(e.target.value)
         }
@@ -258,7 +270,7 @@ export default function HippedLeanToOptions({
       <div>
         ⚠ Left side pitch is {leftSidePitchDeg.toFixed(1)}°, below the minimum{" "}
         {minTilePitchDeg}° for {tileSystem === "liteslate" ? "LiteSlate" : "Britmet"}.
-        Increase the left hip width or raise the front pitch.
+        {central ? 'Raise the front pitch or review the roof dimensions.' : 'Increase the left hip width or raise the front pitch.'}
       </div>
     )}
 
@@ -266,7 +278,7 @@ export default function HippedLeanToOptions({
       <div>
         ⚠ Right side pitch is {rightSidePitchDeg.toFixed(1)}°, below the minimum{" "}
         {minTilePitchDeg}° for {tileSystem === "liteslate" ? "LiteSlate" : "Britmet"}.
-        Increase the right hip width or raise the front pitch.
+        {central ? 'Raise the front pitch or review the roof dimensions.' : 'Increase the right hip width or raise the front pitch.'}
       </div>
     )}
   </div>

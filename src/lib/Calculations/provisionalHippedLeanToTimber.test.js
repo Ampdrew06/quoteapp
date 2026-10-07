@@ -61,8 +61,8 @@ describe("buildProvisionalHippedLeanToTimber", () => {
     expect(result.totals.fullRafterQty).toBe(2);
     const boss = result.members.find((member) => member.type === "boss-rafter");
     const plain = result.members.find((member) => member.type === "rafter");
-    expect(plain.externalLengthMM - boss.externalLengthMM).toBe(140);
-    expect(plain.internalLengthMM - boss.internalLengthMM).toBe(140);
+    expect(plain.externalLengthMM - boss.externalLengthMM).toBe(150);
+    expect(plain.internalLengthMM - boss.internalLengthMM).toBe(150);
     expect(result.totals.jackQty).toBe(4);
     expect(result.totals.hipQty).toBe(2);
     expect(result.members.every((member) => member.manufactureRef)).toBe(true);
