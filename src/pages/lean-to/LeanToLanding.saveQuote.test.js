@@ -7,7 +7,7 @@ const source = fs.readFileSync(path.join(__dirname, 'LeanToLanding.jsx'), 'utf8'
 const body = source.split('const handleSaveQuote = async () => {')[1].split('\n};\n  /*')[0];
 function fixture(overrides = {}) {
   return {
-    quoteRef: '  Factory test  ', isAdmin: true, canQuote: true,isCentralBoss:false,bossArrangement:'offset',
+    quoteRef: '  Factory test  ', isAdmin: true, canQuote: true,isCentralBoss:false,centralPricingReady:true,bossArrangement:'offset',
     leftHipWidthManual:false,rightHipWidthManual:false,normalizeBossArrangementInputs:inputs=>inputs,
     getNextQuoteNumber: jest.fn().mockResolvedValue('123'),
     saveQuoteToCloud: jest.fn().mockResolvedValue({id:'saved'}),
@@ -61,9 +61,16 @@ test('unexpected save error reports failure instead of leaving the button silent
  expect(context.alert.mock.calls[0][0]).toContain('Quote was not saved.');
 });
 
-test('central design preview cannot save legacy offset-boss pricing',async()=>{
- const context=fixture({isCentralBoss:true});await run(context);
+test('central design with missing material rate cannot allocate or save a quotation',async()=>{
+ const context=fixture({isCentralBoss:true,centralPricingReady:false});await run(context);
  expect(context.getNextQuoteNumber).not.toHaveBeenCalled();
  expect(context.saveQuoteToCloud).not.toHaveBeenCalled();
- expect(context.alert.mock.calls[0][0]).toContain('pending truss integration');
+ expect(context.alert.mock.calls[0][0]).toContain('material rates');
+});
+
+test('central quotation saves the explicit arrangement and canonical Summary price',async()=>{
+ const context=fixture({isCentralBoss:true,centralPricingReady:true,bossArrangement:'central'});await run(context);
+ expect(context.saveQuoteToCloud).toHaveBeenCalledTimes(1);
+ expect(context.saveQuoteToCloud.mock.calls[0][0].inputs_json.bossArrangement).toBe('central');
+ expect(context.saveQuoteToCloud.mock.calls[0][0].pricing_json.materialsCost).toBe(1230);
 });

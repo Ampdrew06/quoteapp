@@ -24,7 +24,7 @@ export function buildHippedMetalIntegrationAudit({geometry,edgeResult,materials=
     ['jack_rafter_hooks','Jack rafter hooks',jackQty,'One per front/side jack','jack_rafter_hook_price_each',materials.metal?.jack_rafter_hook?.price_each],
     ['jack_rafter_brackets','Jack rafter brackets',jackQty,'One per front/side jack','jack_rafter_bracket_price_each',materials.metal?.jack_rafter_bracket?.price_each],
     ['boss_rafter_terminal','Boss / rafter terminals',n(geometry?.bossQty),'Resolved boss count','boss_rafter_terminal_price_each',materials.boss_price_each ?? materials.metal?.boss_rafter_terminal?.price_each],
-    ['spar_hook','Spar hooks',n(geometry?.sparHookQty),'Resolved spar hooks (current geometry: four per boss)','spar_hook_price_each',materials.metal?.spar_hook?.price_each],
+    ['spar_hook','Spar hooks',n(geometry?.sparHookQty),geometry?.bossArrangement==='central'?'Three connection pairs at the central boss':'Resolved spar hooks (four per offset boss)','spar_hook_price_each',materials.metal?.spar_hook?.price_each],
   ];
   const rows=specs.map(([key,label,qty,basis,priceKey,fallback])=>{
     const rate=materials[priceKey] ?? fallback;

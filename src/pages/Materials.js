@@ -431,6 +431,12 @@ setHasUnsavedChanges(false);
 
       {/* 1️⃣ TIMBER & SHEET MATERIALS */}
       <Section title="Timber & Sheet Materials">
+        <div style={{border:'1px solid #ddd',padding:12,borderRadius:6,marginTop:12}}>
+          <h3>45×45 PSE truss closure</h3>
+          <p>Factory-cut closure for the central-boss truss. Cost and installed weight use its cut length.</p>
+          <label>Price (£/m) <input type="number" min="0" step="0.01" value={m.truss_closure_45x45_price_per_m ?? ''} onChange={e=>setTop('truss_closure_45x45_price_per_m',e.target.value===''?null:Number(e.target.value))} /></label>
+          <label style={{marginLeft:16}}>Weight (kg/m) <input type="number" min="0" step="0.01" value={m.truss_closure_45x45_weight_kg_per_m ?? ''} onChange={e=>setTop('truss_closure_45x45_weight_kg_per_m',e.target.value===''?null:Number(e.target.value))} /></label>
+        </div>
                 {/* Steico */}
         {/* Steico */}
 <div

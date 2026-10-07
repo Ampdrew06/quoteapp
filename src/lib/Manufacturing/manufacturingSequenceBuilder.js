@@ -187,7 +187,7 @@ export function buildHippedLeanToManufacturingMembers(
     members.push({ id: "right-wallbar", type: "wallbar", side: "right" });
   }
 
-  members.push({
+  if(geometry.bossArrangement !== "central") members.push({
     id: "horizontal-wallplate",
     type: "wallplate",
     side: "back",

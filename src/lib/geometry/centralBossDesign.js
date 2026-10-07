@@ -11,7 +11,7 @@ export function normalizeBossArrangementInputs(inputs={}) {
  const width=Number(inputs.internalWidthMM ?? inputs.widthMM ?? 0);
  return {...inputs,bossArrangement:CENTRAL_BOSS,hippedSides:'both',leftHip:true,rightHip:true,
   leftHipWidthMM:width/2,rightHipWidthMM:width/2,requestedLeftSidePitchDeg:null,
-  requestedRightSidePitchDeg:null,centralGussetWidthMM:595,designIntegrationStatus:'preview'};
+  requestedRightSidePitchDeg:null,centralGussetWidthMM:595,designIntegrationStatus:'costing'};
 }
 export function buildCentralBossDesign({inputs={},materials={}}={}) {
  const resolved=normalizeBossArrangementInputs({...inputs,roofStyle:'hippedLeanTo',bossArrangement:CENTRAL_BOSS});
@@ -42,12 +42,12 @@ export function buildCentralBossDesign({inputs={},materials={}}={}) {
  const centre=layout.centreRafters.slice(0,1).map(r=>({...r,id:'front-central-boss-rafter',bossSide:'central'}));
  const allRafters=[...layout.leftJackRafters,...centre,...layout.rightJackRafters].sort((a,b)=>a.centreMM-b.centreMM);
  const front=eaves.referenceGeometry.raw;
- return {...truss,readOnly:true,designIntegrationStatus:'preview',resolvedInputs:resolved,eaves,
+ return {...truss,readOnly:true,designIntegrationStatus:'costing',resolvedInputs:resolved,eaves,
   bossQty:1,hipQty:2,bossRafterCount:1,frontRafterLayout:{...layout,centreRafters:centre,allRafters,bossRafterCount:1,totalRafterCount:allRafters.length},
   frontFoot:{hfcMM:front.manufacturedHorizontalFootCutMM,vfcMM:front.manufacturedPlumbCutHeightMM},
   sideFoot:{hfcMM:eaves.left.geometry.raw.manufacturedHorizontalFootCutMM,vfcMM:eaves.left.geometry.raw.manufacturedPlumbCutHeightMM},
   externalWidthMM:widthMM+eaves.left.manufacturedHorizontalFootRunMM+eaves.right.manufacturedHorizontalFootRunMM,
   externalProjectionMM:projectionMM+eaves.referenceBaseWidthMM,
-  assumptions:truss.assumptions.filter(note=>!note.startsWith('153mm')).concat('D/O preview uses the existing soffit solver and chamfered-lath outside-height alignment. Costing and manufacture integration remain pending.'),
+  assumptions:truss.assumptions.filter(note=>!note.startsWith('153mm')).concat('D/O preview uses the existing soffit solver and chamfered-lath outside-height alignment. Summary and quotation costing use this geometry. Manufacture integration remains pending.'),
  };
 }

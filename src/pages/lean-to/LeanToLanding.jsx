@@ -543,6 +543,7 @@ const hippedGeom =
         soffitDepthMM: num(eavesOverhangMM),
         materials: m,
 
+        bossArrangement,
         hippedSides: activeHippedSides,
         leftHipWidthMM: num(leftHipWidthMM, 1000),
         rightHipWidthMM: num(rightHipWidthMM, 1000),
@@ -1022,6 +1023,7 @@ const summaryMaterials = buildSummaryMaterialsModel({
   inputs: { ...savedSummaryInputs, ...totalsInput }, materials: m, exclusions: summaryExclusions,
   adjustments: summaryQuantityAdjustments, addedItems: readSummaryAddedItems(),
 });
+const centralPricingReady = !isCentralBoss || (Boolean(summaryMaterials.centralTrussCosts?.pricingReady) && Boolean(centralDesign?.valid) && Boolean(summaryMaterials.tileOrderIntegration?.applied || !['britmet','metrotile'].includes(tileSystem)));
 const universalMaterialsCostForPricing = summaryMaterials.materialsCostForPricing;
 
 const pricing = useMemo(() => {
@@ -1396,7 +1398,7 @@ const missingPostcode = !isAdmin && !String(deliveryPostcode || "").trim();
 const hasDeliveryPostcode = !missingPostcode;
 
 const canQuote =
-  !isCentralBoss &&
+  centralPricingReady &&
   !missingWidth &&
   !missingProjection &&
   hasDeliveryPostcode;
@@ -1452,7 +1454,7 @@ return miles;
 };
 
   const onGetQuote = async () => {
-  if (isCentralBoss) { setQuoteError("Central-boss pricing is pending truss integration. The design preview is shown below."); return; }
+  if (isCentralBoss && !centralPricingReady) { setQuoteError(summaryMaterials.centralTrussCosts?.errors?.join(" ") || "Complete the central-boss design and its material rates before quoting."); return; }
   setQuoteError("");
 
   if (!Number(widthMM) || !Number(projMM)) {
@@ -1550,7 +1552,7 @@ setShowQuote(true);
   };
 
   const handleSaveQuote = async () => {
-  if (isCentralBoss) { alert("Central-boss design is remembered locally. Saving a priced quotation is pending truss integration."); return; }
+  if (isCentralBoss && !centralPricingReady) { alert(summaryMaterials.centralTrussCosts?.errors?.join(" ") || "Complete the central-boss design and its material rates before saving."); return; }
   const manualReference = (quoteRef || "").trim();
 if (!isAdmin && !manualReference) {
   alert("Please enter a customer reference before saving.");
@@ -1738,7 +1740,7 @@ const displayExtProjectionMM =
 </h1>
         </div>
         <p style={{ color: "#555", marginTop: 0, marginBottom: 14 }}>
-          {isCentralBoss ? "Enter your sizes and options below to preview the central-boss design." : "Enter your sizes and options below. We’ll show a plan preview and your price."} 
+          {isCentralBoss ? "Enter your sizes and options below for the central-boss design and quotation." : "Enter your sizes and options below. We’ll show a plan preview and your price."} 
           Frame thickness is defaulted to 70mm, please confirm this when ordering.
         </p>
 
@@ -2310,11 +2312,11 @@ onKeyDown={(e) => {
 >
             <button
               onClick={onGetQuote}
-              disabled={isCentralBoss}
+              disabled={isCentralBoss && !centralPricingReady}
               style={{ ...primaryBtn, width: "100%" }}
               title={
-  isCentralBoss
-    ? "Central-boss pricing is pending truss integration"
+  isCentralBoss && !centralPricingReady
+    ? "Complete the central-boss design and Materials closure price"
     : !Number(widthMM) || !Number(projMM)
     ? "Enter width & projection first"
     : !hasDeliveryPostcode
@@ -2338,8 +2340,8 @@ onKeyDown={(e) => {
               style={{ ...primaryBtn, width: "100%", background: "#10b981", borderColor: "#10b981" }}
               disabled={!canQuote || (!isAdmin && !quoteRef.trim())}
 title={
-  isCentralBoss
-    ? "Central-boss design is remembered locally; quotation saving is pending truss integration"
+  isCentralBoss && !centralPricingReady
+    ? "Complete the central-boss design and Materials closure price"
     : !canQuote
     ? "Enter the required roof details first"
     : !isAdmin && !quoteRef.trim()
@@ -2361,7 +2363,13 @@ title={
         </div>
 
         {/* Results */}
-        {isCentralBoss && <CentralBossDesignPreview inputs={centralDesignInputs} materials={m} />}
+        {isCentralBoss && <CentralBossDesignPreview inputs={centralDesignInputs} materials={m} pricingReady={centralPricingReady} />}
+        {isCentralBoss && !centralPricingReady && <p role="status">{summaryMaterials.centralTrussCosts?.errors?.join(' ') || 'Complete the central-boss design before quoting.'}</p>}
+        {showQuote && isCentralBoss && centralPricingReady && <div id="quote-result" style={{...card,marginTop:16}}>
+          <h2>Central-boss quotation</h2><p>Subtotal: <b>£{(pricing.net ?? 0).toFixed(2)}</b></p>
+          <p>VAT: £{(pricing.vat ?? 0).toFixed(2)}</p><p>Total (gross): <b>£{(pricing.gross ?? 0).toFixed(2)}</b></p>
+          <p>Materials use the integrated Summary quantities. Truss manufacture drawings remain pending.</p>
+        </div>}
         {showQuote && !isCentralBoss && (
           <div id="quote-result" style={{ marginTop: 16, display: "grid", gap: 14 }}>
             {/* Plan preview */}

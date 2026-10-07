@@ -528,6 +528,7 @@ const isHippedLeanTo = roofStyle === "hippedLeanTo";
 
 const hippedGeom = isHippedLeanTo
   ? calculateHippedLeanToGeometry({
+      bossArrangement: inputs.bossArrangement ?? "offset",
       widthMM: iw,
       projectionMM: ip,
       pitchDeg,

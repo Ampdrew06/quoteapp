@@ -7,7 +7,7 @@ test('explicit central arrangement resolves one boss with two hips and one front
  expect(a.frontRafterLayout.bossRafterCount).toBe(1);
  expect(a.frontRafterLayout.allRafters.filter(r=>r.centreMM===2025)).toHaveLength(1);
  expect(a.sidePitchDeg).toBeCloseTo(20.7062785967,8);
- expect(a.gusset.widthMM).toBe(595);expect(a.designIntegrationStatus).toBe('preview');
+ expect(a.gusset.widthMM).toBe(595);expect(a.designIntegrationStatus).toBe('costing');
 });
 test('central pitches stay geometry-driven despite stale offset controls and input aliases',()=>{
  const a=buildCentralBossDesign({inputs});

@@ -7,7 +7,7 @@ const clean = label => String(label || '').replace(/ — weight unconfigured/g, 
 export function buildSummaryIdiotList(model, materials = {}) {
   const sections = {};
   if (model?.manufactureGeometry) {
-    const names = { wallbar:'Sloping wallbars', hip:'Hips', 'jack-rafter':'Jack rafters', rafter:'Plain rafters', 'boss-rafter':'Boss rafters', wallplate:'Horizontal wallplate', 'ring-beam':'Ring-beams' };
+    const names = { wallbar:model.manufactureGeometry.bossArrangement==='central'?'Truss members':'Sloping wallbars', hip:'Hips', 'jack-rafter':'Jack rafters', rafter:'Plain rafters', 'boss-rafter':'Boss rafters', wallplate:'Horizontal wallplate', 'ring-beam':'Ring-beams' };
     const members = buildHippedLeanToManufacturingMembers(model.manufactureGeometry);
     sections.assemblies = Object.entries(names).map(([key, item]) => ({key, item,
       qty: members.filter(member => member.type === key).length, units:'Ea'})).filter(row => row.qty > 0);

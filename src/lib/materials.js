@@ -22,6 +22,8 @@ export const defaultMaterials = {
     black: 1.25,
   },
 // ---------- Core timber & boards ----------
+truss_closure_45x45_price_per_m: null,
+truss_closure_45x45_weight_kg_per_m: null,
 steico: {
   price_per_m: 6.40,        // £/m (I-joist 220)
   stock_len_m: 12.0,        // ref only

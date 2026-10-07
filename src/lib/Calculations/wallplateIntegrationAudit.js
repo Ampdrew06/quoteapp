@@ -34,6 +34,18 @@ export function buildHippedWallplateIntegrationAudit({
   rearPackerWidthMM = 75,
   rearPackerMaxSpacingMM = 800,
 } = {}) {
+  if(geometry?.bossArrangement === 'central') {
+    const t=geometry.centralTruss;
+    if(!t?.valid)return {valid:false,status:'Unavailable'};
+    return {valid:true,status:'Integrated central truss',jointCount:1,
+     steico:{manufacture:t.members.reduce((sum,m)=>sum+m.externalSlopeMM,0)/1000,unit:'m',formula:'Two truss members; no horizontal wallplate'},
+     ply9:{manufacture:2*t.gusset.areaEachM2,unit:'m²',gussetCount:2,gussetAreaEachM2:t.gusset.areaEachM2,rearPackerCount:0},
+     ply18:{manufacture:2*t.chevron.areaEachM2,unit:'m²',chevronCount:2,chevronAreaM2:2*t.chevron.areaEachM2,infillAreaM2:0},
+     closure:{quantity:1,lengthM:t.closure.cutLengthMM/1000},
+     dimensions:{ewplMM:0,leftEwbsMM:t.members[0].externalSlopeMM,rightEwbsMM:t.members[1].externalSlopeMM},
+     hardware:{bossQty:1,sparHookQty:6},truss:t,
+    };
+  }
   const externalWidthMM = finiteOrNull(currentSummaryExternalWidthMM);
   const ewplMM = finiteOrNull(
     geometry?.horizontalWallplateExternalLengthMM

@@ -107,8 +107,8 @@ export function buildHippedLeanToTotals(inputs = {}, exclusions = {}, materialsO
     ...edgeAdjustmentInputs,
   });
 
-  const bossQty = (hasLeftHip ? 1 : 0) + (hasRightHip ? 1 : 0);
-  const sparHookQty = bossQty * 4;
+  const bossQty = inputs.bossArrangement === "central" ? 1 : (hasLeftHip ? 1 : 0) + (hasRightHip ? 1 : 0);
+  const sparHookQty = inputs.bossArrangement === "central" ? 6 : bossQty * 4;
 
   const hippedMetalLines = [
     bossQty > 0 && {

@@ -1,3 +1,4 @@
+import {buildCentralBossDesign} from './centralBossDesign';
 import { alignChamferedLathEaves } from "./alignChamferedLathEaves";
 import { applyRectangularRingBeamJoints } from '../Manufacturing/rectangularRingBeamJoints';
 // src/lib/geometry/HippedLeanToGeometry.js
@@ -36,6 +37,7 @@ export function calculateHippedLeanToGeometry({
   pitchDeg,
   soffitDepthMM,
   materials,
+  bossArrangement = "offset",
   hippedSides = "both", // "left" | "right" | "both"
 
   // Current/manual HP inputs.
@@ -69,11 +71,15 @@ export function calculateHippedLeanToGeometry({
     materials,
   });
 
+  const isCentralBoss = bossArrangement === 'central';
+  const centralTruss = isCentralBoss ? buildCentralBossDesign({inputs:{widthMM,projMM:projectionMM,pitchDeg,
+   soffit_mm:soffitDepthMM,sideSoffitMode,sideSoffitControlSide,specifiedSideSoffitMM},materials}) : null;
+  if(isCentralBoss && !centralTruss.valid)return {...base,valid:false,bossArrangement,centralTruss,hasLeftHip:false,hasRightHip:false,facets:[],errors:centralTruss.errors};
   const width = Number(widthMM || 0);
   const projection = Number(projectionMM || 0);
 
-  const hasLeftHip = hippedSides === "left" || hippedSides === "both";
-  const hasRightHip = hippedSides === "right" || hippedSides === "both";
+  const hasLeftHip = isCentralBoss || hippedSides === "left" || hippedSides === "both";
+  const hasRightHip = isCentralBoss || hippedSides === "right" || hippedSides === "both";
 
 // Hip positions refer to the BOSS CENTRE (joint B), not either timber endpoint.
 const manualLeftHipWidthMM = hasLeftHip
@@ -131,12 +137,13 @@ const finishedRoofHeightMM = ringBeamHeightMM + designRiseMM +
 
 // Solve the equal-depth joint about the physical boss centre. All plan,
 // manufacturing and facet consumers receive these same resolved positions.
-const leftBossGeometry = hasLeftHip ? calculateWallplateBossGeometry({
+const centralJoint = isCentralBoss ? {valid:true,pitchDeg:centralTruss.sidePitchDeg,bossCentrePositionMM:width/2,topPositionMM:width/2,bottomPositionMM:width/2,halfMitreOffsetMM:0} : null;
+const leftBossGeometry = isCentralBoss ? centralJoint : hasLeftHip ? calculateWallplateBossGeometry({
   riseMM: designRiseMM, memberDepthMM: wallplateHeightMM,
   bossCentrePositionMM: manualLeftHipWidthMM,
   requestedSidePitchDeg: requestedLeftSidePitchDeg,
 }) : null;
-const rightBossGeometry = hasRightHip ? calculateWallplateBossGeometry({
+const rightBossGeometry = isCentralBoss ? centralJoint : hasRightHip ? calculateWallplateBossGeometry({
   riseMM: designRiseMM, memberDepthMM: wallplateHeightMM,
   bossCentrePositionMM: manualRightHipWidthMM,
   requestedSidePitchDeg: requestedRightSidePitchDeg,
@@ -194,16 +201,16 @@ const leftSidePitchDeg = leftBossGeometry?.pitchDeg ?? 0;
 const rightSidePitchDeg = rightBossGeometry?.pitchDeg ?? 0;
 
   // 7) Manufacturing / fittings
-const bossQty = (hasLeftHip ? 1 : 0) + (hasRightHip ? 1 : 0);
+const bossQty = isCentralBoss ? 1 : (hasLeftHip ? 1 : 0) + (hasRightHip ? 1 : 0);
 // Each boss receives the hip plus the aligned front-section rafter.
 // Both timber connections use a pair of spar hooks: 4 hooks per boss.
-const sparHookQty = bossQty * 4;
+const sparHookQty = isCentralBoss ? 6 : bossQty * 4;
 const hipTopCutDeg = Math.min(18, Math.max(leftHipPitchDeg, rightHipPitchDeg));
 const frontSoffitMM = base.soffitDepthEffective || 0;
 
 const requestedFrontSoffitMM = frontSoffitMM;
 
-const facetEavesRule = alignChamferedLathEaves(solveFacetEavesGeometry({
+const facetEavesRule = isCentralBoss ? centralTruss.eaves : alignChamferedLathEaves(solveFacetEavesGeometry({
   requestedReferenceSoffitMM:
     requestedFrontSoffitMM,
 
@@ -489,7 +496,7 @@ const wallbarSlopeFromRingBeamTop = ({
   );
 };
 
-const leftExternalWallBarSlopeMM =
+const leftExternalWallBarSlopeMM = isCentralBoss ? centralTruss.members[0].externalSlopeMM :
   wallbarSlopeFromRingBeamTop({
     exists: hasLeftHip && leftFacetGeometry?.valid,
     pitchDeg: leftSidePitchDeg,
@@ -497,7 +504,7 @@ const leftExternalWallBarSlopeMM =
       leftFacetGeometry?.externalWallBarSlopeMM,
   });
 
-const rightExternalWallBarSlopeMM =
+const rightExternalWallBarSlopeMM = isCentralBoss ? centralTruss.members[1].externalSlopeMM :
   wallbarSlopeFromRingBeamTop({
     exists: hasRightHip && rightFacetGeometry?.valid,
     pitchDeg: rightSidePitchDeg,
@@ -528,10 +535,10 @@ const rightWallplateMitre = hasRightHip
   : null;
 
 const leftInternalWallBarSlopeMM =
-  leftWallplateMitre?.wallbarInternalSlopeMM ?? 0;
+  isCentralBoss ? centralTruss.members[0].internalSlopeMM : leftWallplateMitre?.wallbarInternalSlopeMM ?? 0;
 
 const rightInternalWallBarSlopeMM =
-  rightWallplateMitre?.wallbarInternalSlopeMM ?? 0;
+  isCentralBoss ? centralTruss.members[1].internalSlopeMM : rightWallplateMitre?.wallbarInternalSlopeMM ?? 0;
 // ======================================================
 // HORIZONTAL WALLPLATE GEOMETRY
 //
@@ -548,7 +555,7 @@ const rightInternalWallBarSlopeMM =
 // Use the finished wallbar endpoints AFTER the ring-beam datum correction.
 // Facet intersections belong to a different (floor-foot) construction and
 // cannot also be used as finished horizontal bottom endpoints.
-const wallplateAssembly = calculateWallplateAssemblyGeometry({
+const wallplateAssembly = isCentralBoss ? {valid:true,arrangement:"central",internalLengthMM:0,externalLengthMM:0} : calculateWallplateAssemblyGeometry({
   internalWidthMM: width,
   memberDepthMM: wallplateHeightMM,
   ringBeamHeightMM,
@@ -597,7 +604,7 @@ const resolvedCentreWidthMM = Math.max(
   resolvedRightBossXMM -
     resolvedLeftBossXMM
 );   
-const frontRafterLayoutV2 =
+const frontRafterLayoutV2 = isCentralBoss ? centralTruss.frontRafterLayout :
   buildDefaultFrontRafterLayout({
     widthMM: width,
 
@@ -1441,6 +1448,7 @@ const facets = applyRectangularRingBeamJoints({
     soffitDepthMM: effectiveFrontSoffitMM, materials,
   });
   return {
+  ...(isCentralBoss ? {bossArrangement,centralTruss,valid:true} : {}),
   ...base,
   rafterExternalLength: frontRafterManufactureGeometry.raw.manufacturedExternalSlopeLengthMM,
   rafterInternalLength: frontRafterManufactureGeometry.raw.internalRafterLengthMM,

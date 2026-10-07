@@ -1,3 +1,5 @@
+import {buildCentralBossTrussCosts} from './centralBossTrussCosts';
+import {normalizeBossArrangementInputs} from '../geometry/centralBossDesign';
 import { buildHippedMiscellaneousIntegrationAudit } from "./miscellaneousIntegrationAudit";
 import { integrateMiscellaneousSummary } from "./miscellaneousSummaryIntegration";
 import { integrateMetalSummaryWatercourse } from "./metalSummaryIntegration";
@@ -171,7 +173,7 @@ export function normalizeSummaryInputs(source = {}) {
     leftWall,rightWall,left_exposed:!leftWall,right_exposed:!rightWall };
 }
 export function buildSummaryMaterialsModel({ inputs = {}, materials = {}, exclusions = {}, adjustments = {}, addedItems = inputs.summaryAddedItems || [] } = {}) {
-  inputs = normalizeSummaryInputs(inputs);
+  inputs = normalizeBossArrangementInputs(normalizeSummaryInputs(inputs));
   const m = { ...materials, include_rafters_pir_cradle_in_rafters: false };
   const addedLines = buildSummaryAddedItemLines(addedItems, m);
   const isExcluded = key => String(key || '').startsWith('extra:')
@@ -584,6 +586,7 @@ const hippedGeomEarly = isHippedLeanToEarly
       pitchDeg,
       soffitDepthMM: Number(inputs.eavesOverhangMM ?? inputs.soffit_mm ?? 150),
       materials: m,
+      bossArrangement: inputs.bossArrangement ?? "offset",
       hippedSides: inputs.hippedSides ?? "both",
       leftHipWidthMM: Number(inputs.leftHipWidthMM ?? inputs.left_hip_width_mm ?? 0),
       rightHipWidthMM: Number(inputs.rightHipWidthMM ?? inputs.right_hip_width_mm ?? 0),
@@ -598,6 +601,7 @@ const hippedGeomEarly = isHippedLeanToEarly
         inputs.specifiedSideSoffitMM ?? null,
     })
   : null;
+  const centralTrussCosts = buildCentralBossTrussCosts({geometry:hippedGeomEarly,materials:m});
   const timberSpacing   = Number(m.rafter_spacing_mm ?? 665);
   const timberFirstCtr  = Number(m.rafter_first_center_mm ?? 690);
 
@@ -957,6 +961,7 @@ const lathWeightPerM = Number(m.chamferLath?.weight_kg_per_m ?? 0);
   // ---------- Manual timber lines for Summary ----------
 
   const timberManualLines = [
+    ...(centralTrussCosts?.valid ? [centralTrussCosts.closureLine] : []),
     {
       key: "steico_220_total_m",
       label: "Steico 220 I-Joists",
@@ -986,7 +991,7 @@ const lathWeightPerM = Number(m.chamferLath?.weight_kg_per_m ?? 0);
     },
 {
   key: "ply9mm_strips_total_m2",
-  label: "9mm Structural Ply (ring-beam + wallplate assembly)",
+  label: centralTrussCosts?.valid ? "9mm Structural Ply (ring-beam + truss gussets)" : "9mm Structural Ply (ring-beam + wallplate assembly)",
   qty: Number(totalPly9_m2.toFixed(2)),           // m² actually used
   units: "m²",
   order_qty: ply9OrderQty,                        // number of sheets to order
@@ -995,7 +1000,7 @@ const lathWeightPerM = Number(m.chamferLath?.weight_kg_per_m ?? 0);
 },
     {
       key: "ply18mm_wallplate_infill",
-      label: "18mm Structural Ply (wallplate infill + chevrons)",
+      label: centralTrussCosts?.valid ? "18mm Structural Ply (truss chevrons)" : "18mm Structural Ply (wallplate infill + chevrons)",
       qty: Number(totalPly18_m2.toFixed(2)),     // m² used
       units: "m²",
       order_qty: ply18OrderQty,                  // sheets to order
@@ -1194,6 +1199,7 @@ const metalManualLines = summaryEdgeBOM.lines;
 // Map whatever is in localStorage(leanToInputs) into the canonical shape
 // that buildLeanToTotals() expects (same as LeanToLanding).
 const totalsInput = {
+  bossArrangement: inputs.bossArrangement ?? "offset",
   roofStyle: inputs.roofStyle ?? inputs.roof_style ?? "leanTo",
 hippedSides: inputs.hippedSides ?? "both",
 leftHipWidthMM: Number(inputs.leftHipWidthMM ?? inputs.left_hip_width_mm ?? 0),
@@ -1248,6 +1254,7 @@ const hippedGeom = isHippedLeanTo
       pitchDeg: totalsInput.pitchDeg,
       soffitDepthMM: totalsInput.eavesOverhangMM,
       materials: m,
+      bossArrangement: totalsInput.bossArrangement,
       hippedSides: totalsInput.hippedSides,
       leftHipWidthMM: totalsInput.leftHipWidthMM,
       rightHipWidthMM: totalsInput.rightHipWidthMM,
@@ -1767,6 +1774,7 @@ const lineChargeableCost = (r) => {
   return (
     k === "steico_220_total_m" ||
     k === "pse30x90_ringbeam" ||
+    k === "truss_closure_45x45" ||
     k === "laths_25x50_lengths" ||
     k === "laths_25x50_total_m" ||
     k === "ply9mm_strips_total_m2" ||
@@ -2843,6 +2851,8 @@ const miscTotals = sectionTotals(miscLinesForSectionAdjusted, false);
   const installedWeightKg = materialsWeightKg + plasterboardWeightKg;
   return {
     sections, pricingSections, materialsCostForPricing, materialsBaseCost,
+    centralTrussCosts,
+    wallplateIntegrationAudit,
     tileOrderIntegration: automaticRoofTilingAudit.tileOrderIntegration || null,
     quantityAdjustments: adjustments,
     integratedPlasticsAudit, integratedGutterAudit,

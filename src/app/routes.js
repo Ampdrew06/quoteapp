@@ -36,7 +36,7 @@ export default function AppRoutes() {
         {/* Default redirect to /quote */}
         <Route path="/" element={<Navigate to="/quote" replace />} />
 
-        <Route path="/summary" element={<CentralBossIntegrationGate><Summary /></CentralBossIntegrationGate>} />
+        <Route path="/summary" element={<CentralBossIntegrationGate allowCentralCosting><Summary /></CentralBossIntegrationGate>} />
 
         <Route path="/customers" element={<Customers />} />
 
@@ -62,7 +62,7 @@ export default function AppRoutes() {
         <Route path="/materials" element={<Materials />} />
 
         {/* Tiles & Laths manual calculator */}
-        <Route path="/tiles-laths" element={<CentralBossIntegrationGate automaticTilesOnly><TilesLaths /></CentralBossIntegrationGate>} />
+        <Route path="/tiles-laths" element={<CentralBossIntegrationGate automaticTilesOnly allowCentralCosting><TilesLaths /></CentralBossIntegrationGate>} />
 
         {/* Placeholder for other designs */}
         <Route path="/design/:design" element={<DesignPlaceholder />} />

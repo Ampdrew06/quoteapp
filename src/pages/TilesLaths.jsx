@@ -13,6 +13,8 @@ import FacetTilingCalculator, {
 import {
   buildAutomaticRoofTiling,
 } from "../lib/Calculations/automaticRoofTiling";
+import { buildIntegratedAutomaticRoofTiling } from "../lib/Calculations/integratedAutomaticRoofTiling";
+import { isCentralBossDesign } from "../lib/geometry/centralBossDesign";
 import { buildAutomaticRoofEdgeBOM } from "../lib/Calculations/automaticRoofEdgeBOM";
 import { buildHipManufactureAudit } from "../lib/Calculations/hipManufactureAudit";
 import { buildJackRafterManufactureAudit } from "../lib/Calculations/jackRafterManufactureAudit";
@@ -100,7 +102,8 @@ export default function TilesLaths() {
     useMemo(() => {
       if (!isAutomaticMode) return null;
 
-      return buildAutomaticRoofTiling({
+      const calculate = isCentralBossDesign(savedRoofInputs) ? buildIntegratedAutomaticRoofTiling : buildAutomaticRoofTiling;
+      return calculate({
         roofInputs: savedRoofInputs,
         materials: m,
       });
