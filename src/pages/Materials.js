@@ -432,8 +432,8 @@ setHasUnsavedChanges(false);
       {/* 1️⃣ TIMBER & SHEET MATERIALS */}
       <Section title="Timber & Sheet Materials">
         <div style={{border:'1px solid #ddd',padding:12,borderRadius:6,marginTop:12}}>
-          <h3>45×45 PSE truss closure</h3>
-          <p>Factory-cut closure for the central-boss truss. Cost and installed weight use its cut length.</p>
+          <h3>Truss closure — rafter offcuts</h3>
+          <p>Assembled closure for the central-boss truss. Provisional cost and weight allowances use its finished length.</p>
           <label>Price (£/m) <input type="number" min="0" step="0.01" value={m.truss_closure_45x45_price_per_m ?? ''} onChange={e=>setTop('truss_closure_45x45_price_per_m',e.target.value===''?null:Number(e.target.value))} /></label>
           <label style={{marginLeft:16}}>Weight (kg/m) <input type="number" min="0" step="0.01" value={m.truss_closure_45x45_weight_kg_per_m ?? ''} onChange={e=>setTop('truss_closure_45x45_weight_kg_per_m',e.target.value===''?null:Number(e.target.value))} /></label>
         </div>
@@ -1521,6 +1521,11 @@ setHasUnsavedChanges(false);
         </thead>
         <tbody>
           {[
+            {
+              label: "Gable box end (400 × 1000mm blank)",
+              whiteKey: "gable_box_end_400x1000_white_price",
+              foiledKey: "gable_box_end_400x1000_foiled_price",
+            },
             {
               label: "J-Section",
               whiteKey: "fascia_j_section_white_price",

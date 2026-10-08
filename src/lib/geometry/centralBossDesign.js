@@ -48,6 +48,6 @@ export function buildCentralBossDesign({inputs={},materials={}}={}) {
   sideFoot:{hfcMM:eaves.left.geometry.raw.manufacturedHorizontalFootCutMM,vfcMM:eaves.left.geometry.raw.manufacturedPlumbCutHeightMM},
   externalWidthMM:widthMM+eaves.left.manufacturedHorizontalFootRunMM+eaves.right.manufacturedHorizontalFootRunMM,
   externalProjectionMM:projectionMM+eaves.referenceBaseWidthMM,
-  assumptions:truss.assumptions.filter(note=>!note.startsWith('153mm')).concat('D/O preview uses the existing soffit solver and chamfered-lath outside-height alignment. Summary and quotation costing use this geometry. Manufacture integration remains pending.'),
+  assumptions:truss.assumptions.filter(note=>!note.startsWith('153mm')).map(note=>note.replace('No cost or loading quantities are integrated yet.','Costing and manufacture quantities are integrated.')).concat('D/O preview uses the existing soffit solver and chamfered-lath outside-height alignment. Summary and quotation costing use this geometry. Manufacture dimensions use this geometry.'),
  };
 }

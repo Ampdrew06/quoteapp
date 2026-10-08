@@ -19,11 +19,11 @@ export default function CentralBossIntegrationGate({children,automaticTilesOnly=
  if(allowCentralCosting && design.valid)return children;
  const model=design.valid ? buildSummaryMaterialsModel({inputs,materials}) : null;
  return <><NavTabs /><main style={{maxWidth:1000,margin:'0 auto',padding:16}}>
-  <h1>Central-boss design</h1><p>Its Summary and quotation quantities are integrated; truss manufacture drawings remain pending.</p>
+  <h1>Central-boss design</h1><p>Its Summary and quotation quantities are integrated; truss manufacture drawings are available in the manufacture book.</p>
   <Link to="/quote/lean-to">Return to Design/Options</Link>
   <CentralBossDesignPreview inputs={inputs} materials={materials} pricingReady={!!model?.centralTrussCosts?.pricingReady} />
   {model?.centralTrussCosts?.valid && <section><h2>Central truss material reconciliation</h2>
-    <ul>{[['Truss joists', 'trussMembers'],['9mm gussets', 'gussets'],['18mm chevrons', 'chevrons'],['45×45 closures', 'closures'],['Boss / rafter terminal', 'bosses'],['Spar hooks', 'sparHooks']].map(([label,key])=><li key={key}>{label}: {model.centralTrussCosts.quantities[key]}</li>)}</ul>
+    <ul>{[['Truss joists', 'trussMembers'],['9mm gussets', 'gussets'],['18mm chevrons', 'chevrons'],['Assembled closures', 'closures'],['Boss / rafter terminal', 'bosses'],['Spar hooks', 'sparHooks']].map(([label,key])=><li key={key}>{label}: {model.centralTrussCosts.quantities[key]}</li>)}</ul>
     <p>Closure cut length: 595mm. Joist and ply requirements are included in Summary timber totals.</p>
     <p>{model.centralTrussCosts.errors.join(' ')}</p>
   </section>}

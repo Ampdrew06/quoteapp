@@ -2368,7 +2368,7 @@ title={
         {showQuote && isCentralBoss && centralPricingReady && <div id="quote-result" style={{...card,marginTop:16}}>
           <h2>Central-boss quotation</h2><p>Subtotal: <b>£{(pricing.net ?? 0).toFixed(2)}</b></p>
           <p>VAT: £{(pricing.vat ?? 0).toFixed(2)}</p><p>Total (gross): <b>£{(pricing.gross ?? 0).toFixed(2)}</b></p>
-          <p>Materials use the integrated Summary quantities. Truss manufacture drawings remain pending.</p>
+          <p>Materials use the integrated Summary quantities. Truss manufacture drawings are available in the manufacture book.</p>
         </div>}
         {showQuote && !isCentralBoss && (
           <div id="quote-result" style={{ marginTop: 16, display: "grid", gap: 14 }}>

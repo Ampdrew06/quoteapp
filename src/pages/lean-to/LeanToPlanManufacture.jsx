@@ -1,3 +1,4 @@
+import ManufacturingCentralTrussDrawing from '../../components/ManufacturingCentralTrussDrawing';
 // src/pages/lean-to/LeanToPlanManufacture.jsx
 import PlasticsCuttingGuide from "../../components/PlasticsCuttingGuide";
 import React, { useEffect, useMemo, useState } from "react";
@@ -491,7 +492,7 @@ const roofStyleKey =
 
 const roofStyleLabel =
   roofStyleKey === "hippedLeanTo"
-    ? "Hipped Lean-To"
+    ? (q.bossArrangement === "central" ? "Hipped Lean-To — central boss" : "Hipped Lean-To")
     : roofStyleKey === "leanTo"
     ? "Lean-To"
     : roofStyleKey === "edwardian"
@@ -626,10 +627,12 @@ const specifiedSideSoffitMM =
   jobInputs.specifiedSideSoffitMM ??
   null;
 
+const isCentralBoss = roofStyleKey === "hippedLeanTo" && q.bossArrangement === "central";
 const hippedGeom = useMemo(
   () =>
     roofStyleKey === "hippedLeanTo"
       ? calculateHippedLeanToGeometry({
+          bossArrangement: q.bossArrangement ?? "offset",
           widthMM: iw,
           projectionMM: ip,
           pitchDeg,
@@ -640,9 +643,6 @@ const hippedGeom = useMemo(
           leftHipWidthMM,
           rightHipWidthMM,
 
-                    hippedSides: activeHippedSides,
-          leftHipWidthMM,
-          rightHipWidthMM,
 
           requestedLeftSidePitchDeg:
             requestedLeftSidePitchDeg == null ||
@@ -665,8 +665,6 @@ const hippedGeom = useMemo(
               : Number(specifiedSideSoffitMM),
 
           leftWall,
-
-          leftWall,
           rightWall,
           leftOverhangMM: L,
           rightOverhangMM: R,
@@ -674,6 +672,7 @@ const hippedGeom = useMemo(
       : null,
   [
     roofStyleKey,
+    q.bossArrangement,
     iw,
     ip,
     pitchDeg,
@@ -1308,7 +1307,7 @@ if (leftHip) {
 }
 
 // Horizontal wallplate
-structuralLines.push({
+if (!isCentralBoss) structuralLines.push({
   id: "horizontal-wallplate",
   type: "wallplate",
   role: "wallplate",
@@ -1898,10 +1897,10 @@ structuralLines,
 
 manufacturingSequence,
 
-    markers,
+    markers: isCentralBoss ? markers.slice(0,1) : markers,
 
     dimensions: [
-  ...dimensions,
+  ...dimensions.filter(dimension=>!isCentralBoss || dimension.id!=="external-wallplate-length"),
   ...frontRafterSpacingAnnotations,
   ...sideJackSpacingAnnotations,
 ],
@@ -1926,6 +1925,7 @@ manufacturingSequence,
   });
 }, [
   roofStyleKey,
+  isCentralBoss,
   hippedGeom,
   iw,
   ip,
@@ -3114,8 +3114,9 @@ const ringBeamManufactureSchedule = useMemo(
     </section>
           
 
+    {isCentralBoss && <ManufacturingCentralTrussDrawing truss={hippedGeom?.centralTruss} memberRefs={buildHippedLeanToManufacturingSequence(hippedGeom).members.filter(member=>member.type==='wallbar').map(member=>member.manufactureRef)} />}
     {/* ===== EXISTING HIPPED MANUFACTURE PAGE ===== */}
-    <section className="pm-page pm-wallplate-page">
+    {!isCentralBoss && <section className="pm-page pm-wallplate-page">
     <div className="pm-wallplate-panel" style={{ ...panel, padding: "3mm 2mm" }}>
 
       <div
@@ -3243,7 +3244,7 @@ const ringBeamManufactureSchedule = useMemo(
 
       <div className="pm-wallplate-ply-space" aria-label="Space reserved for future ply element drawings" />
     </div>
-  </section>
+  </section>}
 
   {provisionalRoofMemberGroups.length > 0 && (
     <section className="pm-page">
@@ -3552,6 +3553,8 @@ const ringBeamManufactureSchedule = useMemo(
       </div>
 
       <style>{`
+        .pm-truss-page { break-inside: avoid; }
+        .pm-truss-page svg { max-width: none !important; }
         .pm-wallplate-panel { min-height: 260mm; box-sizing: border-box; }
         .pm-wallplate-page svg { max-width: none !important; max-height: 58mm; }
         .pm-wallplate-ply-space { min-height: 35mm; }

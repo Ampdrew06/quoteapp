@@ -54,7 +54,7 @@ export default function HippedLeanToOptions({
         <option value="offset">Offset bosses</option><option value="central">Single central boss</option>
       </select>
     </label>}
-    {central && <p>Both hips meet one boss at {Number(centralBossPositionMM).toFixed(1)}mm from the internal left frame. Side pitches are calculated automatically. Gusset / closure bottom width: 595mm. {isAdmin ? 'Central-boss design; manufacture drawings pending.' : 'Admin-managed design.'}</p>}
+    {central && <p>Both hips meet one boss at {Number(centralBossPositionMM).toFixed(1)}mm from the internal left frame. Side pitches are calculated automatically. Gusset / closure bottom width: 595mm. {isAdmin ? 'Central-boss design; manufacture dimensions available.' : 'Admin-managed design.'}</p>}
 
    <div
   style={{

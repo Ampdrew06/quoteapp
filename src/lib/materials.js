@@ -22,6 +22,8 @@ export const defaultMaterials = {
     black: 1.25,
   },
 // ---------- Core timber & boards ----------
+gable_box_end_400x1000_white_price: null,
+gable_box_end_400x1000_foiled_price: null,
 truss_closure_45x45_price_per_m: null,
 truss_closure_45x45_weight_kg_per_m: null,
 steico: {

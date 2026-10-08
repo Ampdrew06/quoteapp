@@ -1,3 +1,4 @@
+import GableDesignPreview from '../pages/gable/GableDesignPreview';
 import CentralBossIntegrationGate from '../components/CentralBossIntegrationGate';
 // src/app/routes.js
 
@@ -50,7 +51,7 @@ export default function AppRoutes() {
         <Route path="/quote/lean-to/technical" element={<CentralBossIntegrationGate><LeanToTechnical /></CentralBossIntegrationGate>} />
 
         {/* Combined Plan + Manufacture (print-ready) */}
-        <Route path="/quote/lean-to/plan-manufacture" element={<CentralBossIntegrationGate><LeanToPlanManufacture /></CentralBossIntegrationGate>} />
+        <Route path="/quote/lean-to/plan-manufacture" element={<CentralBossIntegrationGate allowCentralCosting><LeanToPlanManufacture /></CentralBossIntegrationGate>} />
 
         {/* (Optional) keep the simple plan page if you still link to it */}
         {/* <Route path="/quote/lean-to/plan" element={<LeanToPlan />} /> */}
@@ -64,9 +65,11 @@ export default function AppRoutes() {
         {/* Tiles & Laths manual calculator */}
         <Route path="/tiles-laths" element={<CentralBossIntegrationGate automaticTilesOnly allowCentralCosting><TilesLaths /></CentralBossIntegrationGate>} />
 
+        <Route path="/design/gable" element={<GableDesignPreview />} />
+
         {/* Placeholder for other designs */}
         <Route path="/design/:design" element={<DesignPlaceholder />} />
-        <Route path="/idiot-list" element={<CentralBossIntegrationGate><IdiotList /></CentralBossIntegrationGate>} />
+        <Route path="/idiot-list" element={<CentralBossIntegrationGate allowCentralCosting><IdiotList /></CentralBossIntegrationGate>} />
         {/* Catch-all → /quote */}
         <Route path="*" element={<Navigate to="/quote" replace />} />
         <Route path="/quotes" element={<Quotes />} />

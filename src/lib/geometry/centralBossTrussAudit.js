@@ -5,15 +5,22 @@ const area = points => Math.abs(points.reduce((sum,p,i)=>{
 },0))/2/1e6;
 export function buildCentralBossTrussAudit({widthMM=4050,projectionMM=2885,frontPitchDeg=15,
  memberDepthMM=220,flangeWidthMM=45,ringBeamHeightMM=40,sideHfcMM=153,
- chevronArmMM=300,chevronWidthMM=143,gussetWidthMM=595}={}) {
+ chevronArmMM=300,chevronWidthMM=143,gussetWidthMM=595,trussPitchDeg=null}={}) {
  const values=[widthMM,projectionMM,frontPitchDeg,memberDepthMM,flangeWidthMM,ringBeamHeightMM,sideHfcMM,chevronArmMM,chevronWidthMM,gussetWidthMM].map(Number);
  if(values.some(v=>!Number.isFinite(v)||v<=0)||Number(frontPitchDeg)>=90) return {valid:false,errors:['Positive finite dimensions and a front pitch below 90° are required.']};
  [widthMM,projectionMM,frontPitchDeg,memberDepthMM,flangeWidthMM,ringBeamHeightMM,sideHfcMM,chevronArmMM,chevronWidthMM,gussetWidthMM]=values;
  const half=widthMM/2,front=frontPitchDeg*Math.PI/180;
- const rise=projectionMM*Math.tan(front);
+ let rise=projectionMM*Math.tan(front);
  // Preserve the current horizontal wallplate joint-centre height as the
  // proposed central boss datum. This is an explicit factory-review assumption.
- const bossHeightMM=ringBeamHeightMM+rise+memberDepthMM/2;
+ let bossHeightMM=ringBeamHeightMM+rise+memberDepthMM/2;
+ if(trussPitchDeg!=null) {
+  const degrees=Number(trussPitchDeg);
+  if(!Number.isFinite(degrees)||degrees<=0||degrees>=90)return {valid:false,errors:["Truss pitch must be between 0 and 90 degrees."]};
+  const angle=degrees*Math.PI/180;
+  bossHeightMM=ringBeamHeightMM+half*Math.tan(angle)+memberDepthMM/(2*Math.cos(angle));
+  rise=bossHeightMM-ringBeamHeightMM-memberDepthMM/2;
+ }
  const target= bossHeightMM-ringBeamHeightMM;
  let lo=0,hi=Math.PI/2-1e-8;
  for(let i=0;i<80;i++) {

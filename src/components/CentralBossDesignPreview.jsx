@@ -13,7 +13,7 @@ export default function CentralBossDesignPreview({inputs,materials,pricingReady=
  const tx=v=>70+(v+a.sideFoot.hfcMM)*trussScale,ty=v=>300-(v-bottom)*trussScale;
  return <section style={{marginTop:16,padding:16,border:'1px solid #cbd5e1',borderRadius:8,background:'#fff'}}>
   <h2>Single central boss — design preview</h2>
-  <p>One central boss, two hips and a rear truss. This choice is remembered with your design. {pricingReady ? 'Summary costing and quotation saving are available. Manufacture drawings remain pending.' : 'Complete the design and enter the 45×45 closure price on Materials to enable quotation pricing. Manufacture drawings remain pending.'}</p>
+  <p>One central boss, two hips and a rear truss. This choice is remembered with your design. {pricingReady ? 'Summary costing and quotation saving are available. Manufacture dimensions are available in the manufacture book.' : 'Complete the design and enter the closure allowance per metre on Materials to enable quotation pricing. Manufacture dimensions are available in the manufacture book.'}</p>
   <svg viewBox="0 0 800 475" style={{width:'100%',maxWidth:850}} aria-label="Three-facet central-boss roof plan">
    <rect x={x(-side)} y={y(0)} width={a.externalWidthMM*scale} height={a.externalProjectionMM*scale} fill="#f1f5f9" stroke="#94a3b8" />
    <polygon points={`${x(0)},${y(0)} ${x(centre)},${y(0)} ${x(0)},${y(projection)}`} fill="#dbeafe" stroke="#475569" />

@@ -36,7 +36,7 @@ const triangularRows = (slopeMM, centresMM) =>
     (position) => position < nonNegative(slopeMM) - 0.001
   );
 
-const chooseSuperQuiltMix = ({
+export const chooseSuperQuiltMix = ({
   requiredNominalM2,
   price12 = 0,
   price15 = 0,

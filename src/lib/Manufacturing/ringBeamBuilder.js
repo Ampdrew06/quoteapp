@@ -1,5 +1,7 @@
 // src/lib/manufacturing/ringBeamBuilder.js
 
+export const RING_BEAM_MEMBER_SLOT_WIDTH_MM = 48;
+
 const toFiniteNumber = (value, fallback = 0) => {
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
@@ -45,7 +47,7 @@ export function buildRingBeam({
   pirFacesPerBay = 2,
   pseWidthMM = 95,
   outerLathWidthMM = 50,
-  memberSlotWidthMM = 48,
+  memberSlotWidthMM = RING_BEAM_MEMBER_SLOT_WIDTH_MM,
 }) {
   const resolvedExternalLengthMM = Math.max(
     0,
@@ -281,7 +283,7 @@ const resolvedFasciaOrderSizeMM = Math.max(
       pirFacesPerBay: resolvedPirFacesPerBay,
       memberSlotWidthMM: Math.max(
         0,
-        toFiniteNumber(memberSlotWidthMM, 48)
+        toFiniteNumber(memberSlotWidthMM, RING_BEAM_MEMBER_SLOT_WIDTH_MM)
       ),
     },
 
