@@ -10,6 +10,9 @@ const STORAGE_KEY = "materials_v1";
 const CLOUD_SETTINGS_KEY = "materials_v1";
 
 export const defaultMaterials = {
+  concrete_screws_units_per_box: 100,
+  factory_staples_32mm_price_per_box: 35,
+  factory_staples_32mm_units_per_box: 10000,
   // --- uPVC colour price multipliers ---
   // Multiplies against “white” base prices
   // 1.00 = white
@@ -1396,7 +1399,9 @@ pir50_cradle_weight_multiplier: true,
       j_section_weight_kg_each_foiled:    true,
 
 // Fixings & Miscellaneous (Materials page keys)
-d4_glue_price_per_tub: true,
+factory_staples_32mm_price_per_box: true,
+  factory_staples_32mm_units_per_box: true,
+  d4_glue_price_per_tub: true,
 screws_1_5x10_price_per_box: true,
 screws_1_5x10_units_per_box: true,
 spar_hook_rivets_price_per_box: true,
@@ -1456,6 +1461,7 @@ drywall_screws_32mm_weight_kg_per_box: true,
 drywall_screws_50mm_price_per_box: true,
 drywall_screws_50mm_weight_kg_per_box: true,
 
+concrete_screws_units_per_box: true,
 concrete_screws_price_per_box: true,
 concrete_screws_weight_kg_per_box: true,
 // Materials UI keys (must be persisted)

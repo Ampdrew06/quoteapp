@@ -25,8 +25,8 @@ export function buildGablePlasticsGutteringAudit({geometry:g,materials:m={},plas
  const add=(list,key,label,qty,unit,price)=>{const p=rate(price);list.push({key,label,qty,unit,unitPrice:p,cost:p==null?null:qty*p});};
  [...new Set(fasciaPlan.boards.map(b=>b.widthMM))].sort((a,b)=>a-b).forEach(w=>add(plasticLines,`fascia-${w}`,`${w}mm Reveal Liner`,fasciaPlan.boards.filter(b=>b.widthMM===w).length,`${fasciaStockM}m boards`,fasciaRates[w]));
  soffitPlan.order.forEach(r=>add(plasticLines,`soffit-${r.widthMM}`,`${r.widthMM}mm soffit`,r.qty,`${soffitStockM}m boards`,soffitRates[r.widthMM]));
- const boxEndCoverageReview=g.truss.gusset.blankHeightMM>400||g.truss.gusset.widthMM>1000;
- add(plasticLines,'boxEnd',boxEndCoverageReview?'Central box end — 400 × 1000mm blank (coverage needs review)':'Central box end — 400 × 1000mm blank',1,'blank',m[`gable_box_end_400x1000_${band}_price`]);
+ const boxEndCoverageReview=false; // Supplied as one blank, cut to suit; stock dimensions await a cut-detail review.
+ add(plasticLines,'boxEnd','Central box end — one blank, cut to suit',1,'blank',m[`gable_box_end_400x1000_${band}_price`]);
  add(plasticLines,'corners','Front fascia corners — two per side',4,'each',m[`fascia_corner_90_ext_300_${band}_price`]);
  add(plasticLines,'joints','Fascia joints — two box-end joins plus stock joins',2+fasciaPlan.joints,'each',m[`fascia_joint_300_${band}_price`]);
  // J-trim follows the external frame/A-frame profile, not the overhanging roof perimeter.
@@ -48,8 +48,8 @@ export function buildGablePlasticsGutteringAudit({geometry:g,materials:m={},plas
  return {valid:true,readOnly:true,errors:[],band,boxEndCoverageReview,sideRows,frontRows,fasciaPlan,soffitPlan,gutterPlan,counts,bracketsPerSide,spacingMM,jRunM,frontJRunMM,ventM,plasticLines,gutterLines,notes:[
  'Includes 5mm front soffit clearance—do not add again. Both side ring-beams and the front truss use manufacturing projection. Requested front soffit width and quotation dimensions remain unchanged.',
  'Gutters are independent side runs. Brackets use ceiling(each run / spacing) + one per run. Suitable stock offcuts are shared; unions and corners receive no additional brackets. Each side has its own outlet and round downpipe assembly.',
- 'Side fascia cut heights reuse the shared soffit/lip/starter clearance rule. Front sloping fascia uses provisional 300mm stock regardless of pitch; factory review remains pending.',
- 'One central 400 × 1000mm box-end blank covers the front gusset. It joins the two sloping fascias with two joints. Its exact cut outline, finished height and joint fitting lengths require a workshop drawing; no finished box-end cut dimensions are claimed.',
+ 'Side fascia cut heights reuse the shared soffit/lip/starter clearance rule. Front sloping fascia uses confirmed 300mm stock to cover the 289mm build-up: 220mm truss, 25mm external lath, 34mm internal lath/quilt and 10mm lining.',
+ 'One central box-end blank is supplied per roof and cut to cover the front gusset. It joins the two sloping fascias with two joints. Its exact cut outline, finished height and joint fitting lengths require a workshop drawing; no finished box-end cut dimensions are claimed.',
  'Front soffit includes two sloping runs and the flat under the closure. Width follows the requested overhang. J-trim follows side frame runs and the assumed front A-frame slopes/flat, including the central flat; confirm the A-frame fixing profile in the factory.',
  'Four front fascia corners are allowed as instructed. Corner angle/detail, soffit corner H-trim and front flat-to-slope joints require confirmation. H-trim currently includes straight stock joints only.',
  'Board quantities share compatible offcuts using existing stock planners. A fitting candidate is shown, not a validated manufacture cut list. Only the side eaves receive factory venting.',

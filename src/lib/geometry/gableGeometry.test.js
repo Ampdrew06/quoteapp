@@ -6,7 +6,7 @@ test('factory Gable defaults resolve external dimensions, two straight ring-beam
  expect(g.ridgeXMM).toBe(1900);expect(g.pitchDeg).toBe(25);
  expect(g.ringBeams.map(r=>r.lengthMM)).toEqual([4425,4425]);
  expect(g.truss.sidePitchDeg).toBeCloseTo(25,8);
- expect(g.layout.centresMM[0]).toBe(31.5);expect(g.layout.centresMM[1]).toBe(690);
+ expect(g.layout.centresMM[0]).toBe(31.5);expect(g.layout.centresMM[1]).toBe(696.5);
  expect(g.layout.frontCentreMM).toBe(4402.5);expect(g.layout.trussCount).toBe(8);
  expect(g.layout.gapsMM.every(gap=>gap>=400&&gap<=700)).toBe(true);
 });
@@ -44,4 +44,14 @@ test('invalid dimensions, overhangs and oversized soffits do not produce cut geo
 
 test('front clearance is applied once to manufacturing without changing customer dimensions or soffit',()=>{
  const g=buildGableGeometry({inputs});expect(g.externalProjectionMM).toBe(4420);expect(g.manufacturingProjectionMM).toBe(4425);expect(g.frontSoffitClearanceMM).toBe(5);expect(g.frontOverhangMM).toBe(150);expect(g.ridgeLengthMM).toBe(4425);
+});
+
+test('retains standard centres and adjusts only the final two gaps on the example roof',()=>{
+ const layout=buildGableTrussLayout({externalProjectionMM:4325});
+ expect(layout.gapsMM).toEqual([665,665,665,665,665,473,473]);
+ expect(layout.centresMM[1]).toBe(696.5);
+});
+test('setting out follows joist width and rear packer without changing slot tolerance',()=>{
+ const layout=buildGableTrussLayout({externalProjectionMM:4325,joistWidthMM:47});
+ expect(layout.rearCentreMM).toBe(32.5);expect(layout.centresMM[1]).toBe(697.5);
 });

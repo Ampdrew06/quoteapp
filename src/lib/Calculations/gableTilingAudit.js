@@ -34,7 +34,7 @@ export function buildGableTilingAudit({geometry:g,materials:m={},productId='brit
  add('starter','3m tile starter — two eaves',Math.ceil(2*ridgeMM/3000),'lengths',m.eaves_guard_price_each);
  return {valid:true,readOnly:true,errors:[],productId,steel,facets,result,sequence,mainTiles,ridgeMM,ridgeTiles,ridgeLathM,fieldLathM,chamferM,lathM,lathStockLengths:Math.ceil(lathM/stockM),stockM,lines,knownCost:lines.reduce((s,l)=>s+(l.cost??0),0),notes:[
  'Each roof face uses the shared facet tile/lath engine. Steel ordering uses the accepted right-to-left stagger and same-facet offcut sequence, with a 295mm physical minimum (95mm rib plus 200mm visible) and two additional tiles per roof.',
- 'Tile faces extend 50mm in plan beyond the external member edge at each eaves. Their areas are tile coverage candidates; membrane area reconciliation remains for the next integration review.',
+ 'Tile faces extend 50mm in plan beyond the external member edge at each eaves. The membrane audit uses the same whole-roof boundary, excluding extra overlap and gutter-drape allowances from installed weight.',
  'External field laths include the perimeter row; ridge support is added once. Stock rounding pools these uses. Ring-beam fixing laths and internal ceiling laths are outside this subtotal.',
  'Steel ridge tiles use a full 1250mm first piece and 1150mm subsequent coverage. Ridge laths receive ventilation strips, not foam tape. Only the front receives an end cap. Tile-starter stock is pooled across the two eaves.',
  'LiteSlate uses the final ordinary cut course beneath the ridge, without an additional short finishing course or lath. This factory allowance can be reviewed after a physical build.',

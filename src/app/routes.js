@@ -1,3 +1,4 @@
+import GablePage from '../pages/gable/GablePage';
 import GableDesignPreview from '../pages/gable/GableDesignPreview';
 import CentralBossIntegrationGate from '../components/CentralBossIntegrationGate';
 // src/app/routes.js
@@ -65,6 +66,9 @@ export default function AppRoutes() {
         {/* Tiles & Laths manual calculator */}
         <Route path="/tiles-laths" element={<CentralBossIntegrationGate automaticTilesOnly allowCentralCosting><TilesLaths /></CentralBossIntegrationGate>} />
 
+        <Route path="/quote/gable" element={<GablePage />} />
+        <Route path="/quote/gable/summary" element={<GablePage summary />} />
+        <Route path="/quote/gable/technical" element={<GablePage technical />} />
         <Route path="/design/gable" element={<GableDesignPreview />} />
 
         {/* Placeholder for other designs */}

@@ -431,12 +431,6 @@ setHasUnsavedChanges(false);
 
       {/* 1️⃣ TIMBER & SHEET MATERIALS */}
       <Section title="Timber & Sheet Materials">
-        <div style={{border:'1px solid #ddd',padding:12,borderRadius:6,marginTop:12}}>
-          <h3>Truss closure — rafter offcuts</h3>
-          <p>Assembled closure for the central-boss truss. Provisional cost and weight allowances use its finished length.</p>
-          <label>Price (£/m) <input type="number" min="0" step="0.01" value={m.truss_closure_45x45_price_per_m ?? ''} onChange={e=>setTop('truss_closure_45x45_price_per_m',e.target.value===''?null:Number(e.target.value))} /></label>
-          <label style={{marginLeft:16}}>Weight (kg/m) <input type="number" min="0" step="0.01" value={m.truss_closure_45x45_weight_kg_per_m ?? ''} onChange={e=>setTop('truss_closure_45x45_weight_kg_per_m',e.target.value===''?null:Number(e.target.value))} /></label>
-        </div>
                 {/* Steico */}
         {/* Steico */}
 <div
@@ -580,6 +574,19 @@ setHasUnsavedChanges(false);
       onChange={(e) => set("ringBeam.routing_price_per_m", e.target.value)}
       style={{ width: 90 }}
     />
+  </div>
+
+  <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12, marginTop: 10, paddingTop: 10, borderTop: "1px solid #eee" }}>
+    <div style={{ fontSize: 15, fontWeight: 600 }}>Truss closure — rafter offcuts</div>
+    <div style={{ flex: 1 }} />
+    <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <span>£ / m</span>
+      <input type="number" min="0" step="0.01" value={m.truss_closure_45x45_price_per_m ?? ''} onChange={e=>setTop('truss_closure_45x45_price_per_m',e.target.value===''?null:Number(e.target.value))} style={{ width: 90 }} />
+    </label>
+    <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <span>kg / m</span>
+      <input type="number" min="0" step="0.01" value={m.truss_closure_45x45_weight_kg_per_m ?? ''} onChange={e=>setTop('truss_closure_45x45_weight_kg_per_m',e.target.value===''?null:Number(e.target.value))} style={{ width: 90 }} />
+    </label>
   </div>
 </div>
 
@@ -2036,6 +2043,12 @@ setHasUnsavedChanges(false);
         priceLabel: "£ / tub",
       },
       {
+        label: "32mm Staples — 14/32 NK HZ (factory use)",
+        priceKey: "factory_staples_32mm_price_per_box",
+        priceLabel: "£ / box",
+        unitsKey: "factory_staples_32mm_units_per_box",
+      },
+      {
         label: '1½" × 10 Screws — factory use',
         priceKey: "screws_1_5x10_price_per_box",
         priceLabel: "£ / box",
@@ -2101,9 +2114,10 @@ setHasUnsavedChanges(false);
         priceLabel: "£ / box",
       },
       {
-        label: "Concrete Screws",
+        label: "150mm Concrete Screws — full box price",
         priceKey: "concrete_screws_price_per_box",
         priceLabel: "£ / box",
+        unitsKey: "concrete_screws_units_per_box",
       },
     ].map((item) => (
       <div

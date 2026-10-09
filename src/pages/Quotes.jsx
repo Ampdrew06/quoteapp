@@ -1,3 +1,4 @@
+import {isGableQuote} from '../lib/Calculations/gableQuotation';
 import { restoreSummaryPricingState } from "../lib/Calculations/summaryPricingState";
 // src/pages/Quotes.jsx
 import React, { useEffect, useMemo, useState } from "react";
@@ -66,6 +67,11 @@ export default function Quotes() {
     const item = (q || []).find((r) => r?.quote_number === quoteNumber);
     if (!item) return;
 
+    if (isGableQuote(item)) {
+      if(item.inputs_json)localStorage.setItem("gableDesignPreviewInputs",JSON.stringify(item.inputs_json));
+      nav("/quote/gable");
+      return;
+    }
     if (item.inputs_json) {
       localStorage.setItem("leanToInputs", JSON.stringify(item.inputs_json));
       restoreSummaryPricingState(item.inputs_json);
@@ -90,6 +96,10 @@ export default function Quotes() {
   };
 const convertToJob = async (quote) => {
   if (!quote?.id) return;
+  if(isGableQuote(quote)) {
+    alert("Gable manufacture integration is the next stage. This quotation can be reopened for design and pricing now.");
+    return;
+  }
 
   if (
     !window.confirm(

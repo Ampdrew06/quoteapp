@@ -1,3 +1,5 @@
+import { buildGableSummaryMaterialsModel } from './gableSummaryMaterialsModel';
+import { buildFactoryStapleAllowance, integrateFactoryAllowances } from './factoryStapleAllowance';
 import {buildCentralBossTrussCosts} from './centralBossTrussCosts';
 import {normalizeBossArrangementInputs} from '../geometry/centralBossDesign';
 import { buildHippedMiscellaneousIntegrationAudit } from "./miscellaneousIntegrationAudit";
@@ -172,7 +174,8 @@ export function normalizeSummaryInputs(source = {}) {
     plasticsColor:source.plasticsColor ?? source.plastics_color ?? 'white',
     leftWall,rightWall,left_exposed:!leftWall,right_exposed:!rightWall };
 }
-export function buildSummaryMaterialsModel({ inputs = {}, materials = {}, exclusions = {}, adjustments = {}, addedItems = inputs.summaryAddedItems || [] } = {}) {
+export function buildSummaryMaterialsModel({ inputs = {}, materials = {}, exclusions = inputs.summaryPricingState?.exclusions || {}, adjustments = inputs.summaryPricingState?.adjustments || {}, addedItems = inputs.summaryAddedItems || [] } = {}) {
+  if(String(inputs.roofStyle||'').toLowerCase()==='gable')return buildGableSummaryMaterialsModel({inputs,materials,exclusions,adjustments,addedItems});
   inputs = normalizeBossArrangementInputs(normalizeSummaryInputs(inputs));
   const m = { ...materials, include_rafters_pir_cradle_in_rafters: false };
   const addedLines = buildSummaryAddedItemLines(addedItems, m);
@@ -2275,7 +2278,14 @@ const integratedMiscellaneousAudit = isHippedLeanToEarly ? buildHippedMiscellane
   edgeModel: automaticRoofEdgeResult?.edgeModel,
   edgeLines: automaticRoofEdgeResult?.bom?.lines || [],
 }) : null;
-const miscLinesIntegrated = integrateMiscellaneousSummary(integratedMiscellaneousAudit, miscLinesWithUsedWeights);
+const factoryStapleAudit = buildFactoryStapleAllowance({
+  trussCount: centralTrussCosts?.valid ? 1 : 0,
+  ringBeamLengthM: integratedRingBeam.quantities.pse30x90LengthM,
+  wallplateLengthM: centralTrussCosts?.valid ? 0 : integratedWallplate.quantities.steicoLengthM,
+  materials: m,
+});
+const miscLinesIntegrated = integrateFactoryAllowances(factoryStapleAudit,
+  integrateMiscellaneousSummary(integratedMiscellaneousAudit, miscLinesWithUsedWeights), m);
 
   // ---------- totals per section (cost respects exclude; weight never does) ----------
 

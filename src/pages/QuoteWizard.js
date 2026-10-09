@@ -56,6 +56,12 @@ export default function QuoteWizard() {
     return;
   }
 
+  if (slug === "gable") {
+    localStorage.removeItem("gableDesignPreviewInputs");
+    navigate("/quote/gable");
+    return;
+  }
+
   // Other designs use the placeholder route for now
   navigate(`/design/${slug}`);
 };

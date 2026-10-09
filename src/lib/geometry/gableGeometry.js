@@ -1,6 +1,6 @@
 import {buildCentralBossTrussAudit} from './centralBossTrussAudit';
 const radians=deg=>deg*Math.PI/180;
-export function buildGableTrussLayout({externalProjectionMM,rearCentreMM=31.5,joistWidthMM=45,secondCentreMM=690,targetSpacingMM=665,minSpacingMM=400,maxSpacingMM=700}={}) {
+export function buildGableTrussLayout({externalProjectionMM,rearPackerMM=9,joistWidthMM=45,rearCentreMM=rearPackerMM+joistWidthMM/2,targetSpacingMM=665,secondCentreMM=rearCentreMM+targetSpacingMM,minSpacingMM=400,maxSpacingMM=700}={}) {
  const end=Number(externalProjectionMM)-joistWidthMM/2,start=Number(rearCentreMM);
  if(![end,start,secondCentreMM,targetSpacingMM,minSpacingMM,maxSpacingMM].every(Number.isFinite)||minSpacingMM<=0||maxSpacingMM<minSpacingMM||end<=start)return {valid:false,errors:['Invalid truss layout dimensions.'],centresMM:[],gapsMM:[]};
  const intervals=span=>{
@@ -12,7 +12,17 @@ export function buildGableTrussLayout({externalProjectionMM,rearCentreMM=31.5,jo
  const count=anchored??intervals(end-start);
  if(count==null)return {valid:false,errors:['No truss layout can satisfy 400–700mm centres. Admin review is required.'],centresMM:[],gapsMM:[]};
  const origin=anchored?secondCentreMM:start,centresMM=anchored?[start,origin]:[start];
- for(let i=1;i<=count;i++)centresMM.push(origin+(end-origin)*i/count);
+ // Preserve standard centres; redistribute only the smallest necessary tail.
+ let standardCount=0;
+ if(anchored && targetSpacingMM>=minSpacingMM && targetSpacingMM<=maxSpacingMM) {
+  for(let prefix=count-1;prefix>=0;prefix--) {
+   const tailGap=(end-origin-prefix*targetSpacingMM)/(count-prefix);
+   if(tailGap>=minSpacingMM-1e-8 && tailGap<=maxSpacingMM+1e-8){standardCount=prefix;break;}
+  }
+ }
+ for(let i=1;i<=standardCount;i++)centresMM.push(origin+i*targetSpacingMM);
+ const tailOrigin=origin+standardCount*targetSpacingMM,tailCount=count-standardCount;
+ for(let i=1;i<=tailCount;i++)centresMM.push(tailOrigin+(end-tailOrigin)*i/tailCount);
  const gapsMM=centresMM.slice(1).map((value,i)=>value-centresMM[i]);
  return {valid:true,errors:[],centresMM,gapsMM,trussCount:centresMM.length,rearCentreMM:start,frontCentreMM:end,secondCentreRetained:!!anchored,minSpacingMM,maxSpacingMM,targetSpacingMM};
 }

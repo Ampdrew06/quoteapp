@@ -29,7 +29,7 @@ test('ceiling includes the flat once while membrane follows independent external
  expect(a.superQuilt.installedWeightKg).toBeCloseTo(a.ceiling.areaM2*0.6,8);
  expect(a.superQuilt.coverageM2).toBeGreaterThanOrEqual(a.superQuilt.nominalM2);
  expect(a.plasterboard.installedWeightKg).toBeCloseTo(a.ceiling.areaM2*8.5,8);expect(a.plasterboard.supplyIncluded).toBe(false);
- expect(a.membrane.installedAreaM2).toBeCloseTo(g.manufacturingProjectionMM*g.feet.reduce((s,f)=>s+f.externalSlopeMM,0)/1e6,8);expect(a.membrane.rolls).toBe(1);
+ expect(a.membrane.installedAreaM2).toBeCloseTo(g.manufacturingProjectionMM*g.feet.reduce((s,f)=>s+f.externalSlopeMM+50/Math.cos(g.pitchDeg*Math.PI/180),0)/1e6,8);expect(a.membrane.rolls).toBe(1);
 });
 test('invalid inputs produce no audit and invalid quilt overlap is flagged',()=>{
  expect(buildGableInsulationAudit({}).valid).toBe(false);const {g,t}=build();

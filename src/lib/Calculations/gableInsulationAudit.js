@@ -14,7 +14,7 @@ export function buildGableInsulationAudit({geometry:g,timberAudit:t,materials:m=
  const flatWidthMM=g.truss.closure.cutLengthMM;
  const ceilingSlopeLengthMM=(g.widthMM-flatWidthMM)/cos;
  const ceilingAreaM2=(ceilingSlopeLengthMM+flatWidthMM)*g.projectionMM/1e6;
- const externalAreaM2=g.feet.reduce((s,f)=>s+f.externalSlopeMM,0)*(g.manufacturingProjectionMM??g.externalProjectionMM)/1e6;
+ const externalAreaM2=g.feet.reduce((s,f)=>s+f.externalSlopeMM+50/cos,0)*(g.manufacturingProjectionMM??g.externalProjectionMM)/1e6;
  const board=(netAreaM2,config,waste)=>{
   const sheetAreaM2=Number(config.sheet_w_m??1.2)*Number(config.sheet_h_m??2.4);
   const wastePercent=rate(waste??config.waste_pct??5),orderAreaM2=wastePercent==null?null:netAreaM2*(1+wastePercent/100);
@@ -41,7 +41,7 @@ export function buildGableInsulationAudit({geometry:g,timberAudit:t,materials:m=
  'Cradles exclude the gusset-covered apex section. The 140mm strip allowance does not optimise rebate machining waste. Sheet counts remain area estimates with configured waste, not an optimised cutting list.',
  '50mm PIR pools cradle and ring-beam face requirements before rounding sheets; the ring-beam face area is already shown in the timber audit, so these audit costs must not be added together.',
  'SuperQuilt and plasterboard have identical installed coverage: the two internal slopes and the 595mm flat, from the house wall to the inside of the front frame. Neither extends over the front overhang. SuperQuilt roll mix uses the existing overlap/waste selector; weight uses installed area.',
- 'Membrane area follows the current external member faces and external projection. Any additional tile-starter overhang remains for the tiling audit. One roll per roof is retained; coverage over 50m² needs review.',
+ 'Membrane covers both external roof faces out to the tile-starter edges, including the 50mm plan extension at each eaves, over the manufacturing projection. Overlaps and gutter drape are supply allowances, not extra installed face weight. One roll per roof is retained; coverage over 50m² needs review.',
  'Plasterboard weight is shown once for the finished ceiling. Its sheet count is informational; no supply cost is added.',
  'Read-only candidates: no Summary, quotation, manufacture book or Idiot List quantities are changed.'
  ]};
