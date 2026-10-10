@@ -5,7 +5,7 @@ import {getLabourPricingConfig,getDeliveryPricingConfig,getMarkupPricingConfig} 
 import {getNextQuoteNumber,saveQuote} from '../../lib/quotes';
 import {isAdminUser} from '../../lib/userRole';
 const money=value=>'£'+Number(value||0).toFixed(2);
-export default function GablePricingPanel({inputs,materials,customers=[],onChange,summary=false,compact=false,showQuote=true,onQuote,onReset}) {
+export default function GablePricingPanel({inputs,materials,customers=[],onChange,summary=false,compact=false,actionsOnly=false,showQuote=true,onQuote,onReset}) {
  const [busy,setBusy]=useState(false),[message,setMessage]=useState('');
  const request=useRef(0),latest=useRef(inputs);latest.current=inputs;
  const customer=customers.find(c=>c.id===inputs.selectedCustomerId)||null,admin=isAdminUser();
@@ -36,7 +36,7 @@ export default function GablePricingPanel({inputs,materials,customers=[],onChang
   finally{setBusy(false);}
  };
  const actions=compact?<div className="gd-actions"><button type="button" disabled={busy} onClick={()=>{onQuote();if(q.valid&&!q.distanceReady&&String(inputs.deliveryPostcode||'').trim())lookup();}}>Quote</button><button type="button" onClick={save} disabled={!q.ready||busy}>Save Quote</button><button type="button" onClick={onReset} disabled={busy}>Reset</button></div>:null;
- return <>{actions}{(!compact||showQuote)&&<section style={{padding:18,margin:'20px 0',border:'1px solid #94a3b8',borderRadius:8}} aria-label="Gable quotation pricing">
+ return <>{actions}{(!compact||showQuote)&&!actionsOnly&&<section style={{padding:18,margin:'20px 0',border:'1px solid #94a3b8',borderRadius:8}} aria-label="Gable quotation pricing">
  <h2>Quotation pricing</h2>
  {!q.valid?<p role="status">{q.errors.join(' ')}</p>:<>
  {admin&&<p>Materials: <strong>{money(q.model.materialsCostForPricing)}</strong> · Labour: {money(q.labour.labourCost)} ({q.labour.days.toFixed(1)} days) · Delivery: {money(q.delivery.deliveryCost)} ({q.delivery.oneWayMiles.toFixed(1)} miles one way).</p>}
@@ -50,5 +50,5 @@ export default function GablePricingPanel({inputs,materials,customers=[],onChang
  <p>{!summary&&admin&&<Link className="nav-tab" to="/quote/gable/summary">Review Summary</Link>} {!compact&&<button type="button" onClick={save} disabled={!q.ready||busy}>Save Quote</button>}</p>
  </>}
  {message&&<p role="status">{message}</p>}
- </section>}{compact&&!showQuote&&message&&<p role="status">{message}</p>}</>;
+ </section>}{compact&&(!showQuote||actionsOnly)&&message&&<p role="status">{message}</p>}</>;
 }

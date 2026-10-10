@@ -1,3 +1,4 @@
+import GableQuoteResults from './GableQuoteResults';
 import GableDesignForm from './GableDesignForm';
 import GablePricingPanel from './GablePricingPanel';
 import React,{useState,useEffect} from 'react';
@@ -85,7 +86,7 @@ export default function GableDesignPreview({mode='preview',fresh=false}={}) {
  {design&&g.valid&&<GablePricingPanel inputs={{...resolved,separateSideSoffits:admin&&inputs.separateSideSoffits}} materials={materials} customers={customers} onChange={patch=>setInputs(old=>({...old,...patch}))} />}
  {design&&admin&&<p><Link className="nav-tab" to="/quote/gable/technical">Review Technical audits</Link></p>}
  </>}
- {design&&!showQuote?null:!g.valid?<p role="status">{g.errors.join(' ')}</p>:<>
+ {design&&!showQuote?null:design&&g.valid?<GableQuoteResults inputs={{...resolved,separateSideSoffits:admin&&inputs.separateSideSoffits}} geometry={g} materials={materials} customers={customers}/>:!g.valid?<p role="status">{g.errors.join(' ')}</p>:<>
  {!design&&<p>Covering: {inputs.tileProductId} · plastics: {inputs.plasticsColour} · gutter: {inputs.gutterProfile} · reference: {inputs.customerReference||'—'}</p>}
  <h2>Plan</h2>{!design&&<p><strong>Includes 5mm front soffit clearance—do not add again.</strong> Manufacturing projection: {mm(manufacturingProjection)}mm. Requested external projection remains {mm(g.externalProjectionMM)}mm.</p>}<p>Requested external {mm(g.externalWidthMM)} × {mm(g.externalProjectionMM)}mm · resolved pitch {mm(g.pitchDeg)}° · {g.layout.trussCount} trusses.</p>
  <svg viewBox="0 0 820 590" role="img" aria-label="Gable truss plan" style={{width:'100%',maxHeight:620,background:'#fff',border:'1px solid #94a3b8'}}>
