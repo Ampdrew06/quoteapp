@@ -14,8 +14,8 @@ const build=(productId='britmetShingle',materials={},inputs={})=>{
 test('uses truss feet and separate internal/external boxes with factory ring fixings excluded',()=>{
  const a=build();expect(a.valid).toBe(true);
  expect(a.siteFixings).toMatchObject({memberFeet:16,screws:32,boxes:1});
- expect(a.lathFixings).toMatchObject({internalScrews:112,externalFieldScrews:160,ridgeScrews:20,externalScrews:180,internalBoxes:1,externalBoxes:1,factoryLathScrews:58});
- expect(a.factoryRows.find(row=>row.key==='factory_ring_lath_screws').qty).toBe(58);
+ expect(a.lathFixings).toMatchObject({internalScrews:112,externalFieldScrews:160,ridgeScrews:20,externalScrews:180,internalBoxes:1,externalBoxes:1});
+ expect(a.factoryRows.some(row=>row.key==='factory_ring_lath_screws')).toBe(false);
 });
 test('adds known ridge screws before box rounding and covers front accessories within the existing allowance',()=>{
  const a=build();expect(a.tileFixings).toMatchObject({mainTileScrews:222,ridgeTileScrews:16,knownScrews:238,boxes:2,accessoriesConfirmed:true});
@@ -32,9 +32,9 @@ test('fixed cans, tape and factory glue allowances do not grow with roof area',(
  expect(a.factoryRows.find(row=>row.key==='d4_glue').qty).toBe(1);
  expect(a.excludedHardware).toEqual({bosses:0,sparHooks:0,jackSets:0,joistHangers:0,sparRivets:0});
 });
-test('costs consumed factory screws rather than whole boxes and retains zero prices',()=>{
+test('retains practical glue and staple consumption without invented ring-beam screws',()=>{
  const a=build('britmetShingle',{screws_2x8_price_per_box:5,d4_glue_price_per_tub:0,expanding_foam_can_price_each:0});
- expect(a.factoryRows.find(row=>row.key==='factory_ring_lath_screws').cost).toBeCloseTo(58*5/250,8);
+ expect(a.factoryRows.map(row=>row.key)).toEqual(['factory_staples_32mm','d4_glue']);
  expect(a.factoryRows.find(row=>row.key==='d4_glue').cost).toBe(0);expect(a.siteRows.find(row=>row.key==='expanding_foam').cost).toBe(0);
  expect(a.siteRows.find(row=>row.key==='screws_rafter_eaves').cost).toBeNull();
  expect(a.pending.some(row=>row.key==='truss_joints')).toBe(false);

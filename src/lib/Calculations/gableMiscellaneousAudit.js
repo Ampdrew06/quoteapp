@@ -18,9 +18,6 @@ export function buildGableMiscellaneousAudit({geometry:g,tilingAudit:t,lathAudit
  const ridgeScrews=t.steel?2*spaced(g.manufacturingProjectionMM??g.externalProjectionMM):0;
  const externalScrews=externalFieldScrews+ridgeScrews;
  const internalBoxes=Math.ceil(internalScrews/lathBoxUnits),externalBoxes=Math.ceil(externalScrews/lathBoxUnits);
- const outerRingScrews=2*spaced(g.manufacturingProjectionMM??g.externalProjectionMM);
- const finishingScrews=2*l.stockPlan.runPieces.filter(row=>row.edgeId.startsWith('finish-left-')).reduce((sum,row)=>sum+spaced(row.lengthsM.reduce((a,b)=>a+b,0)*1000),0);
- const factoryLathScrews=outerRingScrews+finishingScrews;
  const mainTileRate=Number(t.steel?m.tileFixings?.per_tile_britmet??3:m.tileFixings?.per_tile_liteslate??2);
  if(!Number.isFinite(mainTileRate)||mainTileRate<0)return fail('Main tile screw allowance must be non-negative.');
  const mainTileScrews=t.mainTiles*mainTileRate,ridgeTileScrews=t.ridgeTiles*4;
@@ -41,25 +38,24 @@ export function buildGableMiscellaneousAudit({geometry:g,tilingAudit:t,lathAudit
  const factoryRows=[
   staples,
   {key:'d4_glue',label:'D4 glue',qty:1,unit:'tub allowance',cost:gluePrice,basis:'One tub per roof for manufacture, including assembled offcut closures.',usage:'factory',installedWeightKg:null},
-  {key:'factory_ring_lath_screws',label:'Ring-beam outer/finishing lath screws',qty:factoryLathScrews,unit:'screws consumed',cost:lathPrice==null?null:factoryLathScrews*lathPrice/lathBoxUnits,basis:`${outerRingScrews} outer-lath + ${finishingScrews} finishing-lath screws at approximately ${spacing}mm plus ends. Factory allocation and screw type to confirm.`,usage:'factory',installedWeightKg:null},
  ];
  const pending=[];
  return {valid:true,readOnly:true,complete:true,errors:[],siteRows:rows,factoryRows,pending,
   siteFixings:{memberFeet,screws:siteScrews,boxes:siteBoxes,unitsPerBox:siteBoxUnits},
-  lathFixings:{internalScrews,externalFieldScrews,ridgeScrews,externalScrews,internalBoxes,externalBoxes,unitsPerBox:lathBoxUnits,factoryLathScrews},
+  lathFixings:{internalScrews,externalFieldScrews,ridgeScrews,externalScrews,internalBoxes,externalBoxes,unitsPerBox:lathBoxUnits},
   tileFixings:{mainTileRate,mainTileScrews,ridgeTileScrews,knownScrews:knownTileScrews,boxes:tileBoxes,unitsPerBox:tileBoxUnits,accessoriesConfirmed:true},
   excludedHardware:{bosses:0,sparHooks:0,jackSets:0,joistHangers:0,sparRivets:0},
   knownCost:[...rows,...factoryRows].reduce((sum,row)=>sum+(row.cost??0),0),
   notes:[
    'Read-only Gable supply candidates: no Summary, quotation, manufacture book, Idiot List or Home Tile Calcs changes.',
-   'Internal and external lath screws round separately to whole boxes of 250. One screw is allowed per field-lath/truss intersection; ridge and ring-beam support allowances use approximately 500mm plus end fixings.',
-   'Ring-beam lath screws are provisionally allocated to factory consumption, not duplicated in loose site boxes. Confirm the factory screw type and allowance.',
+   'Internal and external lath screws round separately to whole boxes of 250. One screw is allowed per field-lath/truss intersection; ridge support allowances use approximately 500mm plus end fixings.',
+   'Ring-beam assembly uses glue and staples, with no outer or finishing-lath screw allowance. The external lath and 30×95 PSE are glued to the 9mm base and stapled from beneath. The upstand is glued into its routed groove; PIR is glued to its inner face; the finishing lath is glued to the PIR and upstand and stapled through the back of the upstand.',
    'Main tiles use three screws per ordered steel tile or two per slate, with four per ridge tile. Barges/dry verge, steel end cap and ventilation-strip fixings are covered by this existing allowance. LiteSlate twinwall strips use the ridge-tile fixings; no additional screws are charged.',
    'Eight 150mm concrete screws are supplied per roof, costed individually from the saved full-box price. Quantity can be adjusted after Summary integration.',
-   'Glue is charged by one tub allowance; factory screws by consumed units. Factory-used items must not become loose items in the future Idiot List.',
-   'No boss, spar-hook, jack or joist-hanger fixings/rivets are required for this basic Gable construction. Truss assembly uses 40 staples per truss; ring-beam base attachment uses 20 staples per metre. These are separate from the provisional outer/finishing lath screw connections.',
+   'Glue is charged by one tub allowance; staples by the shared practical consumption allowance. Factory-used items must not become loose items in the future Idiot List.',
+   'No boss, spar-hook, jack or joist-hanger fixings/rivets are required for this basic Gable construction. Truss assembly uses 40 staples per truss; ring-beam assembly retains the practical allowance of 20 staples per metre, covering its base and upstand connections without a separate fixing count.',
    'Polytop pins are already included in the plastics audit and are not duplicated here. Ridge ventilation is already in the tile audit; no hip foam tape is added.',
    'Full supplied boxes, cans and glue tubs do not represent installed roof weight. Consumed weights remain unconfigured here; plasterboard weight is already recorded once in the insulation audit.',
-   'The known cost is a partial comparison only. Missing prices are excluded; this is a miscellaneous allowance audit, not a complete roof price. The factory outer/finishing lath screw type remains provisional.',
+   'The known cost is a partial comparison only. Missing prices are excluded; this is a miscellaneous allowance audit, not a complete roof price.',
   ]};
 }

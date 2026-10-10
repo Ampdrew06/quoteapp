@@ -88,7 +88,10 @@ test('saved Gable quote carries material totals, adjustments, extras and its own
  expect(isGableQuote({roof_style:'lean-to'})).toBe(false);
 });
 test('factory consumption stays out of loose supplies while eight wall screws are retained',()=>{
- const list=buildSummaryIdiotList(build(),materials);
+ const model=build(),list=buildSummaryIdiotList(model,materials);
+ expect(model.sections.misc.lines.some(r=>r.key==='factory_ring_lath_screws')).toBe(false);
+ expect(model.sections.misc.lines.filter(r=>r.key==='d4_glue')).toHaveLength(1);
+ expect(model.sections.misc.lines.find(r=>r.key==='factory_staples_32mm').qty).toBe(493);
  expect(list.sections.misc.some(r=>r.key==='factory_staples_32mm'||r.key==='d4_glue')).toBe(false);
  expect(list.sections.misc.find(r=>r.key==='concrete_screws').qty).toBe(8);
 });

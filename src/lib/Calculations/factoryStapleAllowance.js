@@ -10,7 +10,7 @@ export function buildFactoryStapleAllowance({trussCount=0,ringBeamLengthM=0,wall
  const qty=Math.ceil(trusses*40+(ring+wall)*20-1e-9);
  return {valid:true,key:'factory_staples_32mm',label:'32mm staples — 14/32 NK HZ',qty,unit:'staples consumed',cost:price===null?null:qty*price/units,usage:'factory',installedWeightKg:null,
   unitsPerBox:units,pricePerBox:price,trussCount:trusses,ringBeamLengthM:ring,wallplateLengthM:wall,
-  basis:`${trusses} trusses × 40 + ${ring.toFixed(3)}m ring-beam + ${wall.toFixed(3)}m wallplate at 20 staples/m. Closure covered by existing glue/fixings allowance.`};
+  basis:`${trusses} trusses × 40 + ${ring.toFixed(3)}m ring-beam + ${wall.toFixed(3)}m wallplate at 20 staples/m. Ring-beam allowance covers glued/stapled base and upstand connections; no separate ring-beam screw allowance. Closure covered by existing glue/fixings allowance.`};
 }
 export function integrateFactoryAllowances(audit,lines=[],materials={}) {
  if(!audit?.valid)return lines;
