@@ -68,6 +68,7 @@ export default function Quotes() {
     if (!item) return;
 
     if (isGableQuote(item)) {
+      localStorage.removeItem("active_gable_job_id");
       if(item.inputs_json)localStorage.setItem("gableDesignPreviewInputs",JSON.stringify(item.inputs_json));
       nav("/quote/gable");
       return;
@@ -96,10 +97,6 @@ export default function Quotes() {
   };
 const convertToJob = async (quote) => {
   if (!quote?.id) return;
-  if(isGableQuote(quote)) {
-    alert("Gable manufacture integration is the next stage. This quotation can be reopened for design and pricing now.");
-    return;
-  }
 
   if (
     !window.confirm(
@@ -126,7 +123,11 @@ const convertToJob = async (quote) => {
 
   alert(`Quote ${quote.quote_number} converted to Job ${jobNumber}.`);
 
-  nav("/quote/lean-to/plan-manufacture");
+  if(isGableQuote(quote)) {
+    localStorage.setItem("gableDesignPreviewInputs",JSON.stringify(quote.inputs_json||{}));
+    localStorage.setItem("active_gable_job_id",updated.id);
+    nav("/quote/gable/plan-manufacture");
+  } else nav("/quote/lean-to/plan-manufacture");
 };
   return (
     <div style={{ fontFamily: "Inter, system-ui, Arial" }}>

@@ -1,8 +1,8 @@
 import React from 'react';
 import { buildSummaryIdiotList } from '../lib/Calculations/summaryIdiotList';
 
-export default function SummaryIdiotList({ model, materials, inputs = {} }) {
-  const checklist = buildSummaryIdiotList(model, materials);
+export default function SummaryIdiotList({ model, materials, inputs = {}, checklist: suppliedChecklist }) {
+  const checklist = suppliedChecklist || buildSummaryIdiotList(model, materials);
   const names = { assemblies:'Manufactured components', timber:'Timber / manufacture stock', tiles:'Tiles', plastics:'Plastics', metal:'Metal / assembly check', gutters:'Guttering', misc:'Miscellaneous / loose fixings' };
   const plastics = inputs.plasticsColor ?? inputs.plastics_color ?? 'White';
   const gutterColour = inputs.gutterColor ?? inputs.gutter_color ?? 'White';

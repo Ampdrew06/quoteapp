@@ -1,3 +1,4 @@
+import GableManufacture from '../pages/gable/GableManufacture';
 import GablePage from '../pages/gable/GablePage';
 import GableDesignPreview from '../pages/gable/GableDesignPreview';
 import CentralBossIntegrationGate from '../components/CentralBossIntegrationGate';
@@ -67,7 +68,9 @@ export default function AppRoutes() {
         <Route path="/tiles-laths" element={<CentralBossIntegrationGate automaticTilesOnly allowCentralCosting><TilesLaths /></CentralBossIntegrationGate>} />
 
         <Route path="/quote/gable" element={<GablePage />} />
+        <Route path="/quote/gable/idiot-list" element={<GablePage idiotList />} />
         <Route path="/quote/gable/summary" element={<GablePage summary />} />
+        <Route path="/quote/gable/plan-manufacture" element={<GableManufacture />} />
         <Route path="/quote/gable/technical" element={<GablePage technical />} />
         <Route path="/design/gable" element={<GableDesignPreview />} />
 

@@ -20,7 +20,7 @@ const restore=()=>{try{
   tileColour:saved.tileColour||(saved.tileProductId==='liteSlate'?'Slate':'Titanium')};
 }catch{return initial;}};
 const mm=value=>Number(value).toFixed(1);
-const auditNote=note=>/read-only|This is a geometry preview/i.test(note)?'This source audit is read-only. Gable Summary and quotation pricing consume its requirements; manufacture output integration follows.':note;
+const auditNote=note=>/read-only|This is a geometry preview/i.test(note)?'This source audit is read-only. Gable Summary and quotation pricing consume its requirements; the manufacture book and Idiot List use the same integrated model.':note;
 export default function GableDesignPreview({mode='preview',fresh=false}={}) {
  const [inputs,setInputs]=useState(()=>fresh?{...initial,selectedCustomerId:getCurrentCustomer()?.id||'retail'}:restore()),admin=isAdminUser();
  const [customers,setCustomers]=useState([]);
@@ -51,20 +51,21 @@ export default function GableDesignPreview({mode='preview',fresh=false}={}) {
  const x=value=>100+(value+g.frameMM+g.leftSoffitMM)*scale,y=value=>60+value*scale;
  const elevationScale=g.valid?Math.min(620/g.externalWidthMM,240/(g.finishedHeightMM)):1;
  const ex=value=>100+(value+g.frameMM+g.leftSoffitMM)*elevationScale,ey=value=>310-(value-g.truss.ringBeamHeightMM)*elevationScale;
- return <main style={{maxWidth:1050,margin:'0 auto',padding:20,fontFamily:'Arial,sans-serif'}}>
- <Link to="/quote">Back to roof styles</Link><h1>{technical?'Gable — Technical':design?'Gable — Design/Options':'Gable — geometry preview'}</h1>
- <p>{technical?'Read-only audits of the current Gable design. Change dimensions and options on Design/Options.':'Two straight side ring-beams with repeated trusses. Your design is remembered while you move between Design/Options and Technical. Summary and quotation pricing use the integrated material requirements. Manufacture outputs will follow next.'}</p>
+ return <main className="gable-design" style={{maxWidth:1050,margin:'0 auto',padding:20,fontFamily:'Arial,sans-serif'}}>
+ <style>{`.gable-design .gable-option-panel{border:1px solid #cbd5e1;border-radius:10px;padding:18px;margin:20px 0;background:#fff}.gable-design .gable-option-panel legend{font-weight:700;padding:0 8px;color:#334155}.gable-option-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16}.gable-design input,.gable-design select{border:1px solid #94a3b8;border-radius:6px;font:inherit}.gable-design button{padding:9px 14px;border:1px solid #94a3b8;border-radius:7px;background:#f1f5f9;cursor:pointer}.gable-design h1{font-size:25px}.gable-design h2{font-size:21px}.gable-design p{line-height:1.45}.gable-draft-actions{display:flex;gap:10px}`}</style><h1>{technical?'Gable — Technical':design?'Gable — Design/Options':'Gable — geometry preview'}</h1>
+ <p>{technical?'Read-only audits of the current Gable design. Change dimensions and options on Design/Options.':'Two straight side ring-beams with repeated trusses. Your design is remembered while you move between Design/Options and Technical. Summary and quotation pricing use the integrated material requirements. Manufacture Book and Idiot List use the same integrated requirements.'}</p>
  {!technical&&<>
- <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:16}}>
+ <fieldset className="gable-option-panel"><legend>Roof dimensions</legend><div className="gable-option-grid">
   {field('Internal width (mm)','widthMM')}{field('Internal projection (mm)','projMM')}{field('Pitch (degrees)','pitchDeg')}{field('Frame thickness (mm)','frameThicknessMM')}
+ </div></fieldset><fieldset className="gable-option-panel"><legend>Soffits, overhang and height</legend><div className="gable-option-grid">
   {field(admin&&inputs.separateSideSoffits?'Left side soffit (mm)':'Both side soffits (mm)','leftSoffitMM')}
   {admin&&inputs.separateSideSoffits&&field('Right side soffit (mm)','rightSoffitMM')}
   {field('Front overhang (mm)','frontOverhangMM')}{field('Optional maximum finished height (mm)','maxFinishedHeightMM')}
  </div>
  {admin&&<p><label><input type="checkbox" checked={inputs.separateSideSoffits} onChange={e=>update('separateSideSoffits',e.target.checked)} /> Set side soffits separately (admin)</label></p>}
- <p><button onClick={()=>setInputs({...initial,widthMM:3800,projMM:4200})}>Load 3800 × 4200 example</button> <button onClick={()=>setInputs(initial)}>Clear draft</button></p>
- <fieldset style={{margin:'18px 0',padding:16,border:'1px solid #cbd5e1'}}>
- <legend>Materials and customer details</legend>
+ </fieldset><p className="gable-draft-actions">{admin&&<button type="button" onClick={()=>setInputs({...initial,widthMM:3800,projMM:4200})}>Load example</button>} <button type="button" onClick={()=>setInputs({...initial,selectedCustomerId:getCurrentCustomer()?.id||'retail'})}>Reset design</button></p>
+ <fieldset className="gable-option-panel">
+ <legend>Roof finish and quotation details</legend>
  <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:16}}>
  <label>Roof covering<select style={{display:'block',padding:8,width:'100%'}} value={inputs.tileProductId} onChange={e=>update('tileProductId',e.target.value)}><option value="britmetShingle">Britmet Shingle</option><option value="metrotileShingle">Metrotile Shingle</option><option value="liteSlate">LiteSlate</option></select></label>
  {[

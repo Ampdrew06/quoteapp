@@ -1,3 +1,4 @@
+import {isGableQuote} from '../lib/Calculations/gableQuotation';
 // src/pages/Quotes.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -66,6 +67,12 @@ if (!s) return jobsOnly;
   const loadRef = (quoteNumber) => {
     const item = (q || []).find((r) => r?.quote_number === quoteNumber);
     if (!item) return;
+    if(isGableQuote(item)) {
+      localStorage.setItem("gableDesignPreviewInputs",JSON.stringify(item.inputs_json||{}));
+      localStorage.setItem("active_gable_job_id",item.id);
+      nav("/quote/gable/plan-manufacture");
+      return;
+    }
 
     if (item.inputs_json) {
       localStorage.setItem("leanToInputs", JSON.stringify(item.inputs_json));
@@ -114,7 +121,11 @@ const convertToJob = async (quote) => {
 
   alert(`Quote ${quote.quote_number} converted to Job ${jobNumber}.`);
 
-  nav("/quote/lean-to/plan-manufacture");
+  if(isGableQuote(quote)) {
+    localStorage.setItem("gableDesignPreviewInputs",JSON.stringify(quote.inputs_json||{}));
+    localStorage.setItem("active_gable_job_id",updated.id);
+    nav("/quote/gable/plan-manufacture");
+  } else nav("/quote/lean-to/plan-manufacture");
 };
   return (
     <div style={{ fontFamily: "Inter, system-ui, Arial" }}>
