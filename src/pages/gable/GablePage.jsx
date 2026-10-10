@@ -11,6 +11,7 @@ export default function GablePage({technical=false,summary=false,idiotList=false
  useEffect(()=>{
   if(!technical&&!summary&&!idiotList&&location.state?.fresh)navigate(location.pathname,{replace:true,state:{...location.state,fresh:false}});
  },[technical,summary,idiotList,location.pathname,location.state,navigate]);
+ useEffect(()=>{if(technical&&location.hash==='#tiles-laths')document.getElementById('gable-tiles-laths')?.scrollIntoView();},[technical,location.hash]);
  if((technical||summary||idiotList)&&!admin)return <Navigate to="/quote/gable" replace />;
  return <>
   <GableNavigation />

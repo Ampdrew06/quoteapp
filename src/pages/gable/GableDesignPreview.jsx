@@ -1,3 +1,4 @@
+import GableDesignForm from './GableDesignForm';
 import GablePricingPanel from './GablePricingPanel';
 import React,{useState,useEffect} from 'react';
 import {Link} from 'react-router-dom';
@@ -23,7 +24,7 @@ const mm=value=>Number(value).toFixed(1);
 const auditNote=note=>/read-only|This is a geometry preview/i.test(note)?'This source audit is read-only. Gable Summary and quotation pricing consume its requirements; the manufacture book and Idiot List use the same integrated model.':note;
 export default function GableDesignPreview({mode='preview',fresh=false}={}) {
  const [inputs,setInputs]=useState(()=>fresh?{...initial,selectedCustomerId:getCurrentCustomer()?.id||'retail'}:restore()),admin=isAdminUser();
- const [customers,setCustomers]=useState([]);
+ const [customers,setCustomers]=useState([]),[showQuote,setShowQuote]=useState(false);
  useEffect(()=>{
   let alive=true;
   const load=async()=>{const rows=await getCustomers();if(alive)setCustomers(Array.isArray(rows)?rows:[]);};
@@ -51,10 +52,11 @@ export default function GableDesignPreview({mode='preview',fresh=false}={}) {
  const x=value=>100+(value+g.frameMM+g.leftSoffitMM)*scale,y=value=>60+value*scale;
  const elevationScale=g.valid?Math.min(620/g.externalWidthMM,240/(g.finishedHeightMM)):1;
  const ex=value=>100+(value+g.frameMM+g.leftSoffitMM)*elevationScale,ey=value=>310-(value-g.truss.ringBeamHeightMM)*elevationScale;
- return <main className="gable-design" style={{maxWidth:1050,margin:'0 auto',padding:20,fontFamily:'Arial,sans-serif'}}>
- <style>{`.gable-design .gable-option-panel{border:1px solid #cbd5e1;border-radius:10px;padding:18px;margin:20px 0;background:#fff}.gable-design .gable-option-panel legend{font-weight:700;padding:0 8px;color:#334155}.gable-option-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16}.gable-design input,.gable-design select{border:1px solid #94a3b8;border-radius:6px;font:inherit}.gable-design button{padding:9px 14px;border:1px solid #94a3b8;border-radius:7px;background:#f1f5f9;cursor:pointer}.gable-design h1{font-size:25px}.gable-design h2{font-size:21px}.gable-design p{line-height:1.45}.gable-draft-actions{display:flex;gap:10px}`}</style><h1>{technical?'Gable — Technical':design?'Gable — Design/Options':'Gable — geometry preview'}</h1>
- <p>{technical?'Read-only audits of the current Gable design. Change dimensions and options on Design/Options.':'Two straight side ring-beams with repeated trusses. Your design is remembered while you move between Design/Options and Technical. Summary and quotation pricing use the integrated material requirements. Manufacture Book and Idiot List use the same integrated requirements.'}</p>
- {!technical&&<>
+ return <main className={design?'gable-landing':'gable-design'} style={{maxWidth:1100,margin:'0 auto',padding:16,fontFamily:'Inter,system-ui,Arial'}}>
+ <style>{`.gable-design .gable-option-panel{border:1px solid #cbd5e1;border-radius:10px;padding:18px;margin:20px 0;background:#fff}.gable-design .gable-option-panel legend{font-weight:700;padding:0 8px;color:#334155}.gable-option-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16}.gable-design input,.gable-design select{border:1px solid #94a3b8;border-radius:6px;font:inherit}.gable-design button{padding:9px 14px;border:1px solid #94a3b8;border-radius:7px;background:#f1f5f9;cursor:pointer}.gable-design h1{font-size:25px}.gable-design h2{font-size:21px}.gable-design p{line-height:1.45}.gable-draft-actions{display:flex;gap:10px}`}</style><h1 style={{fontSize:24,fontWeight:700,margin:'12px 0 8px'}}>{technical?'Gable — Technical':design?'Timberlite Gable':'Gable — geometry preview'}</h1>
+ <p style={{color:'#555',marginTop:0,marginBottom:14}}>{technical?'Read-only audits of the current Gable design. Change dimensions and options on Design/Options.':'Enter your sizes and options below. We’ll show a plan preview and your price. Frame thickness is defaulted to 70mm, please confirm this when ordering.'}</p>
+ {design&&<GableDesignForm inputs={{...resolved,separateSideSoffits:admin&&inputs.separateSideSoffits}} update={update} materials={materials} customers={customers} admin={admin} onChange={patch=>setInputs(old=>({...old,...patch}))} onQuote={()=>setShowQuote(true)} onReset={()=>{setInputs({...initial,selectedCustomerId:getCurrentCustomer()?.id||'retail'});setShowQuote(false);}} showQuote={showQuote}/>}
+ {!technical&&!design&&<>
  <fieldset className="gable-option-panel"><legend>Roof dimensions</legend><div className="gable-option-grid">
   {field('Internal width (mm)','widthMM')}{field('Internal projection (mm)','projMM')}{field('Pitch (degrees)','pitchDeg')}{field('Frame thickness (mm)','frameThicknessMM')}
  </div></fieldset><fieldset className="gable-option-panel"><legend>Soffits, overhang and height</legend><div className="gable-option-grid">
@@ -83,7 +85,7 @@ export default function GableDesignPreview({mode='preview',fresh=false}={}) {
  {design&&g.valid&&<GablePricingPanel inputs={{...resolved,separateSideSoffits:admin&&inputs.separateSideSoffits}} materials={materials} customers={customers} onChange={patch=>setInputs(old=>({...old,...patch}))} />}
  {design&&admin&&<p><Link className="nav-tab" to="/quote/gable/technical">Review Technical audits</Link></p>}
  </>}
- {!g.valid?<p role="status">{g.errors.join(' ')}</p>:<>
+ {design&&!showQuote?null:!g.valid?<p role="status">{g.errors.join(' ')}</p>:<>
  {!design&&<p>Covering: {inputs.tileProductId} · plastics: {inputs.plasticsColour} · gutter: {inputs.gutterProfile} · reference: {inputs.customerReference||'—'}</p>}
  <h2>Plan</h2>{!design&&<p><strong>Includes 5mm front soffit clearance—do not add again.</strong> Manufacturing projection: {mm(manufacturingProjection)}mm. Requested external projection remains {mm(g.externalProjectionMM)}mm.</p>}<p>Requested external {mm(g.externalWidthMM)} × {mm(g.externalProjectionMM)}mm · resolved pitch {mm(g.pitchDeg)}° · {g.layout.trussCount} trusses.</p>
  <svg viewBox="0 0 820 590" role="img" aria-label="Gable truss plan" style={{width:'100%',maxHeight:620,background:'#fff',border:'1px solid #94a3b8'}}>
@@ -134,7 +136,7 @@ export default function GableDesignPreview({mode='preview',fresh=false}={}) {
  <p><strong>These are separate audit comparisons. Do not add their costs to the timber subtotal: ring-beam PIR is represented in both.</strong></p>
  <details open><summary>Insulation scope and assumptions</summary><ul>{insulation.notes.map(note=><li key={note}>{auditNote(note)}</li>)}</ul></details>
  </>}
- <h2>Tiles, external laths and ridge audit — read only</h2>
+ <h2 id="gable-tiles-laths">Tiles, external laths and ridge audit — read only</h2>
  {mode==='preview'&&<p><label>Roof covering <select value={inputs.tileProductId} onChange={e=>update('tileProductId',e.target.value)}><option value="britmetShingle">Britmet Shingle</option><option value="metrotileShingle">Metrotile Shingle</option><option value="liteSlate">LiteSlate</option></select></label></p>}
  {!tiling.valid?<p role="status">{tiling.errors.join(' ')}</p>:<>
  <p>Ridge: {mm(tiling.ridgeMM)}mm. External tile-covered area: {tiling.result.facetAreaM2.toFixed(3)}m². Main tile ordering candidate: <strong>{tiling.mainTiles}</strong>{tiling.steel?' (includes two additional tiles per roof)':''}.</p>
