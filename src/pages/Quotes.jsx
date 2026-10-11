@@ -1,3 +1,4 @@
+import {activateDesignRecord} from '../lib/activeDesignRecord';
 import {isGableQuote} from '../lib/Calculations/gableQuotation';
 import { restoreSummaryPricingState } from "../lib/Calculations/summaryPricingState";
 // src/pages/Quotes.jsx
@@ -66,6 +67,7 @@ export default function Quotes() {
   const loadRef = (quoteNumber) => {
     const item = (q || []).find((r) => r?.quote_number === quoteNumber);
     if (!item) return;
+    activateDesignRecord(item);
 
     if (isGableQuote(item)) {
       localStorage.removeItem("active_gable_job_id");
@@ -119,13 +121,13 @@ const convertToJob = async (quote) => {
     return;
   }
 
-  localStorage.setItem("active_job_id", updated.id);
+  activateDesignRecord({...quote,...updated,inputs_json:updated.inputs_json||quote.inputs_json});
 
   alert(`Quote ${quote.quote_number} converted to Job ${jobNumber}.`);
 
   if(isGableQuote(quote)) {
     localStorage.setItem("gableDesignPreviewInputs",JSON.stringify(quote.inputs_json||{}));
-    localStorage.setItem("active_gable_job_id",updated.id);
+    
     nav("/quote/gable/plan-manufacture");
   } else nav("/quote/lean-to/plan-manufacture");
 };

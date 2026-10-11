@@ -1,3 +1,4 @@
+import {activateDesignRecord} from '../lib/activeDesignRecord';
 import {isGableQuote} from '../lib/Calculations/gableQuotation';
 // src/pages/Quotes.jsx
 import React, { useEffect, useMemo, useState } from "react";
@@ -67,9 +68,10 @@ if (!s) return jobsOnly;
   const loadRef = (quoteNumber) => {
     const item = (q || []).find((r) => r?.quote_number === quoteNumber);
     if (!item) return;
+    activateDesignRecord(item);
     if(isGableQuote(item)) {
       localStorage.setItem("gableDesignPreviewInputs",JSON.stringify(item.inputs_json||{}));
-      localStorage.setItem("active_gable_job_id",item.id);
+      
       nav("/quote/gable/plan-manufacture");
       return;
     }
@@ -117,13 +119,13 @@ const convertToJob = async (quote) => {
     return;
   }
 
-  localStorage.setItem("active_job_id", updated.id);
+  activateDesignRecord({...quote,...updated,inputs_json:updated.inputs_json||quote.inputs_json});
 
   alert(`Quote ${quote.quote_number} converted to Job ${jobNumber}.`);
 
   if(isGableQuote(quote)) {
     localStorage.setItem("gableDesignPreviewInputs",JSON.stringify(quote.inputs_json||{}));
-    localStorage.setItem("active_gable_job_id",updated.id);
+    
     nav("/quote/gable/plan-manufacture");
   } else nav("/quote/lean-to/plan-manufacture");
 };
@@ -216,7 +218,7 @@ const convertToJob = async (quote) => {
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                         <button
                           onClick={() => {
-  localStorage.setItem("active_job_id", r.id);
+  
   loadRef(r.quote_number);
 }}
                           className="border rounded px-2 py-1"

@@ -1,3 +1,4 @@
+import {readActiveDesignRecord,clearActiveDesignRecord,activateDesignRecord,restoreActiveDesignRecord,designRecordPatch} from '../../lib/activeDesignRecord';
 import CentralBossDesignPreview from '../../components/CentralBossDesignPreview';
 import {buildCentralBossDesign,normalizeBossArrangementInputs} from '../../lib/geometry/centralBossDesign';
 import { readSummaryPricingState } from "../../lib/Calculations/summaryPricingState";
@@ -22,7 +23,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import NavTabs from "../../components/NavTabs";
 import { getCurrentCustomer } from "../../lib/customers";
 import { computePricing, computeLabourPricing, computeDeliveryPricing, getLabourPricingConfig, getDeliveryPricingConfig, getMarkupPricingConfig } from "../../lib/pricing";
-import { getNextQuoteNumber, saveQuote as saveQuoteToCloud } from "../../lib/quotes";
+import { getNextQuoteNumber, updateQuote, saveQuote as saveQuoteToCloud } from "../../lib/quotes";
 import TemplateGeometryVisualizer from "../../components/TemplateGeometryVisualizer";
 import WallplateGeometryVisualizer from "../../components/WallplateGeometryVisualizer";
 import HippedWallplateFrontVisualizer from "../../components/HippedWallplateFrontVisualizer";
@@ -80,6 +81,7 @@ const round = (v, dp = 0) => {
 };
 
   export default function LeanToLanding() {
+  const [editingRecord,setEditingRecord]=useState(()=>readActiveDesignRecord('lean-to')); 
 const isMobile = window.innerWidth < 600;
 
 const grid2Responsive = {
@@ -395,6 +397,7 @@ useEffect(() => {
   // Reset Lean-To inputs when arriving from Welcome page with { state: { fresh: true } }
   useEffect(() => {
     if (location.state?.fresh) {
+    clearActiveDesignRecord();setEditingRecord(null);
   try {
     // Clear saved inputs so the page starts at defaults
     localStorage.removeItem("leanToInputs");
@@ -1496,6 +1499,8 @@ setShowQuote(true);
 
 
   const resetAll = () => {
+    if(restoreActiveDesignRecord('lean-to')){window.location.reload();return;}
+    clearActiveDesignRecord();
     // clear UI
     setWidth("");
     setProj("");
@@ -1565,7 +1570,8 @@ if (!isAdmin && !manualReference) {
   }
 
   try {
-  const nextQuoteNumber = await getNextQuoteNumber();
+  const currentRecord=readActiveDesignRecord('lean-to');
+  const nextQuoteNumber = currentRecord?.quote_number || await getNextQuoteNumber();
   const payload = {
   summaryAddedItems: readSummaryAddedItems(),
   summaryPricingState: readSummaryPricingState(),
@@ -1664,7 +1670,7 @@ manual_reference: manualReference,
     customer_name: customerForQuote?.name || "",
     roof_style: "lean-to",
     status: "quote",
-    inputs_json: normalizeBossArrangementInputs(payload),
+    inputs_json: normalizeBossArrangementInputs({...JSON.parse(localStorage.getItem('leanToInputs')||'{}'),...payload}),
     pricing_json: {
       materialsCost: summaryMaterials.materialsCostForPricing,
       materialSections: summaryMaterials.pricingSections,
@@ -1676,14 +1682,16 @@ manual_reference: manualReference,
     materials_snapshot_json: getMaterials(),
   };
 
-  const saved = await saveQuoteToCloud(record);
+  const saved = currentRecord ? await updateQuote(currentRecord.id,designRecordPatch(record)) : await saveQuoteToCloud(record);
 
   if (!saved) {
     alert("Quote was not saved. Check the console for details.");
     return;
   }
 
-  alert(`Quote ${nextQuoteNumber} saved.`);
+  const active={...currentRecord,...record,...saved,inputs_json:record.inputs_json,status:currentRecord?.status||saved.status||'quote'};
+  activateDesignRecord(active);setEditingRecord(active);
+  alert(`Quote ${nextQuoteNumber} ${currentRecord?'updated':'saved'}.`);
   } catch (error) {
     console.error("SAVE QUOTE FROM DESIGN/OPTIONS FAILED", error);
     alert("Quote was not saved. Please try again. If it still fails, check the console for details.");
@@ -2349,13 +2357,13 @@ title={
     : "Save this quotation"
 }
             >
-              Save Quote
+              {editingRecord ? 'Update Quote' : 'Save Quote'}
             </button>
 
             <button
               onClick={resetAll}
               style={{ ...primaryBtn, width: "100%", background: "#64748b", borderColor: "#64748b" }}
-              title="Clear all fields and current stored quote"
+              title={editingRecord ? 'Restore the last saved quotation' : 'Clear the current design'}
             >
               Reset
             </button>

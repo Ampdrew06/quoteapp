@@ -1,7 +1,8 @@
+import {readActiveDesignRecord} from '../lib/activeDesignRecord';
 // src/pages/PlanManufacture.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getQuoteById } from "../../lib/quotes";
+import { getQuoteById } from "../lib/quotes";
 
 /** ---------- helpers ---------- */
 const num = (v, f = 0) => {
@@ -128,7 +129,8 @@ export default function PlanManufacture() {
     let alive = true;
 
     async function loadActiveJob() {
-      const activeJobId = localStorage.getItem("active_job_id");
+      const current=readActiveDesignRecord('lean-to');
+    const activeJobId = current?.id;
 
       if (!activeJobId) {
         setJobLoaded(true);
@@ -142,12 +144,7 @@ export default function PlanManufacture() {
       if (job) {
         setActiveJob(job);
 
-        if (job.inputs_json) {
-          localStorage.setItem(
-            "leanToInputs",
-            JSON.stringify(job.inputs_json)
-          );
-        }
+
       }
 
       setJobLoaded(true);

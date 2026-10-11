@@ -1,3 +1,6 @@
+import ManufactureBookFront from '../../components/ManufactureBookFront';
+import {getCustomers} from '../../lib/customers';
+import {readActiveDesignRecord,rememberActiveDesignRecord,draftDesignIdentity} from '../../lib/activeDesignRecord';
 import ManufacturingCentralTrussDrawing from '../../components/ManufacturingCentralTrussDrawing';
 // src/pages/lean-to/LeanToPlanManufacture.jsx
 import PlasticsCuttingGuide from "../../components/PlasticsCuttingGuide";
@@ -192,7 +195,10 @@ function RafterDetailDiagram({
 }
 export default function LeanToPlanManufacture() {
   const [activeJob, setActiveJob] = useState(null);
-const [jobDetails, setJobDetails] = useState({
+  const [currentCustomerName,setCurrentCustomerName]=useState("");
+const [jobDetails, setJobDetails] = useState(()=>{
+ let saved={};try{const draft=JSON.parse(localStorage.getItem("leanBookDetails")||"{}");if(!readActiveDesignRecord("lean-to")&&draft.draftId===draftDesignIdentity())saved=draft.details||{};}catch{/* Ignore an old or invalid draft. */}
+ return {
   jobNumber: "",
   requested_delivery_date: "",
   deliveryType: "Delivery",
@@ -200,12 +206,14 @@ const [jobDetails, setJobDetails] = useState({
   contactName: "",
   contactPhone: "",
   notes: "",
-});
+  ...saved,
+};});
 useEffect(() => {
   let alive = true;
 
   async function loadActiveJob() {
-    const activeJobId = localStorage.getItem("active_job_id");
+    const current=readActiveDesignRecord('lean-to');
+    const activeJobId = current?.id;
     if (!activeJobId) return;
 
     const job = await getQuoteById(activeJobId);
@@ -241,7 +249,7 @@ useEffect(() => {
 }, []);
 
 const saveJobDetails = async () => {
-  if (!activeJob?.id) return;
+  if (!activeJob?.id) {localStorage.setItem("leanBookDetails",JSON.stringify({draftId:draftDesignIdentity(),details:jobDetails}));alert("Draft book details saved on this device.");return;}
 
   const updated = await updateQuote(activeJob.id, {
   job_number:
@@ -265,15 +273,16 @@ const saveJobDetails = async () => {
   }
 
   setActiveJob(updated);
+  if(updated)rememberActiveDesignRecord({...readActiveDesignRecord('lean-to'),...updated});
   alert("Job details saved.");
 };
 
   const jobInputs = activeJob?.inputs_json || {};
   const m = useMemo(() => getMaterials(), []);
   const q = loadInputs();
+  useEffect(()=>{let alive=true;getCustomers().then(rows=>{if(alive)setCurrentCustomerName((rows||[]).find(c=>c.id===q.selectedCustomerId)?.name||(q.selectedCustomerId==='retail'?'Retail':''));}).catch(()=>{});return()=>{alive=false;};},[q.selectedCustomerId]);
 
   const planSummary = useMemo(() => {
-    if ((q.roofStyle ?? q.roof_style) !== "hippedLeanTo") return null;
     const controls = q.summaryPricingState ?? readSummaryPricingState();
     return buildSummaryMaterialsModel({ inputs: q, materials: m,
       exclusions: controls.exclusions ?? {}, adjustments: controls.adjustments ?? {},
@@ -459,11 +468,12 @@ const overallBlankLengthMM = Math.floor(
 
   const gutterLengthMM = ringBeamLengthMM;
 const customer =
+  currentCustomerName ||
   q.customerName ||
   q.customer ||
   q.customer_name ||
   q.selectedCustomerName ||
-  activeJob?.customer_name ||
+  (activeJob?.inputs_json?.selectedCustomerId===q.selectedCustomerId?activeJob?.customer_name:'') ||
   "";
 
 const customerRef =
@@ -475,14 +485,6 @@ const customerRef =
   q.customer_ref ||
   q.reference ||
   activeJob?.manual_reference ||
-  "";
-
-const jobNo =
-  q.quoteNumber ||
-  q.quote_number ||
-  q.jobNumber ||
-  q.job_number ||
-  q.job_no ||
   "";
 
 const roofStyleKey =
@@ -2107,310 +2109,16 @@ const ringBeamManufactureSchedule = useMemo(
 </div>
 
       <div style={{ maxWidth: 1180, margin: "0 auto", padding: 14 }}>
- <section
-  className="pm-page"
-  style={{
-    display: "flex",
-    flexDirection: "column",
-    height: "279mm",
-  }}
->
-  <div
-    style={{
-      ...panel,
-      display: "flex",
-      flexDirection: "column",
-      height: "100%",
-    }}
-  >
-    {/* Title */}
-    <div
-      style={{
-        textAlign: "center",
-        fontSize: 28,
-        fontWeight: 800,
-        color: "#111827",
-        marginBottom: 10,
-      }}
-    >
-      Manufacture Book
-    </div>
-
-        {/* Main 4 x 4 boxed grid */}
-    <div
-      style={{
-        ...panel,
-        marginBottom: 10,
-        padding: 0,
-        overflow: "hidden",
-      }}
-    >
-      <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
-        <tbody>
-          {/* Row 1 headers */}
-          <tr>
-            <td style={th}>Job Number</td>
-            <td style={th}>Customer Name</td>
-            <td style={th}>Customer Reference</td>
-            <td style={th}>Delivery Date</td>
-          </tr>
-          {/* Row 1 values */}
-          <tr>
-            <td style={td}>
-  <input
-    type="text"
-    value={jobDetails.jobNumber}
-    onChange={(e) =>
-      setJobDetails((p) => ({
-        ...p,
-        jobNumber: e.target.value,
-      }))
-    }
-    placeholder={jobNo || "Job number"}
-    style={{
-      width: "100%",
-      boxSizing: "border-box",
-    }}
-  />
-</td>
-            <td style={td}>{activeJob?.customer_name || customer || "—"}</td>
-            <td style={td}>{activeJob?.manual_reference || customerRef || "—"}</td>
-            <td style={td}>
-  <input
-    type="date"
-    value={jobDetails.requested_delivery_date}
-    onChange={(e) =>
-      setJobDetails((p) => ({
-        ...p,
-        requested_delivery_date: e.target.value,
-      }))
-    }
-    style={{ width: "100%" }}
-  />
-</td>
-          </tr>
-
-          {/* Row 2 headers */}
-          <tr>
-            <td style={th}>Delivery / Install</td>
-<td style={th}>Style</td>
-<td style={th}>Roof Pitch</td>
-<td style={th}>Frame Thickness</td>
-          </tr>
-          {/* Row 2 values */}
-          <tr>
-            <td style={td}>
-  <select
-    value={jobDetails.deliveryType}
-    onChange={(e) =>
-      setJobDetails((p) => ({
-        ...p,
-        deliveryType: e.target.value,
-      }))
-    }
-    style={{ width: "100%" }}
-  >
-    <option value="Delivery">Delivery</option>
-    <option value="Install">Install</option>
-    <option value="Collection">Collection</option>
-  </select>
-</td>
-<td style={td}>{roofStyleLabel || "—"}</td>
-<td style={td}>{pitchDeg ? `${pitchDeg}°` : "—"}</td>
-<td style={td}>{sft ? `${sft} mm` : "—"}</td>
-          </tr>
-
-          {/* Row 3 headers */}
-          <tr>
-            <td style={th}>Tile Type</td>
-<td style={th}>Tile Colour</td>
-<td style={th}>Fascia</td>
-<td style={th}>Soffit</td>
-          </tr>
-          {/* Row 3 values */}
-          <tr>
-            <td style={td}>
-  {(tileType || "—").toString().replace(/^./, (c) => c.toUpperCase())}
-</td>
-
-<td style={td}>{tileColour || "—"}</td>
-
-<td style={td}>{fasciaColour || "—"}</td>
-
-<td style={td}>{soffitDisplay}</td>
-          </tr>
-
-          {/* Row 4 headers */}
-          <tr>
-            <td style={th}>Gutters</td>
-            <td style={th}>Downpipes</td>
-            <td style={th}>Box Gutter Details</td>
-            <td style={th}>Glazed Options</td>
-          </tr>
-          {/* Row 4 values */}
-          <tr>
-            <td style={td}>{gutterDisplay || "—"}</td>
-            <td style={td}>{downpipeDisplay || "—"}</td>
-            <td style={td}>{boxGutterDetails || "—"}</td>
-            <td style={td}>{q.glazed_options || q.glazedOptions || "—"}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    {/* Delivery address / instructions box */}
-    <div
-  style={{
-    ...panel,
-    marginBottom: 0,
-    flex: 1,
-    display: "flex",
-    flexDirection: "column",
-  }}
->
-      <div style={sectionTitle}>Delivery Address, Special Instructions, Extra's</div>
-      <div
-  style={{
-    flex: 1,
-    display: "flex",
-    flexDirection: "column",
-    gap: 10,
-    marginTop: 10,
-  }}
->
-  <div
-    style={{
-      flex: 2,
-      display: "flex",
-      flexDirection: "column",
-    }}
-  >
-    <div
-      style={{
-        fontSize: 12,
-        fontWeight: 700,
-        marginBottom: 6,
-        color: "#374151",
-      }}
-    >
-      Delivery Address
-    </div>
-
-    <textarea
-      value={jobDetails.deliveryAddress}
-      onChange={(e) =>
-        setJobDetails((p) => ({
-          ...p,
-          deliveryAddress: e.target.value,
-        }))
-      }
-      style={{
-        flex: 1,
-        width: "100%",
-        minHeight: 140,
-        padding: 8,
-        resize: "none",
-        border: "1px solid #cbd5e1",
-        borderRadius: 6,
-      }}
-    />
-  </div>
-
-  <div
-    style={{
-      flex: 1,
-      display: "flex",
-      flexDirection: "column",
-    }}
-  >
-    <div
-      style={{
-        fontSize: 12,
-        fontWeight: 700,
-        marginBottom: 6,
-        color: "#374151",
-      }}
-    >
-      Special Instructions
-    </div>
-
-    <textarea
-      value={jobDetails.notes}
-      onChange={(e) =>
-        setJobDetails((p) => ({
-          ...p,
-          notes: e.target.value,
-        }))
-      }
-      style={{
-        flex: 1,
-        width: "100%",
-        minHeight: 70,
-        padding: 8,
-        resize: "none",
-        border: "1px solid #cbd5e1",
-        borderRadius: 6,
-      }}
-    />
-  </div>
-
-  <div
-    className="mb-nav-hide-on-print"
-    style={{
-      display: "flex",
-      justifyContent: "flex-end",
-      marginTop: 4,
-    }}
-  >
-    <button
-      onClick={saveJobDetails}
-      style={{
-        padding: "8px 14px",
-        background: "#2563eb",
-        color: "white",
-        border: 0,
-        borderRadius: 6,
-        cursor: "pointer",
-        fontWeight: 600,
-      }}
-    >
-      Save Job Details
-    </button>
-  </div>
-</div>
-    </div>
-
-    {/* Authorisation boxes */}
-    <div
-  style={{
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: 10,
-    marginTop: 10,
-  }}
->
-      <div style={{ ...panel, minHeight: 120 }}>
-        <div style={sectionTitle}>Authorised for Fabrication</div>
-        <div style={{ marginTop: 32, color: "#374151", fontSize: 13 }}>
-          Signed ________________________________________
-        </div>
-        <div style={{ marginTop: 18, color: "#374151", fontSize: 13 }}>
-          General / Quality Manager
-        </div>
-      </div>
-
-      <div style={{ ...panel, minHeight: 120 }}>
-        <div style={sectionTitle}>Authorised for Despatch</div>
-        <div style={{ marginTop: 32, color: "#374151", fontSize: 13 }}>
-          Signed ________________________________________
-        </div>
-        <div style={{ marginTop: 18, color: "#374151", fontSize: 13 }}>
-          General / Quality or Workshop Manager
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
+ <section className="pm-page pm-front-page">
+ <ManufactureBookFront
+  roof={{customerName:customer,reference:customerRef,style:roofStyleLabel,pitch:`${pitchDeg}°`,frame:`${sft} mm`,tileType:(tileType||'—').toString().replace(/^./,c=>c.toUpperCase()),tileColour,fasciaColour,soffit:soffitDisplay,gutters:gutterDisplay,downpipes:downpipeDisplay,boxGutters:boxGutterDetails,glazing:q.glazed_options||q.glazedOptions,dimensions:`${iw} × ${ip}mm`,weight:planSummary?`${planSummary.installedWeightKg.toFixed(1)}kg incl. plasterboard`:'—'}}
+  job={activeJob}
+  details={{job_number:jobDetails.jobNumber,requested_delivery_date:jobDetails.requested_delivery_date,order_notes:jobDetails.notes,delivery_address_json:{deliveryType:jobDetails.deliveryType,deliveryAddress:jobDetails.deliveryAddress,contactName:jobDetails.contactName,contactPhone:jobDetails.contactPhone}}}
+  extras={planSummary?Object.values(planSummary.sections).flatMap(section=>section.lines).filter(row=>row.isAddedItem&&row.qty>0&&row.usage!=='factory').map(row=>`${row.qty} ${row.units} ${row.label}`):[]}
+  onChange={next=>setJobDetails({jobNumber:next.job_number||'',requested_delivery_date:next.requested_delivery_date||'',notes:next.order_notes||'',deliveryType:next.delivery_address_json?.deliveryType||'Delivery',deliveryAddress:next.delivery_address_json?.deliveryAddress||'',contactName:next.delivery_address_json?.contactName||'',contactPhone:next.delivery_address_json?.contactPhone||''})}
+  onSave={saveJobDetails}
+ />
+ </section>
 
                 {roofStyleKey === "leanTo" && (
   <>
@@ -3569,6 +3277,7 @@ const ringBeamManufactureSchedule = useMemo(
         .pm-roof-plan-facets { width: 100%; border-collapse: collapse; font-size: 11px; line-height: 1.2; }
         .pm-roof-plan-facets th, .pm-roof-plan-facets td { border: 1px solid #94a3b8; padding: 4px 7px; text-align: left; }
 
+        .pm-front-page{width:194mm;max-width:100%;margin:18px auto;}
         @media print {
   @page {
     size: A4 portrait;
