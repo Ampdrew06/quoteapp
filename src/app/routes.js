@@ -1,3 +1,8 @@
+import EdwardianManufacture from '../pages/edwardian/EdwardianManufacture';
+import EdwardianDesign from '../pages/edwardian/EdwardianDesign';
+import EdwardianSummary from '../pages/edwardian/EdwardianSummary';
+import EdwardianIdiotList from '../pages/edwardian/EdwardianIdiotList';
+import EdwardianGeometryAudit from '../pages/edwardian/EdwardianGeometryAudit';
 import GableManufacture from '../pages/gable/GableManufacture';
 import GablePage from '../pages/gable/GablePage';
 import GableDesignPreview from '../pages/gable/GableDesignPreview';
@@ -67,6 +72,11 @@ export default function AppRoutes() {
         {/* Tiles & Laths manual calculator */}
         <Route path="/tiles-laths" element={<CentralBossIntegrationGate automaticTilesOnly allowCentralCosting><TilesLaths /></CentralBossIntegrationGate>} />
 
+        <Route path="/quote/edwardian/plan-manufacture" element={<EdwardianManufacture />} />
+        <Route path="/quote/edwardian/technical" element={<EdwardianGeometryAudit />} />
+        <Route path="/quote/edwardian/summary" element={<EdwardianSummary />} />
+        <Route path="/quote/edwardian/idiot-list" element={<EdwardianIdiotList />} />
+        <Route path="/quote/edwardian" element={<EdwardianDesign />} />
         <Route path="/quote/gable" element={<GablePage />} />
         <Route path="/quote/gable/idiot-list" element={<GablePage idiotList />} />
         <Route path="/quote/gable/summary" element={<GablePage summary />} />

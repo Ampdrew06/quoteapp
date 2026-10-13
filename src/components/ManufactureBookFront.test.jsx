@@ -39,3 +39,9 @@ test('job and quote numbers share one horizontal field',()=>{
  const css=find(front,node=>node.type==='style').props.children;
  expect(css).toContain('.mbf-numbers{display:flex;align-items:center');
 });
+
+test('front page omits roof calculations, extras and factory notes',()=>{
+ const html=renderToStaticMarkup(<ManufactureBookFront roof={{dimensions:'ROOF DIMENSIONS',weight:'ROOF WEIGHT'}} extras={['EXTRA ITEM']} factoryNote="FACTORY NOTE" details={{}} onChange={()=>{}} onSave={()=>{}}/>);
+ for(const text of ['ROOF DIMENSIONS','ROOF WEIGHT','EXTRA ITEM','FACTORY NOTE','Summary extras:'])expect(html).not.toContain(text);
+ expect(html).toContain('.mbf-front .mbf-delivery label{display:flex');
+});

@@ -6,11 +6,11 @@ import {getLabourPricingConfig,getDeliveryPricingConfig,getMarkupPricingConfig} 
 import {getNextQuoteNumber,saveQuote,updateQuote} from '../../lib/quotes';
 import {isAdminUser} from '../../lib/userRole';
 const money=value=>'£'+Number(value||0).toFixed(2);
-export default function GablePricingPanel({inputs,materials,customers=[],onChange,summary=false,compact=false,actionsOnly=false,showQuote=true,onQuote,onReset}) {
+export default function GablePricingPanel({inputs,materials,customers=[],onChange,summary=false,compact=false,actionsOnly=false,showQuote=true,onQuote,onReset,family='gable',quotationBuilder=buildGableQuotation,recordBuilder=buildGableQuoteRecord}) {
  const [busy,setBusy]=useState(false),[message,setMessage]=useState('');
  const request=useRef(0),latest=useRef(inputs);latest.current=inputs;
  const customer=customers.find(c=>c.id===inputs.selectedCustomerId)||null,admin=isAdminUser();
- const q=buildGableQuotation({inputs,materials,customer,labourConfig:getLabourPricingConfig(),deliveryConfig:getDeliveryPricingConfig(),markupConfig:getMarkupPricingConfig()});
+ const q=quotationBuilder({inputs,materials,customer,labourConfig:getLabourPricingConfig(),deliveryConfig:getDeliveryPricingConfig(),markupConfig:getMarkupPricingConfig()});
  const lookup=async()=>{
   const code=String(inputs.deliveryPostcode||'').trim();if(!code)return;
   const id=++request.current;setBusy(true);setMessage('Checking delivery distance…');
@@ -28,9 +28,9 @@ export default function GablePricingPanel({inputs,materials,customers=[],onChang
   if(!String(inputs.customerReference||'').trim()){setMessage('Enter a customer reference on Design/Options before saving.');return;}
   setBusy(true);setMessage('Saving quotation…');
   try{
-   const current=readActiveDesignRecord('gable');
+   const current=readActiveDesignRecord(family);
    const quoteNumber=current?.quote_number||await getNextQuoteNumber();
-   const record=buildGableQuoteRecord({inputs,materials,quotation:q,customer,quoteNumber});
+   const record=recordBuilder({inputs,materials,quotation:q,customer,quoteNumber});
    const saved=current?await updateQuote(current.id,designRecordPatch(record)):await saveQuote(record);
    if(!saved)throw new Error('Quote was not saved. Please check the connection and try again.');
    activateDesignRecord({...current,...record,...saved,inputs_json:record.inputs_json,status:current?.status||saved.status||'quote'});
@@ -38,8 +38,8 @@ export default function GablePricingPanel({inputs,materials,customers=[],onChang
   }catch(error){setMessage(error.message||'Quote was not saved.');}
   finally{setBusy(false);}
  };
- const actions=compact?<div className="gd-actions"><button type="button" disabled={busy} onClick={()=>{onQuote();if(q.valid&&!q.distanceReady&&String(inputs.deliveryPostcode||'').trim())lookup();}}>Quote</button><button type="button" onClick={save} disabled={!q.ready||busy}>{readActiveDesignRecord('gable')?'Update Quote':'Save Quote'}</button><button type="button" onClick={onReset} disabled={busy}>Reset</button></div>:null;
- return <>{actions}{(!compact||showQuote)&&!actionsOnly&&<section style={{padding:18,margin:'20px 0',border:'1px solid #94a3b8',borderRadius:8}} aria-label="Gable quotation pricing">
+ const actions=compact?<div className="gd-actions"><button type="button" disabled={busy} onClick={()=>{onQuote();if(q.valid&&!q.distanceReady&&String(inputs.deliveryPostcode||'').trim())lookup();}}>Quote</button><button type="button" onClick={save} disabled={!q.ready||busy}>{readActiveDesignRecord(family)?'Update Quote':'Save Quote'}</button><button type="button" onClick={onReset} disabled={busy}>Reset</button></div>:null;
+ return <>{actions}{(!compact||showQuote)&&!actionsOnly&&<section style={{padding:18,margin:'20px 0',border:'1px solid #94a3b8',borderRadius:8}} aria-label={family+" quotation pricing"}>
  <h2>Quotation pricing</h2>
  {!q.valid?<p role="status">{q.errors.join(' ')}</p>:<>
  {admin&&<p>Materials: <strong>{money(q.model.materialsCostForPricing)}</strong> · Labour: {money(q.labour.labourCost)} ({q.labour.days.toFixed(1)} days) · Delivery: {money(q.delivery.deliveryCost)} ({q.delivery.oneWayMiles.toFixed(1)} miles one way).</p>}
@@ -50,7 +50,7 @@ export default function GablePricingPanel({inputs,materials,customers=[],onChang
  {q.model.supplyReviews.map(note=><p key={note} role="status">{note}</p>)}
  {q.model.missingPrices.length>0&&<p role="status">Configure these Materials prices before quoting: {q.model.missingPrices.map(r=>r.label).join('; ')}.</p>}
  {q.ready&&<><p style={{fontSize:22}}><strong>{money(q.pricing.net)} + VAT</strong> · {money(q.pricing.gross)} including VAT</p>{admin&&<p>Markup: {q.pricing.profitPct}% · Customer discount: {q.pricing.discountPct}% · VAT: {money(q.pricing.vat)}.</p>}</>}
- <p>{!summary&&admin&&<Link className="nav-tab" to="/quote/gable/summary">Review Summary</Link>} {!compact&&<button type="button" onClick={save} disabled={!q.ready||busy}>{readActiveDesignRecord('gable')?'Update Quote':'Save Quote'}</button>}</p>
+ <p>{!summary&&admin&&<Link className="nav-tab" to={"/quote/"+family+"/summary"}>Review Summary</Link>} {!compact&&<button type="button" onClick={save} disabled={!q.ready||busy}>{readActiveDesignRecord(family)?'Update Quote':'Save Quote'}</button>}</p>
  </>}
  {message&&<p role="status">{message}</p>}
  </section>}{compact&&(!showQuote||actionsOnly)&&message&&<p role="status">{message}</p>}</>;

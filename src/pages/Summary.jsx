@@ -1,3 +1,6 @@
+import {summaryOrderQuantity} from '../lib/Calculations/summaryOrderQuantity';
+import {summaryInsulationAreaDisplay} from '../lib/Calculations/summaryInsulationAreaDisplay';
+import {SummaryHeader,SummaryElementSection,SummaryPricingOverview} from '../components/SummaryTemplate';
 import { resolveCustomerDeliveryMiles } from "../lib/customerRecords";
 import { persistSummaryPricingState } from "../lib/Calculations/summaryPricingState";
 import { buildSummaryMaterialsModel } from "../lib/Calculations/summaryMaterialsModel";
@@ -164,20 +167,7 @@ const activeTabStyle = {
   fontWeight: 600,
 };
 
-const th = {
-  border: "1px solid #e5e7eb",
-  padding: "4px 6px",
-  fontSize: 12,
-  textAlign: "left",
-  background: "#f9fafb",
-};
 
-const td = {
-  border: "1px solid #e5e7eb",
-  padding: "4px 6px",
-  fontSize: 12,
-  verticalAlign: "top",
-};
 
 const fmtMoney = (n) => `£${(Number(n) || 0).toFixed(2)}`;
 const fmtKg = (n) => `${Number(n || 0).toFixed(2)} kg`;
@@ -853,210 +843,17 @@ const displayUnits = (r) => {
 
 // ---------- table renderer with footer row ----------
 
-const Section = ({ title, section, lines, totals, showChargeable }) => {
-  const tdRight = { ...td, textAlign: "right" };
-
-  // Sum of chargeable cost (cost + waste uplift) for this section
-  const chargeableTotal = (lines || []).reduce((sum, r) => {
-    if (isExcluded(r.key)) return sum;
-    return sum + lineChargeableCost(r);
-  }, 0);
-
-  // ✅ Column widths MUST total 100% or you’ll force a scrollbar
-const colWidths = showChargeable
-  ? [28, 7, 9, 9, 11, 11, 11, 6]
-  : [24, 7, 8, 8, 8, 18, 5];
-
-  return (
-    <div style={{ marginBottom: 16 }}>
-      <h2 style={{ fontSize: 18, fontWeight: 600, margin: "8px 0" }}>
-        {title}
-      </h2>
-
-      <div style={{ overflowX: "auto" }}>
-        <table
-          style={{
-            width: "100%",
-            borderCollapse: "collapse",
-            tableLayout: "fixed",
-          }}
-        >
-          <colgroup>
-            {colWidths.map((w, i) => (
-              <col key={i} style={{ width: `${w}%` }} />
-            ))}
-          </colgroup>
-
-          <thead>
-  <tr>
-    <th style={th}>Item</th>
-    <th style={th}>Qty</th>
-    <th style={th}>Order Qty</th>
-    <th style={th}>Units</th>
-    <th style={th}>Weight</th>
-    <th style={tdRight}>Cost</th>
-    {showChargeable && <th style={tdRight}>Chargeable Cost</th>}
-    <th style={th}>Exclude</th>
-  </tr>
-</thead>
-
-
-
-          <tbody>
-  {(lines || []).map((r, idx) => {
-    const qty = asQty(r);
-const orderQty = typeof r.order_qty === "number" ? r.order_qty : undefined;
-const w = lineWeightKg(r);
-const excluded = isExcluded(r.key);
-const baseCost = asCost(r);
-const chargeable = lineChargeableCost(r);
-const rowCostForManualChanges =
-  Number.isFinite(chargeable) && chargeable !== 0
-    ? chargeable
-    : baseCost;
-
-    if (String(r.key || "").includes("steico")) {
-  console.log("STEICO ROW DEBUG", {
-    key: r.key,
-    label: r.label || r.name || r.item,
-    qty,
-    baseCost,
-    chargeable,
-    rowCostForManualChanges,
-    rawRow: r,
-  });
-}
-    return (
-      <tr
-  key={(r.key || r.label || r.name || "row") + "-" + idx}
-  style={isExcluded(r.key) ? { opacity: 0.55 } : undefined}
->
-  <td style={td}>
-    {r.label || r.name || r.item || r.key}
-    {r.price_unconfigured && r.isAddedItem && <span style={{ color: "#92400e" }}> — price unconfigured</span>}
-    {r.isAddedItem && <button type="button" onClick={() => removeAddedItem(r)}
-      style={{ marginLeft: 6, fontSize: 11 }} aria-label={`Remove ${r.label}`}>Remove</button>}
-  </td>
-  <td style={td}>{Number.isFinite(qty) ? qty : "—"}</td>
-  <td style={td}>{Number.isFinite(orderQty) ? orderQty : "—"}</td>
-  <td style={td}>{displayUnits(r)}</td>
-  <td style={td} title={r.isAddedItem ? "Supplied extra; excluded from installed roof weight" : undefined}>{r.isAddedItem ? "—" : fmtKg(w)}</td>
-  <td style={tdRight}>{fmtMoney(baseCost)}</td>
-  {showChargeable && <td style={tdRight}>{fmtMoney(chargeable)}</td>}
-
-  <td style={td}>
-  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-    <input
-      type="checkbox"
-      checked={isExcluded(r.key)}
-      onChange={() => r.isAddedItem ? updateAddedItem(r, { excluded: !r.extraExcluded }) : toggle(r.key, rowCostForManualChanges)}
-      title={r.isAddedItem ? "Exclude extra cost; item remains on the supply list" : "Exclude cost (weight still included)"}
-    />
-
-    <input
-  type="text"
-  inputMode="decimal"
-  style={{
-    width: 38,
-    padding: "1px 3px",
-    fontSize: 11,
-    boxSizing: "border-box",
-  }}
-  key={r.isAddedItem ? `${r.key}:${r.qty}` : r.key}
-  defaultValue={r.isAddedItem ? (r.qty - 1 || "") : (adjustments[r.key] ?? "")}
-  placeholder="+/-"
-  onBlur={(e) => {
-    console.log("ADJUSTMENT BLUR", r.key, e.target.value);
-
-    const raw = e.target.value;
-    if (r.isAddedItem) {
-      if (raw === "" || Number.isFinite(Number(raw))) updateAddedItem(r, { qty: Math.max(0, 1 + (Number(raw) || 0)) });
-      else e.target.value = String(r.qty - 1 || "");
-      return;
-    }
-    const next = { ...adjustments };
-
-    const nextValues = loadAdjustmentValues();
-
-if (raw === "" || Number(raw) === 0 || !Number.isFinite(Number(raw))) {
-  delete next[r.key];
-  delete nextValues[r.key];
-} else {
-  const adjustmentQty = Number(raw);
-  const qty = asQty(r);
-
-  const lineCostForAdjustment = rowCostForManualChanges;
-
-  const unitCost =
-    Number.isFinite(qty) && qty > 0
-      ? lineCostForAdjustment / qty
-      : 0;
-
-  next[r.key] = raw;
-  nextValues[r.key] = unitCost * adjustmentQty;
-}
-
-setAdjustments(next);
-saveAdjustments(next);
-saveAdjustmentValues(nextValues);
-  }}
-  onKeyDown={(e) => {
-    if (e.key === "Enter") {
-      e.currentTarget.blur();
-    }
-  }}
-  title="Adjust quantity (+ or -)"
-/>
-  </div>
-</td>
-</tr>
-
-    );
-  })}
-
-  <tr>
-    <td style={td} colSpan={showChargeable ? 8 : 7}>
-      <select aria-label={`Add item to ${title}`} value=""
-        onChange={(event) => addItem(section, event.target.value)}
-        style={{ width: "100%", maxWidth: 560, padding: "6px 8px" }}>
-        <option value="">Add item…</option>
-        {itemCatalog.filter(item => item.section === section &&
-          !addedItems.some(added => added.section === section && added.catalogId === item.id)).map(item => (
-          <option key={item.id} value={item.id} disabled={item.unitPrice == null}>
-            {item.label} — {item.unitPrice == null ? "set price in Materials" : `${fmtMoney(item.unitPrice)} / ${item.units}`}
-          </option>
-        ))}
-      </select>
-    </td>
-  </tr>
-  {/* Footer total row moved to the bottom */}
-  <tr>
-    <td style={{ ...td, fontWeight: 700 }}>Total</td>
-    <td style={td}>—</td>
-    <td style={td}>—</td>
-    <td style={td}>—</td>
-    <td style={td}>
-      <b>{fmtKg(totals.weight)}</b>
-    </td>
-    <td style={tdRight}>
-      <b>{fmtMoney(totals.cost)}</b>
-    </td>
-    {showChargeable && (
-      <td style={tdRight}>
-        <b>{fmtMoney(chargeableTotal)}</b>
-      </td>
-    )}
-    <td style={td}>—</td>
-  </tr>
-</tbody>
-
-
-        </table>
-      </div>
-    </div>
-  );
+const Section=({title,section,lines,totals,showChargeable})=>{
+ const rows=(lines||[]).map(r=>({key:r.key,label:r.label||r.name||r.item||r.key,qty:asQty(r),orderQty:summaryOrderQuantity(r,asQty(r)),units:displayUnits(r),weightText:r.isAddedItem?'—':fmtKg(lineWeightKg(r)),cost:asCost(r),chargeableCost:lineChargeableCost(r),excluded:isExcluded(r.key),isAddedItem:r.isAddedItem,priceMissing:r.price_unconfigured&&r.isAddedItem,adjustment:r.isAddedItem?(r.qty-1||''):(adjustments[r.key]??''),source:r,...(section==='misc'?summaryInsulationAreaDisplay(r):{})}));
+ const onAdjust=(row,raw)=>{
+ const r=row.source;if(r.isAddedItem){if(raw===''||Number.isFinite(Number(raw)))updateAddedItem(r,{qty:Math.max(0,1+(Number(raw)||0))});return;}
+ const next={...adjustments},nextValues=loadAdjustmentValues();
+ if(raw===''||Number(raw)===0||!Number.isFinite(Number(raw))){delete next[r.key];delete nextValues[r.key];}
+ else{next[r.key]=raw;const cost=row.chargeableCost||row.cost;nextValues[r.key]=(row.qty>0?cost/row.qty:0)*Number(raw);}
+ setAdjustments(next);saveAdjustments(next);saveAdjustmentValues(nextValues);
+ };
+ return <SummaryElementSection title={title} rows={rows} totals={{...totals,chargeableCost:rows.reduce((sum,r)=>sum+(r.excluded?0:r.chargeableCost),0)}} showChargeable={showChargeable} choices={itemCatalog.filter(item=>item.section===section&&!addedItems.some(added=>added.section===section&&added.catalogId===item.id))} onAdd={id=>addItem(section,id)} onRemove={row=>removeAddedItem(row.source)} onAdjust={onAdjust} onExclude={row=>row.isAddedItem?updateAddedItem(row.source,{excluded:!row.source.extraExcluded}):toggle(row.key,row.chargeableCost||row.cost)}/>;
 };
-
 
 /// ---------- overall totals ----------
 
@@ -1210,20 +1007,20 @@ const pricing = computePricing(
 
 
 
-const pricingMaterialsCost = adjustedMaterialsCostForPricing;
-const delivery = pricing.delivery;
-const profitPct = pricing.profitPct;
-const profit = pricing.profit;
-const net = pricing.net;
-const vatRate = pricing.vatRate;
-const vat = pricing.vat;
-const gross = pricing.gross;
-const marginPct = pricing.marginPct;
 
 
 
-const pricingAdjustment = (pricingMaterialsCost ?? 0) - (overallCost ?? 0);
-const showPricingAdjustment = Math.abs(pricingAdjustment) > 0.01;
+
+
+
+
+
+
+
+
+
+
+
 
 
 if (typeof window !== "undefined") {
@@ -1242,32 +1039,7 @@ return (
         padding: 12,
       }}
     >
-      <h1
-        style={{
-          fontSize: 22,
-          fontWeight: 700,
-          margin: "0 0 10px",
-        }}
-      >
-        Summary — Cost &amp; Weight Breakdown
-      </h1>
-
-      <p
-        style={{
-          fontSize: 13,
-          color: "#4b5563",
-          marginBottom: 12,
-        }}
-      >
-        Tick <b>Exclude</b> to drop an item&apos;s cost from the quote
-        (for example when a customer supplies their own gutters) while its
-        weight remains included for final overall weight purposes.
-      </p>
-
-      <p style={{ fontSize: 13, color: "#4b5563" }}>
-        Use <b>Add item</b> for supplied extras, then <b>+/−</b> to change their quantity.
-        Extra costs are included in the quotation; installed roof weight remains unchanged.
-      </p>
+      <SummaryHeader/>
       <Section section="timber" title="Timber Elements" lines={timberLinesAdjusted} totals={timberTotals} showChargeable />
       <Section section="tiles" title="Tile Elements" lines={tilesLinesAdjusted} totals={tilesTotals} showChargeable={false} />
       <Section section="plastics" title="Plastics Elements" lines={plasticsLinesAdjusted} totals={plasticsTotals} showChargeable={false} />
@@ -1275,336 +1047,8 @@ return (
       <Section section="gutters" title="Guttering Elements" lines={gutterLinesAdjusted} totals={gutterTotals} showChargeable={false} />
       <Section section="misc" title="Miscellaneous" lines={miscLinesForSectionAdjusted} totals={miscTotals} showChargeable={false} />
 
-      {/* Overall Totals Summary */}
-      <div
-        style={{
-          marginTop: 12,
-          borderTop: "2px solid #e5e7eb",
-          paddingTop: 12,
-        }}
-      >
-        <h3
-          style={{
-            margin: "4px 0 8px",
-            fontSize: 16,
-          }}
-        >
-          Overall Totals
-        </h3>
+      <SummaryPricingOverview baseCost={overallCost} materialsCost={summaryMaterials.materialsCostForPricing} materialsWeight={overallWeight} installedWeight={installedWeight} plasterboardQty={plasterboardQty} labour={labour} delivery={deliveryResult} pricing={pricing} labourConfig={labourConfig} deliveryConfig={deliveryConfig} markupConfig={markupConfig} overrideDays={labourDaysOverride} onLabourConfig={updateLabourConfig} onDeliveryConfig={updateDeliveryConfig} onMarkupConfig={updateMarkupConfig} onOverride={value=>{setLabourDaysOverride(value);localStorage.setItem('leanToInputs',JSON.stringify({...loadInputs(),labourDaysOverride:value}));}}/>
 
-        <p style={{ margin: 0, fontSize: 13 }}>
-          <b>Total Cost (after exclusions, base):</b>{" "}
-          {fmtMoney(overallCost)}
-        </p>
-
-        <p style={{ margin: 0, fontSize: 13 }}>
-          <b>Materials total used for pricing (sum of Elements):</b>{" "}
-          {fmtMoney(summaryMaterials.materialsCostForPricing)}
-        </p>
-
-        <p style={{ margin: 0, fontSize: 13 }}>
-          <b>Total Weight (all items):</b>{" "}
-          {fmtKg(overallWeight)}
-        </p>
-<p style={{ margin: 0, fontSize: 13 }}>
-  <b>Installed Weight (incl. plasterboard):</b>{" "}
-  {installedWeight.toFixed(2)} kg{" "}
-  <span style={{ color: "#666" }}>
-    (Qty Required: {plasterboardQty} boards)
-  </span>
-</p>
-        {showPricingAdjustment && (
-          <div
-            style={{
-              marginTop: 8,
-              padding: "8px 10px",
-              background: "#f9fafb",
-              border: "1px solid #e5e7eb",
-              borderRadius: 6,
-              fontSize: 13,
-            }}
-          >
-            <p style={{ margin: 0 }}>
-              <b>Pricing reconciliation:</b> base material total{" "}
-              {fmtMoney(overallCost)} → pricing materials base{" "}
-              {fmtMoney(pricingMaterialsCost)}
-            </p>
-            <p style={{ margin: "4px 0 0" }}>
-              <b>Adjustment applied:</b> {fmtMoney(pricingAdjustment)}{" "}
-              <span style={{ color: "#6b7280" }}>
-                (timber chargeable uplift only; quantity changes and exclusions are already included)
-              </span>
-            </p>
-          </div>
-        )}
-
-        {/* Pricing overview based on Summary totals */}
-        <div
-          style={{
-            marginTop: 12,
-            paddingTop: 8,
-            borderTop: "1px dashed #e5e7eb",
-          }}
-        >
-          <h4
-            style={{
-              margin: "0 0 6px",
-              fontSize: 16,
-              fontWeight: 600,
-            }}
-          >
-            Pricing overview (using chargeable materials total)
-          </h4>
-
-          <p style={{ margin: 0, fontSize: 13 }}>
-            <b>Materials used for pricing (incl. waste):</b>{" "}
-            {fmtMoney(pricingMaterialsCost)}
-          </p>
-           
-           <b>Labour:</b> {fmtMoney(labour.labourCost)}
-<span
-  style={{
-    marginLeft: 8,
-    padding: "2px 6px",
-    borderRadius: 6,
-    background: "#f3f4f6",
-    color: "#374151",
-    fontSize: 12,
-    fontWeight: 600,
-  }}
->
-  ({Number(labour.days || 0).toFixed(1)} days)
-</span>
-
-          <div
-  style={{
-    margin: "6px 0",
-    padding: "8px 10px",
-    background: "#f9fafb",
-    border: "1px solid #e5e7eb",
-    borderRadius: 6,
-    fontSize: 13,
-  }}
->
-  <p style={{ margin: 0 }}>
-    <b>Delivery:</b> {fmtMoney(delivery)}
-  </p>
-
-  <p style={{ margin: "4px 0 0", color: "#6b7280" }}>
-    One-way distance: {deliveryResult.oneWayMiles.toFixed(2)} miles
-    {" "} | Return distance: {deliveryResult.returnMiles.toFixed(2)} miles
-  </p>
-
-  <p style={{ margin: "4px 0 0", color: "#6b7280" }}>
-    Time cost: {fmtMoney(deliveryResult.timeCost)}
-    {" "} | Fuel cost: {fmtMoney(deliveryResult.fuelCost)}
-  </p>
-</div>
-
-          <p style={{ margin: 0, fontSize: 13 }}>
-            <b>Net price:</b>{" "}
-            {fmtMoney(net)}
-          </p>
-
-          <p style={{ margin: 0, fontSize: 13 }}>
-            <b>VAT ({(vatRate * 100).toFixed(0)}%):</b>{" "}
-            {fmtMoney(vat)}
-          </p>
-
-          <p style={{ margin: 0, fontSize: 14 }}>
-            <b>Gross price:</b>{" "}
-            {fmtMoney(gross)}
-          </p>
-           
-           <p style={{ margin: 0, fontSize: 13 }}>
-            <b>Profit markup:</b>{" "}
-            {profitPct.toFixed(1)}% → {fmtMoney(profit)}
-            {pricing.discountPct > 0 && (
-  <p style={{ margin: 0, fontSize: 13 }}>
-    <b>Customer discount:</b>{" "}
-    {pricing.discountPct.toFixed(1)}% → -{fmtMoney(pricing.discountAmount)}
-  </p>
-)}
-          </p>
-          
-          <p style={{ margin: 0, fontSize: 13 }}>
-            <b>Margin on net (profit / net):</b>{" "}
-            {Number.isFinite(marginPct) ? `${marginPct.toFixed(1)}%` : "—"}
-          </p>
-
-        </div>
-      </div>
-     <div
-  style={{
-    marginTop: 20,
-    padding: 14,
-    border: "1px solid #d1d5db",
-    borderRadius: 8,
-    background: "#f9fafb",
-  }}
->
-  <h3 style={{ marginTop: 0, marginBottom: 12, fontSize: 15, fontWeight: 700 }}>
-    Controls
-  </h3>
-
-  <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr 1fr" }}>
-    {/* Labour */}
-    <div
-      style={{
-        padding: 12,
-        border: "1px solid #d1d5db",
-        borderRadius: 8,
-        background: "#ffffff",
-      }}
-    >
-      <h4 style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 600 }}>
-        Labour
-      </h4>
-
-      <div style={{ display: "grid", gap: 8 }}>
-        <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
-          Day Rate (£)
-          <input
-            type="number"
-            value={labourConfig.dayRate}
-            onChange={(e) =>
-              updateLabourConfig({ dayRate: Number(e.target.value) })
-            }
-          />
-        </label>
-
-        <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
-          Default Min Days
-          <input
-            type="number"
-            step="0.1"
-            value={labourConfig.minimumDays}
-            onChange={(e) =>
-              updateLabourConfig({ minimumDays: Number(e.target.value) })
-            }
-          />
-        </label>
-        <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
-  Override Days (this quote only)
-  <input
-    type="number"
-    step="0.1"
-    min="0"
-    value={labourDaysOverride}
-    onChange={(e) => {
-  const value = e.target.value;
-  setLabourDaysOverride(value);
-
-  const saved = loadInputs() || {};
-  localStorage.setItem(
-    "leanToInputs",
-    JSON.stringify({
-      ...saved,
-      labourDaysOverride: value,
-    })
-  );
-}}
-    placeholder="e.g. 1.5"
-  />
-</label>
-      </div>
-    </div>
-
-    {/* Delivery */}
-    <div
-      style={{
-        padding: 12,
-        border: "1px solid #d1d5db",
-        borderRadius: 8,
-        background: "#ffffff",
-      }}
-    >
-      <h4 style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 600 }}>
-        Delivery
-      </h4>
-
-      <div style={{ display: "grid", gap: 8 }}>
-        <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
-          Hourly Rate (£)
-          <input
-            type="number"
-            step="0.01"
-            value={deliveryConfig.hourlyRate}
-            onChange={(e) =>
-              updateDeliveryConfig({ hourlyRate: Number(e.target.value) })
-            }
-          />
-        </label>
-
-        <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
-          Van MPG
-          <input
-            type="number"
-            step="0.1"
-            value={deliveryConfig.vanMpg}
-            onChange={(e) =>
-              updateDeliveryConfig({ vanMpg: Number(e.target.value) })
-            }
-          />
-        </label>
-
-        <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
-          Fuel Price Per Litre (£)
-          <input
-            type="number"
-            step="0.01"
-            value={deliveryConfig.fuelPricePerLitre}
-            onChange={(e) =>
-              updateDeliveryConfig({
-                fuelPricePerLitre: Number(e.target.value),
-              })
-            }
-          />
-        </label>
-      </div>
-    </div>
-
-    {/* Markup */}
-    <div
-      style={{
-        padding: 12,
-        border: "1px solid #d1d5db",
-        borderRadius: 8,
-        background: "#ffffff",
-      }}
-    >
-      <h4 style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 600 }}>
-        Markup
-      </h4>
-
-      <div style={{ display: "grid", gap: 8 }}>
-        <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
-          Markup (%)
-          <input
-            type="number"
-            step="1"
-            value={markupConfig.profitPct}
-            onChange={(e) =>
-              updateMarkupConfig({ profitPct: Number(e.target.value) })
-            }
-          />
-        </label>
-      </div>
-    </div>
-  </div>
-</div>
-
-      <p
-        style={{
-          color: "#6b7280",
-          fontSize: 11,
-          marginTop: 8,
-        }}
-      >
-        Note: the Design/Options page uses the same pricing helper,
-        so gross price here should match the quote, allowing you to
-        cross-check materials, weight and profit in one place.
-      </p>
     </div>
   </div>
 );

@@ -143,7 +143,7 @@ function BaseLayoutDrawing({ cuts }) {
   );
 }
 
-export default function ManufacturingRingBeamDrawing({ group }) {
+export default function ManufacturingRingBeamDrawing({ group, showPackedLayout = true, reviewLabel = true }) {
   const cuts = group?.cuts || {};
   const beam = group?.ringBeam || {};
   const references = (group?.manufactureRefs || []).join(" / ");
@@ -197,7 +197,7 @@ export default function ManufacturingRingBeamDrawing({ group }) {
       {cuts.continuous?.ply9Base?.outline && <div style={{fontSize:12,margin:'5px 0'}}>
         Ply corner: {cuts.continuous.ply9Base.startMitreDeg ? `start 45° then ${dim(cuts.continuous.ply9Base.startSquareLegMM,1)} mm square leg` : 'start square'} · {cuts.continuous.ply9Base.endMitreDeg ? `end 45° then ${dim(cuts.continuous.ply9Base.endSquareLegMM,1)} mm square leg` : 'end square'}.
       </div>}
-      <BaseLayoutDrawing cuts={cuts} />
+      {showPackedLayout && <BaseLayoutDrawing cuts={cuts} />}
 
       <div style={{ marginTop: 3, padding: "7px 9px", background: "#f8fafc", border: "1px solid #dbe3ec", borderRadius: 4, fontSize: 10 }}>
         <b>Assembly datums:</b> PSE flush to the internal ply edge · outer lath flush to the external ply edge · keep each dark 48 mm member position clear · fit one ply upstand and one finishing lath across every numbered bay · fit two PIR faces per bay.
@@ -230,9 +230,9 @@ export default function ManufacturingRingBeamDrawing({ group }) {
       <div style={{ marginTop: 8, fontSize: 11, color: "#475569" }}>
         Pitch {dim(cuts.pitchDeg, 1)}° · manufactured soffit {dim(cuts.manufacturedSoffitMM)} mm · VFC {dim(cuts.verticalFootCutMM)} mm · {beam.upstandCount || 0} upstands
       </div>
-      <div style={{ marginTop: 4, fontSize: 11, color: "#b45309", fontWeight: 700 }}>
+      {reviewLabel && <div style={{ marginTop: 4, fontSize: 11, color: "#b45309", fontWeight: 700 }}>
         READ ONLY — manufacturing layout pending factory review
-      </div>
+      </div>}
     </div>
   );
 }

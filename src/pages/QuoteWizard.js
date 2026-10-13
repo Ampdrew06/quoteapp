@@ -1,3 +1,4 @@
+import {clearActiveDesignRecord} from '../lib/activeDesignRecord';
 // src/pages/QuoteWizard.js
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
@@ -59,6 +60,12 @@ export default function QuoteWizard() {
   if (slug === "gable") {
     localStorage.removeItem("gableDesignPreviewInputs");
     navigate("/quote/gable");
+    return;
+  }
+
+  if (slug === "edwardian" && isAdmin) {
+    clearActiveDesignRecord();
+    navigate("/quote/edwardian", {state:{fresh:true}});
     return;
   }
 

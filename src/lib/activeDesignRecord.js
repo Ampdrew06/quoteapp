@@ -10,7 +10,7 @@ export function readActiveDesignRecord(family,storage=globalThis.localStorage){
  try{const value=JSON.parse(storage.getItem(KEY)||'null');return value?.record?.id&&value.family===family?value.record:null;}catch{return null;}
 }
 export function clearActiveDesignRecord(storage=globalThis.localStorage){
- for(const key of [KEY,'activeDesignDraft','active_job_id','active_gable_job_id','gableBookDetails','leanBookDetails'])storage.removeItem(key);
+ for(const key of [KEY,'activeDesignDraft','active_job_id','active_gable_job_id','gableBookDetails','leanBookDetails','edwardianBookDetails'])storage.removeItem(key);
 }
 export function rememberActiveDesignRecord(record,storage=globalThis.localStorage){
  if(record?.id)storage.setItem(KEY,JSON.stringify({family:designFamily(record),record}));

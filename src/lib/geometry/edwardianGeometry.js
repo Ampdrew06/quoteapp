@@ -1,0 +1,65 @@
+import {buildGableTrussLayout} from './gableGeometry';
+import {buildDefaultFrontRafterLayout} from '../Manufacturing/rafterLayoutBuilder';
+import {solveFacetEavesGeometry} from './facetEavesGeometry';
+import {alignChamferedLathEaves} from './alignChamferedLathEaves';
+const rad=d=>d*Math.PI/180;
+// Setting-out only. Plan distances are not manufactured member cut lengths.
+export function buildEdwardianGeometry({inputs={},materials={}}={}) {
+ const widthMM=Number(inputs.widthMM),projectionMM=Number(inputs.projMM),requestedPitchDeg=Number(inputs.pitchDeg??25),frameMM=Number(inputs.frameThicknessMM??70);
+ let pitchDeg=requestedPitchDeg;
+ const soffitMM=Number(inputs.soffitMM??150),mode=inputs.ridgeMode??'automatic';
+ const invalid=message=>({valid:false,readOnly:true,errors:[message]});
+ if(![widthMM,projectionMM,pitchDeg,frameMM,soffitMM].every(Number.isFinite)||widthMM<=0||projectionMM<=0||frameMM<=0||soffitMM<0||pitchDeg<=0||pitchDeg>=90)return invalid('Enter positive dimensions and a pitch between 0 and 90 degrees.');
+ if(!['automatic','frontPitch','manual'].includes(mode))return invalid('Select a valid ridge setting-out mode.');
+ const depth=Number(materials.rafter_depth_mm??220),ringHeight=Number(materials.ring_beam_height_mm??40);
+ const fixedFront=mode==='frontPitch'?Number(inputs.frontPitchDeg):null;
+ const heightAt=angle=>ringHeight+widthMM/2*Math.tan(rad(angle))+(depth+25+3)/Math.cos(rad(fixedFront==null?angle:Math.max(angle,fixedFront)));
+ if(![depth,ringHeight].every(Number.isFinite)||depth<=0||ringHeight<0)return invalid('Valid roof section dimensions are required.');
+ if(inputs.maxFinishedHeightMM!=null&&inputs.maxFinishedHeightMM!==''){
+  if(mode==='manual')return invalid('Use front pitch rather than a manual ridge position with maximum finished height.');
+  const maximum=Number(inputs.maxFinishedHeightMM),target=maximum-5;
+  if(!Number.isFinite(maximum)||!Number.isFinite(heightAt(0))||target<=heightAt(0))return invalid('Maximum finished height is too low for this roof section.');
+  let lo=0,hi=89;for(let n=0;n<70;n++){const mid=(lo+hi)/2;if(heightAt(mid)<=target)lo=mid;else hi=mid;}pitchDeg=lo;
+ }
+ const half=widthMM/2,riseMM=half*Math.tan(rad(pitchDeg));
+ let frontPitchDeg=pitchDeg,ridgeEndYMM=projectionMM-half;
+ if(mode==='frontPitch') {
+  frontPitchDeg=Number(inputs.frontPitchDeg);
+  if(!Number.isFinite(frontPitchDeg)||frontPitchDeg<=0||frontPitchDeg>=90)return invalid('Front pitch must be between 0 and 90 degrees.');
+  ridgeEndYMM=projectionMM-riseMM/Math.tan(rad(frontPitchDeg));
+ } else if(mode==='manual') {
+  ridgeEndYMM=Number(inputs.ridgePositionMM);
+  if(!Number.isFinite(ridgeEndYMM)||ridgeEndYMM<=0||ridgeEndYMM>=projectionMM)return invalid('Ridge position must lie between the house wall and internal front frame.');
+  frontPitchDeg=Math.atan2(riseMM,projectionMM-ridgeEndYMM)*180/Math.PI;
+ }
+ const terminalSetbackMM=33,terminalTrussCentreMM=ridgeEndYMM-terminalSetbackMM;
+ if(terminalTrussCentreMM<=31.5)return invalid('The ridge is too close to the house wall for a rear truss run.');
+ // The existing builder ends at projection minus half the joist width.
+ // Supply an equivalent endpoint so its last centre is our terminal datum.
+ const layout=buildGableTrussLayout({externalProjectionMM:terminalTrussCentreMM+22.5});
+ if(!layout.valid)return invalid(layout.errors.join(' '));
+ const restricted=inputs.sideSoffitMode==='specified';
+ if(restricted&&!(Number(inputs.specifiedSideSoffitMM)>0))return invalid('Enter the restricted side-soffit envelope.');
+ const eaves=alignChamferedLathEaves(solveFacetEavesGeometry({requestedReferenceSoffitMM:soffitMM,referencePitchDeg:frontPitchDeg,leftPitchDeg:pitchDeg,rightPitchDeg:pitchDeg,hasLeftFacet:true,hasRightFacet:true,
+  materials:{...materials,side_frame_thickness_mm:frameMM},minimumSoffitMM:25,manufacturingRoundIncrementMM:5,
+  sideSoffitControl:restricted?{mode:'specified',side:'left',requestedProjectionMM:Number(inputs.specifiedSideSoffitMM)}:null,
+  fasciaThicknessMM:Number(materials.fascia_thickness_mm??10),plyProjectionAllowanceMM:Number(materials.ply_projection_allowance_mm??5),fasciaLipMM:Number(materials.fascia_lip_mm??25)}));
+ if(!eaves.solutionValid)return invalid('The eaves solver cannot satisfy these pitches and soffits.');
+ const externalLeftMM=eaves.left.manufacturedHorizontalFootRunMM,externalRightMM=eaves.right.manufacturedHorizontalFootRunMM,externalFrontMM=eaves.referenceBaseWidthMM;
+ const ridge={xMM:half,yMM:ridgeEndYMM};
+ const frontLayout=buildDefaultFrontRafterLayout({widthMM,leftBossXMM:half,rightBossXMM:half,hasLeftHip:true,hasRightHip:true,spacingMM:665});
+ const frontRafters=[...frontLayout.leftJackRafters,...frontLayout.centreRafters.slice(0,1),...frontLayout.rightJackRafters].map(r=>({...r,hipMeetingYMM:projectionMM-(projectionMM-ridgeEndYMM)*Math.min(r.centreMM,widthMM-r.centreMM)/half}));
+ const sideLayout=buildGableTrussLayout({externalProjectionMM:projectionMM+22.5,rearCentreMM:terminalTrussCentreMM,secondCentreMM:terminalTrussCentreMM+665});
+ if(!sideLayout.valid)return invalid('Side jack spacing: '+sideLayout.errors.join(' '));
+ const sideJacks=sideLayout.centresMM.slice(1,-1).flatMap(positionMM=>['left','right'].map(side=>({id:`side-${side}-jack-${positionMM}`,side,positionMM,hipMeetingXMM:half*(projectionMM-positionMM)/(projectionMM-ridgeEndYMM)})));
+ const hipPitchDeg=Math.atan2(riseMM,Math.hypot(half,projectionMM-ridgeEndYMM))*180/Math.PI;
+ return {valid:true,errors:[],readOnly:true,finishedHeightMM:heightAt(pitchDeg),heightSafetyBufferMM:inputs.maxFinishedHeightMM?5:0,requestedPitchDeg,widthMM,projectionMM,pitchDeg,frontPitchDeg,frameMM,soffitMM,ridgeMode:mode,ridge,ridgeEndYMM,ridgeSetbackMM:projectionMM-ridgeEndYMM,terminalSetbackMM,terminalTrussCentreMM,riseMM,hipPitchDeg,layout,eaves,frontRafters,sideLayout,sideJacks,
+  externalLeftMM,externalRightMM,externalFrontMM,externalWidthMM:widthMM+externalLeftMM+externalRightMM,externalProjectionMM:projectionMM+externalFrontMM,
+  hips:[{side:'left',start:{xMM:0,yMM:projectionMM},end:ridge},{side:'right',start:{xMM:widthMM,yMM:projectionMM},end:ridge}],
+  notes:['Plan setting-out only: hip lines meet the internal front corners centrally. External hip feet and member profiles are separate cutting candidates for factory review.',
+   'One terminal truss and one boss serve both hips and the front boss rafter. There is no physical ridge timber.',
+   'Terminal truss centre is always 33mm behind the ridge point. Current rear truss setting-out retains 45mm joists and 9mm rear packers.',
+   'Rear trusses reuse 665mm target centres with final bays within 400–700mm. Front jack positions reuse the existing Hipped front layout.',
+   'Eaves reuse the shared Hipped soffit solver and chamfered-lath height alignment. External dimensions are manufacturing geometry candidates.',
+   'Factory measurements are comparison evidence only. This audit does not alter quotation prices, Summary or manufacture books.']};
+}

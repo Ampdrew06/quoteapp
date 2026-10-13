@@ -8,6 +8,7 @@ const round = (v, dp = 0) => {
 };
 
 export default function PlanDiagramHippedLeanTo({
+  bossArrangement = "offset",
   iw = 4000,
   ip = 2000,
   leftHipWidth = 1000,
@@ -34,6 +35,7 @@ export default function PlanDiagramHippedLeanTo({
   rightWall,
 }) {
   const geom = calculateHippedLeanToGeometry({
+    bossArrangement,
     widthMM: iw,
     projectionMM: ip,
     pitchDeg,
@@ -370,7 +372,7 @@ const extBack = yBack;
       const jackY = sidePositionY(positionMM);
 
       return (
-  <g key={`left-side-jack-${positionMM}-${index}`}>
+  <g key={`left-side-jack-${positionMM}-${index}`} aria-label={`Left side jack at ${dim(positionMM)}mm`}>
     <line
       x1={ox}
       y1={jackY}
@@ -420,7 +422,7 @@ const extBack = yBack;
       const jackY = sidePositionY(positionMM);
 
       return (
-  <g key={`right-side-jack-${positionMM}-${index}`}>
+  <g key={`right-side-jack-${positionMM}-${index}`} aria-label={`Right side jack at ${dim(positionMM)}mm`}>
     <line
       x1={hipIntersectionX}
       y1={jackY}
@@ -567,12 +569,12 @@ const extBack = yBack;
   />
 )}
 
-<DimX
+{centreWidth > 0 && <DimX
   x1={x(centreStart)}
   x2={x(centreEnd)}
   y={extFront + 28}
   text={`${dim(centreWidth)} EWPL`}
-/>
+/>}
 
 {hasRightHip && (
   <DimX
@@ -596,7 +598,7 @@ const extBack = yBack;
 />
 
 <DimY
-  x={extLeft - 50}
+  x={Math.max(25, extLeft - 50)}
   y1={extBack}
   y2={extFront}
   text={`${dim(
@@ -606,16 +608,7 @@ const extBack = yBack;
   )} ext`}
 />
 
-<DimY
-  x={extLeft - 50}
-  y1={extBack}
-  y2={extFront}
-  text={`${dim(
-    Number.isFinite(Number(externalProjectionMM))
-      ? Number(externalProjectionMM)
-      : geom.externalProjectionMM
-  )} ext`}
-/>
+
       {/* Front ring beam */}
 <line x1={ox} y1={yFront} x2={ox + ow} y2={yFront} stroke="#111827" strokeWidth="5" />
 

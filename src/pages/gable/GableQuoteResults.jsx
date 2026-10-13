@@ -21,14 +21,14 @@ export function GableCustomerPlan({geometry:g}){
  <circle cx={left+5} cy={bottom+7} r="5" fill="#111827"/><circle cx={right-5} cy={bottom+7} r="5" fill="#111827"/>
  </svg>;
 }
-export default function GableQuoteResults({inputs,geometry:g,materials,customers=[]}){
+export default function GableQuoteResults({inputs,geometry:g,materials,customers=[],quotationBuilder=buildGableQuotation,Plan=GableCustomerPlan,frontPitch=false,outletText='one outlet per side'}){
  const customer=customers.find(c=>c.id===inputs.selectedCustomerId)||null;
- const q=buildGableQuotation({inputs,materials,customer,labourConfig:getLabourPricingConfig(),deliveryConfig:getDeliveryPricingConfig(),markupConfig:getMarkupPricingConfig()});
+ const q=quotationBuilder({inputs,materials,customer,labourConfig:getLabourPricingConfig(),deliveryConfig:getDeliveryPricingConfig(),markupConfig:getMarkupPricingConfig()});
  const tile=inputs.tileProductId==='liteSlate'?'LiteSlate':inputs.tileProductId==='metrotileShingle'?'Metrotile':'Britmet';
- return <><section style={card}><h2 style={{fontSize:18,fontWeight:600,margin:'0 0 8px'}}>Plan preview</h2><GableCustomerPlan geometry={g}/><div style={{color:'#555',lineHeight:1.45,marginTop:8}}>
+ return <><section style={card}><h2 style={{fontSize:18,fontWeight:600,margin:'0 0 8px'}}>Plan preview</h2><Plan geometry={g}/><div style={{color:'#555',lineHeight:1.45,marginTop:8}}>
  <div><b>Internal width:</b> {rounded(g.widthMM)} mm · <b>External width:</b> {rounded(g.externalWidthMM)} mm</div>
  <div><b>Internal projection:</b> {rounded(g.projectionMM)} mm · <b>External projection:</b> {rounded(g.externalProjectionMM)} mm</div>
- <div><b>External Finished Height:</b> {rounded(g.finishedHeightMM)} mm</div><div><b>Roof Pitch:</b> {Number(g.pitchDeg).toFixed(1)}°</div>
- <div><b>Tile:</b> {tile} — <b>{inputs.tileColour}</b></div><div><b>Fascia/Soffit:</b> <b>{inputs.fasciaColour||'White'}</b> · <b>Gutter:</b> {inputs.gutterProfile} / {(inputs.gutterColour||'White').toLowerCase()}, one outlet per side</div></div></section>
+ <div><b>External Finished Height:</b> {rounded(g.finishedHeightMM)} mm</div><div><b>Roof Pitch:</b> {Number(g.pitchDeg).toFixed(1)}°{frontPitch&&<> · <b>Front Pitch:</b> {Number(g.frontPitchDeg).toFixed(1)}°</>}</div>
+ <div><b>Tile:</b> {tile} — <b>{inputs.tileColour}</b></div><div><b>Fascia/Soffit:</b> <b>{inputs.fasciaColour||'White'}</b> · <b>Gutter:</b> {inputs.gutterProfile} / {(inputs.gutterColour||'White').toLowerCase()}, {outletText}</div></div></section>
  <section style={card}><h2 style={{fontSize:18,fontWeight:600,margin:'0 0 8px'}}>Your price</h2>{q.ready?<><div>Subtotal: <b>{money(q.pricing.net)}</b></div><div>VAT ({Number(q.pricing.vatRate*100)}%): {money(q.pricing.vat)}</div><div>Total (gross): <b>{money(q.pricing.gross)}</b></div><p style={{fontSize:12,color:'#6b7280',margin:'8px 0 0'}}>Quotations are valid for 31 days.</p></>:<p role="status">{!q.distanceReady?'Calculating delivery distance or awaiting a valid route. ':''}{!q.customerReady?'Customer details are loading or unavailable. ':''}{q.model.missingPrices?.length?'Configure missing Materials prices in Summary. ':''}{q.model.supplyReviews?.join(' ')||''}</p>}</section></>;
 }

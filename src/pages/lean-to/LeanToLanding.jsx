@@ -1,5 +1,4 @@
 import {readActiveDesignRecord,clearActiveDesignRecord,activateDesignRecord,restoreActiveDesignRecord,designRecordPatch} from '../../lib/activeDesignRecord';
-import CentralBossDesignPreview from '../../components/CentralBossDesignPreview';
 import {buildCentralBossDesign,normalizeBossArrangementInputs} from '../../lib/geometry/centralBossDesign';
 import { readSummaryPricingState } from "../../lib/Calculations/summaryPricingState";
 import { buildSummaryMaterialsModel } from "../../lib/Calculations/summaryMaterialsModel";
@@ -1724,12 +1723,12 @@ const demoVat = demoNet * (pricing.vatRate ?? 0);
 const demoGross = demoNet + demoVat;
 
 const displayExtWidthMM =
-  roofStyle === "hippedLeanTo" && hippedGeom
+  isCentralBoss && centralDesign?.valid ? centralDesign.externalWidthMM : roofStyle === "hippedLeanTo" && hippedGeom
     ? hippedGeom.externalWidthMM
     : extWidthMM;
 
 const displayExtProjectionMM =
-  roofStyle === "hippedLeanTo" && hippedGeom
+  isCentralBoss && centralDesign?.valid ? centralDesign.externalProjectionMM : roofStyle === "hippedLeanTo" && hippedGeom
     ? hippedGeom.externalProjectionMM
     : extProjectionMM;
     
@@ -1748,7 +1747,7 @@ const displayExtProjectionMM =
 </h1>
         </div>
         <p style={{ color: "#555", marginTop: 0, marginBottom: 14 }}>
-          {isCentralBoss ? "Enter your sizes and options below for the central-boss design and quotation." : "Enter your sizes and options below. We’ll show a plan preview and your price."} 
+          Enter your sizes and options below. We’ll show a plan preview and your price. 
           Frame thickness is defaulted to 70mm, please confirm this when ordering.
         </p>
 
@@ -2371,14 +2370,8 @@ title={
         </div>
 
         {/* Results */}
-        {isCentralBoss && <CentralBossDesignPreview inputs={centralDesignInputs} materials={m} pricingReady={centralPricingReady} />}
         {isCentralBoss && !centralPricingReady && <p role="status">{summaryMaterials.centralTrussCosts?.errors?.join(' ') || 'Complete the central-boss design before quoting.'}</p>}
-        {showQuote && isCentralBoss && centralPricingReady && <div id="quote-result" style={{...card,marginTop:16}}>
-          <h2>Central-boss quotation</h2><p>Subtotal: <b>£{(pricing.net ?? 0).toFixed(2)}</b></p>
-          <p>VAT: £{(pricing.vat ?? 0).toFixed(2)}</p><p>Total (gross): <b>£{(pricing.gross ?? 0).toFixed(2)}</b></p>
-          <p>Materials use the integrated Summary quantities. Truss manufacture drawings are available in the manufacture book.</p>
-        </div>}
-        {showQuote && !isCentralBoss && (
+        {showQuote && (!isCentralBoss || centralPricingReady) && (
           <div id="quote-result" style={{ marginTop: 16, display: "grid", gap: 14 }}>
             {/* Plan preview */}
             <div style={card}>
@@ -2387,38 +2380,39 @@ title={
                 {roofStyle === "hippedLeanTo" ? (
   <PlanDiagramHippedLeanTo
   isAdmin={isAdmin}
+  bossArrangement={bossArrangement}
   iw={num(widthMM)}
   ip={num(projMM)}
 
   leftHipWidth={
-  hippedGeom?.leftPitchDerivedHipWidthMM ??
+  isCentralBoss ? num(widthMM)/2 : hippedGeom?.leftPitchDerivedHipWidthMM ??
   num(leftHipWidthMM, 1000)
 }
 
 rightHipWidth={
-  hippedGeom?.rightPitchDerivedHipWidthMM ??
+  isCentralBoss ? num(widthMM)/2 : hippedGeom?.rightPitchDerivedHipWidthMM ??
   num(rightHipWidthMM, 1000)
 }
 
 frontRafterLayout={
-  hippedGeom?.frontRafterLayoutV2
+  isCentralBoss ? centralDesign?.frontRafterLayout : hippedGeom?.frontRafterLayoutV2
 }
 
   hippedSides={activeHippedSides}
   pitchDeg={num(pitchDeg, 15)}
 
-  leftSidePitchDeg={hippedGeom?.leftSidePitchDeg}
-  rightSidePitchDeg={hippedGeom?.rightSidePitchDeg}
+  leftSidePitchDeg={isCentralBoss ? centralDesign?.sidePitchDeg : hippedGeom?.leftSidePitchDeg}
+  rightSidePitchDeg={isCentralBoss ? centralDesign?.sidePitchDeg : hippedGeom?.rightSidePitchDeg}
   soffitDepthMM={num(eavesOverhangMM)}
   rafterSpacing={num(m.rafter_spacing_mm ?? 665)}
   firstCentre={num(m.rafter_first_center_mm ?? 690)}
   tileSystem={tileSystem}
 
-  externalWidthMM={hippedGeom?.externalWidthMM}
-  externalProjectionMM={hippedGeom?.externalProjectionMM}
+  externalWidthMM={displayExtWidthMM}
+  externalProjectionMM={displayExtProjectionMM}
 
-  leftExternalAllowanceMM={hippedGeom?.leftExternalAllowanceMM}
-  rightExternalAllowanceMM={hippedGeom?.rightExternalAllowanceMM}
+  leftExternalAllowanceMM={isCentralBoss ? (displayExtWidthMM-num(widthMM))/2 : hippedGeom?.leftExternalAllowanceMM}
+  rightExternalAllowanceMM={isCentralBoss ? (displayExtWidthMM-num(widthMM))/2 : hippedGeom?.rightExternalAllowanceMM}
 
   leftSideRingBeamLayout={hippedGeom?.leftSideRingBeamLayout}
   rightSideRingBeamLayout={hippedGeom?.rightSideRingBeamLayout}

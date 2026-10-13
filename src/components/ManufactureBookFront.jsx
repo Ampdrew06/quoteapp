@@ -1,6 +1,6 @@
 import React from 'react';
 // Roof adapters supply values only. This component owns the front-page layout.
-export default function ManufactureBookFront({roof={},job=null,details={},extras=[],onChange,onSave,message='',factoryNote=''}) {
+export default function ManufactureBookFront({roof={},job=null,details={},onChange,onSave,message=''}) {
  const address=details.delivery_address_json||{};
  const edit=(key,type='text')=><input aria-label={key.replace(/_/g,' ')} type={type} value={details[key]||''} onChange={e=>onChange({...details,[key]:e.target.value})}/>;
  const setAddress=(key,value)=>onChange({...details,delivery_address_json:{...address,[key]:value}});
@@ -9,14 +9,11 @@ export default function ManufactureBookFront({roof={},job=null,details={},extras
  return <div className="mbf-front">
  <h2 className="mbf-title">Manufacture Book</h2>
  <table className="mbf-grid"><tbody>{headers.map((row,n)=><React.Fragment key={n}><tr>{row.map(label=><th key={label}>{label}</th>)}</tr><tr>{values[n].map((value,k)=><td key={k}>{value}</td>)}</tr></React.Fragment>)}</tbody></table>
- <div className="mbf-roof-details"><span><b>Internal dimensions:</b> {roof.dimensions||'—'}</span><span><b>Roof weight:</b> {roof.weight||'—'}</span></div>
  <div className="mbf-delivery">
  <label className="mbf-address">Delivery address<textarea aria-label="Delivery address" value={address.deliveryAddress||''} onChange={e=>setAddress('deliveryAddress',e.target.value)}/></label>
  <div className="mbf-contact"><label>Contact name<input aria-label="Contact name" value={address.contactName||''} onChange={e=>setAddress('contactName',e.target.value)}/></label><label>Contact phone<input aria-label="Contact phone" value={address.contactPhone||''} onChange={e=>setAddress('contactPhone',e.target.value)}/></label></div>
  <label className="mbf-instructions">Special instructions<textarea aria-label="Special instructions" value={details.order_notes||''} onChange={e=>onChange({...details,order_notes:e.target.value})}/></label>
- <div className="mbf-extras"><b>Summary extras:</b> {extras.length?extras.join(' · '):'None added'}</div>
  </div>
- {factoryNote&&<p className="mbf-factory"><b>Factory:</b> {factoryNote}</p>}
  <div className="mbf-signoff">{['Authorised for Fabrication','Authorised for Despatch'].map(title=><div key={title}><b>{title}</b><span>Signed ____________________ Date __________</span></div>)}</div>
  <div className="mbf-controls"><button type="button" onClick={onSave}>{job?'Save job details':'Save draft book details'}</button><span role="status">{message}</span></div>
  <style>{`
@@ -29,15 +26,12 @@ export default function ManufactureBookFront({roof={},job=null,details={},extras
  .mbf-front input,.mbf-front select,.mbf-front textarea{box-sizing:border-box;font:inherit;color:inherit;background:white;max-width:100%;border:1px solid #cbd5e1;border-radius:3px}
  .mbf-front input,.mbf-front select{display:block;width:100%!important;padding:4px!important;margin:0!important}
  .mbf-numbers{display:flex;align-items:center;gap:6px;min-width:0}.mbf-front .mbf-numbers input{flex:1;min-width:0;width:0!important}.mbf-numbers span{flex:none;font-size:12px;white-space:nowrap}
- .mbf-roof-details{display:flex;justify-content:space-between;gap:8px;font-size:13px;flex:none}
  .mbf-front .mbf-delivery{display:flex;flex-direction:column;gap:3mm;flex:1;min-height:0}
- .mbf-front label{display:flex;flex-direction:column;gap:2mm;font-size:13px;font-weight:700;margin:0!important;min-height:0}
+ .mbf-front .mbf-delivery label{display:flex;flex-direction:column;gap:2mm;font-size:13px;font-weight:700;margin:0!important;min-height:0}
  .mbf-front .mbf-address{flex:2}
  .mbf-front .mbf-instructions{flex:1}
  .mbf-front textarea{flex:1;min-height:0;width:100%;padding:8px;font:400 15px Arial,sans-serif;line-height:1.3;resize:none;margin:0}
  .mbf-contact{display:flex;gap:4mm;flex:none}.mbf-contact label{flex:1}.mbf-contact input{font:400 15px Arial,sans-serif}
- .mbf-extras{font-size:13px;line-height:1.3;flex:none;overflow-wrap:anywhere}
- .mbf-front .mbf-factory{font:12px/1.3 Arial,sans-serif;margin:0!important;flex:none}
  .mbf-signoff{display:flex;gap:3mm;flex:none}.mbf-signoff>div{box-sizing:border-box;flex:1;height:17mm;padding:3mm;border:1px solid #94a3b8;font-size:12px;display:flex;flex-direction:column;justify-content:space-between}.mbf-signoff span{font-size:11px}
  .mbf-controls{display:flex;align-items:center;gap:10px;font-size:13px;flex:none}.mbf-controls button{font:inherit;padding:6px 10px}
  @media print{.mbf-front{height:279mm;border:0}.mbf-front input,.mbf-front select,.mbf-front textarea{border:0!important;border-radius:0;appearance:none}.mbf-controls{display:none!important}.mbf-front textarea{overflow:visible}.mbf-signoff{break-inside:avoid}}
