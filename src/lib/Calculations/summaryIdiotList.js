@@ -1,3 +1,4 @@
+import {buildHippedLeanToRingBeamSchedule} from '../Manufacturing/ringBeamManufactureSchedule';
 import { buildHippedLeanToManufacturingMembers } from '../Manufacturing/manufacturingSequenceBuilder';
 // Supply checklist adapter for the already integrated Summary model.
 // Price exclusion does not remove physically required materials from despatch.
@@ -43,5 +44,33 @@ export function buildSummaryIdiotList(model, materials = {}) {
       return { key: row.key, item, qty, units, isAddedItem: !!row.isAddedItem };
     }).filter(row => row.qty > 0);
   }
-  return { sections, installedWeightKg: positive(model?.installedWeightKg) };
+  const despatchOnly=Boolean(model?.manufactureGeometry);
+  if(despatchOnly){
+    const g=model.manufactureGeometry;
+    if(g.bossArrangement==='central')sections.assemblies=[{key:'truss',item:'Assembled central truss',qty:1,units:'Ea'},...(sections.assemblies||[]).filter(r=>r.key!=='wallbar')];
+    const schedule=buildHippedLeanToRingBeamSchedule({geometry:g});
+    const fittedLathM=schedule?.valid?positive(schedule.totals.outerFixingLath25x50LengthM)+positive(schedule.totals.finishingLath25x50LengthM):0;
+    sections.laths=(sections.timber||[]).filter(r=>['laths_25x50_lengths','laths_25x50_total_m'].includes(r.key)||(r.isAddedItem&&/lath/i.test(r.item))).map(r=>{
+      if(r.isAddedItem)return r;
+      const source=model.sections.timber.lines.find(x=>x.key===r.key),stockM=coverage(materials.lath_stock_length_m,4.8);
+      return {...r,item:`Loose 25×50 laths (${stockM.toFixed(2)}m lengths)`,qty:Math.ceil(Math.max(0,positive(source.qty)-fittedLathM-1e-9)/stockM),units:'Lengths'};
+    }).filter(r=>r.qty>0);
+    // Explicitly added timber supplies remain visible, even when normal raw stock is fitted.
+    const otherTimberExtras=(sections.timber||[]).filter(r=>r.isAddedItem&&!/lath/i.test(r.item));
+    sections.misc=[...(sections.misc||[]),...otherTimberExtras];
+    sections.timber=[];
+    const fittedKeys=new Set(['joist_hangers','jack_rafter_hooks','jack_rafter_brackets','boss_rafter_terminal','spar_hook','pir50_cradle']);
+    for(const key of ['metal','misc'])sections[key]=(sections[key]||[]).flatMap(r=>{
+      if(r.isAddedItem||!fittedKeys.has(r.key))return [r];
+      const extra=positive(model.quantityAdjustments?.[r.key]);if(!extra)return [];
+      const qty=r.key==='pir50_cradle'?Math.ceil(extra/coverage(materials.pir50_pack_coverage_m2,coverage(materials.pir50?.sheet_w_m,1.2)*coverage(materials.pir50?.sheet_h_m,2.4))):Math.min(r.qty,extra);
+      return qty>0?[{...r,qty,item:r.item+' — extra, supplied loose'}]:[];
+    });
+    const ceilingM2=positive(model.hippedInsulationIntegration?.superQuilt?.geometricAreaM2)||positive(model.plasterboardWeightKg)/8.5;
+    if(ceilingM2>0){
+      const addedBoards=(sections.misc||[]).some(r=>r.isAddedItem&&/plasterboard/i.test(r.item));
+      (sections.misc||=[]).push({key:'plasterboard_guide',item:addedBoards?'Plasterboard ceiling requirement — supply listed separately':'Plasterboard 2400 × 1200mm — NOT SUPPLIED (customer to purchase)',qty:Math.ceil((ceilingM2-1e-9)/2.88),units:'Sheets',informational:true});
+    }
+  }
+  return { sections, despatchOnly, installedWeightKg: positive(model?.installedWeightKg) };
 }

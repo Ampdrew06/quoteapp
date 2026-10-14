@@ -1,3 +1,4 @@
+import {LITESLATE_COLOURS} from '../../lib/tileColours';
 import React from 'react';
 import GablePricingPanel from './GablePricingPanel';
 const inputStyle={width:'100%',height:34,padding:'5px 8px',fontSize:13,border:'1px solid #d1d5db',borderRadius:8,boxSizing:'border-box'};
@@ -5,9 +6,9 @@ export default function GableDesignForm({inputs,update,materials,customers,admin
  const field=(label,key,placeholder)=><label>{label}<input type="number" min="0" step="0.1" placeholder={placeholder} value={inputs[key]} onChange={e=>update(key,e.target.value)} style={inputStyle}/></label>;
  const select=(label,key,options)=><label>{label}<select value={inputs[key]} onChange={e=>update(key,e.target.value)} style={inputStyle}>{options.map(o=><option key={Array.isArray(o)?o[0]:o} value={Array.isArray(o)?o[0]:o}>{Array.isArray(o)?o[1]:o}</option>)}</select></label>;
  return <div className="gd-card"><div className="gd-grid">
- {field('Width (internal, mm)','widthMM','e.g. 3600')}{field('Projection (internal, mm)','projMM','e.g. 4000')}
+ {field('Width (internal, mm)','widthMM','e.g. 3500')}{field('Projection (internal, mm)','projMM','e.g. 2500')}
  {select('Tile system','tileProductId',[['britmetShingle','Britmet'],['metrotileShingle','Metrotile'],['liteSlate','LiteSlate']])}
- {select('Tile colour','tileColour',inputs.tileProductId==='liteSlate'?['Slate','Ash','Charcoal']:['Titanium','Raven','Bramble Brown','Rustic Brown','Rustic Terracotta','Smoked Oak','Rustic Red','Tartan Green'])}
+ {select('Tile colour','tileColour',inputs.tileProductId==='liteSlate'?LITESLATE_COLOURS:['Titanium','Raven','Bramble Brown','Rustic Brown','Rustic Terracotta','Smoked Oak','Rustic Red','Tartan Green'])}
  {select('Fascia / Soffit colour','fasciaColour',['White','Rosewood','Black','Anthracite','Light Oak','Cream','Foiled (unspecified)'])}
  {field(admin&&inputs.separateSideSoffits?'Soffit to Left (mm)':'Soffit to Sides (mm)','leftSoffitMM')}
  {select('Gutter profile','gutterProfile',[['square','Square'],['ogee','Ogee'],['round','Round']])}{select('Gutter colour','gutterColour',['White','Black','Anthracite','Brown'])}

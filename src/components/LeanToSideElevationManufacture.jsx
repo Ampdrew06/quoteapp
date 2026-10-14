@@ -166,7 +166,7 @@ export default function LeanToSideElevationManufacture({
       }}
     >
       <svg
-        viewBox={`0 0 ${VB_W} ${VB_H}`}
+        viewBox={`-16 0 ${VB_W + 16} ${VB_H}`}
         style={{
           width: "100%",
           height: "100%",

@@ -1,3 +1,9 @@
+import { buildLeanToBookRingBeam } from '../../lib/Manufacturing/leanToBookSchedule';
+import LeanToPlasticsGuide from '../../components/LeanToPlasticsGuide';
+import ManufacturingLeanToWallplate from '../../components/ManufacturingLeanToWallplate';
+import ManufacturingRoofMemberPages from '../../components/ManufacturingRoofMemberPages';
+import ManufacturingWallplatePly from '../../components/ManufacturingWallplatePly';
+import ManufacturePlanPage from '../../components/ManufacturePlanPage';
 import ManufactureBookFront from '../../components/ManufactureBookFront';
 import {getCustomers} from '../../lib/customers';
 import {readActiveDesignRecord,rememberActiveDesignRecord,draftDesignIdentity} from '../../lib/activeDesignRecord';
@@ -23,7 +29,6 @@ import {
   buildHippedLeanToManufacturingSequence,
 } from "../../lib/Manufacturing/manufacturingSequenceBuilder";
 import ManufacturingWallplateMemberDrawing from "../../components/ManufacturingWallplateMemberDrawing";
-import ManufacturingRoofMemberDrawing from "../../components/ManufacturingRoofMemberDrawing";
 import ManufacturingRingBeamDrawing from "../../components/ManufacturingRingBeamDrawing";
 import { buildJackRafterManufactureAudit } from "../../lib/Calculations/jackRafterManufactureAudit";
 import { groupProvisionalRoofMembers } from "../../lib/Manufacturing/groupProvisionalRoofMembers";
@@ -85,7 +90,7 @@ const sectionTitle = {
 
 const SHOW_LEGACY_HIPPED_WALLPLATE_VISUALISER = false;
 
-const SHOW_LEGACY_LEANTO_RAFTER_DETAIL = true;
+
 
 /* function BookFrontRow({ leftLabel, leftValue, rightLabel, rightValue }) {
   return (
@@ -108,91 +113,6 @@ const SHOW_LEGACY_LEANTO_RAFTER_DETAIL = true;
   );
 }
   */
-function RafterDetailDiagram({
-  externalSlopeMM,
-  internalSlopeMM,
-  plumbCutMM,
-  seatCutLengthMM,
-  wallplateFaceCutMM,
-  overallBlankLengthMM,
-  topAngleDeg,
-  bottomAngleDeg,
-}) {
-  return (
-        <div
-      style={{
-        width: "100%",
-        height: "100%",
-        background: "#fff",
-        padding: 0,
-      }}
-    >
-      <svg
-        viewBox="0 0 980 260"
-        style={{ width: "100%", height: "330px", display: "block" }}
-      >
-        
-
-        {/* ===== RAFTER SHAPE (5 edges) ===== */}
-        <polygon
-          points="
-            220,190
-            220,150
-            760,85
-            760,140
-            320,190
-          "
-          fill="none"
-          stroke="#111827"
-          strokeWidth="2"
-        />
-
-        {/* ===== A (keep as placeholder) ===== */}
-        <line x1="174" y1="63" x2="188" y2="100" stroke="#111827" strokeWidth="1" />
-        <line x1="730" y1="01" x2="743" y2="30" stroke="#111827" strokeWidth="1" />
-        <line x1="180" y1="80" x2="736" y2="15" stroke="#111827" strokeWidth="1" />
-        <text x="460" y="35" textAnchor="middle" fontSize="15" fontWeight="600" fill="#111827">
-  {overallBlankLengthMM} mm
-</text>
-
-        {/* ===== D (keep for now) ===== */}
-        
-        <text x="822" y="122" fontSize="15" fill="#111827">
-  {wallplateFaceCutMM} mm
-</text>
-
-        {/* ===== B value only ===== */}
-        <text x="500" y="108" textAnchor="middle" fontSize="15" fill="#111827">
-          {externalSlopeMM} mm
-        </text>
-
-        {/* ===== C value only ===== */}
-        <text x="560" y="190" textAnchor="middle" fontSize="15" fill="#111827">
-          {internalSlopeMM} mm
-        </text>
-
-        {/* ===== E value only ===== */}
-        <text x="270" y="210" textAnchor="middle" fontSize="15" fill="#111827">
-          {seatCutLengthMM} mm
-        </text>
-
-        {/* ===== F value only ===== */}
-        <text x="160" y="170" fontSize="15" fill="#111827">
-          {plumbCutMM} mm
-        </text>
-
-        {/* ===== Angles (simple, no arcs) ===== */}
-        <text x="225" y="165" fontSize="14" fill="#dc2626" fontWeight="700">
-          {bottomAngleDeg}°
-        </text>
-
-        <text x="735" y="134" fontSize="14" fill="#dc2626" fontWeight="700">
-          {topAngleDeg}°
-        </text>
-      </svg>
-    </div>
-  );
-}
 export default function LeanToPlanManufacture() {
   const [activeJob, setActiveJob] = useState(null);
   const [currentCustomerName,setCurrentCustomerName]=useState("");
@@ -375,11 +295,6 @@ const rightWall =
   rightSupportDepthMM,
 ]);
 
-  const extProjectionMM = useMemo(
-    () => ip + soffit + frameOn,
-    [ip, soffit, frameOn]
-  );
-
   // Manufacturing helper
   const manufactureGeom = useMemo(
     () =>
@@ -407,66 +322,6 @@ const rightWall =
 
   // Manufacture values
   const wallplateLengthMM = round(extWidthMM);
-  const ringBeamLengthMM = round(extWidthMM);
-
-     const internalSlopeMM = Math.floor(
-  manufactureGeom.simpleInternalCutLengthMM
-);
-
-const externalSlopeMM = Math.floor(
-  manufactureGeom.manufacturedExternalSlopeLengthMM ??
-    manufactureGeom.calculatedExternalCutLengthMM
-);
-
-const manufacturedPlumbCutHeightMM =
-  manufactureGeom.manufacturedPlumbCutHeightMM ??
-  manufactureGeom.plumbCutHeightMM;
-
-const plumbCutMM = Math.round(
-  manufacturedPlumbCutHeightMM
-);
-
-  const topAngleDeg = round(pitchDeg, 1);
-  const bottomAngleDeg = round(pitchDeg, 1);
-
-  const rafterDepthMM = 220;
-  const wallplateFaceCutMM = Math.round(
-  rafterDepthMM / Math.cos((topAngleDeg * Math.PI) / 180)
-);
-
-const overallBlankLengthMM = Math.floor(
-  manufactureGeom.manufacturedOverallBlankLengthMM ??
-    (
-      manufactureGeom
-        .manufacturedExternalSlopeLengthMM +
-      manufacturedPlumbCutHeightMM *
-        Math.sin((pitchDeg * Math.PI) / 180)
-    )
-);
-
-// Diagnostic only: independently calculated rectangular blank length.
-// Do not use as the production output until physically confirmed.
-
-  const seatCutLengthMM = round(
-  manufactureGeom.manufacturedHorizontalFootCutMM ??
-    manufactureGeom.horizontalExtensionMM ??
-    (soffit + sft)
-);
-
-  const fixingLathLengthMM = ringBeamLengthMM;
-  const chamferLathLengthMM = ringBeamLengthMM;
-  const fasciaLengthMM = ringBeamLengthMM;
-  const soffitLengthMM = ringBeamLengthMM;
-  const fasciaOrderSizeMM = manufactureGeom.fasciaOrderSizeMM;
-  const finishedFasciaHeightMM = manufactureGeom.fasciaExternalCutHeightMM;
-
-  const pirSheetLengthMM = 2400;
-  const pirSheetWidthMM = 1200;
-  const pirAreaPerSheetM2 = (pirSheetLengthMM * pirSheetWidthMM) / 1_000_000;
-  const roofAreaM2 = (extWidthMM * extProjectionMM) / 1_000_000;
-  const pirSheetCount = Math.max(1, Math.ceil(roofAreaM2 / pirAreaPerSheetM2));
-
-  const gutterLengthMM = ringBeamLengthMM;
 const customer =
   currentCustomerName ||
   q.customerName ||
@@ -2100,6 +1955,11 @@ const ringBeamManufactureSchedule = useMemo(
       : null,
   [roofStyleKey, hippedGeom]
 );
+  const leanToRingBeam = roofStyleKey === 'leanTo' ? buildLeanToBookRingBeam({
+    widthMM: iw, lengthMM: extWidthMM,
+    leftExtensionMM: leftWall ? 0 : leftSupportDepthMM + (L > 0 ? L : lip),
+    firstCentreMM: first, spacingMM: spacing, geometry: manufactureGeom, reference: `P${ringBeamNo}`,
+  }) : null;
   //const roofSizeDisplay = `${round(iw)} × ${round(ip)} mm int / ${round(extWidthMM)} × ${round(extProjectionMM)} mm ext`;
 
   return (
@@ -2124,58 +1984,13 @@ const ringBeamManufactureSchedule = useMemo(
   <>
   
     {/* ===== PAGE 2: CAD PAGE ===== */}
-        <section
-          className="pm-page"
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            height: "279mm",
-          }}
+        <ManufacturePlanPage
+          details={{customer:customer,reference:customerRef,roof:roofStyleLabel,frame:`${sft}mm`,tiles:[tileType,tileColour].filter(Boolean).join(' — '),fascia:fasciaColour,gutter:[gutterColour,gutterProfile].filter(Boolean).join(' — '),weight:planSummary?`${planSummary.installedWeightKg.toFixed(1)}kg incl. plasterboard`:'—'}}
+          facets={[{label:'Front',pitch:`${Number(pitchDeg).toFixed(1)}°`,support:`${frameOn} mm frame`,soffit:`${Math.round(soffit)} mm`}]}
+          elevation={hasRoofDimensions?<LeanToSideElevationManufacture manufactureGeom={manufactureGeom} pitchDeg={pitchDeg}/>:null}
+          notes={<span><b>Identical rafters:</b> P{firstRafterNo}–P{lastRafterNo} · ×{rafterCount} · manufacture all to the Side Elevation / Height Check above.</span>}
         >
-          <div
-            style={{
-              ...panel,
-              display: "flex",
-              flexDirection: "column",
-              height: "100%",
-              padding: 8,
-            }}
-          >
-            {/* Main roof drawing */}
-            <div
-              style={{
-                ...panel,
-                flex: "0 0 58%",
-                marginBottom: 8,
-                position: "relative",
-                padding: 8,
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 18,
-                  fontWeight: 800,
-                  margin: "0 0 6px",
-                  color: "#111827",
-                  textTransform: "uppercase",
-                  letterSpacing: 0.4,
-                }}
-              >
-                Roof Layout
-              </div>
-
-              <div
-  style={{
-    position: "relative",
-    height: "calc(100% - 12px)",
-    minHeight: 420,
-    paddingTop: 0,
-  }}
->
-
-                {hasRoofDimensions ? (
-  <PlanDiagramLeanToManufacture
+          {hasRoofDimensions?(<PlanDiagramLeanToManufacture
     iw={iw}
     ip={ip}
     sft={sft}
@@ -2192,537 +2007,32 @@ const ringBeamManufactureSchedule = useMemo(
     firstCentre={first}
     pitchDeg={pitchDeg}
     outlet={gutterOutlet}
-  />
-) : (
-  <div style={{ color: "#6b7280", fontSize: 16, fontWeight: 600 }}>
-    No roof dimensions loaded
-  </div>
-)}
-              </div>
-
-              <div
-                style={{
-                  marginTop: 6,
-                  paddingTop: 6,
-                  borderTop: "1px solid #e5e7eb",
-                  fontSize: 12,
-                  color: "#111827",
-                  display: "grid",
-                  gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-                  gap: 6,
-                }}
-              >
-                <div><b>External width:</b> {round(extWidthMM)} mm</div>
-                <div><b>External projection:</b> {round(extProjectionMM)} mm</div>
-                <div><b>Centres:</b> ~{round(spacing)} mm</div>
-                <div><b>Rafters:</b> P{firstRafterNo}–P{lastRafterNo}</div>
-                <div><b>Ring-beam:</b> P{ringBeamNo}</div>
-                <div><b>Wallplate:</b> P{wallplateNo}</div>
-              </div>
-            </div>
-{/* ===== SIDE ELEVATION / HEIGHT VISUALISER ===== */}
-<div
-  style={{
-    ...panel,
-    flex: "1 1 auto",
-    padding: 8,
-    display: "flex",
-    flexDirection: "column",
-    overflow: "hidden",
-  }}
->
-  <div
-    style={{
-      fontSize: 18,
-      fontWeight: 800,
-      margin: "0 0 6px",
-      color: "#111827",
-      textTransform: "uppercase",
-      letterSpacing: 0.4,
-    }}
-  >
-    Side Elevation / Height Check
-  </div>
-
-  {hasRoofDimensions ? (
-    <div
-      style={{
-        flex: 1,
-        minHeight: 0,
-      }}
-    >
-      <LeanToSideElevationManufacture
-        manufactureGeom={manufactureGeom}
-        pitchDeg={pitchDeg}
-      />
-    </div>
-  ) : (
-    <div
-      style={{
-        color: "#6b7280",
-        fontSize: 14,
-      }}
-    >
-      Side elevation will appear once roof dimensions are loaded.
-    </div>
-  )}
-</div>
-            
+  />):<p>No roof dimensions loaded</p>}
+        </ManufacturePlanPage>
+        <ManufacturingLeanToWallplate lengthMM={wallplateLengthMM} manufactureRef={wallplateNo} geometry={manufactureGeom}/>
+        {leanToRingBeam && <section className="pm-page pm-leanto-ringbeam-page">
+          <div style={{...panel,padding:'4mm',height:'100%',boxSizing:'border-box'}}>
+            <h2 style={{fontSize:16,margin:'0 0 8px'}}>Ring-beam</h2>
+            <ManufacturingRingBeamDrawing group={leanToRingBeam}/>
+            <p style={{fontSize:11}}>End zones outside the edge rafters are shown as “End”; numbered B bays are the upstand cutting positions. Continuous layers have square ends.</p>
+          </div>
+        </section>}
+        <section className="pm-page pm-leanto-plastics-page">
+          <div style={{...panel,padding:'4mm',height:'100%',boxSizing:'border-box'}}>
+            <LeanToPlasticsGuide geometry={manufactureGeom} lengthMM={extWidthMM} leftWall={leftWall} rightWall={rightWall} leftOverhangMM={L} rightOverhangMM={R} colour={fasciaColour}/>
           </div>
         </section>
-        {/* ===== PAGE 3: MANUFACTURE LIST ===== */}
-       
-        <section className="pm-page">
-          <div style={panel}>
-            <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 10, color: "#111827" }}>
-              Manufacture List
-            </div>
-
-            <div style={{ ...panel, marginBottom: 10 }}>
-              <div style={sectionTitle}>Wallplate</div>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr>
-                    <th style={th}>Item No</th>
-                    <th style={th}>Item</th>
-                    <th style={th}>Qty</th>
-                    <th style={th}>Size / Length</th>
-                    <th style={th}>Notes</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td style={td}>P{wallplateNo}</td>
-                    <td style={td}>Wallplate</td>
-                    <td style={td}>1</td>
-                    <td style={td}>{wallplateLengthMM} mm</td>
-                    <td style={td}>External width</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            
-
-            <div style={{ ...panel, marginBottom: 10 }}>
-              <div style={sectionTitle}>Rafters</div>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr>
-                    <th style={th}>Item No</th>
-                    <th style={th}>Item</th>
-                    <th style={th}>Qty</th>
-                    <th style={th}>Size / Length</th>
-                    <th style={th}>Cut Details</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td style={td}>P{firstRafterNo}–P{lastRafterNo}</td>
-                    <td style={td}>Rafters</td>
-                    <td style={td}>{rafterCount}</td>
-                    <td style={td}>{overallBlankLengthMM} mm</td>
-                    <td style={td}>
-                      External slope: {externalSlopeMM} mm
-                      <br />
-                      Internal slope: {internalSlopeMM} mm
-                      <br />
-                      Plumb cut: {plumbCutMM} mm
-                      <br />
-                      Top angle: {topAngleDeg}°
-                      <br />
-                      Bottom angle: {bottomAngleDeg}°
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <div style={{ ...panel, marginBottom: 10 }}>
-              <div style={sectionTitle}>Ring-beam</div>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr>
-                    <th style={th}>Item No</th>
-                    <th style={th}>Item</th>
-                    <th style={th}>Qty</th>
-                    <th style={th}>Size / Length</th>
-                    <th style={th}>Notes</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td style={td}>P{ringBeamNo}</td>
-                    <td style={td}>Front ring-beam</td>
-                    <td style={td}>1</td>
-                    <td style={td}>{ringBeamLengthMM} mm</td>
-                    <td style={td}>External width</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <div style={{ ...panel, marginBottom: 10 }}>
-              <div style={sectionTitle}>Other Cutting Details</div>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr>
-                    <th style={th}>Item</th>
-                    <th style={th}>Qty</th>
-                    <th style={th}>Size / Length</th>
-                    <th style={th}>Notes</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td style={td}>Fixing lath</td>
-                    <td style={td}>1</td>
-                    <td style={td}>{fixingLathLengthMM} mm</td>
-                    <td style={td}>Front run</td>
-                  </tr>
-                  <tr>
-                    <td style={td}>Chamfered lath</td>
-                    <td style={td}>1</td>
-                    <td style={td}>{chamferLathLengthMM} mm</td>
-                    <td style={td}>Front run</td>
-                  </tr>
-                  <tr>
-                    <td style={td}>100 mm PIR sheets</td>
-                    <td style={td}>{pirSheetCount}</td>
-                    <td style={td}>2400 × 1200 × 100 mm</td>
-                    <td style={td}>First-pass sheet count</td>
-                  </tr>
-                  <tr>
-                    <td style={td}>Fascia</td>
-                    <td style={td}>1</td>
-                    <td style={td}>{fasciaOrderSizeMM} mm × {fasciaLengthMM} mm</td>
-                    <td style={td}>Finished fascia height {finishedFasciaHeightMM} mm</td>
-                  </tr>
-                  <tr>
-                    <td style={td}>Soffit</td>
-                    <td style={td}>1</td>
-                    <td style={td}>{soffit} mm × {soffitLengthMM} mm</td>
-                    <td style={td}>User soffit / effective soffit handled in geometry</td>
-                  </tr>
-                  <tr>
-                    <td style={td}>Gutter</td>
-                    <td style={td}>1</td>
-                    <td style={td}>{gutterLengthMM} mm</td>
-                    <td style={td}>
-                      {gutterProfile || "—"}
-                      {gutterColour ? ` / ${gutterColour}` : ""}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <div style={{ ...panel, minHeight: 90 }}>
-              <div style={sectionTitle}>Factory Notes</div>
-              <div style={{ fontSize: 13, color: "#111827" }}>
-                This cut list is now structured for manufacture. Next step is to replace remaining TBC
-                rafter values with final foot-cut geometry and add the generated rafter diagram.
-              </div>
-            </div>
-          </div>
-        </section>
-
-{/* ===== PAGE 5: LEGACY RAFTER GEOMETRY REFERENCE ===== */}
-{SHOW_LEGACY_LEANTO_RAFTER_DETAIL && (
-  <section
-    className="pm-page"
-    style={{
-      display: "flex",
-      flexDirection: "column",
-      height: "279mm",
-    }}
-  >
-    <div
-      style={{
-        ...panel,
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-      }}
-    >
-      <div
-        style={{
-          fontSize: 24,
-          fontWeight: 800,
-          marginBottom: 10,
-          color: "#111827",
-        }}
-      >
-        Legacy Rafter Geometry Reference
-      </div>
-
-      {/* Rafter detail below */}
-            <div
-              style={{
-                ...panel,
-                flex: 1,
-                padding: 8,
-                display: "flex",
-                flexDirection: "column",
-                overflow: "auto",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 18,
-                  fontWeight: 800,
-                  margin: "0 0 6px",
-                  color: "#111827",
-                  textTransform: "uppercase",
-                  letterSpacing: 0.4,
-                }}
-              >
-                Rafter Detail
-              </div>
-
-              {hasRoofDimensions ? (
-  <RafterDetailDiagram
-  externalSlopeMM={externalSlopeMM}
-  internalSlopeMM={internalSlopeMM}
-  plumbCutMM={plumbCutMM}
-  seatCutLengthMM={seatCutLengthMM}
-  wallplateFaceCutMM={wallplateFaceCutMM}
-  overallBlankLengthMM={overallBlankLengthMM}
-  topAngleDeg={topAngleDeg}
-  bottomAngleDeg={bottomAngleDeg}
-/>
-) : (
-  <div style={{ color: "#6b7280", fontSize: 14 }}>
-    Rafter detail will appear once roof dimensions are loaded.
-  </div>
-)}
-<div
-  style={{
-    marginTop: 12,
-    padding: 12,
-    border: "1px solid #ddd",
-    borderRadius: 8,
-    background: "#fafafa",
-    fontSize: 13,
-  }}
->
-
-  <div>
-  <b>Input Projection</b>:{" "}
-  {Math.round(manufactureGeom.internalProjectionMM)} mm
-</div>
-
-<div>
-  <b>Wallplate Thickness</b>:{" "}
-  {Math.round(manufactureGeom.wallplateThicknessMM)} mm
-</div>
-
-<div>
-  <b>Internal Horizontal Run</b>:{" "}
-  {Math.round(manufactureGeom.internalHorizontalRunMM)} mm
-</div>
-
-<div>
-  <b>External Horizontal Run</b>:{" "}
-  {Math.round(manufactureGeom.externalHorizontalRunMM)} mm
-</div>
-
-<div>
-  <b>Full Horizontal Run</b>:{" "}
-  {Math.round(manufactureGeom.fullHorizontalRunMM)} mm
-</div>
-
-<div>
-  <b>Calculated Internal Cut</b>:{" "}
-  {Math.round(manufactureGeom.calculatedInternalCutLengthMM)} mm
-</div>
-
-<div>
-  <b>Calculated External Extension</b>:{" "}
-  {Math.round(
-    manufactureGeom.calculatedExternalExtensionLengthMM
-  )}{" "}
-  mm
-</div>
-
-<div>
-  <b>Calculated External Cut</b>:{" "}
-  {Math.round(manufactureGeom.calculatedExternalCutLengthMM)} mm
-</div>
-
-<div>
-  <b>Expected Top/Bottom Edge Difference</b>:{" "}
-  {Math.round(
-    manufactureGeom.rafterEdgeLengthDifferenceMM
-  )}{" "}
-  mm
-</div>
-
-  <div><b>Pure Rise</b>: {Math.round(manufactureGeom.pureRiseMM)} mm</div>
-  <div><b>Internal Wall-Plate Height</b>: {Math.round(manufactureGeom.internalWallPlateHeightMM)} mm</div>
-  <div><b>Simple Internal Cut Run</b>: {Math.round(manufactureGeom.simpleInternalCutRunMM)} mm</div>
-  <div><b>Simple Internal Cut Length</b>: {Math.round(manufactureGeom.simpleInternalCutLengthMM)} mm</div>
-  <div><b>Simple External Extension</b>: {Math.round(manufactureGeom.simpleExternalExtensionLengthMM)} mm</div>
-  <div><b>Simple Total Cut Length</b>: {Math.round(manufactureGeom.simpleTotalCutLengthMM)} mm</div>
-  <div><b>External Finished Height</b>: {Math.round(manufactureGeom.externalFinishedHeightMM)} mm</div>
-</div>
-              
-    <div style={{ marginTop: 10, fontWeight: 800 }}>
-  HEIGHT / WALLPLATE DATUM CHECK
-</div>
-
-<div>
-  <b>Effective Pitch Run</b>:{" "}
-  {Math.round(
-    manufactureGeom.effectivePitchRunMM
-  )} mm
-</div>
-
-<div>
-  <b>Pure Rise</b>:{" "}
-  {Math.round(
-    manufactureGeom.pureRiseMM
-  )} mm
-</div>
-
-<div>
-  <b>Internal Wallplate Height</b>:{" "}
-  {Math.round(
-    manufactureGeom.internalWallPlateHeightMM
-  )} mm
-</div>
-
-<div>
-  <b>External Finished Height</b>:{" "}
-  {Math.round(
-    manufactureGeom.externalFinishedHeightMM
-  )} mm
-</div>
-
-<div>
-  <b>Ring Beam Height</b>:{" "}
-  {Math.round(
-    manufactureGeom.ringBeamHeightMM
-  )} mm
-</div>
-
-<div>
-  <b>Roof Build-Up</b>:{" "}
-  {Math.round(
-    manufactureGeom.roofBuildUpMM
-  )} mm
-</div>
-
-<div>
-  <b>Wallplate Thickness</b>:{" "}
-  {Math.round(
-    manufactureGeom.wallplateThicknessMM
-  )} mm
-</div>          
-            </div>
-<div
-  style={{
-    marginTop: 8,
-    fontWeight: 800,
-  }}
->
-  PHYSICAL FINISHED HEIGHT MODEL
-</div>
-
-<div>
-  <b>Rafter Foot Datum</b>:{" "}
-  {Math.round(
-    manufactureGeom.ringBeamHeightMM
-  )} mm
-</div>
-
-<div>
-  <b>Wallplate Trajectory Rise</b>:{" "}
-  {Math.round(
-    manufactureGeom.wallplateTrajectoryRiseMM
-  )} mm
-</div>
-
-<div>
-  <b>Rafter Vertical Depth</b>:{" "}
-  {Math.round(
-    manufactureGeom.rafterVerticalDepthMM
-  )} mm
-</div>
-
-<div>
-  <b>Fixing Lath Depth</b>:{" "}
-  {Math.round(
-    manufactureGeom.fixingLathDepthMM
-  )} mm
-</div>
-
-<div>
-  <b>Tile Top Thickness</b>:{" "}
-  {Math.round(
-    manufactureGeom.tileTopThicknessMM
-  )} mm
-</div>
-
-<div>
-  <b>Roof Finish Vertical Build-Up</b>:{" "}
-  {Math.round(
-    manufactureGeom.roofFinishVerticalBuildUpMM
-  )} mm
-</div>
-
-<div
-  style={{
-    marginTop: 5,
-    fontWeight: 800,
-  }}
->
-  Calculated Maximum Finished Height:{" "}
-  {Math.round(
-    manufactureGeom.calculatedMaximumFinishedHeightMM
-  )} mm
-</div>
-
-    </div>
-  </section>
-)}
   </>
 )}
 
 {roofStyleKey === "hippedLeanTo" && (
   <>
     {/* ===== HIPPED PAGE 2: ROOF PLAN ===== */}
-    <section className="pm-page pm-roof-plan-page">
-      <div className="pm-roof-plan-panel">
-        <h2 className="pm-roof-plan-title">Roof Plan</h2>
-        <div className="pm-roof-plan-details">
-          <div><b>Customer:</b> {customer || "—"}</div>
-          <div><b>Reference:</b> {customerRef || "—"}</div>
-          <div><b>Roof:</b> {roofStyleLabel}</div>
-          <div><b>Frame:</b> {sft}mm</div>
-          <div><b>Tiles:</b> {[tileType, tileColour].filter(Boolean).join(" — ") || "—"}</div>
-          <div><b>Fascia:</b> {fasciaColour || "—"}</div>
-          <div><b>Gutter:</b> {[gutterColour, gutterProfile].filter(Boolean).join(" — ") || "—"}</div>
-          <div><b>Roof weight:</b> {planSummary ? `${planSummary.installedWeightKg.toFixed(1)}kg incl. plasterboard` : "—"}</div>
-        </div>
-        {roofPlan && (
-          <div className="pm-roof-plan-drawing">
-            <RoofPlanDiagram model={roofPlan} mode="manufacture" largePrint />
-          </div>
-        )}
-        {roofPlan?.facets?.length > 0 && (
-          <table className="pm-roof-plan-facets">
-            <thead><tr><th>Facet</th><th>Pitch</th><th>Support</th><th>Soffit</th></tr></thead>
-            <tbody>{roofPlan.facets.map((facet) => (
-              <tr key={facet.id}>
-                <td>{facet.label}</td>
-                <td>{Number(facet.pitchDeg || 0).toFixed(1)}°</td>
-                <td>{facet.metadata?.supportDepthMM ? `${facet.metadata.supportDepthMM} mm ${facet.metadata?.supportType || ""}` : "—"}</td>
-                <td>{Math.round(facet.metadata?.soffitDepthMM ?? 0)} mm</td>
-              </tr>
-            ))}</tbody>
-          </table>
-        )}
+    <ManufacturePlanPage
+      details={{customer:customer,reference:customerRef,roof:roofStyleLabel,frame:`${sft}mm`,tiles:[tileType,tileColour].filter(Boolean).join(' — '),fascia:fasciaColour,gutter:[gutterColour,gutterProfile].filter(Boolean).join(' — '),weight:planSummary?`${planSummary.installedWeightKg.toFixed(1)}kg incl. plasterboard`:'—'}}
+      facets={(roofPlan?.facets||[]).map(f=>({id:f.id,label:f.label,pitch:`${Number(f.pitchDeg||0).toFixed(1)}°`,support:f.metadata?.supportDepthMM?`${f.metadata.supportDepthMM} mm ${f.metadata.supportType||''}`:'—',soffit:`${Math.round(f.metadata?.soffitDepthMM??0)} mm`}))}
+    >
+      {roofPlan&&<RoofPlanDiagram model={roofPlan} mode="manufacture" largePrint/>}
         {hippedGeom ? (
   <>
     {SHOW_LEGACY_HIPPED_WALLPLATE_VISUALISER && (
@@ -2818,13 +2128,12 @@ const ringBeamManufactureSchedule = useMemo(
     No Hipped Lean-To geometry loaded
   </div>
 )}
-      </div>
-    </section>
+    </ManufacturePlanPage>
           
 
     {isCentralBoss && <ManufacturingCentralTrussDrawing truss={hippedGeom?.centralTruss} memberRefs={buildHippedLeanToManufacturingSequence(hippedGeom).members.filter(member=>member.type==='wallbar').map(member=>member.manufactureRef)} />}
     {/* ===== EXISTING HIPPED MANUFACTURE PAGE ===== */}
-    {!isCentralBoss && <section className="pm-page pm-wallplate-page">
+    {!isCentralBoss && <section className={`pm-page pm-wallplate-page${leftHip&&rightHip&&!wallbarsAreDuplicates?' pm-wallplate-unique':''}`}>
     <div className="pm-wallplate-panel" style={{ ...panel, padding: "3mm 2mm" }}>
 
       <div
@@ -2895,6 +2204,7 @@ const ringBeamManufactureSchedule = useMemo(
       manufactureRef="R22"
       quantity={1}
       memberType="horizontal-wallplate"
+      jointReferences={hippedGeom.wallplateAssembly}
       finishedHeightMM={hippedGeom.finishedRoofHeightMM}
 
       externalLengthMM={
@@ -2930,106 +2240,15 @@ const ringBeamManufactureSchedule = useMemo(
     {!hippedGeom.wallplateAssembly?.valid && (
       <div role="alert" style={{ gridColumn: "1 / -1", color: "#b91c1c", fontWeight: 700 }}>Wallplate assembly not verified — do not use these cuts until the geometry is resolved.</div>
     )}
-    {hippedGeom.wallplateAssembly?.valid && (
-      <div style={{ gridColumn: "1 / -1", fontSize: 13, padding: "8px 4px" }}>
-        <b>Wallplate joint reference points</b> — horizontal distances inward from each internal side-frame line.
-        {[{ name: "Left", side: hippedGeom.wallplateAssembly.left },
-          { name: "Right", side: hippedGeom.wallplateAssembly.right }]
-          .filter(({ side }) => side)
-          .map(({ name, side }) => (
-            <div key={name} style={{ marginTop: 4 }}>
-              {name}: A (joint top) {side.topPositionMM.toFixed(1)}mm;
-              B (boss centre) {side.bossCentrePositionMM.toFixed(1)}mm;
-              C (joint bottom) {side.bottomPositionMM.toFixed(1)}mm.
-            </div>
-          ))}
-        <div style={{ marginTop: 4 }}>B is the boss setting-out centre, halfway along the timber joint. A and C are the top and bottom joint endpoints.</div>
-      </div>
-    )}
   </div>
 )}
 
 
-      <div className="pm-wallplate-ply-space" aria-label="Space reserved for future ply element drawings" />
+      {hippedGeom?.wallplateAssembly?.valid&&<ManufacturingWallplatePly geometry={hippedGeom}/>}
     </div>
   </section>}
 
-  {provisionalRoofMemberGroups.length > 0 && (
-    <section className="pm-page">
-      <div style={panel}>
-        <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 3 }}>
-          Hipped Lean-To Manufacture
-        </div>
-        <div style={{ fontSize: 12, color: "#92400e", marginBottom: 9 }}>
-          Provisional manufacture profiles. Retain factory checking until verified on a physical roof.
-        </div>
-        <div style={{ ...sectionTitle, marginBottom: 7 }}>Hips</div>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-            gap: 10,
-            alignItems: "start",
-          }}
-        >
-          {provisionalHipGroups.map((group) => (
-            <ManufacturingRoofMemberDrawing
-              key={`${group.type}-${group.manufactureRefs.join("-")}`}
-              group={group}
-            />
-          ))}
-        </div>
-
-        <div style={{ ...sectionTitle, marginTop: 12, marginBottom: 7 }}>
-          Jack Rafters
-        </div>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-            gap: 10,
-            alignItems: "start",
-          }}
-        >
-          {provisionalJackGroups.map((group) => (
-            <ManufacturingRoofMemberDrawing
-              key={`${group.type}-${group.manufactureRefs.join("-")}`}
-              group={group}
-            />
-          ))}
-        </div>
-      </div>
-    </section>
-  )}
-
-  {provisionalFrontRafterGroups.length > 0 && (
-    <section className="pm-page">
-      <div style={panel}>
-        <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 3 }}>
-          Hipped Lean-To Manufacture
-        </div>
-        <div style={{ ...sectionTitle, marginBottom: 2 }}>Rafters</div>
-        <div style={{ fontSize: 12, color: "#475569", marginBottom: 9 }}>
-          Matching profiles are grouped automatically by structural role and finished dimensions.
-        </div>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-            gap: 10,
-            alignItems: "start",
-          }}
-        >
-          {provisionalFrontRafterGroups.map((group) => (
-            <ManufacturingRoofMemberDrawing
-              key={`${group.type}-${group.manufactureRefs.join("-")}`}
-              group={group}
-            />
-          ))}
-        </div>
-      </div>
-    </section>
-  )}
+  <ManufacturingRoofMemberPages groups={[...provisionalHipGroups,...provisionalJackGroups,...provisionalFrontRafterGroups]}/>
 
   {ringBeamManufactureSchedule?.valid && ringBeamManufactureSchedule.groups.map(group => (
     <section className="pm-page" key={`ring-beam-page-${group.manufactureRefs.join('-')}`}>
@@ -3145,114 +2364,7 @@ const ringBeamManufactureSchedule = useMemo(
   <section className="pm-page pm-plastics-guide-page">
     <div style={panel}><PlasticsCuttingGuide audit={planSummary?.integratedPlasticsAudit} /></div>
   </section>
-  <section className="pm-page pm-manufacture-reference-page">
-    <div style={panel}>
-      <div style={{ ...sectionTitle, fontSize: 16 }}>Manufacture reference</div>
 
-      <div style={{ ...panel, marginBottom: 12 }}>
-        <div style={sectionTitle}>Roof Geometry & Components</div>
-
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <tbody>
-            <tr>
-              <td style={th}>Front Pitch</td>
-              <td style={td}>
-                {Number(pitchDeg || 0).toFixed(1)}°
-              </td>
-
-              <td style={th}>Active Facets</td>
-              <td style={td}>
-                {hippedGeom?.facets?.length ?? 0}
-              </td>
-            </tr>
-
-            <tr>
-              <td style={th}>Bosses</td>
-              <td style={td}>
-                {hippedGeom?.bossQty ?? 0}
-              </td>
-
-              <td style={th}>Spar Hooks</td>
-              <td style={td}>
-                {hippedGeom?.sparHookQty ?? 0}
-              </td>
-            </tr>
-
-            <tr>
-              <td style={th}>Plain Rafters</td>
-              <td style={td}>
-                {hippedGeom?.plainRafterCount ?? 0}
-              </td>
-
-              <td style={th}>Hip Top Cut — off square</td>
-              <td style={td}>
-                {[hippedGeom?.leftHipManufactureV2,hippedGeom?.rightHipManufactureV2].filter(profile=>profile?.valid).map((profile,index)=><div key={index}>{Number(profile.topCutOffSquareDeg ?? profile.hipPitchDeg).toFixed(1)}°</div>)}
-              </td>
-            </tr>
-
-            {hippedGeom?.leftSideRingBeam?.exists && (
-              <tr>
-                <td style={th}>Left Jack Rafters</td>
-                <td style={td}>
-                  {hippedGeom?.leftJackRafterCount ?? 0}
-                </td>
-
-                <td style={th}>Left Boss Centre (B)</td>
-                <td style={td}>
-                  {Math.round(resolvedLeftBossMM)} mm
-                </td>
-              </tr>
-            )}
-
-            {hippedGeom?.rightSideRingBeam?.exists && (
-              <tr>
-                <td style={th}>Right Jack Rafters</td>
-                <td style={td}>
-                  {hippedGeom?.rightJackRafterCount ?? 0}
-                </td>
-
-                <td style={th}>Right Boss Centre (B)</td>
-                <td style={td}>
-                  {Math.round(resolvedRightBossMM)} mm
-                </td>
-              </tr>
-            )}
-
-            <tr>
-              <td style={th}>Plain Rafter Zone</td>
-              <td style={td}>
-                {Math.round(resolvedLeftBossMM)} mm
-                {" → "}
-                {Math.round(resolvedRightBossMM)} mm
-              </td>
-
-              <td style={th}>Zone Width</td>
-              <td style={td}>
-                {Math.round(resolvedBetweenBossesMM)} mm
-              </td>
-            </tr>
-
-            {hippedGeom?.leftSideRingBeam?.exists &&
-              hippedGeom?.rightSideRingBeam?.exists && (
-                <tr>
-                  <td style={th}>Between Bosses</td>
-                  <td style={td}>
-                    {Math.round(resolvedBetweenBossesMM)} mm
-                  </td>
-
-                  <td style={th}>Boss/Spar Hook Offset</td>
-                  <td style={td}>
-                    {Math.round(
-                      hippedGeom?.sparHookToBossOffsetMM ?? 0
-                    )} mm
-                  </td>
-                </tr>
-              )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </section>
   </>
 )}
         <section className="pm-page pm-checklist-page">
@@ -3261,11 +2373,27 @@ const ringBeamManufactureSchedule = useMemo(
       </div>
 
       <style>{`
+        .pm-leanto-ringbeam-page svg{max-width:none!important;max-height:none!important}
+        .pm-leanto-plastics-page h3{font-size:16px}
+        .pm-leanto-plastics-page th,.pm-leanto-plastics-page td{font-size:11px!important;padding:6px!important}
+        .pm-leanto-plastics-page p{font-size:11px!important;line-height:1.35}
         .pm-truss-page { break-inside: avoid; }
         .pm-truss-page svg { max-width: none !important; }
-        .pm-wallplate-panel { min-height: 260mm; box-sizing: border-box; }
+        .pm-wallplate-panel { min-height: 0; height:100%; box-sizing: border-box; }
+        .pm-wallplate-page .pm-wallplate-panel{padding:4mm!important}
         .pm-wallplate-page svg { max-width: none !important; max-height: 58mm; }
-        .pm-wallplate-ply-space { min-height: 35mm; }
+        .pm-wallplate-page .wallplate-member{padding:8px!important;break-inside:avoid}
+        .pm-wallplate-page .wallplate-member svg{height:52mm;max-height:52mm}
+        .pm-wallplate-unique .wallplate-member svg{height:38mm;max-height:38mm}
+        .wallplate-ply-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:8px}
+        .wallplate-ply-card{box-sizing:border-box;border:1px solid #cbd5e1;border-radius:6px;padding:6px;break-inside:avoid}
+        .wallplate-ply-card h3{display:flex;justify-content:space-between;gap:4px;font-size:12px;margin:0 0 3px}
+        .pm-wallplate-page .wallplate-ply-card svg{display:block;width:100%;height:30mm;max-height:30mm}
+        .wallplate-ply-profiles{grid-template-columns:minmax(0,1fr)}
+        .pm-wallplate-page .wallplate-ply-profiles .wallplate-ply-card svg{height:32mm;max-height:32mm}
+        .pm-wallplate-page .wallplate-ply-profiles .wallplate-rear-profile svg{height:18mm;max-height:18mm}
+        .wallplate-ply-card p{font-size:10px;line-height:1.25;margin:3px 0 0}
+        .pm-wallplate-unique .wallplate-ply-card svg{height:24mm;max-height:24mm}
         .pm-roof-plan-page { height: 279mm; }
         .pm-roof-plan-panel { box-sizing: border-box; width: 100%; height: 100%; padding: 3mm 1mm; display: flex; flex-direction: column; gap: 3mm; background: white; }
         .pm-roof-plan-title { margin: 0; text-align: center; font-size: 16px; line-height: 1.2; }

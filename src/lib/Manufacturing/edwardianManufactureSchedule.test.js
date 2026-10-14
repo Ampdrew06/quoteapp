@@ -18,3 +18,24 @@ test('admin front pitch changes the front geometry and keeps terminal setback',(
  const s=make({ridgeMode:'frontPitch',frontPitchDeg:30});expect(s.valid).toBe(true);expect(s.geometry.frontPitchDeg).toBe(30);expect(s.geometry.ridgeEndYMM-s.geometry.terminalTrussCentreMM).toBe(33);expect(s.members.find(m=>m.ref==='R1').profile.topCutOffSquareDeg).toBe(18);
 });
 test('invalid design cannot produce a book',()=>{expect(make({widthMM:0}).valid).toBe(false);});
+
+test('despatch checklist contains loose laths and plasterboard guide, omitting fitted hardware and PIR',()=>{
+ const base=make(),changed=make({summaryPricingState:{adjustments:{edwardian_laths:2,spar_hook:1,edwardian_pir50:1}}});
+ expect(base.checklist.sections.laths[0].qty).toBeGreaterThan(0);
+ expect(base.checklist.sections.metal.some(r=>r.key==='spar_hook')).toBe(false);
+ expect(base.checklist.sections.misc.some(r=>r.key==='edwardian_pir50')).toBe(false);
+ expect(base.checklist.sections.misc.find(r=>r.key==='plasterboard_guide').informational).toBe(true);
+ expect(changed.checklist.sections.laths[0].qty).toBe(base.checklist.sections.laths[0].qty+2);
+ expect(changed.checklist.sections.metal.find(r=>r.key==='spar_hook').qty).toBe(1);
+ expect(changed.checklist.sections.misc.find(r=>r.key==='edwardian_pir50').qty).toBe(1);
+ expect(changed.members).toEqual(base.members);
+});
+
+test('compact checklist quantities preserve supply counts with short display units',()=>{
+ const s=make(),misc=s.checklist.sections.misc,gutters=s.checklist.sections.gutters;
+ expect(misc.find(r=>r.key==='polytop_pins').displayQty).toBe('50');
+ expect(misc.find(r=>r.key==='alu_roll_tape').units).toBe('Roll');
+ expect(misc.find(r=>r.key==='edwardian_tile_tape').units).toBe('Rolls');
+ expect(gutters.find(r=>r.key==='edwardian_gutter_g_len').units).toBe('×4m');
+ expect(gutters.find(r=>r.key==='edwardian_gutter_dp_len').units).toBe('Ea');
+});

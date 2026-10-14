@@ -1,3 +1,4 @@
+import {LITESLATE_COLOURS} from '../../lib/tileColours';
 import React from 'react';
 import GablePricingPanel from '../gable/GablePricingPanel';
 import {buildEdwardianQuotation,buildEdwardianQuoteRecord} from '../../lib/Calculations/edwardianQuotation';
@@ -8,7 +9,7 @@ export default function EdwardianDesignForm({inputs,update,materials,customers,a
  return <div className="gd-card"><div className="gd-grid">
  {field('Width (internal, mm)','widthMM','e.g. 3800')}{field('Projection (internal, mm)','projMM','e.g. 4200')}
  {select('Tile system','tileProductId',[['britmetShingle','Britmet'],['metrotileShingle','Metrotile'],['liteSlate','LiteSlate']])}
- {select('Tile colour','tileColour',inputs.tileProductId==='liteSlate'?['Slate','Ash','Charcoal']:['Titanium','Raven','Bramble Brown','Rustic Brown','Rustic Terracotta','Smoked Oak','Rustic Red','Tartan Green'])}
+ {select('Tile colour','tileColour',inputs.tileProductId==='liteSlate'?LITESLATE_COLOURS:['Titanium','Raven','Bramble Brown','Rustic Brown','Rustic Terracotta','Smoked Oak','Rustic Red','Tartan Green'])}
  {select('Fascia / Soffit colour','fasciaColour',['White','Rosewood','Black','Anthracite','Light Oak','Cream','Foiled (unspecified)'])}
  {field('Soffit to Front (mm)','soffitMM')}
  {select('Gutter profile','gutterProfile',[['square','Square'],['ogee','Ogee'],['round','Round']])}{select('Gutter colour','gutterColour',['White','Black','Anthracite','Brown'])}

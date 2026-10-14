@@ -297,6 +297,23 @@ const vent_method = String(inputs.vent_method || "factory").toLowerCase();
   }
 
 
+  // Side overhangs need their own soffit runs along the exposed roof edges.
+  // Send full stock lengths per side; future offcut optimisation is separate.
+  for (const [side, exposed] of [['left', left_exposed], ['right', right_exposed]]) {
+    const requestedMM = exposed ? Math.max(0, Number(inputs[side + '_overhang_mm'] || 0)) : 0;
+    if (!requestedMM) continue;
+    const widthMM = pickNext(soffitWidths, requestedMM);
+    const lengths = Math.ceil(slope_mm / (stockLenSoffit_m * 1000));
+    const unit = Number(soffitPriceTable[widthMM] ?? 0);
+    lines.push({key:'side_soffit_' + side,
+      label:`${side === 'left' ? 'Left' : 'Right'} side soffit board ${widthMM} mm — ${displayColour}`,
+      qty:lengths, qtyDisplay:`${lengths} × ${stockLenSoffit_m} m`,
+      stockWidthMM:widthMM, used_m:slope_mm/1000,
+      unit, line:lineTotal(lengths,unit),
+      weightEachKg:soffitWeightPerM*stockLenSoffit_m,
+      totalWeightKg:+(slope_mm/1000*soffitWeightPerM).toFixed(2)});
+  }
+
   // Venting line
   if (vent_method === "discs") {
     lines.push({
@@ -367,6 +384,7 @@ console.log(
 if (endFasciaTotalLengths > 0) {
   lines.push({
     key: "end_fascia",
+    used_m: endFasciaTotalRunM,
     label: `End fascia ${end_fascia_height_mm} mm  — ${displayColour}`,
     qty: endFasciaTotalLengths,
     qtyDisplay: `${endFasciaTotalLengths} × 5.0 m`,

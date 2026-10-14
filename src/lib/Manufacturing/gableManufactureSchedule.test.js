@@ -22,6 +22,16 @@ test('checklist keeps authoritative adjusted supply quantities and omits factory
  expect(s.checklist.sections.gutters.find(r=>r.key==='gable_gutter_unions').qty).toBe(model.sections.gutters.lines.find(r=>r.key==='gable_gutter_unions').qty);
  expect(s.checklist.sections.assemblies[0].qty).toBe(8);
  expect(s.checklist.sections.misc.some(r=>/staple|D4/i.test(r.item))).toBe(false);
- expect(s.checklist.sections.timber.find(r=>r.key==='gable_laths').qty).toBe(40);
+ expect(s.checklist.sections.timber.some(r=>r.key==='gable_laths')).toBe(false);
+ expect(s.checklist.sections.laths[0].qty).toBeGreaterThan(0);
+ expect(s.checklist.sections.laths[0].qty).toBeLessThan(40);
+ expect(s.checklist.sections.misc.some(r=>r.key==='gable_pir50')).toBe(false);
+ expect(s.checklist.sections.misc.find(r=>r.key==='plasterboard_guide').informational).toBe(true);
 });
 test('invalid designs have no manufacture schedule',()=>{expect(buildGableManufactureSchedule({valid:false}).valid).toBe(false);});
+
+test('loose lath and PIR extras survive checklist filtering without changing costs',()=>{
+ const base=build(),extra=build({summaryPricingState:{adjustments:{gable_laths:2,gable_pir50:1}}});
+ expect(extra.s.checklist.sections.laths[0].qty).toBe(base.s.checklist.sections.laths[0].qty+2);
+ expect(extra.s.checklist.sections.misc.find(r=>r.key==='gable_pir50').qty).toBe(1);
+});

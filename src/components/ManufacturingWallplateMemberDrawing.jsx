@@ -49,6 +49,7 @@ export default function ManufacturingWallplateMemberDrawing({
 
   externalWallplateHeightMM = 0,
   internalWallplateHeightMM = 0,
+  jointReferences = null,
 
 }) {
   const isWallbar =
@@ -61,6 +62,7 @@ export default function ManufacturingWallplateMemberDrawing({
 
   return (
     <div
+      className="wallplate-member"
       style={{
         width: "100%",
         border: "1px solid #cbd5e1",
@@ -141,8 +143,13 @@ export default function ManufacturingWallplateMemberDrawing({
           internalHeightMM={internalHeightMM}
           leftEndCutOffSquareDeg={leftEndCutOffSquareDeg}
           rightEndCutOffSquareDeg={rightEndCutOffSquareDeg}
+          jointReferences={jointReferences}
         />
       )}
+      {!isWallbar&&jointReferences?.valid&&<div className="wallplate-joint-values" style={{fontSize:11,lineHeight:1.3,marginTop:3}}>
+        {[['Left',jointReferences.left],['Right',jointReferences.right]].filter(([,side])=>side).map(([name,side])=><div key={name}><b>{name}:</b> A – {dim(side.topPositionMM,1)}mm · B – {dim(side.bossCentrePositionMM,1)}mm · C – {dim(side.bottomPositionMM,1)}mm</div>)}
+        <div style={{fontSize:10,color:'#475569'}}>Horizontal distances inward from each internal side frame. A: joint top · B: boss centre · C: joint bottom.</div>
+      </div>}
     </div>
   );
 }
@@ -497,6 +504,7 @@ function HorizontalWallplateDrawing({
   internalHeightMM,
   leftEndCutOffSquareDeg,
   rightEndCutOffSquareDeg,
+  jointReferences,
 }) {
   const VB_W = 760;
   const VB_H = 330;
@@ -540,9 +548,9 @@ function HorizontalWallplateDrawing({
       <line x1={rightX} y1={topDimY + 8} x2={rightX} y2={extY - 5} stroke={extensionStroke} />
 
       <rect
-        x="285"
+        x="190"
         y="20"
-        width="190"
+        width="380"
         height="28"
         fill="#fff"
       />
@@ -570,6 +578,9 @@ function HorizontalWallplateDrawing({
         strokeWidth="2.5"
       />
 
+      {jointReferences?.valid&&[['left',leftX,leftX+35],['right',rightX,rightX-35]].filter(([side])=>jointReferences[side]).map(([side,a,c])=><g key={side}>
+        {[[a,extY,'A'],[(a+c)/2,(extY+intY)/2,'B'],[c,intY,'C']].map(([x,y,letter])=><g key={letter}><circle cx={x} cy={y} r="3" fill="#2563eb"/><text x={x+(side==='left'?-13:13)} y={y+6} textAnchor={side==='left'?'end':'start'} fontSize="18" fontWeight="700" fill="#2563eb">{letter}</text></g>)}
+      </g>)}
       {/* Practical saw settings for the two mating end cuts. */}
 
       <line x1={leftX} y1={extY} x2={leftX + 34} y2={extY + 27} stroke="#dc2626" strokeWidth="1.5" />

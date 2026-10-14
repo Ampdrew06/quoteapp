@@ -164,8 +164,8 @@ export function normalizeSummaryInputs(source = {}) {
   const width = Number(source.internalWidthMM ?? source.widthMM ?? 0);
   const projection = Number(source.internalProjectionMM ?? source.projMM ?? 0);
   const soffit = Number(source.soffit_mm ?? source.eavesOverhangMM ?? source.eaves_overhang_mm ?? 150);
-  const leftWall = typeof source.leftWall === 'boolean' ? source.leftWall : source.left_exposed === false;
-  const rightWall = typeof source.rightWall === 'boolean' ? source.rightWall : source.right_exposed === false;
+  const leftWall = typeof source.leftWall === 'boolean' ? source.leftWall : typeof source.left_wall_present === 'boolean' ? source.left_wall_present : source.left_exposed === false;
+  const rightWall = typeof source.rightWall === 'boolean' ? source.rightWall : typeof source.right_wall_present === 'boolean' ? source.right_wall_present : source.right_exposed === false;
   return { ...source, internalWidthMM:width, widthMM:width, internalProjectionMM:projection, projMM:projection,
     soffit_mm:soffit, eavesOverhangMM:soffit,
     tile_system:source.tileSystem ?? source.tile_system ?? 'britmet',
@@ -2377,14 +2377,14 @@ const inferUsedMetresFromUnit = (r, fallbackStockLenM) => {
 // internal width + frame-on for exposed sides + fascia lip for exposed sides (when no side overhang)
 const plasticsExternalWidthUsedM = (inputs) => {
   const iw = Number(inputs?.internalWidthMM ?? 0);
-  const frameOn = Number(inputs?.frame_on_mm ?? 70);     // your default assumption is 70
+  const frameOn = Number(inputs?.side_frame_thickness_mm ?? m.side_frame_thickness_mm ?? 70);     // your default assumption is 70
   const lip = Number(inputs?.fascia_lip_mm ?? 25);       // lip 25mm each side (when applicable)
 
   const leftExposed = !!inputs?.left_exposed;
   const rightExposed = !!inputs?.right_exposed;
 
-  const lo = Number(inputs?.left_overhang_mm ?? 0);
-  const ro = Number(inputs?.right_overhang_mm ?? 0);
+  const lo = leftExposed ? Number(inputs?.leftOverhangMM ?? inputs?.left_overhang_mm ?? 0) : 0;
+  const ro = rightExposed ? Number(inputs?.rightOverhangMM ?? inputs?.right_overhang_mm ?? 0) : 0;
 
   // Frames only count where the side is exposed
   const frameMm = (leftExposed ? frameOn : 0) + (rightExposed ? frameOn : 0);
@@ -2402,6 +2402,7 @@ const plasticsExternalWidthUsedM = (inputs) => {
 
 // Soffit “front run” = internal width + eaves both sides
 const plasticsSoffitRunUsedM = (inputs) => {
+  if ((inputs.roofStyle || "leanTo") === "leanTo") return plasticsExternalWidthUsedM(inputs);
   const iw = Number(inputs?.internalWidthMM ?? 0);
   const eo = Number(inputs?.eaves_overhang_mm ?? 0);
   const usedMm = iw + (2 * eo);
@@ -2485,7 +2486,7 @@ const patchLinesUsedWeight = (lines, getKgPerM, fallbackStockLenM) => {
 // (Pricing still stays per stock length; we’re only fixing WEIGHT.)
 let usedMFromGeometry = 0;
 if (txt.includes("fascia")) usedMFromGeometry = plasticsExternalWidthUsedM(inputs);
-if (txt.includes("soffit")) usedMFromGeometry = plasticsSoffitRunUsedM(inputs);
+if (txt.includes("soffit")) usedMFromGeometry = String(r.key).startsWith("side_soffit_") ? Number(r.used_m || 0) : plasticsSoffitRunUsedM(inputs);
 
      // ✅ Vented fascia / vent add-ons: not a shipped physical item, so NO WEIGHT
     // (keep this very specific so it doesn't accidentally match normal fascia rows)
@@ -2596,7 +2597,7 @@ const isLengthItem =
 
         // Soffit board uses soffit run used
         if (txt.includes("soffit")) {
-          const usedM = plasticsSoffitRunUsedM(inputs);
+          const usedM = String(r.key).startsWith("side_soffit_") ? Number(r.used_m || 0) : plasticsSoffitRunUsedM(inputs);
           return {
             ...r,
             used_m: usedM,
@@ -2608,7 +2609,7 @@ const isLengthItem =
         if (txt.includes("end fascia")) {
           const perSideM = plasticsEndFasciaRunUsedM(inputs);
           const sides = (inputs?.left_exposed ? 1 : 0) + (inputs?.right_exposed ? 1 : 0);
-          const usedM = Number((perSideM * Math.max(1, sides)).toFixed(3));
+          const usedM = (inputs.roofStyle || "leanTo") === "leanTo" && Number.isFinite(Number(r.used_m)) ? Number(r.used_m) : Number((perSideM * Math.max(1, sides)).toFixed(3));
           return {
             ...r,
             used_m: usedM,

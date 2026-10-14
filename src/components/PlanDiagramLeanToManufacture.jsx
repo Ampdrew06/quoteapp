@@ -67,10 +67,10 @@ const rightDelta = rightWall
   const VB_W = 900, VB_H = 520;
 
 // tighter drawing margins, but still enough room for labels
-const M_TOP = 12;
-const M_RIGHT = 20;
-const M_BOTTOM = 54;
-const M_LEFT = 10;
+const M_TOP = 52;
+const M_RIGHT = 110;
+const M_BOTTOM = 78;
+const M_LEFT = 110;
 
 const innerW = VB_W - M_LEFT - M_RIGHT;
 const innerH = VB_H - M_TOP - M_BOTTOM;
@@ -113,7 +113,7 @@ const rafterBays = rafterPositionsMM
   }));
 
   const rafterStroke = Math.max(2, Math.min(6, 0.005 * iw_px + 2));
-  const labelFont = "14px Inter, system-ui, Arial";
+  const labelFont = "18px Arial, sans-serif";
   const faint = "#6b7280";
 
   const uid = "pdlt";
@@ -145,7 +145,7 @@ const rafterBays = rafterPositionsMM
           markerStart={`url(#${arrYId})`} markerEnd={`url(#${arrYId})`}
         />
         <text
-          x={x - 6} y={mid} textAnchor="end"
+          x={x - 6} y={mid} textAnchor="middle"
           style={{ font: labelFont }} fill="#111827"
           transform={`rotate(-90 ${x - 6} ${mid})`}
         >
@@ -161,9 +161,10 @@ const rafterBays = rafterPositionsMM
   return (
     <svg
   width="100%"
-  height="560"
+  height="100%"
   viewBox={`0 0 ${VB_W} ${VB_H}`}
   preserveAspectRatio="xMidYMid meet"
+  role="img" aria-label="Lean-To manufacturing roof plan"
 >
       <defs>
         <marker id={arrId} markerWidth="10" markerHeight="10" refX="5" refY="3" orient="auto-start-reverse">
@@ -232,21 +233,21 @@ const rafterBays = rafterPositionsMM
       x={midX}
       y={oy + oh - 10}
       textAnchor="middle"
-      style={{ font: "11px Inter, system-ui, Arial" }}
-fill="#6b7280"
+      style={{ font: "16px Arial, sans-serif", fontWeight:700 }}
+fill="#111827"
     >
       {dim(bay.spacingMM)}
     </text>
   );
 })}
 
-      const M_TOP = 30, M_RIGHT = 35, M_BOTTOM = 55, M_LEFT = 35;
+
 
       {/* --- dimensions --- */}
-      <DimX x1={ix} x2={ix + iw_px} y={oy - 8} text={`${dim(iw)} int`} />
-      <DimX x1={ox} x2={ox + ow} y={oy + oh + 36} text={`${dim(extW)} ext`} />
-      <DimY x={ox - 28} y1={oy} y2={oy + oh} text={`${dim(extP)} ext`} />
-<DimY x={ox + ow + 28} y1={oy + oh - ip_px - (soffit * scale)} y2={oy + oh - (soffit * scale)} text={`${dim(ip)} int`} />
+      <DimX x1={ix} x2={ix + iw_px} y={oy - 8} text={`IW: ${dim(iw)} mm`} />
+      <DimX x1={ox} x2={ox + ow} y={oy + oh + 55} text={`EW: ${dim(extW)} mm`} />
+      <DimY x={ox - 60} y1={oy} y2={oy + oh} text={`EP: ${dim(extP)} mm`} />
+<DimY x={ox + ow + 65} y1={oy + oh - ip_px - (soffit * scale)} y2={oy + oh - (soffit * scale)} text={`IP: ${dim(ip)} mm`} />
 
 {/* --- pitch at centre of drawing --- */}
 <text
@@ -254,8 +255,8 @@ fill="#6b7280"
   y={oy + oh / 2}
   textAnchor="middle"
   dominantBaseline="middle"
-  style={{ font: "16px Inter, system-ui, Arial", fontWeight: 700 }}
-  fill="#111827"
+  style={{ font: "22px Arial, sans-serif", fontWeight: 700 }}
+  fill="#16a34a"
 >
   {round(pitchDeg, 1)}°
 </text>
@@ -268,7 +269,7 @@ fill="#6b7280"
     textAnchor="middle"
     dominantBaseline="middle"
     transform={`rotate(-90 ${ox + 14} ${oy + oh / 2})`}
-    style={{ font: "12px Inter, system-ui, Arial", fontWeight: 700 }}
+    style={{ font: "16px Arial, sans-serif", fontWeight: 700 }}
     fill="#111827"
   >
     {leftWall ? "WALL" : "END"}
@@ -280,7 +281,7 @@ fill="#6b7280"
     textAnchor="middle"
     dominantBaseline="middle"
     transform={`rotate(90 ${ox + ow - 14} ${oy + oh / 2})`}
-    style={{ font: "12px Inter, system-ui, Arial", fontWeight: 700 }}
+    style={{ font: "16px Arial, sans-serif", fontWeight: 700 }}
     fill="#111827"
   >
     {rightWall ? "WALL" : "END"}

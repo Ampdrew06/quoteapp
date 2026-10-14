@@ -1,3 +1,4 @@
+import {LITESLATE_COLOURS} from '../../lib/tileColours';
 import {clearActiveDesignRecord,readActiveDesignRecord,restoreActiveDesignRecord} from '../../lib/activeDesignRecord';
 import GableQuoteResults from './GableQuoteResults';
 import GableDesignForm from './GableDesignForm';
@@ -73,7 +74,7 @@ export default function GableDesignPreview({mode='preview',fresh=false}={}) {
  <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:16}}>
  <label>Roof covering<select style={{display:'block',padding:8,width:'100%'}} value={inputs.tileProductId} onChange={e=>update('tileProductId',e.target.value)}><option value="britmetShingle">Britmet Shingle</option><option value="metrotileShingle">Metrotile Shingle</option><option value="liteSlate">LiteSlate</option></select></label>
  {[
- ['tileColour','Tile colour',inputs.tileProductId==='liteSlate'?['Slate','Ash','Charcoal']:['Titanium','Raven','Bramble Brown','Rustic Brown','Rustic Terracotta','Smoked Oak','Rustic Red','Tartan Green']],
+ ['tileColour','Tile colour',inputs.tileProductId==='liteSlate'?LITESLATE_COLOURS:['Titanium','Raven','Bramble Brown','Rustic Brown','Rustic Terracotta','Smoked Oak','Rustic Red','Tartan Green']],
  ['fasciaColour','Fascia/soffit colour',['White','Rosewood','Black','Anthracite','Light Oak','Cream','Foiled (unspecified)']],
  ['gutterColour','Gutter colour',['White','Black','Anthracite','Brown']],
  ].map(([key,label,options])=><label key={key}>{label}<select style={{display:'block',padding:8,width:'100%'}} value={inputs[key]} onChange={e=>update(key,e.target.value)}>{options.map(option=><option key={option} value={option}>{option}</option>)}</select></label>)}

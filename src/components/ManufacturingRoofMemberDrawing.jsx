@@ -21,6 +21,7 @@ export default function ManufacturingRoofMemberDrawing({ group }) {
 
   return (
     <div
+      className="roof-member-card"
       style={{
         border: "1px solid #cbd5e1",
         borderRadius: 6,
@@ -126,16 +127,10 @@ export default function ManufacturingRoofMemberDrawing({ group }) {
         )}
       </svg>
 
-      {hookMember && profile.topCutDepartsFromPlumb && <div style={{fontSize:12,fontWeight:700}}>Top-end dimension is the length along the angled cut, not its vertical height.</div>}
-      {group?.type === "hip" && profile.perimeterFootprint && <div style={{fontSize:12,fontWeight:700}}>Initial square toe — trim excess to the perimeter after assembly. Hip packers required. VFC across trimmed foot: {dim(profile.verticalFootCutMM,1)}–{dim(profile.trimmedVfcMaxMM,1)}mm.</div>}
-      {isJack && profile.connectionGeometry && <div style={{fontSize:12,fontWeight:700}}>Closest-corner plan clearance: {dim(profile.connectionGeometry.closestCornerGapMM,1)}mm. Opposite-corner gap: {dim(profile.connectionGeometry.farCornerGapMM,1)}mm.</div>}
-      <div style={{ fontSize: 11, color: "#b45309", fontWeight: 700 }}>
-        {isBossRafter
-          ? `${dim(profile.bossTerminalAllowanceMM)} mm provisional boss-terminal allowance — factory check pending`
-          : isJack || group?.type === "hip"
-            ? "PROVISIONAL — physical factory check pending"
-            : "Front-facet manufacture profile"}
-      </div>
+      {hookMember && profile.topCutDepartsFromPlumb && <div className="roof-member-note" style={{fontSize:12,fontWeight:700}}>Top-end dimension is the length along the angled cut, not its vertical height.</div>}
+      {group?.type === "hip" && profile.perimeterFootprint && <div className="roof-member-note" style={{fontSize:12,fontWeight:700}}>Initial square toe — trim excess to the perimeter after assembly. Hip packers required. VFC across trimmed foot: {dim(profile.verticalFootCutMM,1)}–{dim(profile.trimmedVfcMaxMM,1)}mm.</div>}
+      {isJack && profile.connectionGeometry && <div className="roof-member-note" style={{fontSize:12,fontWeight:700}}>Closest-corner plan clearance: {dim(profile.connectionGeometry.closestCornerGapMM,1)}mm. Opposite-corner gap: {dim(profile.connectionGeometry.farCornerGapMM,1)}mm.</div>}
+
     </div>
   );
 }

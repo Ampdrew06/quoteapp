@@ -10,7 +10,7 @@ function Strip({ lengthMM, widthMM, label }) {
     <text x="335" y="112" textAnchor="middle" fontSize="16">{label} — schematic</text>
   </svg>;
 }
-export default function PlasticsCuttingGuide({ audit }) {
+export default function PlasticsCuttingGuide({ audit, showSupply = true, runEnvelopesOnly = false }) {
   if (!audit?.valid) return <p>Plastics cutting guide requires valid perimeter geometry.</p>;
   return <div>
     <h3 style={{ marginTop: 0 }}>Fascia &amp; soffit preparation guide</h3>
@@ -27,7 +27,7 @@ export default function PlasticsCuttingGuide({ audit }) {
     {['fascia', 'soffit'].map(type => {
       const plan = type === 'fascia' ? audit.fasciaPlan : audit.soffitPlan;
       return <div key={type} style={{ breakInside: 'avoid' }}>
-        <h4>{type === 'fascia' ? 'Fascia' : 'Soffit'} length layout</h4>
+        <h4>{type === 'fascia' ? 'Fascia' : 'Soffit'} {runEnvelopesOnly ? 'run reference' : 'length layout'}</h4>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}><thead><tr>
           {['Run', 'Pieces along run', 'Finished width'].map(title => <th key={title} style={cell}>{title}</th>)}
         </tr></thead><tbody>{plan.runPieces.map(run => {
@@ -40,7 +40,7 @@ export default function PlasticsCuttingGuide({ audit }) {
           label={type === 'fascia' ? 'Front fascia external cut height' : 'Front soffit run envelope'} />
       </div>;
     })}
-    <p style={{ fontSize: 14 }}>Lengths above follow the external eaves runs and show the stock/offcut layout. They are preparation references, not verified final mitre endpoints: mark corner mitres and fitting clearances on assembly before final cutting. Side soffit strips may be ripped from shared wider stock as shown below.</p>
-    <p style={{ fontSize: 14 }}>Soffit supply: {audit.soffitPlan.order.map(item => `${item.qty} × ${item.widthMM} mm`).join('; ')}. Rip kerf allowance: {audit.soffitPlan.kerfMM} mm.</p>
+    {!runEnvelopesOnly && <p style={{ fontSize: 14 }}>Lengths above follow the external eaves runs and show the stock/offcut layout. They are preparation references, not verified final mitre endpoints: mark corner mitres and fitting clearances on assembly before final cutting. Side soffit strips may be ripped from shared wider stock as shown below.</p>}
+    {showSupply && <p style={{ fontSize: 14 }}>Soffit supply: {audit.soffitPlan.order.map(item => `${item.qty} × ${item.widthMM} mm`).join('; ')}. Rip kerf allowance: {audit.soffitPlan.kerfMM} mm.</p>}
   </div>;
 }

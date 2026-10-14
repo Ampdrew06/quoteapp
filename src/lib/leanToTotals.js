@@ -1,3 +1,4 @@
+import {computeLeanToManufactureGeometry} from './leanToManufactureGeometry';
 
 // src/lib/leanToTotals.js
 import { getMaterials } from "./materials";
@@ -36,6 +37,8 @@ const buildExclusionFns = (exclusions) => {
 
 const toLineShape = (r) => ({
   key: r.key,
+  used_m: r.used_m,
+  stockWidthMM: r.stockWidthMM,
   label: r.label || r.name || r.key,
 
   // qty
@@ -241,10 +244,12 @@ if (typeof window !== "undefined") {
       run_mm: extWidthMM,
       pitch_deg: pitchDeg,
       soffit_requested_mm: eavesOverhangMM,
-      slope_mm: slopeMM,
+      slope_mm: computeLeanToManufactureGeometry({internalProjectionMM:projMM,pitchDeg,soffitDepthMM:eavesOverhangMM,frameThicknessMM:num(m.side_frame_thickness_mm,70)}).manufacturedExternalSlopeLengthMM,
       projection_mm: extProjectionMM,
       fascia_height_override_mm: geom.fasciaOrderSize,
 
+      left_overhang_mm: leftOverhangMM,
+      right_overhang_mm: rightOverhangMM,
       leftSideExposed,
       rightSideExposed,
       left_exposed: leftSideExposed,
@@ -314,7 +319,7 @@ if (Array.isArray(plasticsLines)) {
       line.size = geom?.fasciaHeight;
     }
 
-    if (txt.includes("soffit")) {
+    if (txt.includes("soffit") && !String(line.key).startsWith("side_soffit_")) {
       line.size = geom?.soffitWidth;
     }
   });

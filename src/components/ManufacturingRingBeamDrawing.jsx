@@ -8,7 +8,7 @@ const finite = (value, fallback = 0) => {
 const dim = (value, dp = 0) => finite(value).toFixed(dp);
 const quantityText = (quantity) => `×${Math.max(0, Math.round(finite(quantity)))}`;
 
-function LayerDrawing({ label, profile, markerId }) {
+export function LayerDrawing({ label, profile, markerId }) {
   const internalLengthMM = finite(profile?.internalEdgeLengthMM);
   const externalLengthMM = finite(profile?.externalEdgeLengthMM);
   const widthMM = finite(profile?.widthMM);
@@ -52,12 +52,12 @@ function LayerDrawing({ label, profile, markerId }) {
         strokeLinejoin="round"
       />
 
-      <line x1={topStart} y1="20" x2={topEnd} y2="20" stroke="#64748b" markerStart={`url(#${markerId})`} markerEnd={`url(#${markerId})`} />
+      <line x1={topStart} y1="20" x2={topEnd} y2="20" stroke="#64748b" markerStart={markerId?`url(#${markerId})`:undefined} markerEnd={markerId?`url(#${markerId})`:undefined} />
       <text x={(topStart + topEnd) / 2} y="15" textAnchor="middle" fontSize="15" fontWeight="700">
         Internal {dim(internalLengthMM)} mm
       </text>
 
-      <line x1={outerX1} y1="99" x2={outerX2} y2="99" stroke="#64748b" markerStart={`url(#${markerId})`} markerEnd={`url(#${markerId})`} />
+      <line x1={outerX1} y1="99" x2={outerX2} y2="99" stroke="#64748b" markerStart={markerId?`url(#${markerId})`:undefined} markerEnd={markerId?`url(#${markerId})`:undefined} />
       <text x={(outerX1 + outerX2) / 2} y="118" textAnchor="middle" fontSize="15" fontWeight="700">
         External {dim(externalLengthMM)} mm
       </text>

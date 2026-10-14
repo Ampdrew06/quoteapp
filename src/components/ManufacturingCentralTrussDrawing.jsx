@@ -1,56 +1,29 @@
 import React from 'react';
-const mm=value=>Number(value).toFixed(1);
-function Shape({points=[],fill='#e2e8f0',caption}) {
- const xs=points.map(p=>p.xMM),ys=points.map(p=>p.yMM);
- const left=Math.min(...xs),right=Math.max(...xs),bottom=Math.min(...ys),top=Math.max(...ys);
- const width=right-left,height=top-bottom;
- const scale=Math.min(840/width,200/height);
- const coords=points.map(p=>`${80+(p.xMM-left)*scale},${50+(top-p.yMM)*scale}`).join(' ');
- return <svg viewBox="0 0 1000 310" role="img" aria-label={caption} style={{width:'100%',height:'auto',display:'block'}}>
-  <polygon points={coords} fill={fill} stroke="#111827" strokeWidth="2" />
-  <text x="80" y="290" fontSize="23" fill="#111827">{caption}</text>
- </svg>;
-}
-function Data({rows}) {return <table style={{width:'100%',borderCollapse:'collapse',fontSize:15}}><tbody>{rows.map(([label,value])=><tr key={label}><th style={{textAlign:'left',border:'1px solid #94a3b8',padding:7}}>{label}</th><td style={{border:'1px solid #94a3b8',padding:7}}>{value}</td></tr>)}</tbody></table>;}
-export default function ManufacturingCentralTrussDrawing({truss,memberRefs=[]}) {
- if(!truss?.valid)return null;
- const member=truss.members[0],g=truss.gusset,c=truss.chevron,closure=truss.closure;
- const panel={padding:'4mm',border:'1px solid #94a3b8',background:'white'};
- const bounds=truss.members.flatMap(m=>m.points),minX=Math.min(...bounds.map(p=>p.xMM)),maxX=Math.max(...bounds.map(p=>p.xMM)),maxY=Math.max(...bounds.map(p=>p.yMM)),minY=Math.min(...bounds.map(p=>p.yMM));
- const scale=Math.min(870/(maxX-minX),320/(maxY-minY));
- const map=p=>`${65+(p.xMM-minX)*scale},${55+(maxY-p.yMM)*scale}`;
- return <>
- <section className="pm-page pm-truss-page"><div style={panel}><h2 style={{fontSize:18,margin:'0 0 12px'}}>Rear truss — single central boss</h2>
-  <svg viewBox="0 0 1000 470" role="img" aria-label="Rear truss assembly" style={{width:'100%',height:'auto'}}>
-   {truss.members.map(m=><polygon key={m.side} points={m.points.map(map).join(' ')} fill="#e7c994" stroke="#111827" strokeWidth="2" />)}
-   <polygon points={g.points.map(map).join(' ')} fill="#dbeafe" fillOpacity="0.75" stroke="#1d4ed8" strokeWidth="2" />
-   <polygon points={c.points.map(map).join(' ')} fill="none" stroke="#0f766e" strokeWidth="2" />
-   <polygon points={closure.points.map(map).join(' ')} fill="#cbd5e1" stroke="#334155" strokeWidth="2" />
-   <circle cx={65+(truss.boss.xMM-minX)*scale} cy={55+(maxY-truss.boss.yMM)*scale} r="5" fill="#dc2626" />
-   <text x="500" y="24" textAnchor="middle" fontSize="24">Boss centre — {mm(truss.boss.xMM)}mm from internal left frame</text>
-   <text x="500" y="420" textAnchor="middle" fontSize="24">Internal span {mm(truss.widthMM)}mm · side pitch {mm(truss.sidePitchDeg)}°</text>
-   <text x="500" y="454" textAnchor="middle" fontSize="23">Flat gusset / closure bottom {mm(g.widthMM)}mm</text>
-  </svg>
-  <h3 style={{fontSize:17}}>Truss members — {memberRefs.join(' / ') || 'left and right'} · quantity 2, mirrored</h3>
-  <Shape points={member.points} fill="#e7c994" caption={`External slope ${mm(member.externalSlopeMM)}mm · internal slope ${mm(member.internalSlopeMM)}mm`} />
-  <Data rows={[
-   ['Member section','220mm I-joist · 45mm flanges'],
-   ['HFC / VFC',`${mm(member.hfcMM)} / ${mm(member.vfcMM)}mm`],
-   ['Apex cut',`${mm(member.topCutLengthMM)}mm · ${mm(member.topCutOffSquareDeg)}° off square`],
-   ['Boss centre height',`${mm(truss.boss.yMM)}mm above ring-beam underside datum`],
-   ['Joint components','2 × 18mm chevrons; 2 × 9mm gussets; 1 × assembled closure'],
-  ]} />
- </div></section>
- <section className="pm-page pm-truss-page"><div style={panel}><h2 style={{fontSize:18,margin:'0 0 8px'}}>Truss joint components</h2>
-  <h3 style={{fontSize:16,margin:'8px 0'}}>9mm gussets / faceplates — quantity 2</h3>
-  <Shape points={g.points} fill="#dbeafe" caption={`Bottom ${mm(g.widthMM)}mm · sides ${mm(g.sideHeightMM)}mm · slopes ${mm(g.slopeEdgeMM)}mm`} />
-  <p style={{fontSize:15,margin:4}}>Overall height {mm(g.blankHeightMM)}mm. Bottom corners meet the underside edges of both truss members.</p>
-  <h3 style={{fontSize:16,margin:'8px 0'}}>18mm chevrons — quantity 2</h3>
-  <Shape points={c.points} fill="#ccfbf1" caption={`Longest slope ${mm(c.armMM)}mm · perpendicular strip width ${mm(c.widthMM)}mm`} />
-  <p style={{fontSize:15,margin:4}}>Overall blank {mm(c.blankWidthMM)} × {mm(c.blankHeightMM)}mm. Both arms follow {mm(truss.sidePitchDeg)}° pitch.</p>
-  <h3 style={{fontSize:16,margin:'8px 0'}}>Truss closure — assembled from rafter offcuts</h3>
-  <Shape points={closure.points} fill="#cbd5e1" caption={`Bottom ${mm(closure.cutLengthMM)}mm · top ${mm(closure.shortEdgeMM)}mm · height 45mm`} />
-  <p style={{fontSize:15,margin:4}}>Finished closure envelope: 45mm between faceplates. Ends {mm(closure.endLengthMM)}mm at {mm(closure.endAngleToLongEdgeDeg)}° to the bottom edge ({mm(closure.endCutOffSquareDeg)}° off square). Internal offcut joints are not dimensioned.</p>
- </div></section>
- </>;
+const mm=v=>Number(v).toFixed(1);
+function Dimension({a,b,value,offset=20}){const dx=b.x-a.x,dy=b.y-a.y,l=Math.hypot(dx,dy)||1,nx=-dy/l*offset,ny=dx/l*offset;let angle=Math.atan2(dy,dx)*180/Math.PI;if(angle>90)angle-=180;if(angle<-90)angle+=180;const x=(a.x+b.x)/2+nx,y=(a.y+b.y)/2+ny;return <g><line x1={a.x} y1={a.y} x2={a.x+nx*1.2} y2={a.y+ny*1.2} stroke="#64748b"/><line x1={b.x} y1={b.y} x2={b.x+nx*1.2} y2={b.y+ny*1.2} stroke="#64748b"/><line x1={a.x+nx} y1={a.y+ny} x2={b.x+nx} y2={b.y+ny} stroke="#64748b"/><text x={x} y={y-4} textAnchor="middle" transform={`rotate(${angle} ${x} ${y})`} fontSize="20" fontWeight="700">{typeof value==='number'?mm(value):value}</text></g>;}
+function Drawing({points,edges=[],angles=[],name,heightDimension}){const xs=points.map(p=>p.xMM),ys=points.map(p=>p.yMM),minX=Math.min(...xs),maxY=Math.max(...ys),scale=Math.min(380/(Math.max(...xs)-minX||1),195/(maxY-Math.min(...ys)||1)),width=(Math.max(...xs)-minX)*scale,left=(500-width)/2;const mapped=points.map(p=>({x:left+(p.xMM-minX)*scale,y:45+(maxY-p.yMM)*scale}));return <svg viewBox="0 0 500 305" role="img" aria-label={name}><polygon points={mapped.map(p=>`${p.x},${p.y}`).join(' ')} fill="white" stroke="#111827" strokeWidth="2"/>{edges.map(([a,b,value,offset],n)=><Dimension key={n} a={mapped[a]} b={mapped[b]} value={value} offset={offset}/>)}{heightDimension!=null&&<Dimension a={{x:left+width+14,y:45}} b={{x:left+width+14,y:45+(maxY-Math.min(...ys))*scale}} value={heightDimension} offset={-15}/>}
+{angles.map(([index,value,dx=10,dy=-10],n)=><text key={n} x={mapped[index].x+dx} y={mapped[index].y+dy} fontSize="20" fontWeight="700" fill="#dc2626">{value}</text>)}</svg>;}
+function Card({title,children}){return <div className="ct-card"><h3>{title}</h3>{children}</div>;}
+export default function ManufacturingCentralTrussDrawing({truss:t,memberRefs=[]}){
+ if(!t?.valid)return null;
+ const m=t.members[0],g=t.gusset,c=t.chevron,cl=t.closure,all=t.members.flatMap(m=>m.points),minX=Math.min(...all.map(p=>p.xMM)),maxX=Math.max(...all.map(p=>p.xMM)),maxY=Math.max(...all.map(p=>p.yMM)),minY=Math.min(...all.map(p=>p.yMM)),scale=Math.min(840/(maxX-minX),245/(maxY-minY));
+ const map=p=>({x:80+(p.xMM-minX)*scale,y:55+(maxY-p.yMM)*scale}),polygon=points=>points.map(p=>{const q=map(p);return `${q.x},${q.y}`;}).join(' '),packers=Math.ceil(t.members[0].externalSlopeMM/800)+Math.ceil(t.members[1].externalSlopeMM/800);
+ return <section className="pm-page pm-truss-page ct-page"><div className="ct-panel"><h2>Wallplate — central boss truss</h2>
+ <div className="ct-assembly"><svg viewBox="0 0 1000 365" role="img" aria-label="Coloured central truss assembly">
+ {t.members.map(m=><polygon key={m.side} points={polygon(m.points)} fill="#e7c994" stroke="#111827" strokeWidth="2"/>)}
+ <polygon points={polygon(g.points)} fill="#dbeafe" fillOpacity="0.75" stroke="#1d4ed8" strokeWidth="2"/><polygon points={polygon(c.points)} fill="none" stroke="#0f766e" strokeWidth="2"/><polygon points={polygon(cl.points)} fill="#cbd5e1" stroke="#334155" strokeWidth="2"/>
+ <circle cx={map(t.boss).x} cy={map(t.boss).y} r="5" fill="#dc2626"/>
+ <Dimension a={map({xMM:0,yMM:minY})} b={map({xMM:t.widthMM,yMM:minY})} value={`IW ${mm(t.widthMM)}`} offset={34}/>
+ <Dimension a={{x:map({xMM:0,yMM:0}).x,y:42}} b={{x:map(t.boss).x,y:42}} value={`Boss ${mm(t.boss.xMM)}`} offset={-18}/>
+ <text x={map(t.boss).x+16} y={map(t.boss).y-10} fontSize="20" fontWeight="700">BOSS</text>
+ </svg></div>
+ <div className="ct-grid">
+ <Card title={`${memberRefs.join(' / ')||'Left / right'} wallbars — ×2 mirrored`}><Drawing name="Central truss wallbar cutting profile" points={m.points} edges={[[3,2,m.externalSlopeMM,-24],[0,1,m.internalSlopeMM,24],[4,0,m.hfcMM,26],[3,4,m.vfcMM,25],[1,2,m.topCutLengthMM,26]]} angles={[[0,`${mm(m.pitchDeg)}°`,8,-8],[1,`${mm(m.topCutOffSquareDeg)}°`,-70,-10]]}/></Card>
+ <Card title="9mm gussets — ×2"><Drawing name="Gusset dimensions" points={g.points} edges={[[4,0,g.slopeEdgeMM,-20],[0,1,g.slopeEdgeMM,-20],[1,2,g.sideHeightMM,-24],[3,4,g.sideHeightMM,-24],[2,3,g.widthMM,-25]]} angles={[[4,`${mm(90+t.sidePitchDeg)}°`,8,23],[1,`${mm(90+t.sidePitchDeg)}°`,-78,23]]}/></Card>
+ <Card title="18mm chevrons — ×2"><Drawing name="Chevron edge dimensions" points={c.points} edges={[[5,0,c.armMM,-23],[0,1,c.armMM,-23],[1,2,c.widthMM,-23],[4,5,c.widthMM,-23],[2,3,Math.hypot(c.points[2].xMM-c.points[3].xMM,c.points[2].yMM-c.points[3].yMM),-23],[3,4,Math.hypot(c.points[3].xMM-c.points[4].xMM,c.points[3].yMM-c.points[4].yMM),-23]]} angles={[[3,`${mm(180+2*t.sidePitchDeg)}°`,-35,27],[5,'90°',12,20],[1,'90°',-45,20]]}/></Card>
+ <Card title="Truss closure — ×1 · rafter offcuts · ends off square"><Drawing name="Closure edge dimensions" heightDimension={45} points={cl.points} edges={[[0,1,cl.cutLengthMM,27],[2,3,cl.shortEdgeMM,24],[1,2,cl.endLengthMM,23]]} angles={[[0,`${mm(cl.endCutOffSquareDeg)}°`,25,-8],[1,`${mm(cl.endCutOffSquareDeg)}°`,-75,-8]]}/></Card>
+ </div>
+ <div className="ct-packers"><h3>9mm wall packers — maximum 800mm centres</h3><svg viewBox="0 0 1000 130" role="img" aria-label="75 by 220mm wall packers"><rect x="350" y="38" width="55" height="65" fill="white" stroke="#111827" strokeWidth="2"/><Dimension a={{x:350,y:38}} b={{x:405,y:38}} value="75" offset={-15}/><Dimension a={{x:350,y:103}} b={{x:350,y:38}} value="220" offset={-20}/><text x="440" y="77" fontSize="22" fontWeight="700">×{packers}</text></svg></div>
+ <style>{`.ct-page{height:279mm;font-family:Arial,sans-serif}.ct-panel{box-sizing:border-box;height:100%;padding:4mm;border:1px solid #94a3b8;background:white}.ct-panel>h2{font-size:16px;margin:0 0 6px;padding-bottom:6px;border-bottom:2px solid #111827}.ct-assembly svg{display:block;width:100%;height:72mm;max-height:72mm}.ct-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:5px}.ct-card{border:1px solid #cbd5e1;border-radius:6px;padding:6px;break-inside:avoid}.ct-card h3,.ct-packers h3{font-size:12px;margin:0 0 4px}.ct-card svg{display:block;width:100%;height:65mm;max-height:65mm}.ct-packers{border:1px solid #cbd5e1;border-radius:6px;padding:6px;margin-top:7px}.ct-packers svg{display:block;width:100%;height:22mm;max-height:22mm}.ct-page svg{font-family:Arial,sans-serif}@media print{.ct-page{height:279mm;break-inside:avoid;print-color-adjust:exact;-webkit-print-color-adjust:exact}}`}</style>
+ </div></section>;
 }

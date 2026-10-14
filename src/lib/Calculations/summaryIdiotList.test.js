@@ -18,12 +18,15 @@ test('hipped checklist consumes integrated plastics, gutters, tiles and watercou
  expect(row(list,'gutters','dp_bend').qty).toBe(2);
  expect(list.installedWeightKg).toBe(model.installedWeightKg);
 });
-test('laths, PIR and starter use supplied stock counts instead of installed metres or area',()=>{
+test('hipped checklist omits fitted raw stock and only lists loose PIR and laths',()=>{
  const model=build(),list=buildSummaryIdiotList(model,defaultMaterials);
- for(const [section,key] of [['timber','laths_25x50_lengths'],['misc','pir50_cradle'],['misc','slab100'],['metal','tile_starter']])
-  expect(row(list,section,key).qty).toBe(model.sections[section].lines.find(r=>r.key===key).order_qty);
- expect(row(list,'misc','slab100').units).toBe('Sheets');
- expect(row(list,'timber','laths_25x50_lengths').units).toBe('Lengths');
+ expect(list.sections.timber).toHaveLength(0);
+ expect(list.sections.misc.some(r=>r.key==='pir50_cradle')).toBe(false);
+ expect(row(list,'misc','slab100').qty).toBe(model.sections.misc.lines.find(r=>r.key==='slab100').order_qty);
+ expect(row(list,'laths','laths_25x50_lengths').qty).toBeGreaterThan(0);
+ expect(row(list,'laths','laths_25x50_lengths').qty).toBeLessThan(model.sections.timber.lines.find(r=>r.key==='laths_25x50_lengths').order_qty);
+ expect(row(list,'metal','tile_starter').qty).toBe(model.sections.metal.lines.find(r=>r.key==='tile_starter').order_qty);
+ for(const key of ['joist_hangers','jack_rafter_hooks','jack_rafter_brackets','boss_rafter_terminal','spar_hook'])expect(list.sections.metal.some(r=>r.key===key)).toBe(false);
 });
 test('factory consumables and vent machining are omitted while site boxes and hip tape remain',()=>{
  const list=buildSummaryIdiotList(build(),defaultMaterials);
@@ -31,7 +34,8 @@ test('factory consumables and vent machining are omitted while site boxes and hi
  expect(list.sections.plastics.some(r=>r.key==='vent')).toBe(false);
  expect(row(list,'misc','screws_lath_fixings').qty).toBe(2);
  expect(row(list,'misc','expanding_foam_tape').qty>0).toBe(true);
- expect(list.sections.misc.some(r=>/plasterboard/i.test(r.item))).toBe(false);
+ expect(row(list,'misc','plasterboard_guide').informational).toBe(true);
+ expect(row(list,'misc','plasterboard_guide').qty).toBe(Math.ceil(build().hippedInsulationIntegration.superQuilt.geometricAreaM2/2.88));
 });
 test('adjustments and added items are included once; zero supplies disappear',()=>{
  const addedItems=[{section:'gutters',catalogId:'square_corner90',qty:2}];
@@ -65,4 +69,14 @@ test('manufactured member checks use the shared geometry and update for one hip'
  expect(row(left,'assemblies','hip').qty).toBe(1);
  expect(row(left,'assemblies','wallbar').qty).toBe(1);
  expect(row(left,'assemblies','ring-beam').qty).toBe(2);
+});
+
+test('central roof lists one assembled truss and checklist leaves the cost model untouched',()=>{
+ const model=build({inputs:{...roof,bossArrangement:'central'}}),before=JSON.stringify(model);const list=buildSummaryIdiotList(model,defaultMaterials);
+ expect(row(list,'assemblies','truss').qty).toBe(1);expect(list.sections.assemblies.some(r=>r.key==='wallbar')).toBe(false);expect(JSON.stringify(model)).toBe(before);
+});
+
+test('explicit extra fitted hardware is supplied loose and price exclusions retain it',()=>{
+ const list=buildSummaryIdiotList(build({adjustments:{spar_hook:2},exclusions:{spar_hook:true}}),defaultMaterials);
+ expect(row(list,'metal','spar_hook').qty).toBe(2);expect(row(list,'metal','spar_hook').item.includes('extra, supplied loose')).toBe(true);
 });
