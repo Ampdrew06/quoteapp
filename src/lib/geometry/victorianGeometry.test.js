@@ -59,3 +59,13 @@ test('side closing spans up to 750mm need no jack below the boss',()=>{
   expect(g.jackRafters.filter(r=>['facet-1','facet-5'].includes(r.facetId))).toHaveLength(count);
  }
 });
+
+test('confirmed 50mm site envelope uses vertical 210mm upstands with explicit override and no inferred cutoff',()=>{
+ const g=build();expect(g.upstandArrangement).toBe('vertical');expect(g.upstandHeightMM).toBe(210);
+ expect(build({soffitMM:150,soffitMode:'standard'}).upstandHeightMM).toBe(195);
+ expect(build({soffitMM:60}).upstandArrangement).toBe('pitched');
+ expect(build({upstandArrangement:'pitched'}).upstandHeightMM).toBe(195);
+ expect(build({soffitMM:60,upstandArrangement:'vertical'}).upstandHeightMM).toBe(210);
+ expect(build({upstandArrangement:'unknown'}).valid).toBe(false);
+ const pitched=build({upstandArrangement:'pitched'});expect(g.internalOutline).toEqual(pitched.internalOutline);expect(g.externalOutline).toEqual(pitched.externalOutline);
+});

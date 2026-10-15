@@ -22,7 +22,7 @@ export function buildVictorianRingBeamProfiles(g) {
     for(let n=1;n<slots.length;n++){
       const widthMM=slots[n].left-slots[n-1].right;
       if(widthMM<0)continue;
-      if(widthMM>0)upstands.push({bay:n,widthMM,heightMM:195,thicknessMM:9});
+      if(widthMM>0)upstands.push({bay:n,widthMM,heightMM:g.upstandHeightMM??195,thicknessMM:9});
     }
     return {slots,upstands,reference:`RB${i+1}`,label:f.label,startMitreDeg:start,endMitreDeg:end,
       layers:{pse30x90:make(f.internalLengthMM,0,95,start,end),ply9Base:make(f.internalLengthMM,0,g.plyBaseWidthMM,start,end),outerLath25x50:make(f.internalLengthMM,g.plyBaseWidthMM-50,50,start,end)}};

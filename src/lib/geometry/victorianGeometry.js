@@ -31,6 +31,11 @@ export function buildVictorianGeometry({inputs={},materials={}}={}) {
   const plyBaseWidthMM=frameMM+soffitMM+(soffitMode==='standard'?fittingToleranceMM:-fasciaThicknessMM);
   if(![plyBaseWidthMM,fasciaThicknessMM,fittingToleranceMM,stripTrimAllowanceMM].every(Number.isFinite)||plyBaseWidthMM<=0||Math.min(fasciaThicknessMM,fittingToleranceMM,stripTrimAllowanceMM)<0)return fail('Valid soffit and ply-base allowances are required.');
   const soffitStripWidthMM=soffitMode==='standard'?soffitMM:Math.max(0,soffitMM-fasciaThicknessMM-stripTrimAllowanceMM);
+  const upstandArrangement=inputs.upstandArrangement??(soffitMode==='specified'&&soffitMM===50?'vertical':'pitched');
+  if(!['vertical','pitched'].includes(upstandArrangement))return fail('Choose pitched or vertical upstands.');
+  const upstandHeightMM=upstandArrangement==='vertical'?210:195;
+  const bossTopContinuationMM=Number(inputs.bossTopContinuationMM??160);
+  if(!Number.isFinite(bossTopContinuationMM)||bossTopContinuationMM<0)return fail('Enter a non-negative sloping boss continuation allowance.');
   const ridge=inherited.ridge;
   const internalOutline=[{xMM:0,yMM:0},...corners,{xMM:w,yMM:0}];
   const names=['Left side','Front left','Front centre','Front right','Right side','House wall'];
@@ -85,7 +90,7 @@ export function buildVictorianGeometry({inputs={},materials={}}={}) {
   });
   const minimumY=Math.min(corners[0].yMM,corners[3].yMM);
   if(ridge.yMM>=minimumY)return fail('The ridge must sit behind the two side-to-front corners. Review the angles or projection.');
-  return {valid:true,errors:[],adjustedAngles:angles.some(a=>Math.abs(Number(a)-135)>1e-8),style:'Victorian 3-facet',widthMM:w,projectionMM:p,pitchDeg:pitch,frameMM:inherited.frameMM,soffitMM,soffitMode,plyBaseWidthMM,fasciaThicknessMM,fittingToleranceMM,stripTrimAllowanceMM,soffitStripWidthMM,
+  return {valid:true,errors:[],adjustedAngles:angles.some(a=>Math.abs(Number(a)-135)>1e-8),style:'Victorian 3-facet',widthMM:w,projectionMM:p,pitchDeg:pitch,frameMM:inherited.frameMM,soffitMM,soffitMode,plyBaseWidthMM,fasciaThicknessMM,fittingToleranceMM,stripTrimAllowanceMM,soffitStripWidthMM,upstandArrangement,upstandHeightMM,bossTopContinuationMM,
     cornerAnglesDeg:angles.map(Number),mitresDeg:turns.map(a=>a/2),frontLengthMM,internalOutline,externalOutline,facets,hips,intermediateBars,jackRafters,
     ridge,ridgeEndYMM:ridge.yMM,terminalTrussCentreMM:inherited.terminalTrussCentreMM,layout,riseMM:inherited.riseMM,
     externalWidthMM:Math.max(...externalOutline.map(a=>a.xMM))-Math.min(...externalOutline.map(a=>a.xMM)),externalProjectionMM:Math.max(...externalOutline.map(a=>a.yMM)),

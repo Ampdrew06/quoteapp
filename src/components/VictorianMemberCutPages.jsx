@@ -1,0 +1,9 @@
+import React from 'react';
+import {WorkshopShape} from './ManufacturingGableTrussPage';
+import {buildVictorianMemberSchedule} from '../lib/Manufacturing/victorianMemberSchedule';
+export default function VictorianMemberCutPages({geometry,materials}){
+ const s=buildVictorianMemberSchedule({geometry,materials});
+ if(!s.valid)return <section className="em-page"><h2>Hips &amp; Rafters</h2><p role="alert">{s.errors.join(' ')}</p></section>;
+ const pages=[];for(let i=0;i<s.groups.length;i+=6)pages.push(s.groups.slice(i,i+6));
+ return <>{pages.map((groups,i)=><section className="em-page vm-members" key={i}><h2>Hips &amp; Rafters{i?' — continued':''}</h2><p className="vm-member-basis">Boss allowance: {s.bossTopContinuationMM}mm along continued top edge to ridge point.</p><div className="vm-member-grid">{groups.map(rows=>{const m=rows[0];return <div className="vm-member-card" key={m.ref}><h3>{rows.map(r=>r.ref).join(' / ')} · {m.type} × {rows.length}</h3><WorkshopShape points={m.points} title={`${rows.map(r=>r.ref).join('/')} cutting profile`} showAngles={false} cutPitch={m.topCutOffSquareDeg} footPitch={m.pitchDeg} compact/>{m.type==='Hip'&&<p>Outside-perimeter toe trim: {m.firstTrimDistanceMM.toFixed(1)}–{m.horizontalFootCutMM.toFixed(1)}mm from heel.</p>}</div>;})}</div>{s.pendingJackCount>0&&<p>{s.pendingJackCount} jack-rafter cut profiles await connection verification.</p>}</section>)}<style>{`.vm-members{height:279mm;break-inside:avoid}.vm-member-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.vm-member-card{border:1px solid #cbd5e1;border-radius:6px;padding:8px;min-width:0;break-inside:avoid}.vm-member-card h3{font-size:12px;margin:0 0 4px}.vm-member-card svg{height:44mm!important}.vm-member-card p,.vm-member-basis{font-size:10px;line-height:1.25}`}</style></>;
+}

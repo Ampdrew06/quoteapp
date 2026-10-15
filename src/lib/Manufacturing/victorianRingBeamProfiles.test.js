@@ -19,9 +19,9 @@ test('profiles do not mutate geometry and fail for a base narrower than PSE',()=
  expect(buildVictorianRingBeamProfiles({...g,plyBaseWidthMM:90}).valid).toBe(false);
 });
 
-test('upstands are 195mm high and clear widths allow for 48mm slots on both faces',()=>{
+test('upstands follow the selected height and clear widths allow for 48mm slots on both faces',()=>{
  const g=buildVictorianGeometry({inputs:base}),r=buildVictorianRingBeamProfiles(g);expect(r.valid).toBe(true);
- r.beams.forEach(b=>b.upstands.forEach((u,i)=>{expect(u.heightMM).toBe(195);expect(u.thicknessMM).toBe(9);expect(u.widthMM).toBeCloseTo(b.slots[i+1].left-b.slots[i].right,6);}));
+ r.beams.forEach(b=>b.upstands.forEach((u,i)=>{expect(u.heightMM).toBe(210);expect(u.thicknessMM).toBe(9);expect(u.widthMM).toBeCloseTo(b.slots[i+1].left-b.slots[i].right,6);}));
  expect(r.beams[1].upstands[0].widthMM).toBeCloseTo(g.frontLengthMM/2-72,6);
  r.beams[0].upstands.forEach((u,i)=>expect(u.widthMM).toBeCloseTo([...r.beams[4].upstands].reverse()[i].widthMM,6));
 });

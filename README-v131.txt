@@ -1,0 +1,10 @@
+Apply over v130, replacing enclosed src files. No quotation header/banner change.
+Victorian upstand arrangement selector: pitched groove retains 195mm cuts; vertical groove uses 210mm cuts, comprising 195mm visible and 15mm insertion. Clear bay widths stay unchanged. 50mm PIR inside and 25x50 finishing lath on top remain the arrangement. The confirmed specified 50mm envelope reference defaults to vertical; other sizes retain pitched unless explicitly selected. This is NOT an invented universal soffit cutoff. Please select the arrangement for each reviewed design pending an agreed workshop threshold. An explicit saved choice is retained when other dimensions change.
+Preview drawings and manufacture book use selected cutting height. Vertical arrangement is labelled on the printed ring-beam pages. Existing Edwardian page text is unchanged when this new optional value is absent. Live pricing/material costs not connected to Victorian yet.
+Measured Leah comparison (approximate factory measurements, not fitted constants):
+Truss top: calculated 1984.98 vs 1983 measured.
+Truss underside to 595mm closure: 1543.07 vs 1545 measured (drawing closure approx600).
+Truss horizontal foot: 103 vs102; vertical foot194.71 vs195.
+Intermediate top candidate: existing Edwardian 118mm gap from boss truss front face gives1825.33 vs1825-1837 measured. Bottom1742.79 vs1734-1750.
+Hip geometry: pitch23.30696 degrees, full ridge-to-internal-corner plan1835.737mm. Transplanting existing156mm hip plan terminal deduction and centred110mm ply-base perimeter offset gives bottom1828.99/top1935.33, versus measured outer hips1858 bottom/1954 top and inner hips1968 top. These are comparison candidates, not released cutting lengths. Difference is unresolved and must not be removed by sample-fitting or a hardcoded20mm asymmetry. All mirrored hips remain equal in the model. Staff hip references interpreted as5/11 versus7/9 from annotated drawing.
+Validation:291 calculation/regression checks; real component book render/admin gate; Edwardian manufacture regression. Local full build and browser print pagination still need checking.
