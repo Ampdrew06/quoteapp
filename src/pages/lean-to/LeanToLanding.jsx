@@ -629,6 +629,7 @@ const rightHipPitchTooLow =
 
   // Quote UI
   const [showQuote, setShowQuote] = useState(false);
+  const [quoteInputsExpanded, setQuoteInputsExpanded] = useState(false);
   const [quoteRef, setQuoteRef] = useState("");
   const [deliveryPostcode, setDeliveryPostcode] = useState("");
   const [deliveryDistanceMiles, setDeliveryDistanceMiles] = useState(0);
@@ -1489,9 +1490,10 @@ persistInputs({
 });
 
 setShowQuote(true);
+setQuoteInputsExpanded(false);
 
   setTimeout(() => {
-    const el = document.getElementById("quote-result");
+    const el = document.getElementById("quote-edit-toggle") || document.getElementById("quote-result");
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   }, 0);
 };
@@ -1753,6 +1755,15 @@ const displayExtProjectionMM =
 
         {/* Inputs card */}
         <div style={card}>
+          {showQuote && <button
+            id="quote-edit-toggle"
+            type="button"
+            aria-expanded={quoteInputsExpanded}
+            aria-controls="quote-input-fields"
+            onClick={() => setQuoteInputsExpanded(open => !open)}
+            style={{ ...primaryBtn, width: "100%", background: "#0f766e", borderColor: "#0f766e", marginBottom: quoteInputsExpanded ? 14 : 0 }}
+          >Edit {quoteInputsExpanded ? '▴' : '▾'}</button>}
+          <div id="quote-input-fields" hidden={showQuote && !quoteInputsExpanded}>
           <div style={grid2Responsive}>
             <label>Width (internal, mm)
               <input
@@ -2309,6 +2320,7 @@ onKeyDown={(e) => {
     </label>
   </div>
 )}
+          </div>
           <div
   style={{
     marginTop: 14,

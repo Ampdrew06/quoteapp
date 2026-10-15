@@ -1,3 +1,4 @@
+import VictorianManufacture from '../pages/victorian/VictorianManufacture';
 import VictorianPlanPreview from '../pages/victorian/VictorianPlanPreview';
 import EdwardianManufacture from '../pages/edwardian/EdwardianManufacture';
 import EdwardianDesign from '../pages/edwardian/EdwardianDesign';
@@ -85,6 +86,7 @@ export default function AppRoutes() {
         <Route path="/quote/gable/technical" element={<GablePage technical />} />
         <Route path="/design/gable" element={<GableDesignPreview />} />
 
+        <Route path="/quote/victorian/plan-manufacture" element={<VictorianManufacture />} />
         <Route path="/quote/victorian" element={<VictorianPlanPreview />} />
         <Route path="/quote/victorian/technical" element={<VictorianPlanPreview />} />
 

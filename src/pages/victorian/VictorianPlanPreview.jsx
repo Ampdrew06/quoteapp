@@ -38,7 +38,7 @@ export default function VictorianPlanPreview(){
   const g=buildVictorianGeometry({inputs,materials});
   const supply=buildVictorianSoffitSupply(g,materials);
   const update=(name,value)=>setInputs(old=>({...old,[name]:value}));
-  return <main className="vp"><Link to="/quote">← Home</Link><h1>3-facet Victorian · Plan preview</h1>
+  return <main className="vp"><Link to="/quote">← Home</Link> · <Link to="/quote/victorian/plan-manufacture">Manufacture Book</Link><h1>3-facet Victorian · Plan preview</h1>
     <p>Geometry review against Leah. Pricing and timber cuts are not connected yet.</p>
     <label>Soffit basis<select value={inputs.soffitMode} onChange={e=>setInputs(old=>({...old,soffitMode:e.target.value,...(e.target.value==='standard'?{soffitMM:150}:{})}))}><option value="standard">Standard stock board · fitting tolerance</option><option value="specified">Specified site envelope · includes fascia</option></select></label>
     <div className="vp-inputs">{[['Internal width (mm)','widthMM'],['Internal projection (mm)','projMM'],['Pitch (°)','pitchDeg'],['Frame thickness (mm)','frameThicknessMM'],[inputs.soffitMode==='standard'?'Soffit board width (mm)':'Available soffit envelope (mm)','soffitMM']].map(([label,name])=><label key={name}>{label}<input type="number" min="0" step="0.1" disabled={name==='soffitMM'&&inputs.soffitMode==='standard'} value={inputs[name]} onChange={e=>update(name,e.target.value)}/></label>)}</div>
