@@ -62,8 +62,8 @@ export function LayerDrawing({ label, profile, markerId }) {
         External {dim(externalLengthMM)} mm
       </text>
 
-      {outline && <text x="180" y="30" fontSize="12" fill="#dc2626" fontWeight="700">{profile.startMitreDeg ? '45°' : 'Square'}</text>}
-      {outline && <text x="570" y="30" textAnchor="end" fontSize="12" fill="#dc2626" fontWeight="700">{profile.endMitreDeg ? '45°' : 'Square'}</text>}
+      {outline && <text x="180" y="30" fontSize="12" fill="#dc2626" fontWeight="700">{profile.startMitreDeg ? `${dim(profile.startMitreDeg,1).replace(/\.0$/,'')}°` : 'Square'}</text>}
+      {outline && <text x="570" y="30" textAnchor="end" fontSize="12" fill="#dc2626" fontWeight="700">{profile.endMitreDeg ? `${dim(profile.endMitreDeg,1).replace(/\.0$/,'')}°` : 'Square'}</text>}
       {outline && [
         { extension: startOuter, leg: profile.startSquareLegMM, x: 180, side: "start" },
         { extension: endOuter, leg: profile.endSquareLegMM, x: 570, side: "end" },

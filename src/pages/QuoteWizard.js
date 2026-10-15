@@ -69,6 +69,11 @@ export default function QuoteWizard() {
     return;
   }
 
+  if (slug === "victorian" && isAdmin) {
+    navigate("/quote/victorian");
+    return;
+  }
+
   // Other designs use the placeholder route for now
   navigate(`/design/${slug}`);
 };

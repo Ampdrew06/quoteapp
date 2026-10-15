@@ -1,0 +1,5 @@
+Apply over v127, replacing enclosed src files in their existing folders.
+Victorian admin preview now includes the shared Edwardian visual truss manufacture page: coloured assembly reference, identical truss members grouped with total quantity, 18mm chevrons, 9mm gussets and assembled closures. Counts include rear, intermediate and boss trusses once each.
+Uses the same central truss component builder and Edwardian eaves/HFC calculation, including specified side-soffit controls. No new Victorian truss construction formula. Shared coloured assembly component extracted from the Edwardian page; its existing appearance is retained.
+Hip/intermediate/jack timber cuts remain deferred. Live pricing/Summary untouched. This adds a truss page to the existing admin preview, not a complete Victorian manufacture book or public quote route.
+Validation: 290 calculation/regression checks; exact component parity across widths, pitches and soffit modes; actual JSX/SVG render and quantity checks; existing Edwardian manufacture regression. Assembly and member SVGs visually inspected. Full local app compilation and browser pagination not performed.
