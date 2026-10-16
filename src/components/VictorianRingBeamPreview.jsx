@@ -11,7 +11,7 @@ export default function VictorianRingBeamPreview({geometry}) {
     {[...groups.values()].map(rows=><div key={rows[0].reference} className="vrp-card"><h3>{rows.map(b=>b.reference).join(' / ')} · ×{rows.length}</h3>
       {Object.entries(rows[0].layers).map(([key,profile])=><LayerDrawing key={key} label={{pse30x90:'30×95 PSE',ply9Base:'9mm ply base',outerLath25x50:'25×50 outer lath'}[key]} profile={profile} markerId=""/>)}
     </div>)}
-    {result.beams.map(b=><div className="vrp-card" key={b.reference+'upstands'}><h3>{b.reference} · 9mm ply upstands ×2 faces</h3><svg viewBox={`0 0 1000 ${Math.ceil(b.upstands.length/4)*150}`} role="img" aria-label={`${b.reference} upstand cutting widths`}>
+    {result.beams.map(b=><div className="vrp-card" key={b.reference+'upstands'}><h3>{b.reference} · 9mm ply upstands · one per bay</h3><svg viewBox={`0 0 1000 ${Math.ceil(b.upstands.length/4)*150}`} role="img" aria-label={`${b.reference} upstand cutting widths`}>
       {b.upstands.map((u,i)=>{const x=55+(i%4)*245,y=40+Math.floor(i/4)*150;return <g key={u.bay} fontFamily="Arial" fontSize="16"><rect x={x} y={y} width="180" height="85" fill="none" stroke="#111827"/><text x={x+90} y={y-12} textAnchor="middle">{u.widthMM.toFixed(1)} mm</text><text x={x-12} y={y+43} textAnchor="middle" transform={`rotate(-90 ${x-12} ${y+43})`}>{u.heightMM}</text><text x={x+90} y={y+48} textAnchor="middle" fontWeight="700">{b.reference} B{u.bay}</text></g>;})}
     </svg></div>)}
     <style>{`.vrp-card{border:1px solid #cbd5e1;padding:12px;margin:12px 0;background:white;break-inside:avoid}.vrp-card h3{font-size:15px;margin:0 0 8px}.vp .vrp-card svg{border:0;margin:0;height:auto;max-height:none}`}</style>

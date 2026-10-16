@@ -1,9 +1,18 @@
+import {updateVictorianDesignInputs} from '../../lib/geometry/victorianDesignInputs';
+import VictorianNavigation from './VictorianNavigation';
+import VictorianMaterialsReconciliation from '../../components/VictorianMaterialsReconciliation';
+import VictorianPlasticsGutteringAudit from '../../components/VictorianPlasticsGutteringAudit';
+import VictorianMetalFixingsAudit from '../../components/VictorianMetalFixingsAudit';
+import VictorianTilingAudit from '../../components/VictorianTilingAudit';
+import VictorianLathAudit from '../../components/VictorianLathAudit';
+import VictorianInsulationAudit from '../../components/VictorianInsulationAudit';
+import VictorianTimberAudit from '../../components/VictorianTimberAudit';
 import VictorianMemberCutPages from '../../components/VictorianMemberCutPages';
 import VictorianTrussPreview from '../../components/VictorianTrussPreview';
 import VictorianRingBeamPreview from '../../components/VictorianRingBeamPreview';
 import {buildVictorianSoffitSupply} from '../../lib/Manufacturing/victorianSoffitSupply';
 import React,{useState,useEffect} from 'react';
-import {Link,Navigate} from 'react-router-dom';
+import {Link,Navigate,useLocation} from 'react-router-dom';
 import {isAdminUser} from '../../lib/userRole';
 import {getMaterials} from '../../lib/materials';
 import {buildVictorianGeometry} from '../../lib/geometry/victorianGeometry';
@@ -33,16 +42,18 @@ export function VictorianPlan({geometry:g}) {
   </svg>;
 }
 export default function VictorianPlanPreview(){
-  const [inputs,setInputs]=useState(read),[materials]=useState(getMaterials);
+  const [inputs,setInputs]=useState(read),[materials]=useState(getMaterials),location=useLocation();
+  useEffect(()=>{if(location.hash==='#victorian-tiles-laths')document.getElementById('victorian-tiles-laths')?.scrollIntoView();},[location.hash]);
   useEffect(()=>{if(isAdminUser())localStorage.setItem(key,JSON.stringify(inputs));},[inputs]);
   if(!isAdminUser())return <Navigate to="/quote" replace/>;
   const g=buildVictorianGeometry({inputs,materials});
   const supply=buildVictorianSoffitSupply(g,materials);
-  const update=(name,value)=>setInputs(old=>({...old,[name]:value}));
-  return <main className="vp"><Link to="/quote">← Home</Link> · <Link to="/quote/victorian/plan-manufacture">Manufacture Book</Link><h1>3-facet Victorian · Plan preview</h1>
-    <p>Geometry review against Leah. Pricing and timber cuts are not connected yet.</p>
+  const update=(name,value)=>setInputs(old=>updateVictorianDesignInputs(old,name,value));
+  return <main className="vp"><VictorianNavigation/><Link to="/quote">← Home</Link> · <Link to="/quote/victorian/plan-manufacture">Manufacture Book</Link> · <Link to="/quote/victorian/summary">Summary</Link><h1>3-facet Victorian · Plan preview</h1>
+    <p>Admin geometry and materials review against Leah. Design/Options and Summary share this design. Save and reopen quotes from Design/Options.</p>
     <label>Soffit basis<select value={inputs.soffitMode} onChange={e=>setInputs(old=>({...old,soffitMode:e.target.value,...(e.target.value==='standard'?{soffitMM:150}:{})}))}><option value="standard">Standard stock board · fitting tolerance</option><option value="specified">Specified site envelope · includes fascia</option></select></label>
     <div className="vp-inputs">{[['Internal width (mm)','widthMM'],['Internal projection (mm)','projMM'],['Pitch (°)','pitchDeg'],['Frame thickness (mm)','frameThicknessMM'],[inputs.soffitMode==='standard'?'Soffit board width (mm)':'Available soffit envelope (mm)','soffitMM']].map(([label,name])=><label key={name}>{label}<input type="number" min="0" step="0.1" disabled={name==='soffitMM'&&inputs.soffitMode==='standard'} value={inputs[name]} onChange={e=>update(name,e.target.value)}/></label>)}</div>
+    <label>Roof covering<select value={inputs.tileProductId??'britmetShingle'} onChange={e=>update('tileProductId',e.target.value)}><option value="britmetShingle">Britmet Shingle</option><option value="metrotileShingle">Metrotile Shingle</option><option value="liteSlate">LiteSlate</option><option value="tapcoSlate">TapcoSlate</option></select></label>
     <label>Boss top-edge continuation to ridge (mm)<input type="number" min="0" step="1" value={inputs.bossTopContinuationMM??160} onChange={e=>update('bossTopContinuationMM',e.target.value)}/></label>
     <label>Ring-beam upstand arrangement<select value={inputs.upstandArrangement??(inputs.soffitMode==='specified'&&Number(inputs.soffitMM)===50?'vertical':'pitched')} onChange={e=>update('upstandArrangement',e.target.value)}><option value="pitched">Pitched groove · 195mm cut</option><option value="vertical">Vertical groove · 210mm cut (195 visible + 15 groove)</option></select></label>
     <details><summary>Admin front corner angles</summary><p>Three front facets remain equal in length. Side frames remain parallel; the fourth corner follows the other three. Facet pitches update around the existing ridge point.</p><div className="vp-inputs">{inputs.cornerAnglesDeg.map((angle,n)=><label key={n}>Corner {n+1} (°){n===3?' · calculated':''}<input type="number" min="90.1" max="179.9" step="0.1" disabled={n===3} value={angle} onChange={e=>{const next=inputs.cornerAnglesDeg.map(Number);next[n]=Number(e.target.value);next[3]=Number((540-next[0]-next[1]-next[2]).toFixed(6));update('cornerAnglesDeg',next);}}/></label>)}</div></details>
@@ -50,7 +61,7 @@ export default function VictorianPlanPreview(){
     {!g.valid?<p role="alert">{g.errors.join(' ')}</p>:<><VictorianPlan geometry={g}/><div className="vp-values"><b>Ridge from wall:</b> {mm(g.ridgeEndYMM)}mm · <b>Terminal truss:</b> {mm(g.terminalTrussCentreMM)}mm · {g.layout.trussCount} trusses · 4 hips · {g.intermediateBars.length} intermediate bars · {g.jackRafters.length} jack rafters</div>
       <table><thead><tr><th>Run</th><th>Internal</th><th>External</th><th>Pitch</th></tr></thead><tbody>{g.facets.map(f=><tr key={f.id}><td>{f.label}</td><td>{mm(f.internalLengthMM)}mm</td><td>{mm(f.externalLengthMM)}mm</td><td>{f.pitchDeg.toFixed(1)}°</td></tr>)}</tbody></table>
       <p>Corner angles {g.cornerAnglesDeg.map(mm).join(' / ')}° · mitres {g.mitresDeg.map(mm).join(' / ')}°. Ply base {mm(g.plyBaseWidthMM)}mm = frame {mm(g.frameMM)} + {inputs.soffitMode==='standard'?`board ${mm(g.soffitMM)} + fitting tolerance ${mm(g.fittingToleranceMM)}`:`site envelope ${mm(g.soffitMM)} − fascia ${mm(g.fasciaThicknessMM)}`}mm.</p>
-      <VictorianTrussPreview geometry={g} materials={materials}/><VictorianMemberCutPages geometry={g} materials={materials}/><VictorianRingBeamPreview geometry={g}/>
+      <VictorianMaterialsReconciliation geometry={g} materials={materials} plasticsColour={inputs.plasticsColour??'white'} gutterProfile={inputs.gutterProfile??'ogee'} productId={inputs.tileProductId??'britmetShingle'}/><VictorianTimberAudit geometry={g} materials={materials}/><VictorianInsulationAudit geometry={g} materials={materials}/><div id="victorian-tiles-laths"><VictorianLathAudit geometry={g} materials={materials} productId={inputs.tileProductId??'britmetShingle'}/><VictorianTilingAudit geometry={g} materials={materials} productId={inputs.tileProductId??'britmetShingle'}/></div><VictorianMetalFixingsAudit geometry={g} materials={materials} productId={inputs.tileProductId??'britmetShingle'}/><VictorianPlasticsGutteringAudit geometry={g} materials={materials} plasticsColour={inputs.plasticsColour??'white'} gutterProfile={inputs.gutterProfile??'ogee'}/><VictorianTrussPreview geometry={g} materials={materials}/><VictorianMemberCutPages geometry={g} materials={materials}/><VictorianRingBeamPreview geometry={g}/>
       <section><h2>Soffit stock &amp; ripping allowance</h2>{supply.valid?<><p>Total external run {mm(supply.totalRunMM)}mm · {supply.stripCount} full {mm(supply.stockLengthMM/1000)}m strips at {mm(supply.stripWidthMM)}mm.</p><p><b>Order:</b> {supply.order.map(r=>`${r.qty} × ${r.widthMM}mm × ${mm(supply.stockLengthMM/1000)}m`).join(' + ')||'None'}</p>{supply.ripInstructions.map((r,n)=><p key={n}><b>Board {n+1}:</b> {r.strips} × {mm(r.lengthMM/1000)}m at {mm(r.stripWidthMM)}mm from {r.boardWidthMM}mm stock.</p>)}{g.soffitMode==='specified'&&<p>Practical strip target: envelope {mm(g.soffitMM)} − fascia {mm(g.fasciaThicknessMM)} − trimming allowance {mm(g.stripTrimAllowanceMM)}mm. Saw kerf {mm(supply.kerfMM)}mm. Check the strip target on assembly; final facet mitres, lengths and numbering are deferred.</p>}</>:<p role="alert">{supply.errors.join(' ')}</p>}</section>
       {g.adjustedAngles&&<p>Adjusted-angle external outline is a plan offset only; eaves height alignment for the changed facet pitches still needs checking.</p>}
       <p>2258mm is the Windows Designer hip reference only. These plan lines are not timber cut lengths. Hip and intermediate cuts use the editable top-edge boss allowance; jack cuts remain deferred.</p></>}

@@ -1,8 +1,9 @@
+import {isAdminUser} from '../userRole';
 import {buildGableSummaryMaterialsModel} from './gableSummaryMaterialsModel';
 import {computePricing,computeLabourPricing,computeDeliveryPricing} from '../pricing';
 import {resolveCustomerDeliveryMiles} from '../customerRecords';
 const postcode=value=>String(value||'').toUpperCase().replace(/\s/g,'');
-export function buildGableQuotation({inputs={},materials={},customer=null,labourConfig={},deliveryConfig={},markupConfig={},modelBuilder=buildGableSummaryMaterialsModel}={}) {
+export function buildGableQuotation({inputs={},materials={},customer=null,labourConfig={},deliveryConfig={},markupConfig={},modelBuilder=buildGableSummaryMaterialsModel,requirePostcode=!isAdminUser()}={}) {
  const model=modelBuilder({inputs,materials});
  if(!model.valid)return {valid:false,ready:false,model,errors:model.errors};
  const area=Number(inputs.widthMM)*Number(inputs.projMM)/1e6;
@@ -14,11 +15,11 @@ export function buildGableQuotation({inputs={},materials={},customer=null,labour
  const selected=inputs.selectedCustomerId||'retail';
  const customerReady=selected==='retail'||customer?.id===selected;
  const hasPostcode=!!postcode(inputs.deliveryPostcode);
- const distanceReady=!hasPostcode||(postcode(inputs.deliveryDistancePostcode)===postcode(inputs.deliveryPostcode)&&Number.isFinite(Number(inputs.deliveryDistanceMiles))&&Number(inputs.deliveryDistanceMiles)>=0&&inputs.deliveryDistanceMiles!==''&&inputs.deliveryDistanceMiles!=null);
+ const distanceReady=!hasPostcode?!requirePostcode:(postcode(inputs.deliveryDistancePostcode)===postcode(inputs.deliveryPostcode)&&Number.isFinite(Number(inputs.deliveryDistanceMiles))&&Number(inputs.deliveryDistanceMiles)>=0&&inputs.deliveryDistanceMiles!==''&&inputs.deliveryDistanceMiles!=null);
  const distanceMiles=hasPostcode&&distanceReady?Number(inputs.deliveryDistanceMiles):resolveCustomerDeliveryMiles(null,customer);
  const delivery=computeDeliveryPricing(distanceMiles,deliveryConfig);
  const pricing=computePricing(model.materialsCostForPricing,{...materials,profit_pct:markupConfig.profitPct??materials.profit_pct??50},{labourCost:labour.labourCost,deliveryCost:delivery.deliveryCost,discountPct:selected==='retail'?0:Number(customer?.discountPct??customer?.discount_pct??0)});
- return {valid:true,ready:model.pricingReady&&customerReady&&distanceReady,model,labour,delivery,pricing,customerReady,distanceReady,errors:[]};
+ return {valid:true,ready:model.pricingReady&&customerReady&&distanceReady,model,labour,delivery,pricing,customerReady,distanceReady,postcodeReady:hasPostcode||!requirePostcode,errors:[]};
 }
 export function buildGableQuoteRecord({inputs,materials,quotation:q,customer,quoteNumber,family='gable'}) {
  if(!q?.ready)throw new Error('Complete material prices, customer and delivery distance are required before saving.');

@@ -5,7 +5,7 @@ const length=(a,b)=>Math.hypot(b.xMM-a.xMM,b.yMM-a.yMM);
 // Plan geometry only. No timber terminal deductions, cut lengths or pricing.
 export function buildVictorianGeometry({inputs={},materials={}}={}) {
   const fail=message=>({valid:false,errors:[message]});
-  const w=Number(inputs.widthMM),p=Number(inputs.projMM),pitch=Number(inputs.pitchDeg??25);
+  const w=Number(inputs.widthMM),p=Number(inputs.projMM);let pitch=Number(inputs.pitchDeg??25);
   const angles=inputs.cornerAnglesDeg??[135,135,135,135];
   if(!Array.isArray(angles)||angles.length!==4||angles.some(a=>!Number.isFinite(Number(a))||Number(a)<=90||Number(a)>=180))return fail('Four corner angles between 90° and 180° are required.');
   const turns=angles.map(a=>180-Number(a));
@@ -20,8 +20,12 @@ export function buildVictorianGeometry({inputs={},materials={}}={}) {
   const shift=p-Math.max(...front.map(a=>a.yMM));
   const corners=front.map(a=>({xMM:a.xMM,yMM:a.yMM+shift}));
   if(Math.min(corners[0].yMM,corners[3].yMM)<=0)return fail('The projection is too short for this Victorian front.');
-  const inherited=buildEdwardianGeometry({inputs:{...inputs,ridgeMode:'automatic',maxFinishedHeightMM:''},materials});
+  if(inputs.ridgeMode&&inputs.ridgeMode!=='automatic')return fail('Victorian front-pitch override requires further geometry review.');
+  if(inputs.sideSoffitMode&&inputs.sideSoffitMode!=='automatic')return fail('Independent Victorian side soffits require further geometry review.');
+  if(inputs.maxFinishedHeightMM&&angles.some(a=>Math.abs(Number(a)-135)>1e-8))return fail('Maximum finished height currently requires standard135° Victorian corners.');
+  const inherited=buildEdwardianGeometry({inputs:{...inputs,ridgeMode:'automatic'},materials});
   if(!inherited.valid)return fail(inherited.errors.join(' '));
+  pitch=inherited.pitchDeg;
   const soffitMode=inputs.soffitMode??(Number(inputs.soffitMM??150)===150?'standard':'specified');
   if(!['standard','specified'].includes(soffitMode))return fail('Choose standard board or specified envelope soffit mode.');
   const soffitMM=Number(inputs.soffitMM??150),frameMM=inherited.frameMM;
@@ -90,7 +94,7 @@ export function buildVictorianGeometry({inputs={},materials={}}={}) {
   });
   const minimumY=Math.min(corners[0].yMM,corners[3].yMM);
   if(ridge.yMM>=minimumY)return fail('The ridge must sit behind the two side-to-front corners. Review the angles or projection.');
-  return {valid:true,errors:[],adjustedAngles:angles.some(a=>Math.abs(Number(a)-135)>1e-8),style:'Victorian 3-facet',widthMM:w,projectionMM:p,pitchDeg:pitch,frameMM:inherited.frameMM,soffitMM,soffitMode,plyBaseWidthMM,fasciaThicknessMM,fittingToleranceMM,stripTrimAllowanceMM,soffitStripWidthMM,upstandArrangement,upstandHeightMM,bossTopContinuationMM,
+  return {valid:true,errors:[],adjustedAngles:angles.some(a=>Math.abs(Number(a)-135)>1e-8),style:'Victorian 3-facet',finishedHeightMM:inherited.finishedHeightMM,heightSafetyBufferMM:inherited.heightSafetyBufferMM,requestedPitchDeg:inherited.requestedPitchDeg,widthMM:w,projectionMM:p,pitchDeg:pitch,frameMM:inherited.frameMM,soffitMM,soffitMode,plyBaseWidthMM,fasciaThicknessMM,fittingToleranceMM,stripTrimAllowanceMM,soffitStripWidthMM,upstandArrangement,upstandHeightMM,bossTopContinuationMM,
     cornerAnglesDeg:angles.map(Number),mitresDeg:turns.map(a=>a/2),frontLengthMM,internalOutline,externalOutline,facets,hips,intermediateBars,jackRafters,
     ridge,ridgeEndYMM:ridge.yMM,terminalTrussCentreMM:inherited.terminalTrussCentreMM,layout,riseMM:inherited.riseMM,
     externalWidthMM:Math.max(...externalOutline.map(a=>a.xMM))-Math.min(...externalOutline.map(a=>a.xMM)),externalProjectionMM:Math.max(...externalOutline.map(a=>a.yMM)),

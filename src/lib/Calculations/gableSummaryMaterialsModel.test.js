@@ -4,7 +4,7 @@ import {buildSummaryMaterialsModel} from './summaryMaterialsModel';
 import {buildGableQuotation,buildGableQuoteRecord,isGableQuote} from './gableQuotation';
 import {buildSummaryIdiotList} from './summaryIdiotList';
 import {defaultMaterials} from '../materials';
-const inputs={roofStyle:'gable',widthMM:3800,projMM:4100,pitchDeg:25,leftSoffitMM:150,rightSoffitMM:150,frontOverhangMM:150,tileProductId:'britmetShingle',plasticsColour:'white',gutterProfile:'square',selectedCustomerId:'retail',customerReference:'Gable test'};
+const inputs={deliveryPostcode:'HU1 1AA',deliveryDistancePostcode:'HU1 1AA',deliveryDistanceMiles:25,roofStyle:'gable',widthMM:3800,projMM:4100,pitchDeg:25,leftSoffitMM:150,rightSoffitMM:150,frontOverhangMM:150,tileProductId:'britmetShingle',plasticsColour:'white',gutterProfile:'square',selectedCustomerId:'retail',customerReference:'Gable test'};
 const materials={...defaultMaterials,truss_closure_45x45_price_per_m:0.5,truss_closure_45x45_weight_kg_per_m:0.4,gable_box_end_400x1000_white_price:20,gable_box_end_400x1000_foiled_price:40,concrete_screws_price_per_box:19.61,d4_glue_price_per_tub:6.49,
  gutter_square_corner_90_ext_price:3.05};
 const build=(extra={})=>buildGableSummaryMaterialsModel({inputs,materials,...extra});

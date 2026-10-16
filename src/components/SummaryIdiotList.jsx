@@ -8,10 +8,10 @@ export default function SummaryIdiotList({ model, materials, inputs = {}, checkl
   const gutterColour = inputs.gutterColor ?? inputs.gutter_color ?? 'White';
   const tileSystem = inputs.tileSystem ?? inputs.tile_system ?? '';
   const tileColour = inputs.tileColor ?? inputs.tileColour ?? inputs.tile_colour ?? '';
-  const tileName=({britmetShingle:'Britmet',metrotileShingle:'Metrotile',liteSlate:'LiteSlate'})[tileSystem]||tileSystem;
+  const tileName=({britmetShingle:'Britmet',metrotileShingle:'Metrotile',liteSlate:'LiteSlate',tapcoSlate:'TapcoSlate'})[tileSystem]||tileSystem;
   if(compact)return <div className="summary-idiot-list sil-compact">
     <div className="sil-compact-title"><h2>Roof Checklist</h2><span>{inputs.widthMM} × {inputs.projMM}mm · {inputs.pitchDeg}° · {tileName} {tileColour}</span></div>
-    <div className="sil-compact-meta">{inputs.customerName||'—'} · {inputs.quoteRef||'—'} · Plastics: {plastics} · Gutters: {gutterColour} {inputs.gutterProfile||''} · {checklist.installedWeightKg.toFixed(1)}kg incl. plasterboard</div>
+    <div className="sil-compact-meta">{inputs.customerName||'—'} · {inputs.quoteRef||'—'} · Plastics: {plastics} · Gutters: {gutterColour} {inputs.gutterProfile||''} · {checklist.installedWeightKg.toFixed(1)}kg incl. plasterboard{checklist.weightProvisional?' · weight review pending':''}</div>
     <table className="sil-compact-table"><tbody>{['assemblies','laths','timber','tiles','plastics','metal','gutters','misc'].flatMap(key=>checklist.sections[key]?.length>0?[
       <tr key={key} className="sil-section-title"><th colSpan="3">{names[key]}</th></tr>,
       ...checklist.sections[key].map((row,index)=><tr key={`${key}-${index}`} className={row.informational?'sil-information':''}><td className="sil-compact-tick">{row.informational?'—':'☐'}</td><td>{row.item}</td><td className="sil-compact-qty">{row.displayQty??`${Number(row.qty.toFixed(3))} ${row.units}`}</td></tr>)

@@ -5,7 +5,7 @@ import { useNavigate, Link } from "react-router-dom";
 
 import TradeLogin from "../TradeLogin";            // path adjusted (we are in src/pages/)
 import logo from "../timberlite-logo-small.jpg";  // path adjusted
-import { isAdminUser } from "../lib/userRole";
+import { isAdminUser, isTradeUser } from "../lib/userRole";
 
 const roofDesigns = [
   "Lean-To",
@@ -63,14 +63,15 @@ export default function QuoteWizard() {
     return;
   }
 
-  if (slug === "edwardian" && isAdmin) {
+  if (slug === "edwardian" && (isAdmin || isTradeUser())) {
     clearActiveDesignRecord();
     navigate("/quote/edwardian", {state:{fresh:true}});
     return;
   }
 
-  if (slug === "victorian" && isAdmin) {
-    navigate("/quote/victorian");
+  if (slug === "victorian" && (isAdmin || isTradeUser())) {
+    clearActiveDesignRecord();
+    navigate("/quote/victorian", {state:{fresh:true}});
     return;
   }
 

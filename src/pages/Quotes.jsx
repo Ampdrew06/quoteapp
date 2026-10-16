@@ -1,3 +1,4 @@
+import {isVictorianQuote} from '../lib/Calculations/victorianQuotation';
 import {isEdwardianQuote} from '../lib/Calculations/edwardianQuotation';
 import {activateDesignRecord} from '../lib/activeDesignRecord';
 import {isGableQuote} from '../lib/Calculations/gableQuotation';
@@ -70,6 +71,7 @@ export default function Quotes() {
     if (!item) return;
     activateDesignRecord(item);
 
+    if(isVictorianQuote(item)){nav("/quote/victorian");return;}
     if(isEdwardianQuote(item)){nav("/quote/edwardian");return;}
     if (isGableQuote(item)) {
       localStorage.removeItem("active_gable_job_id");
@@ -127,6 +129,7 @@ const convertToJob = async (quote) => {
 
   alert(`Quote ${quote.quote_number} converted to Job ${jobNumber}.`);
 
+  if(isVictorianQuote(quote)){nav("/quote/victorian/plan-manufacture");return;}
   if(isEdwardianQuote(quote)){nav("/quote/edwardian/plan-manufacture");return;}
   if(isGableQuote(quote)) {
     localStorage.setItem("gableDesignPreviewInputs",JSON.stringify(quote.inputs_json||{}));
