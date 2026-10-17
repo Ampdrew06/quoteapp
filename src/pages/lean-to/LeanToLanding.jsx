@@ -1561,12 +1561,14 @@ setQuoteInputsExpanded(false);
   if (isCentralBoss && !centralPricingReady) { alert(summaryMaterials.centralTrussCosts?.errors?.join(" ") || "Complete the central-boss design and its material rates before saving."); return; }
   const manualReference = (quoteRef || "").trim();
 if (!isAdmin && !manualReference) {
+  setQuoteInputsExpanded(true);
   alert("Please enter a customer reference before saving.");
   return;
 }
 
   if (!canQuote) {
-    alert("Please enter width and projection before saving.");
+    setQuoteInputsExpanded(true);
+    alert(missingPostcode ? "Please enter a delivery postcode before saving." : "Please enter width and projection before saving.");
     return;
   }
 
@@ -2357,7 +2359,6 @@ onKeyDown={(e) => {
             <button
               onClick={handleSaveQuote}
               style={{ ...primaryBtn, width: "100%", background: "#10b981", borderColor: "#10b981" }}
-              disabled={!canQuote || (!isAdmin && !quoteRef.trim())}
 title={
   isCentralBoss && !centralPricingReady
     ? "Complete the central-boss design and Materials closure price"

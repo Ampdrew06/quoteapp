@@ -7,6 +7,9 @@ const source = fs.readFileSync(path.join(__dirname, 'LeanToLanding.jsx'), 'utf8'
 const body = source.split('const handleSaveQuote = async () => {')[1].split('\n};\n  /*')[0];
 function fixture(overrides = {}) {
   return {
+    readActiveDesignRecord:()=>null, activateDesignRecord:jest.fn(), setEditingRecord:jest.fn(),
+    designRecordPatch:record=>record,updateQuote:jest.fn().mockResolvedValue({id:'existing'}),
+    localStorage:{getItem:()=>null},setQuoteInputsExpanded:jest.fn(),missingPostcode:false,
     quoteRef: '  Factory test  ', isAdmin: true, canQuote: true,isCentralBoss:false,centralPricingReady:true,bossArrangement:'offset',
     leftHipWidthManual:false,rightHipWidthManual:false,normalizeBossArrangementInputs:inputs=>inputs,
     getNextQuoteNumber: jest.fn().mockResolvedValue('123'),
@@ -73,4 +76,20 @@ test('central quotation saves the explicit arrangement and canonical Summary pri
  expect(context.saveQuoteToCloud).toHaveBeenCalledTimes(1);
  expect(context.saveQuoteToCloud.mock.calls[0][0].inputs_json.bossArrangement).toBe('central');
  expect(context.saveQuoteToCloud.mock.calls[0][0].pricing_json.materialsCost).toBe(1230);
+});
+
+for (const roofStyle of ['leanTo','hippedLeanTo']) {
+ test(roofStyle+' saves and updates the active record without creating a second quote',async()=>{
+  const context=fixture({roofStyle,readActiveDesignRecord:()=>({id:'existing',quote_number:'123',status:'converted_to_job',job_number:'J1'})});await run(context);
+  expect(context.updateQuote).toHaveBeenCalledTimes(1);expect(context.saveQuoteToCloud).not.toHaveBeenCalled();
+  expect(context.getNextQuoteNumber).not.toHaveBeenCalled();expect(context.activateDesignRecord).toHaveBeenCalledTimes(1);
+ });
+}
+test('trade missing reference reopens Edit rather than silently disabling Save',async()=>{
+ const context=fixture({isAdmin:false,quoteRef:''});await run(context);
+ expect(context.setQuoteInputsExpanded).toHaveBeenCalledWith(true);expect(context.saveQuoteToCloud).not.toHaveBeenCalled();
+});
+test('trade missing postcode reopens Edit and explains the missing input',async()=>{
+ const context=fixture({isAdmin:false,canQuote:false,missingPostcode:true});await run(context);
+ expect(context.setQuoteInputsExpanded).toHaveBeenCalledWith(true);expect(context.alert.mock.calls[0][0]).toContain('postcode');
 });
