@@ -5,7 +5,7 @@ export function buildVictorianIdiotList(model,materials={}){
  const list=buildSummaryIdiotList(model,materials);
  if(!model?.valid)return {...list,valid:false,errors:model?.errors||['Valid Victorian model required.']};
  const a=model.audits,c=a.timber.componentCounts,l=a.laths;
- list.sections.assemblies=[['trusses','Assembled trusses',c.trusses],['hips','Hips',c.hips],['intermediates','Intermediate rafters',c.intermediates],['ringbeams','Ring-beams',c.ringBeams]].filter(r=>r[2]>0).map(([key,item,qty])=>({key,item,qty,units:'Ea'}));
+ list.sections.assemblies=[['trusses','Assembled trusses',c.trusses],['hips','Hips',c.hips],['intermediates','Intermediate rafters',c.intermediates],['jacks','Jack rafters',c.jacks||0],['ringbeams','Ring-beams',c.ringBeams]].filter(r=>r[2]>0).map(([key,item,qty])=>({key,item,qty,units:'Ea'}));
  const sourceRows=Object.values(model.sections).flatMap(s=>s.lines),row=key=>sourceRows.find(r=>r.key===key);
  const groups={field:[],chamfer:[],hipSupport:[],ridgeSupport:[],internal:[]};
  l.fieldRows.forEach(r=>groups[r.kind==='chamferedPerimeter'?'chamfer':'field'].push(r.widthMM/1000));

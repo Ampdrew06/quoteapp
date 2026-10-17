@@ -85,7 +85,7 @@ export function buildVictorianGeometry({inputs={},materials={}}={}) {
   const layout={...inherited.layout,centresMM,trussCount:centresMM.length};
   [facets[0],facets[4]].forEach((f,i)=>{
     const shoulder=i===0?f.end.yMM:f.start.yMM;
-    const run=shoulder-inherited.terminalTrussCentreMM,bays=run<=750+1e-7?1:Math.ceil(run/665);
+    const run=shoulder-inherited.terminalTrussCentreMM,unsupportedRun=shoulder-ridge.yMM,bays=unsupportedRun<=750+1e-7?1:Math.ceil(run/665);
     for(let n=1;n<bays;n++){
       const y=inherited.terminalTrussCentreMM+run*n/bays;
       const t=i===0?y/f.internalLengthMM:1-y/f.internalLengthMM;

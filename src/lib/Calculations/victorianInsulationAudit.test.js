@@ -34,9 +34,9 @@ test('missing costs and weights remain unconfigured and explicit zero weights ar
  const a=build({},{});expect(a.valid).toBe(true);expect(a.pir50.cost).toBeNull();expect(a.pir100.installedWeightKg).toBeNull();expect(a.superQuilt.installedWeightKg).toBeNull();expect(a.membrane.installedWeightKg).toBeNull();expect(a.costComplete).toBe(false);expect(a.weightComplete).toBe(false);
  expect(build({}, {...materials,pir100_weight_kg_per_m2:0}).pir100.installedWeightKg).toBe(0);
 });
-test('invalid order inputs, incomplete jacks and insufficient membrane coverage remain visible',()=>{
- expect(build({}, {...materials,superquilt_overlap_mm:1200}).valid).toBe(false);expect(build({}, {...materials,pir50:{sheet_w_m:-1}}).valid).toBe(false);expect(build({widthMM:4000,projMM:6500}).valid).toBe(false);
- const big=build({projMM:20000});expect(big.valid).toBe(true);expect(big.membrane.coverageReview).toBe(true);expect(big.costComplete).toBe(false);
+test('invalid order inputs, jack layouts and insufficient membrane coverage remain visible',()=>{
+ expect(build({}, {...materials,superquilt_overlap_mm:1200}).valid).toBe(false);expect(build({}, {...materials,pir50:{sheet_w_m:-1}}).valid).toBe(false);expect(build({widthMM:4000,projMM:6500}).valid).toBe(true);
+ const big=build({projMM:20000});expect(big.valid).toBe(true);expect(big.membrane.coverageReview).toBe(false);expect(big.membrane.rolls).toBeGreaterThan(1);expect(big.membrane.rolls*big.membrane.rollCoverageM2).toBeGreaterThanOrEqual(big.membrane.installedAreaM2);
 });
 test('insulation audit does not mutate geometry or configured rates',()=>{
  const g=geometry(),before=JSON.stringify(g),rates=JSON.stringify(materials);buildVictorianInsulationAudit({geometry:g,materials});expect(JSON.stringify(g)).toBe(before);expect(JSON.stringify(materials)).toBe(rates);

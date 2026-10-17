@@ -54,7 +54,7 @@ test('side closing spans up to 750mm need no jack below the boss',()=>{
  const reference=build();expect(reference.jackRafters.filter(r=>['facet-1','facet-5'].includes(r.facetId))).toHaveLength(0);
  for(const [run,count] of [[703,0],[750,0],[750.1,2],[1400,4]]){
   // Regular fronts: shoulder minus ridge = width * (sqrt(2)-1)/2.
-  const widthMM=(run-33)*2/(Math.SQRT2-1);
+  const widthMM=run*2/(Math.SQRT2-1);
   const g=build({widthMM,projMM:7000});expect(g.valid).toBe(true);
   expect(g.jackRafters.filter(r=>['facet-1','facet-5'].includes(r.facetId))).toHaveLength(count);
  }

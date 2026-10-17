@@ -9,7 +9,7 @@ export function buildVictorianInsulationAudit({geometry:g,materials:m={}}={}){
  const ceiling=buildVictorianSurfaceAreas({geometry:g,flatWidthMM:t.closure.cutLengthMM}),slabSurface=buildVictorianSurfaceAreas({geometry:g,eavesExtensionMM:g.frameMM}),membraneSurface=buildVictorianSurfaceAreas({geometry:g,eavesExtensionMM:g.plyBaseWidthMM+50});
  if(!ceiling.valid||!slabSurface.valid||!membraneSurface.valid)return fail(['Could not resolve the five Victorian insulation surfaces.']);
  const trussCradleRunMM=(g.widthMM/2+g.frameMM-t.gusset.widthMM/2)/c(g.pitchDeg),trussFaceCount=2*(2*count-1);
- const others=timber.memberSchedule.members.map(r=>{const plan=[...g.hips,...g.intermediateBars].find(p=>p.id===r.ref);return {...r,frameSlopeExtensionMM:victorianFrameExtension(g,plan,g.frameMM)/c(r.pitchDeg)};});
+ const others=timber.memberSchedule.members.map(r=>{const plan=[...g.hips,...g.intermediateBars,...g.jackRafters].find(p=>p.id===r.ref);return {...r,frameSlopeExtensionMM:victorianFrameExtension(g,plan,g.frameMM)/c(r.pitchDeg)};});
  const otherCradleLengthM=others.reduce((n,r)=>n+2*(r.bottomEdgeMM+r.frameSlopeExtensionMM)/1000,0),cradleLengthM=trussFaceCount*trussCradleRunMM/1000+otherCradleLengthM,cradleAreaM2=cradleLengthM*0.14;
  const bayWidthM=timber.ringBeams.flatMap(b=>b.upstands).reduce((n,b)=>n+b.widthMM/1000,0),ringPirHeightMM=185,ringPir50AreaM2=bayWidthM*ringPirHeightMM/1000;
  const timberFootprintAreaM2=(count*2*(g.widthMM/2+g.frameMM)/c(g.pitchDeg)+others.reduce((n,r)=>n+r.bottomEdgeMM+r.frameSlopeExtensionMM,0))*45/1e6,slabAreaM2=Math.max(0,slabSurface.areaM2-timberFootprintAreaM2);
@@ -30,7 +30,7 @@ export function buildVictorianInsulationAudit({geometry:g,materials:m={}}={}){
  const rollCoverageM2=Number(m.breather_roll_width_m??m.breatherMembrane?.roll_width_m??1)*Number(m.breather_roll_length_m??m.breatherMembrane?.roll_length_m??50);
  if(!Number.isFinite(rollCoverageM2)||rollCoverageM2<=0)return fail(['Invalid breather membrane roll coverage.']);
  const membraneRollWeight=rate(m.breather_roll_weight_kg??m.breatherMembrane?.weight_kg_per_roll),membraneRate=rate(m.breather_weight_kg_per_m2)??(membraneRollWeight==null?null:membraneRollWeight/rollCoverageM2);
- const membrane={installedAreaM2:membraneSurface.areaM2,surface:membraneSurface,rolls:1,rollCoverageM2,cost:rate(m.breather_roll_price_each??m.breatherMembrane?.price_per_roll),installedWeightKg:membraneRate==null?null:membraneSurface.areaM2*membraneRate,coverageReview:membraneSurface.areaM2>rollCoverageM2};
+ const membrane={installedAreaM2:membraneSurface.areaM2,surface:membraneSurface,rolls:Math.ceil(membraneSurface.areaM2/rollCoverageM2),rollCoverageM2,cost:rate(m.breather_roll_price_each??m.breatherMembrane?.price_per_roll)==null?null:Math.ceil(membraneSurface.areaM2/rollCoverageM2)*rate(m.breather_roll_price_each??m.breatherMembrane?.price_per_roll),installedWeightKg:membraneRate==null?null:membraneSurface.areaM2*membraneRate,coverageReview:false};
  const plasterboard={installedAreaM2:ceiling.areaM2,sheets:Math.ceil(ceiling.areaM2/2.88),installedWeightKg:ceiling.areaM2*8.5,supplyIncluded:false};
  const lines=[{key:'pir50',label:'50mm PIR — fitted cradle strips and ring-beams',...pir50,supply:'Fitted'},{key:'pir100',label:'100mm PIR — between roof members',...pir100,supply:'Loose boards'},{key:'superQuilt',label:'SuperQuilt — finished ceiling',...superQuilt,supply:'Supplied'},{key:'membrane',label:'Breather membrane — outer roof',...membrane,supply:'Supplied'}];
  return {valid:true,readOnly:true,errors:[],lines,ceiling,slab:{surface:slabSurface,timberFootprintAreaM2,netAreaM2:slabAreaM2},pir50,pir100,superQuilt,membrane,plasterboard,
@@ -41,7 +41,7 @@ export function buildVictorianInsulationAudit({geometry:g,materials:m={}}={}){
    'One 185mm-high PIR face per clear ring-beam bay, following the existing ring-beam PIR height. The 15mm plywood groove insertion is not added to PIR. Ring-beam PIR and all cradle strips are pooled before rounding to sheets.',
    '50mm PIR is fitted;100mm boards are supplied loose. PIR cost includes configured waste and whole sheets; installed weight uses net area, without waste.',
    'SuperQuilt and the plasterboard buying guide share the ceiling slopes plus the horizontal flat at the underside height of the 595mm truss closure. Quilt roll weights use a fixed installed-area rate regardless of ordered roll mix.',
-   'Breather membrane extends 50mm in plan past the ply-base envelope. One roll is retained as on existing roofs; if area exceeds its configured coverage the supply requires review and the subtotal is incomplete.',
+   'Breather membrane extends 50mm in plan past the ply-base envelope. Whole rolls are rounded up to cover the installed area; large roofs receive additional rolls automatically.',
    'Plasterboard is NOT SUPPLIED and has no cost. Its sheet count is a customer buying guide and its installed weight is shown separately.',
-   'Read-only audit: no live Summary, pricing, manufacture or despatch checklist changes. Unresolved jack/adjusted-angle member geometry blocks a complete audit.']};
+   'Read-only audit: no live Summary, pricing, manufacture or despatch checklist changes. Jack cradles and member footprints are included. Adjusted-angle member geometry still requires review.']};
 }

@@ -23,7 +23,12 @@ export function buildVictorianMetalFixingsAudit({geometry:g,materials:m={},produ
  const tileRate=Number(tiles.steel?m.tileFixings?.per_tile_britmet??3:m.tileFixings?.per_tile_liteslate??2);
  if(!Number.isFinite(tileRate)||tileRate<0)return fail(['Tile screw rate must be non-negative.']);
  const siteScrews=counts.memberFeet*2,tileScrews=tiles.steel&&tiles.ridgeTiles!=null&&tiles.hipTiles!=null?tiles.mainTiles*tileRate+(tiles.ridgeTiles+tiles.hipTiles)*4+4*2+10:null;
- const memberCandidates=facetIndex=>facetIndex===0||facetIndex===4?Array(counts.trusses-1).fill({top:timber.truss.members[0].externalSlopeMM,bottom:timber.truss.members[0].internalSlopeMM}):timber.memberSchedule.members.filter(r=>r.type==='Intermediate rafter'&&g.intermediateBars.find(p=>p.id===r.ref)?.facetId===g.facets[facetIndex].id).map(r=>({top:r.topEdgeMM,bottom:r.bottomEdgeMM}));
+ const memberCandidates=facetIndex=>{
+  const facetId=g.facets[facetIndex].id;
+  const rows=facetIndex===0||facetIndex===4?Array(counts.trusses-1).fill({top:timber.truss.members[0].externalSlopeMM,bottom:timber.truss.members[0].internalSlopeMM}):[];
+  timber.memberSchedule.members.filter(r=>r.type==='Jack rafter'?r.facetId===facetId:r.type==='Intermediate rafter'&&g.intermediateBars.find(p=>p.id===r.ref)?.facetId===facetId).forEach(r=>rows.push({top:r.topEdgeMM,bottom:r.bottomEdgeMM}));
+  return rows;
+ };
  const externalRows=tiles.result.facets.flatMap((f,i)=>f.lathRows.filter(r=>r.widthMM>0).map(row=>{const positionMM=Math.max(0,Number(row.yMM)-50/Math.cos(f.facet.pitchDeg*Math.PI/180));return {facetId:g.facets[i].id,positionMM,screws:2+memberCandidates(i).filter(r=>r.top+24>=positionMM).length};}));
  const externalFieldScrews=externalRows.reduce((n,r)=>n+r.screws,0),supportScrews=tiles.steel?tiles.edges.reduce((n,e)=>n+2*(Math.ceil(e.lengthMM/500)+1),0):0,externalScrews=externalFieldScrews+supportScrews;
  const internalRows=laths.internal.rows.map(row=>{if(row.surface==='flat')return {...row,screws:counts.trusses+1};const i=g.facets.findIndex(f=>f.id===row.surface),positionMM=row.positionMM/Math.cos(g.facets[i].pitchDeg*Math.PI/180);return {...row,screws:2+memberCandidates(i).filter(r=>r.bottom+24>=positionMM).length};}),internalScrews=internalRows.reduce((n,r)=>n+r.screws,0);

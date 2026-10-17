@@ -26,6 +26,6 @@ test('missing rates remain unconfigured and zero rates stay valid',()=>{
  const a=build('britmetShingle',{},{});expect(a.costComplete).toBe(false);expect(a.weightComplete).toBe(false);expect(a.lines.find(l=>l.key==='field').cost).toBeNull();
  const z=build('britmetShingle',{}, {...materials,lath25x50:{price_per_m:0},chamferLath:{price_per_m:0,weight_kg_per_m:0}});expect(z.costComplete).toBe(true);expect(z.knownCost).toBe(0);expect(z.knownInstalledWeightKg).toBe(0);
 });
-test('unsupported product, invalid spacing/stock and unresolved member layouts cannot yield complete lath audit',()=>{
- expect(build('unknown').valid).toBe(false);expect(build('britmetShingle',{}, {...materials,lath_stock_length_m:0}).valid).toBe(false);expect(build('britmetShingle',{widthMM:4000,projMM:6500}).valid).toBe(false);expect(buildVictorianInternalLaths({geometry:geometry(),maximumSpacingMM:0}).valid).toBe(false);
+test('unsupported product, invalid spacing/stock and jack layouts are included; invalid configurations remain blocked',()=>{
+ expect(build('unknown').valid).toBe(false);expect(build('britmetShingle',{}, {...materials,lath_stock_length_m:0}).valid).toBe(false);expect(build('britmetShingle',{widthMM:4000,projMM:6500}).valid).toBe(true);expect(buildVictorianInternalLaths({geometry:geometry(),maximumSpacingMM:0}).valid).toBe(false);
 });

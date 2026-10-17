@@ -4,7 +4,7 @@ const base={widthMM:3392,projMM:3605,pitchDeg:25,frameThicknessMM:70,soffitMM:50
 const materials={global_waste_percent:10,steico:{price_per_m:10,weight_kg_per_m:2,waste_percent:12},ply9mm:{price_per_m2:5,weight_kg_per_m2:4,waste_pct:15},ply18mm:{price_per_m2:9,weight_kg_per_m2:8},pse30x90:{price_per_m:2,weight_kg_per_m:1},chamferLath:{weight_kg_per_m:0.5},lath25x50:{price_per_m:0.6},lathFinish:{price_per_m:0.7},truss_closure_45x45_price_per_m:0.5,truss_closure_45x45_weight_kg_per_m:0.4};
 const build=(patch={},m=materials)=>buildVictorianTimberAudit({geometry:buildVictorianGeometry({inputs:{...base,...patch}}),materials:m});
 test('reference Victorian timber audit counts accepted member and plate geometry once',()=>{
- const a=build();expect(a.valid).toBe(true);expect(a.componentCounts).toEqual({trusses:4,trussMembers:8,hips:4,intermediates:3,joistMembers:15,gussets:8,chevrons:8,closures:4,ringBeams:5,upstands:14});
+ const a=build();expect(a.valid).toBe(true);expect(a.componentCounts).toEqual({trusses:4,trussMembers:8,hips:4,intermediates:3,jacks:0,joistMembers:15,gussets:8,chevrons:8,closures:4,ringBeams:5,upstands:14});
  expect(a.lines.find(l=>l.key==='trussJoists').quantity).toBeCloseTo(8*a.truss.members[0].externalSlopeMM/1000,7);
  expect(a.lines.find(l=>l.key==='hipJoists').quantity).toBeCloseTo(4*1968.4885800775664/1000,7);
  expect(a.lines.find(l=>l.key==='intermediateJoists').quantity).toBeCloseTo(3*1824.9768762135227/1000,7);
@@ -27,9 +27,9 @@ test('missing rates do not turn into free material and explicit zero rates remai
  const a=build({},{});expect(a.costComplete).toBe(false);expect(a.weightComplete).toBe(false);expect(a.lines.find(l=>l.key==='bases').cost).toBeNull();
  const z=build({}, {...materials,steico:{price_per_m:0,weight_kg_per_m:0}});expect(z.lines.find(l=>l.key==='trussJoists').cost).toBe(0);expect(z.lines.find(l=>l.key==='hipJoists').installedWeightKg).toBe(0);expect(z.costComplete).toBe(true);
 });
-test('threshold and geometry changes use actual members and incomplete wider roofs cannot produce a complete audit',()=>{
+test('threshold and geometry changes use actual members and wider roofs include jack timber',()=>{
  const narrow=build({widthMM:750*(1+Math.SQRT2),projMM:6500});expect(narrow.valid).toBe(true);expect(narrow.componentCounts.intermediates).toBe(0);
- expect(build({widthMM:1501*(1+Math.SQRT2),projMM:6500}).valid).toBe(false);
+ expect(build({widthMM:1501*(1+Math.SQRT2),projMM:6500}).valid).toBe(true);
  expect(build({cornerAnglesDeg:[134,136,135,135]}).valid).toBe(false);expect(build({widthMM:0}).valid).toBe(false);
 });
 test('audit is read-only, adds no arbitrary rear packer quantity and does not include other materials',()=>{
