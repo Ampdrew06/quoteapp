@@ -1,3 +1,4 @@
+import {validateTradeHippedDesign} from '../../lib/geometry/tradeHippedDesignValidation';
 import {readActiveDesignRecord,clearActiveDesignRecord,activateDesignRecord,restoreActiveDesignRecord,designRecordPatch} from '../../lib/activeDesignRecord';
 import {buildCentralBossDesign,normalizeBossArrangementInputs} from '../../lib/geometry/centralBossDesign';
 import { readSummaryPricingState } from "../../lib/Calculations/summaryPricingState";
@@ -1400,7 +1401,10 @@ const missingPostcode = !isAdmin && !String(deliveryPostcode || "").trim();
 
 const hasDeliveryPostcode = !missingPostcode;
 
+const tradeDesignErrors = validateTradeHippedDesign({isAdmin,roofStyle,widthMM,projMM,bossArrangement,leftHip,rightHip,leftHipWidthMM,rightHipWidthMM});
+
 const canQuote =
+  tradeDesignErrors.length === 0 &&
   centralPricingReady &&
   !missingWidth &&
   !missingProjection &&
@@ -1457,6 +1461,7 @@ return miles;
 };
 
   const onGetQuote = async () => {
+  if (tradeDesignErrors.length) { setQuoteError(tradeDesignErrors.join(" "));setQuoteInputsExpanded(true);setShowQuote(false);return; }
   if (isCentralBoss && !centralPricingReady) { setQuoteError(summaryMaterials.centralTrussCosts?.errors?.join(" ") || "Complete the central-boss design and its material rates before quoting."); return; }
   setQuoteError("");
 
@@ -1558,6 +1563,7 @@ setQuoteInputsExpanded(false);
   };
 
   const handleSaveQuote = async () => {
+  if (tradeDesignErrors.length) { setQuoteInputsExpanded(true);alert(tradeDesignErrors.join(" "));return; }
   if (isCentralBoss && !centralPricingReady) { alert(summaryMaterials.centralTrussCosts?.errors?.join(" ") || "Complete the central-boss design and its material rates before saving."); return; }
   const manualReference = (quoteRef || "").trim();
 if (!isAdmin && !manualReference) {
@@ -1634,7 +1640,10 @@ if (!isAdmin && !manualReference) {
   quoteRef: manualReference,
 };
 
-  const customerForQuote = selectedCustomer || getCurrentCustomer();
+  const customerForQuote = isAdmin ? selectedCustomer || getCurrentCustomer() : getCurrentCustomer();
+  if (!isAdmin && !customerForQuote?.id) { alert("Please log in to your trade account before saving.");return; }
+  if (!isAdmin && currentRecord && currentRecord.customer_id !== customerForQuote.id) { alert("Please reopen a quote from My Quotes or start a new design before saving.");return; }
+  if (!isAdmin) payload.selectedCustomerId = customerForQuote.id;
 
   const isUuid = (value) =>
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
@@ -2384,7 +2393,8 @@ title={
 
         {/* Results */}
         {isCentralBoss && !centralPricingReady && <p role="status">{summaryMaterials.centralTrussCosts?.errors?.join(' ') || 'Complete the central-boss design before quoting.'}</p>}
-        {showQuote && (!isCentralBoss || centralPricingReady) && (
+        {tradeDesignErrors.length > 0 && <p role="alert" style={{color:"#b91c1c"}}>{tradeDesignErrors.join(" ")}</p>}
+        {showQuote && tradeDesignErrors.length === 0 && (!isCentralBoss || centralPricingReady) && (
           <div id="quote-result" style={{ marginTop: 16, display: "grid", gap: 14 }}>
             {/* Plan preview */}
             <div style={card}>

@@ -1,3 +1,5 @@
+import {isAdminUser} from '../lib/userRole';
+import MyQuotes from './MyQuotes';
 import {isVictorianQuote} from '../lib/Calculations/victorianQuotation';
 import {isEdwardianQuote} from '../lib/Calculations/edwardianQuotation';
 import {activateDesignRecord} from '../lib/activeDesignRecord';
@@ -23,6 +25,9 @@ const niceDate = (iso) => {
 };
 
 export default function Quotes() {
+  return isAdminUser()?<AdminQuotes/>:<MyQuotes/>;
+}
+export function AdminQuotes() {
   const nav = useNavigate();
   const [q, setQ] = useState([]);
   const [search, setSearch] = useState("");

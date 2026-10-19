@@ -1,3 +1,4 @@
+import MyQuotes from '../pages/MyQuotes';
 import VictorianIdiotList from '../pages/victorian/VictorianIdiotList';
 import VictorianDesign from '../pages/victorian/VictorianDesign';
 import VictorianSummary from '../pages/victorian/VictorianSummary';
@@ -100,6 +101,7 @@ export default function AppRoutes() {
         <Route path="/idiot-list" element={<CentralBossIntegrationGate allowCentralCosting><IdiotList /></CentralBossIntegrationGate>} />
         {/* Catch-all → /quote */}
         <Route path="*" element={<Navigate to="/quote" replace />} />
+        <Route path="/my-quotes" element={<MyQuotes />} />
         <Route path="/quotes" element={<Quotes />} />
 
         <Route path="/jobs" element={<Jobs />} />

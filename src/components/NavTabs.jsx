@@ -1,7 +1,7 @@
 // src/components/NavTabs.jsx
 import React from "react";
 import { NavLink } from "react-router-dom";
-import { isAdminUser } from "../lib/userRole";
+import { isAdminUser, isTradeUser } from "../lib/userRole";
 
 const publicTabsLeft = [
   { to: "/quote", label: "Home", exact: true },
@@ -24,7 +24,7 @@ const adminTabsLeft = [
 ];
 
 export default function NavTabs() {
-  const tabsLeft = isAdminUser() ? adminTabsLeft : publicTabsLeft;
+  const tabsLeft = isAdminUser() ? adminTabsLeft : [...publicTabsLeft,...(isTradeUser()?[{to:"/my-quotes",label:"My Quotes"}]:[])];
   return (
     <div className="print:hidden nav-strip">
       <div className="nav-inner">

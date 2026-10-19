@@ -7,7 +7,7 @@ const source = fs.readFileSync(path.join(__dirname, 'LeanToLanding.jsx'), 'utf8'
 const body = source.split('const handleSaveQuote = async () => {')[1].split('\n};\n  /*')[0];
 function fixture(overrides = {}) {
   return {
-    readActiveDesignRecord:()=>null, activateDesignRecord:jest.fn(), setEditingRecord:jest.fn(),
+    tradeDesignErrors:[],setShowQuote:jest.fn(),readActiveDesignRecord:()=>null, activateDesignRecord:jest.fn(), setEditingRecord:jest.fn(),
     designRecordPatch:record=>record,updateQuote:jest.fn().mockResolvedValue({id:'existing'}),
     localStorage:{getItem:()=>null},setQuoteInputsExpanded:jest.fn(),missingPostcode:false,
     quoteRef: '  Factory test  ', isAdmin: true, canQuote: true,isCentralBoss:false,centralPricingReady:true,bossArrangement:'offset',
@@ -92,4 +92,21 @@ test('trade missing reference reopens Edit rather than silently disabling Save',
 test('trade missing postcode reopens Edit and explains the missing input',async()=>{
  const context=fixture({isAdmin:false,canQuote:false,missingPostcode:true});await run(context);
  expect(context.setQuoteInputsExpanded).toHaveBeenCalledWith(true);expect(context.alert.mock.calls[0][0]).toContain('postcode');
+});
+
+test('invalid trade hip layout cannot save even when a previous quote was valid',async()=>{
+ const context=fixture({tradeDesignErrors:['Hip widths exceed roof width.']});await run(context);
+ expect(context.saveQuoteToCloud).not.toHaveBeenCalled();expect(context.updateQuote).not.toHaveBeenCalled();
+ expect(context.setQuoteInputsExpanded).toHaveBeenCalledWith(true);
+});
+
+test('trade save attributes ownership to the signed-in customer despite a stale selection',async()=>{
+ const id='12345678-1234-1234-1234-123456789abc';
+ const context=fixture({isAdmin:false,getCurrentCustomer:()=>({id,name:'Trade owner'})});await run(context);
+ expect(context.saveQuoteToCloud).toHaveBeenCalledTimes(1);
+ const record=context.saveQuoteToCloud.mock.calls[0][0];expect(record.customer_id).toBe(id);expect(record.inputs_json.selectedCustomerId).toBe(id);
+});
+test('trade cannot update a saved record owned by another customer',async()=>{
+ const context=fixture({isAdmin:false,getCurrentCustomer:()=>({id:'owner'}),readActiveDesignRecord:()=>({id:'foreign',customer_id:'someone-else',quote_number:'123'})});await run(context);
+ expect(context.saveQuoteToCloud).not.toHaveBeenCalled();expect(context.updateQuote).not.toHaveBeenCalled();
 });

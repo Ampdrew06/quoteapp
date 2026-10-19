@@ -64,11 +64,7 @@ export default function TradeLogin({ onLogin }) {
   if (loggedInUser) {
     return (
       <div style={{ marginBottom: 20 }}>
-        <p>
-          <p>
-  Logged in as <strong>{loggedInUser.name}</strong>
-</p>
-        </p>
+        <p>Logged in as <strong>{loggedInUser.name}</strong></p>
         <button onClick={handleLogout}>Logout</button>
       </div>
     );
