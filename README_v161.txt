@@ -1,0 +1,1 @@
+Apply over v160. Replace src/lib/roofNavigation.js with the included file. Adds the ESLint globalThis declaration already used elsewhere in the app. No navigation behavior changes. Navigation component regression checks passed; compile locally to confirm your ESLint build.

@@ -1968,7 +1968,7 @@ const ringBeamManufactureSchedule = useMemo(
   <NavTabs />
 </div>
 
-      <div style={{ maxWidth: 1180, margin: "0 auto", padding: 14 }}>
+      <div className="app-page-content" style={{ maxWidth: 1180, margin: "0 auto", padding: 14 }}>
  <section className="pm-page pm-front-page">
  <ManufactureBookFront
   roof={{customerName:customer,reference:customerRef,style:roofStyleLabel,pitch:`${pitchDeg}°`,frame:`${sft} mm`,tileType:(tileType||'—').toString().replace(/^./,c=>c.toUpperCase()),tileColour,fasciaColour,soffit:soffitDisplay,gutters:gutterDisplay,downpipes:downpipeDisplay,boxGutters:boxGutterDetails,glazing:q.glazed_options||q.glazedOptions,dimensions:`${iw} × ${ip}mm`,weight:planSummary?`${planSummary.installedWeightKg.toFixed(1)}kg incl. plasterboard`:'—'}}

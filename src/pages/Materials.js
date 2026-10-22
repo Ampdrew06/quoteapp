@@ -383,7 +383,7 @@ setHasUnsavedChanges(false);
   const money = (v) => `£${Number(v).toFixed(2)}`;
 
   return (
-    <div
+    <><NavTabs active="materials" /><div className="app-page-content"
       style={{
         maxWidth: 1100,
         margin: "0 auto",
@@ -392,7 +392,7 @@ setHasUnsavedChanges(false);
       }}
     >
       {/* App-wide nav tabs */}
-      <NavTabs active="materials" />
+
 
       <h1
   style={{
@@ -449,7 +449,7 @@ setHasUnsavedChanges(false);
     }}
   >
     {/* Label on the left */}
-    <div style={{ fontSize: 15, fontWeight: 600 }}>Steico I-joist (220)</div>
+    <div style={{ fontSize: 15, fontWeight: 600 }}>220 i-joist</div>
 
     {/* Spacer to push controls to the right */}
     <div style={{ flex: 1 }} />
@@ -2279,7 +2279,7 @@ onChange={(e) => setTop("vat_rate", e.target.value)}
       <div
         style={{ marginTop: 10, fontSize: 12, color: "#555" }}
       >
-        Defaults: Steico {m.steico.stock_len_m} m @{" "}
+        Defaults: 220 i-joist {m.steico.stock_len_m} m @{" "}
         {money(m.steico.price_per_bar)} per bar (
         {money(m.steico.price_per_m)}/m). 9 mm ply{" "}
         {money(m.ply9mm.price_per_sheet)} per {area9.toFixed(2)} m²
@@ -2294,6 +2294,6 @@ onChange={(e) => setTop("vat_rate", e.target.value)}
         {money(m.pir100.price_per_m2)}/m²). Joist hanger{" "}
         {money(m.joist_hanger_price_each ?? 0)} each. Consumables {(m.consumables_pct ?? m.overheads?.consumables_pct ?? 0)}%.
       </div>
-    </div>
+    </div></>
   );
 }

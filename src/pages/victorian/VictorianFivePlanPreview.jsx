@@ -1,0 +1,44 @@
+import {clearActiveDesignRecord} from '../../lib/activeDesignRecord';
+import {normalizeVictorianFiveDesignInputs} from '../../lib/geometry/victorianFiveDesignInputs';
+import VictorianNavigation from './VictorianNavigation';
+import VictorianMaterialsReconciliation from '../../components/VictorianMaterialsReconciliation';
+import VictorianTimberAudit from '../../components/VictorianTimberAudit';
+import VictorianInsulationAudit from '../../components/VictorianInsulationAudit';
+import VictorianLathAudit from '../../components/VictorianLathAudit';
+import VictorianTilingAudit from '../../components/VictorianTilingAudit';
+import VictorianMetalFixingsAudit from '../../components/VictorianMetalFixingsAudit';
+import VictorianPlasticsGutteringAudit from '../../components/VictorianPlasticsGutteringAudit';
+import React,{useState,useEffect} from 'react';
+import {Navigate} from 'react-router-dom';
+import {isAdminUser} from '../../lib/userRole';
+import {getMaterials} from '../../lib/materials';
+import {buildVictorianFiveGeometry} from '../../lib/geometry/victorianFiveGeometry';
+import {VictorianPlan} from './VictorianPlanPreview';
+const KEY='victorianFiveInputs';
+const defaults={widthMM:3150,projMM:3300,pitchDeg:25,frameThicknessMM:70,soffitMM:150,soffitMode:'standard'};
+const mm=n=>Number(n).toFixed(1).replace(/\.0$/,'');
+function read(){try{return normalizeVictorianFiveDesignInputs({...defaults,...JSON.parse(localStorage.getItem(KEY)||localStorage.getItem('victorianFivePlanInputs')||'{}')});}catch{return {...defaults};}}
+export default function VictorianFivePlanPreview(){return isAdminUser()?<FiveFacetReview/>:<Navigate to="/quote" replace/>;}
+export function FiveFacetReview(){
+ const [inputs,setInputs]=useState(read),[materials,setMaterials]=useState(getMaterials);
+ useEffect(()=>{localStorage.setItem(KEY,JSON.stringify(inputs));},[inputs]);
+ useEffect(()=>{const refresh=()=>setMaterials(getMaterials());window.addEventListener('materials_updated',refresh);return()=>window.removeEventListener('materials_updated',refresh);},[]);
+ const g=buildVictorianFiveGeometry({inputs,materials}),update=(key,value)=>setInputs(old=>({...old,[key]:value}));
+ return <><VictorianNavigation five/><main className="vf-review"><h1>5 Facet Victorian · Technical</h1><details className="vf-settings"><summary>Technical settings</summary>
+ <div className="vf-inputs">{[['Internal width (mm)','widthMM'],['Internal projection (mm)','projMM'],['Pitch (°)','pitchDeg'],['Frame thickness (mm)','frameThicknessMM']].map(([label,key])=><label key={key}>{label}<input type="number" value={inputs[key]} onChange={e=>update(key,e.target.value)}/></label>)}
+ <label>Soffit basis<select value={inputs.soffitMode} onChange={e=>setInputs(old=>({...old,soffitMode:e.target.value,...(e.target.value==='standard'?{soffitMM:150}:{})}))}><option value="standard">Standard 150mm board</option><option value="specified">Specified site envelope</option></select></label><label>{inputs.soffitMode==='standard'?'Board width (mm)':'Available envelope (mm)'}<input type="number" disabled={inputs.soffitMode==='standard'} value={inputs.soffitMM} onChange={e=>update('soffitMM',e.target.value)}/></label></div>
+ <div className="vf-inputs"><label>Roof covering<select value={inputs.tileProductId??'britmetShingle'} onChange={e=>update('tileProductId',e.target.value)}><option value="britmetShingle">Britmet Shingle</option><option value="metrotileShingle">Metrotile Shingle</option><option value="liteSlate">LiteSlate</option><option value="tapcoSlate">TapcoSlate</option></select></label><label>Plastics<select value={inputs.plasticsColour??'white'} onChange={e=>update('plasticsColour',e.target.value)}><option value="white">White</option><option value="foiled">Foiled</option></select></label><label>Guttering<select value={inputs.gutterProfile??'square'} onChange={e=>update('gutterProfile',e.target.value)}><option value="round">Round</option><option value="square">Square</option><option value="ogee">Ogee</option></select></label></div>
+ <div className="vf-actions"><button type="button" onClick={()=>{clearActiveDesignRecord();setInputs(normalizeVictorianFiveDesignInputs({...defaults}));}}>Load 3150 × 3300 reference</button><button type="button" onClick={()=>{clearActiveDesignRecord();setInputs(normalizeVictorianFiveDesignInputs({...defaults,widthMM:3800,projMM:4200}));}}>Load 3800 × 4200 reference</button></div></details>
+ {!g.valid?<p role="alert">{g.errors.join(' ')}</p>:<><div className="vf-summary" role="status">Ridge from wall <b>{mm(g.ridgeEndYMM)}mm</b> · Boss truss <b>{mm(g.terminalTrussCentreMM)}mm</b> · {g.layout.trussCount} trusses · {g.hips.length} hips · {g.jackRafters.length} jacks · no intermediate boss rafters</div><div className="vf-plan"><VictorianPlan geometry={g}/></div>
+ <h2>Ringbeam plan lengths</h2><p>Ply-base width {mm(g.plyBaseWidthMM)}mm. These are plan edge lengths, not finished member cut profiles.</p><div className="vf-table"><table><thead><tr><th>Run</th><th>Internal</th><th>External ply edge</th><th>Pitch</th></tr></thead><tbody>{g.facets.map((f,n)=><tr key={f.id}><td>RB{n+1} · {f.label}</td><td>{mm(f.internalLengthMM)}mm</td><td>{mm(f.externalLengthMM)}mm</td><td>{f.pitchDeg.toFixed(1)}°</td></tr>)}</tbody></table></div>
+ <h2>Front support setting out</h2><p>850mm provisional maximum. Normal truss centres remain 665mm. Off-centre jacks avoid extra boss connections; manual positioning will follow later.</p><div className="vf-table"><table><thead><tr><th>Facet</th><th>Internal width</th><th>Support positions from facet start</th><th>Resulting bays</th></tr></thead><tbody>{g.facets.slice(1,6).map(f=>{const positions=g.jackRafters.filter(j=>j.facetId===f.id).map(j=>j.positionMM).sort((a,b)=>a-b),ends=[0,...positions,f.internalLengthMM];return <tr key={f.id}><td>{f.label}</td><td>{mm(f.internalLengthMM)}mm</td><td>{positions.length?positions.map(mm).join(' / ')+'mm':'None required'}</td><td>{ends.slice(1).map((n,i)=>mm(n-ends[i])).join(' / ')}mm</td></tr>;})}</tbody></table></div>
+ <hr/><VictorianMaterialsReconciliation geometry={g} materials={materials} productId={inputs.tileProductId??'britmetShingle'} plasticsColour={inputs.plasticsColour??'white'} gutterProfile={inputs.gutterProfile??'square'}/>
+ <details><summary>Timber, plywood and ringbeam audit</summary><VictorianTimberAudit geometry={g} materials={materials}/></details>
+ <details><summary>Insulation audit</summary><VictorianInsulationAudit geometry={g} materials={materials}/></details>
+ <details><summary>Laths and roof covering audit</summary><VictorianLathAudit geometry={g} materials={materials} productId={inputs.tileProductId??'britmetShingle'}/><VictorianTilingAudit geometry={g} materials={materials} productId={inputs.tileProductId??'britmetShingle'}/></details>
+ <details><summary>Metalwork, jack fittings and fixings audit</summary><VictorianMetalFixingsAudit geometry={g} materials={materials} productId={inputs.tileProductId??'britmetShingle'}/></details>
+ <details><summary>Fascia, soffit and guttering audit</summary><VictorianPlasticsGutteringAudit geometry={g} materials={materials} plasticsColour={inputs.plasticsColour??'white'} gutterProfile={inputs.gutterProfile??'square'}/></details>
+ </>}
+ <style>{`.vf-review{max-width:1100px;margin:0 auto;padding:16px;font:14px Inter,system-ui,Arial;color:#111827}.vf-review p{color:#526570}.vf-review h1{font-size:24px;margin:12px 0 8px}.vf-settings{margin:12px 0}.vf-settings>summary{cursor:pointer;font-weight:600}.vf-badge{display:inline-block;background:#e5f2ee;padding:5px 9px;margin-top:20px;border-radius:5px;color:#0f766e;font-size:12px}.vf-inputs{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin:24px 0}.vf-inputs label{display:flex;flex-direction:column;gap:6px;font-size:13px}.vf-inputs input,.vf-inputs select{font:inherit;font-size:16px;padding:10px;border:1px solid #b9cbd0;border-radius:7px;min-width:0}.vf-actions{display:flex;gap:10px;flex-wrap:wrap}.vf-actions button{font:inherit;border:1px solid #b9cbd0;background:#eef5f3;padding:10px 14px;border-radius:7px;cursor:pointer}.vf-summary{margin-top:24px;padding:14px;background:#edf5f3;border-radius:8px}.vf-plan{max-width:820px;margin:18px auto}.vf-plan svg{display:block;width:100%;height:auto}.vf-table{overflow-x:auto}.vf-review table{width:100%;border-collapse:collapse;font-size:13px}.vf-review th,.vf-review td{text-align:left;padding:10px;border-bottom:1px solid #d4e0e3}.vf-review th{background:#edf4f3}@media(max-width:600px){.vf-review{padding:16px}.vf-inputs{grid-template-columns:repeat(2,minmax(0,1fr))}.vf-review th,.vf-review td{padding:7px}}`}</style>
+ </main></>;
+}

@@ -10,12 +10,13 @@ export function buildVictorianRingBeamProfiles(g) {
       outline:[{xMM:0,yMM:0},{xMM:length+a+b,yMM:0},{xMM:length+d+a,yMM:width},{xMM:-c+a,yMM:width}]};
   };
   if(g.plyBaseWidthMM<95)return {valid:false,errors:['Ply base is narrower than the existing 95mm PSE. Workshop review required.'],beams:[]};
+  const last=g.facets.length-1;
   const beams=g.facets.map((f,i)=>{
-    const start=i===0?0:g.mitresDeg[i-1],end=i===4?0:g.mitresDeg[i];
+    const start=i===0?0:g.mitresDeg[i-1],end=i===last?0:g.mitresDeg[i];
     const length=f.internalLengthMM;
-    const slots=i===0||i===4?g.layout.centresMM.map(y=>{const x=i===0?y:length-y;return {left:x-24,right:x+24};}):[];
+    const slots=i===0||i===last?g.layout.centresMM.map(y=>{const x=i===0?y:length-y;return {left:x-24,right:x+24};}):[];
     if(i>0)slots.push({left:0,right:48});
-    if(i<4)slots.push({left:length-48,right:length});
+    if(i<last)slots.push({left:length-48,right:length});
     [...g.intermediateBars,...(g.jackRafters||[])].filter(r=>r.facetId===f.id).forEach(r=>slots.push({left:r.positionMM-24,right:r.positionMM+24}));
     slots.sort((a,b)=>a.left-b.left);
     const upstands=[];

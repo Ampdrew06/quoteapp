@@ -36,7 +36,7 @@ export function buildVictorianLathAudit({geometry:g,materials:m={},productId='br
  const lines=[],weight=rate(m.chamferLath?.weight_kg_per_m);
  const add=(key,label,lengthM,price)=>{const p=rate(price);lines.push({key,label,lengthM,cost:lengthM===0?0:p==null?null:lengthM*p,installedWeightKg:lengthM===0?0:weight==null?null:lengthM*weight});};
  add('field','25×50 external tile-fixing laths',fieldM,m.lath25x50?.price_per_m);
- add('chamfer','Chamfered eaves laths — five facets',chamferM,m.chamferLath?.price_per_m);
+ add('chamfer',`Chamfered eaves laths — ${g.facets.length} facets`,chamferM,m.chamferLath?.price_per_m);
  add('hipSupport','25×50 hip support laths',support.quantities.hipLathM,m.chamferLath?.price_per_m);
  add('ridgeSupport','25×50 ridge support laths',support.quantities.ridgeLathM,m.chamferLath?.price_per_m);
  add('internal','25×50 internal ceiling laths',internal.totalLengthM,m.lath25x50?.price_per_m);
@@ -49,7 +49,7 @@ export function buildVictorianLathAudit({geometry:g,materials:m={},productId='br
  const stockPlan=planPlasticsStock(runs,stockM),allLathM=newLathM+ringLathM;
  return {valid:true,readOnly:true,errors:[],warnings:result.warnings,productId,productLabel:product.label,steel,facets,result,fieldRows,internal,support,edges,lines,alreadyCounted,newLathM,ringLathM,allLathM,stockM,stockPlan,linearMinimumLengths:Math.ceil(allLathM/stockM),
   knownCost:lines.reduce((n,l)=>n+(l.cost??0),0),knownInstalledWeightKg:lines.reduce((n,l)=>n+(l.installedWeightKg??0),0),costComplete:lines.every(l=>l.cost!=null),weightComplete:lines.every(l=>l.installedWeightKg!=null),
-  notes:['External lath rows reuse the existing tile-product set-out engine on the five developed roof facets, including the50mm tile-starter extension beyond the ply base. Chamfered perimeter rows are separated from fixing rows and counted once.',
+  notes:[`External lath rows reuse the existing tile-product set-out engine on ${g.facets.length} developed roof facets, including the50mm tile-starter extension beyond the ply base. Chamfered perimeter rows are separated from fixing rows and counted once.`,
    'Steel:225mm first fixing offset, then255mm gauge. Slate uses shared pitch bands/eaves support rows. The two side ridge edges retain the agreed no-extra-short-slate-ridge-course rule.',
    'Internal laths follow each finished ceiling slope at no more than the selected spacing, plus two longitudinal runs on the standard595mm closure flat. Surface intersections determine each run length.',
    'Steel uses two25×50 supports per full hip and ridge; slate uses none. Support lengths include the boss region and do not inherit the timber-end deduction. Hip foam tape quantities are shown for the later fittings audit, not charged here.',

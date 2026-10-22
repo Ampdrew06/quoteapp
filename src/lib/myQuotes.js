@@ -19,7 +19,7 @@ export async function getMyQuotes(){
 export function openMyQuote(record,navigate){
  if(!ownsTradeQuote(record)||record.status==='converted_to_job')return false;
  const family=designFamily(record);
- if(!['lean-to','gable','edwardian','victorian'].includes(family))return false;
+ if(!['lean-to','gable','edwardian','victorian','victorian-five'].includes(family))return false;
  activateDesignRecord(record);
  if(family==='lean-to')localStorage.setItem('auto_show_quote','1');
  navigate('/quote/'+family);return true;

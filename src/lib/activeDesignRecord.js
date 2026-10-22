@@ -5,12 +5,12 @@ export const designFamily=record=>{
  const style=record?.inputs_json?.roofStyle||record?.roof_style||'lean-to';
  return ['leanTo','hippedLeanTo','lean-to','hipped-lean-to'].includes(style)?'lean-to':style;
 };
-const inputKey=family=>family==='victorian'?'victorianPlanPreviewInputs':family==='gable'?'gableDesignPreviewInputs':family==='lean-to'?'leanToInputs':family+'Inputs';
+const inputKey=family=>family==='victorian-five'?'victorianFiveInputs':family==='victorian'?'victorianPlanPreviewInputs':family==='gable'?'gableDesignPreviewInputs':family==='lean-to'?'leanToInputs':family+'Inputs';
 export function readActiveDesignRecord(family,storage=globalThis.localStorage){
  try{const value=JSON.parse(storage.getItem(KEY)||'null');return value?.record?.id&&value.family===family?value.record:null;}catch{return null;}
 }
 export function clearActiveDesignRecord(storage=globalThis.localStorage){
- for(const key of [KEY,'activeDesignDraft','active_job_id','active_gable_job_id','gableBookDetails','leanBookDetails','edwardianBookDetails','victorianBookDetails'])storage.removeItem(key);
+ for(const key of [KEY,'activeDesignDraft','active_job_id','active_gable_job_id','gableBookDetails','leanBookDetails','edwardianBookDetails','victorianBookDetails','victorianFiveBookDetails'])storage.removeItem(key);
 }
 export function rememberActiveDesignRecord(record,storage=globalThis.localStorage){
  if(record?.id)storage.setItem(KEY,JSON.stringify({family:designFamily(record),record}));

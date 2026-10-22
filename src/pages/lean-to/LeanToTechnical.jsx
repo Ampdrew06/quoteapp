@@ -535,7 +535,7 @@ export default function LeanToTechnical() {
   return (
     <div style={{ fontFamily: "Inter, system-ui, Arial", background: "#f8fafc", minHeight: "100vh" }}>
       <NavTabs />
-      <main style={{ maxWidth: 1180, margin: "0 auto", padding: 16 }}>
+      <main className="app-page-content" style={{ maxWidth: 1180, margin: "0 auto", padding: 16 }}>
         <h1 style={{ marginBottom: 4 }}>Technical</h1>
         <p style={{ marginTop: 0, color: "#475569" }}>
           Visualisers, geometry diagnostics and read-only integration evidence for the current Design/Options roof.

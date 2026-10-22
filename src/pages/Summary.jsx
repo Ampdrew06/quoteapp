@@ -1,3 +1,4 @@
+import {computeRoofLabour,isSlateCovering,britmetBenchmarkInputs} from '../lib/Calculations/roofLabourPricing';
 import {summaryOrderQuantity} from '../lib/Calculations/summaryOrderQuantity';
 import {summaryInsulationAreaDisplay} from '../lib/Calculations/summaryInsulationAreaDisplay';
 import {SummaryHeader,SummaryElementSection,SummaryPricingOverview} from '../components/SummaryTemplate';
@@ -11,7 +12,7 @@ import { Link } from "react-router-dom";
 import { getMaterials } from "../lib/materials";
 import NavTabs from "../components/NavTabs"; 
 import { getCustomers } from "../lib/customers";
-import { computePricing, computeLabourPricing, computeDeliveryPricing, getLabourPricingConfig, saveLabourPricingConfig, getDeliveryPricingConfig, saveDeliveryPricingConfig, getMarkupPricingConfig, saveMarkupPricingConfig } from "../lib/pricing";
+import { computePricing, computeDeliveryPricing, getLabourPricingConfig, saveLabourPricingConfig, getDeliveryPricingConfig, saveDeliveryPricingConfig, getMarkupPricingConfig, saveMarkupPricingConfig } from "../lib/pricing";
 // adjust relative path if needed
 
 // adjust path if file structure differs
@@ -773,7 +774,7 @@ useEffect(() => {
     return (
       <div style={{ fontFamily: "Inter, system-ui, Arial" }}>
         <NavTabs />
-        <div
+        <div className="app-page-content"
           style={{
             maxWidth: 900,
             margin: "0 auto",
@@ -903,54 +904,7 @@ console.log("SUMMARY_WEIGHT_DEBUG", {
 
 // Only timber is chargeable (waste uplift). Lean-to materials pricing comes straight from totals.
 
-const labourFeatures = {
-  roofVent: false,
-  fixedUnit: false,
-  reinforcedRingBeam: false,
-};
-
-const areaM2 =
-  ((totalsInput?.widthMM || 0) * (totalsInput?.projMM || 0)) / 1_000_000;
-
-let baseDays = 1;
-
-if (areaM2 > 8.75) {
-  baseDays = 1 + ((areaM2 - 8.75) * 0.15);
-}
-
-baseDays = Math.min(baseDays, 3);
-baseDays = Math.ceil(baseDays * 10) / 10;
-
-const labourConfigAdjusted = {
-  ...labourConfig,
-  minimumDays: Math.max(Number(labourConfig.minimumDays || 1), baseDays),
-};
-
-const labourBase = computeLabourPricing({
-  widthMM: totalsInput?.widthMM,
-  projectionMM: totalsInput?.projMM,
-  tileSystem: totalsInput?.tileSystem,
-  config: labourConfigAdjusted,
-  features: labourFeatures,
-});
-
-const overrideDays = Number(labourDaysOverride);
-
-const calculatedDays =
-  labourBase?.days ??
-  labourBase?.labourDays ??
-  labourConfigAdjusted.minimumDays;
-
-const finalDays =
-  Number.isFinite(overrideDays) && overrideDays > 0
-    ? overrideDays
-    : calculatedDays;
-
-const labour = {
-  ...labourBase,
-  days: finalDays,
-  labourCost: finalDays * Number(labourConfig.dayRate || 0),
-};
+const labour=computeRoofLabour({widthMM:totalsInput?.widthMM,projectionMM:totalsInput?.projMM,roofStyle:totalsInput?.roofStyle||inputs?.roofStyle||'leanTo',config:labourConfig,overrideDays:labourDaysOverride});
 
 // Get saved delivery distance from D/O page
 let savedInputs = {};
@@ -992,6 +946,7 @@ console.log("SUMMARY_PRICE_DEBUG", {
 });
 
 
+const benchmark=isSlateCovering(totalsInput?.tileSystem)?buildSummaryMaterialsModel({inputs:britmetBenchmarkInputs({...savedInputs,...totalsInput}),materials:m,exclusions:ex,adjustments,addedItems:readSummaryAddedItems()}):null;
 const pricing = computePricing(
   adjustedMaterialsCostForPricing,
   {
@@ -999,6 +954,7 @@ const pricing = computePricing(
     profit_pct: markupConfig.profitPct,
   },
   {
+    ...(benchmark?{britmetMaterialsCost:benchmark.materialsCostForPricing}:{}),
     labourCost: labour.labourCost,
     deliveryCost,
     discountPct,
@@ -1032,7 +988,7 @@ return (
   <div style={{ fontFamily: "Inter, system-ui, Arial" }}>
     <NavTabs />
 
-    <div
+    <div className="app-page-content"
       style={{
         maxWidth: 1120,
         margin: "0 auto",

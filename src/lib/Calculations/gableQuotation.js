@@ -1,24 +1,22 @@
+import {computeRoofLabour,isSlateCovering,britmetBenchmarkInputs} from './roofLabourPricing';
 import {isAdminUser} from '../userRole';
 import {buildGableSummaryMaterialsModel} from './gableSummaryMaterialsModel';
-import {computePricing,computeLabourPricing,computeDeliveryPricing} from '../pricing';
+import {computePricing,computeDeliveryPricing} from '../pricing';
 import {resolveCustomerDeliveryMiles} from '../customerRecords';
 const postcode=value=>String(value||'').toUpperCase().replace(/\s/g,'');
-export function buildGableQuotation({inputs={},materials={},customer=null,labourConfig={},deliveryConfig={},markupConfig={},modelBuilder=buildGableSummaryMaterialsModel,requirePostcode=!isAdminUser()}={}) {
+export function buildGableQuotation({inputs={},materials={},customer=null,labourConfig={},deliveryConfig={},markupConfig={},modelBuilder=buildGableSummaryMaterialsModel,roofFamily='gable',requirePostcode=!isAdminUser()}={}) {
  const model=modelBuilder({inputs,materials});
  if(!model.valid)return {valid:false,ready:false,model,errors:model.errors};
- const area=Number(inputs.widthMM)*Number(inputs.projMM)/1e6;
- const baseDays=Math.ceil(Math.min(3,area>8.75?1+(area-8.75)*0.15:1)*10)/10;
- const base=computeLabourPricing({widthMM:inputs.widthMM,projectionMM:inputs.projMM,tileSystem:inputs.tileProductId==='liteSlate'?'liteslate':'britmet',config:{...labourConfig,minimumDays:Math.max(Number(labourConfig.minimumDays??1),baseDays)},features:{}});
- const override=Number(inputs.labourDaysOverride);
- const days=Number.isFinite(override)&&override>0?override:base.labourDays;
- const labour={...base,days,labourCost:days*Number(labourConfig.dayRate??300)};
+ const labour=computeRoofLabour({widthMM:inputs.widthMM,projectionMM:inputs.projMM,roofStyle:roofFamily,config:labourConfig,overrideDays:inputs.labourDaysOverride});
+ const benchmark=isSlateCovering(inputs.tileProductId)?modelBuilder({inputs:britmetBenchmarkInputs(inputs),materials}):null;
+ if(benchmark&&(!benchmark.valid||!benchmark.pricingReady))return {valid:false,ready:false,model,errors:['Complete Britmet benchmark material prices before quoting slate.',...(benchmark.errors||[])]};
  const selected=inputs.selectedCustomerId||'retail';
  const customerReady=selected==='retail'||customer?.id===selected;
  const hasPostcode=!!postcode(inputs.deliveryPostcode);
  const distanceReady=!hasPostcode?!requirePostcode:(postcode(inputs.deliveryDistancePostcode)===postcode(inputs.deliveryPostcode)&&Number.isFinite(Number(inputs.deliveryDistanceMiles))&&Number(inputs.deliveryDistanceMiles)>=0&&inputs.deliveryDistanceMiles!==''&&inputs.deliveryDistanceMiles!=null);
  const distanceMiles=hasPostcode&&distanceReady?Number(inputs.deliveryDistanceMiles):resolveCustomerDeliveryMiles(null,customer);
  const delivery=computeDeliveryPricing(distanceMiles,deliveryConfig);
- const pricing=computePricing(model.materialsCostForPricing,{...materials,profit_pct:markupConfig.profitPct??materials.profit_pct??50},{labourCost:labour.labourCost,deliveryCost:delivery.deliveryCost,discountPct:selected==='retail'?0:Number(customer?.discountPct??customer?.discount_pct??0)});
+ const pricing=computePricing(model.materialsCostForPricing,{...materials,profit_pct:markupConfig.profitPct??materials.profit_pct??50},{labourCost:labour.labourCost,deliveryCost:delivery.deliveryCost,...(benchmark?{britmetMaterialsCost:benchmark.materialsCostForPricing}:{}),discountPct:selected==='retail'?0:Number(customer?.discountPct??customer?.discount_pct??0)});
  return {valid:true,ready:model.pricingReady&&customerReady&&distanceReady,model,labour,delivery,pricing,customerReady,distanceReady,postcodeReady:hasPostcode||!requirePostcode,errors:[]};
 }
 export function buildGableQuoteRecord({inputs,materials,quotation:q,customer,quoteNumber,family='gable'}) {

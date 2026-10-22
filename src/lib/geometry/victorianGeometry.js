@@ -1,17 +1,23 @@
+import {VICTORIAN_MAX_SPACING_MM as maxSpacing,fiveFacetJackPositions} from './victorianSupportRules';
 import {buildEdwardianGeometry} from './edwardianGeometry';
 const rad=d=>d*Math.PI/180;
 const length=(a,b)=>Math.hypot(b.xMM-a.xMM,b.yMM-a.yMM);
 
 // Plan geometry only. No timber terminal deductions, cut lengths or pricing.
-export function buildVictorianGeometry({inputs={},materials={}}={}) {
+export function buildVictorianGeometry(args={}) { return buildVictorianPlanGeometry(args,3); }
+
+// Shared plan core; five-facet pricing/manufacture consumers remain separate.
+export function buildVictorianPlanGeometry({inputs={},materials={}}={},frontFacetCount=3) {
   const fail=message=>({valid:false,errors:[message]});
   const w=Number(inputs.widthMM),p=Number(inputs.projMM);let pitch=Number(inputs.pitchDeg??25);
-  const angles=inputs.cornerAnglesDeg??[135,135,135,135];
-  if(!Array.isArray(angles)||angles.length!==4||angles.some(a=>!Number.isFinite(Number(a))||Number(a)<=90||Number(a)>=180))return fail('Four corner angles between 90° and 180° are required.');
+  if(![3,5].includes(frontFacetCount))return fail("Choose a three- or five-facet Victorian front.");
+  const count=frontFacetCount+1,outlineCount=frontFacetCount+3,standardAngle=180-180/count;
+  const angles=inputs.cornerAnglesDeg??Array(count).fill(standardAngle);
+  if(!Array.isArray(angles)||angles.length!==count||angles.some(a=>!Number.isFinite(Number(a))||Number(a)<=90||Number(a)>=180))return fail(`${count} corner angles between 90° and 180° are required.`);
   const turns=angles.map(a=>180-Number(a));
-  if(Math.abs(turns.reduce((n,a)=>n+a,0)-180)>1e-6)return fail('The four corner angles must total 540° to retain parallel sides.');
+  if(Math.abs(turns.reduce((n,a)=>n+a,0)-180)>1e-6)return fail(`The corner angles must total ${180*(count-1)}° to retain parallel sides.`);
   // Equal front facets; the final corner closes against the right side.
-  let heading=90;const headings=turns.slice(0,3).map(turn=>{heading-=turn;return heading;});
+  let heading=90;const headings=turns.slice(0,frontFacetCount).map(turn=>{heading-=turn;return heading;});
   const advance=headings.reduce((n,a)=>n+Math.cos(rad(a)),0);
   if(!(w>0&&p>0&&advance>0))return fail('Enter positive width and projection.');
   const frontLengthMM=w/advance;
@@ -19,11 +25,11 @@ export function buildVictorianGeometry({inputs={},materials={}}={}) {
   for(const a of headings){x+=frontLengthMM*Math.cos(rad(a));y+=frontLengthMM*Math.sin(rad(a));front.push({xMM:x,yMM:y});}
   const shift=p-Math.max(...front.map(a=>a.yMM));
   const corners=front.map(a=>({xMM:a.xMM,yMM:a.yMM+shift}));
-  if(Math.min(corners[0].yMM,corners[3].yMM)<=0)return fail('The projection is too short for this Victorian front.');
+  if(Math.min(corners[0].yMM,corners[frontFacetCount].yMM)<=0)return fail('The projection is too short for this Victorian front.');
   if(inputs.ridgeMode&&inputs.ridgeMode!=='automatic')return fail('Victorian front-pitch override requires further geometry review.');
   if(inputs.sideSoffitMode&&inputs.sideSoffitMode!=='automatic')return fail('Independent Victorian side soffits require further geometry review.');
-  if(inputs.maxFinishedHeightMM&&angles.some(a=>Math.abs(Number(a)-135)>1e-8))return fail('Maximum finished height currently requires standard135° Victorian corners.');
-  const inherited=buildEdwardianGeometry({inputs:{...inputs,ridgeMode:'automatic'},materials});
+  if(inputs.maxFinishedHeightMM&&angles.some(a=>Math.abs(Number(a)-standardAngle)>1e-8))return fail('Maximum finished height currently requires standard Victorian corners.');
+  const inherited=buildEdwardianGeometry({inputs:{...inputs,ridgeMode:'automatic'},materials,shortRidgeAdjustment:false});
   if(!inherited.valid)return fail(inherited.errors.join(' '));
   pitch=inherited.pitchDeg;
   const soffitMode=inputs.soffitMode??(Number(inputs.soffitMM??150)===150?'standard':'specified');
@@ -42,18 +48,18 @@ export function buildVictorianGeometry({inputs={},materials={}}={}) {
   if(!Number.isFinite(bossTopContinuationMM)||bossTopContinuationMM<0)return fail('Enter a non-negative sloping boss continuation allowance.');
   const ridge=inherited.ridge;
   const internalOutline=[{xMM:0,yMM:0},...corners,{xMM:w,yMM:0}];
-  const names=['Left side','Front left','Front centre','Front right','Right side','House wall'];
+  const names=['Left side',...(frontFacetCount===3?['Front left','Front centre','Front right']:Array.from({length:5},(_,n)=>`Front ${n+1}`)),'Right side','House wall'];
   const offset=(a,b,i)=>{
     const dx=b.xMM-a.xMM,dy=b.yMM-a.yMM,l=Math.hypot(dx,dy),nx=-dy/l,ny=dx/l;
-    const d=i===5?0:plyBaseWidthMM;
+    const d=i===outlineCount-1?0:plyBaseWidthMM;
     return {nx,ny,c:nx*a.xMM+ny*a.yMM+d};
   };
-  const lines=internalOutline.map((a,i)=>offset(a,internalOutline[(i+1)%6],i));
+  const lines=internalOutline.map((a,i)=>offset(a,internalOutline[(i+1)%outlineCount],i));
   const externalOutline=lines.map((b,i)=>{
-    const a=lines[(i+5)%6],det=a.nx*b.ny-b.nx*a.ny;
+    const a=lines[(i+outlineCount-1)%outlineCount],det=a.nx*b.ny-b.nx*a.ny;
     return {xMM:(a.c*b.ny-b.c*a.ny)/det,yMM:(a.nx*b.c-b.nx*a.c)/det};
   });
-  const facets=internalOutline.slice(0,5).map((start,i)=>{
+  const facets=internalOutline.slice(0,outlineCount-1).map((start,i)=>{
     const end=internalOutline[i+1],dx=end.xMM-start.xMM,dy=end.yMM-start.yMM,l=length(start,end);
     const distance=Math.abs(dx*(ridge.yMM-start.yMM)-dy*(ridge.xMM-start.xMM))/l;
     return {id:`facet-${i+1}`,label:names[i],start,end,internalLengthMM:l,externalLengthMM:length(externalOutline[i],externalOutline[i+1]),pitchDeg:Math.atan2(inherited.riseMM,distance)*180/Math.PI,planRunMM:distance};
@@ -73,28 +79,29 @@ export function buildVictorianGeometry({inputs={},materials={}}={}) {
     }).filter(Boolean).sort((a,b)=>a.u-b.u);
     return hits.length?{id,start:hits[0].start,end,facetId:f.id,positionMM:t*f.internalLengthMM}:null;
   };
-  facets.slice(1,4).forEach((f,i)=>{
-    if(f.internalLengthMM<=750+1e-7)return;
-    if(f.internalLengthMM<=1500+1e-7)intermediateBars.push({id:`R${i+1}`,facetId:f.id,positionMM:f.internalLengthMM/2,start:ridge,end:{xMM:(f.start.xMM+f.end.xMM)/2,yMM:(f.start.yMM+f.end.yMM)/2}});
-    else {const bays=Math.ceil((f.internalLengthMM-1e-7)/750);for(let n=1;n<bays;n++){const r=jack(f,n/bays,`J${i+1}.${n}`);if(r)jackRafters.push(r);}}
+  facets.slice(1,frontFacetCount+1).forEach((f,i)=>{
+    if(f.internalLengthMM<=maxSpacing+1e-7)return;
+    if(frontFacetCount===5){for(const [n,position] of fiveFacetJackPositions(f.internalLengthMM).entries()){const r=jack(f,position/f.internalLengthMM,`J${i+1}.${n+1}`);if(r)jackRafters.push(r);}return;}
+    if(f.internalLengthMM<=2*maxSpacing+1e-7)intermediateBars.push({id:`R${i+1}`,facetId:f.id,positionMM:f.internalLengthMM/2,start:ridge,end:{xMM:(f.start.xMM+f.end.xMM)/2,yMM:(f.start.yMM+f.end.yMM)/2}});
+    else {const bays=Math.ceil((f.internalLengthMM-1e-7)/maxSpacing);for(let n=1;n<bays;n++){const r=jack(f,n/bays,`J${i+1}.${n}`);if(r)jackRafters.push(r);}}
   });
   const centresMM=[31.5];
   for(let y=697;y<inherited.terminalTrussCentreMM-48;y+=665)centresMM.push(y);
   if(inherited.terminalTrussCentreMM>centresMM[0]+48)centresMM.push(inherited.terminalTrussCentreMM);
   else return fail('Insufficient room for the rear and boss trusses.');
   const layout={...inherited.layout,centresMM,trussCount:centresMM.length};
-  [facets[0],facets[4]].forEach((f,i)=>{
+  [facets[0],facets[facets.length-1]].forEach((f,i)=>{
     const shoulder=i===0?f.end.yMM:f.start.yMM;
-    const run=shoulder-inherited.terminalTrussCentreMM,unsupportedRun=shoulder-ridge.yMM,bays=unsupportedRun<=750+1e-7?1:Math.ceil(run/665);
+    const run=shoulder-inherited.terminalTrussCentreMM,unsupportedRun=shoulder-ridge.yMM,bays=unsupportedRun<=maxSpacing+1e-7?1:Math.ceil(run/665);
     for(let n=1;n<bays;n++){
       const y=inherited.terminalTrussCentreMM+run*n/bays;
       const t=i===0?y/f.internalLengthMM:1-y/f.internalLengthMM;
       const r=jack(f,t,`JS${i+1}.${jackRafters.length+1}`);if(r)jackRafters.push(r);
     }
   });
-  const minimumY=Math.min(corners[0].yMM,corners[3].yMM);
+  const minimumY=Math.min(corners[0].yMM,corners[frontFacetCount].yMM);
   if(ridge.yMM>=minimumY)return fail('The ridge must sit behind the two side-to-front corners. Review the angles or projection.');
-  return {valid:true,errors:[],adjustedAngles:angles.some(a=>Math.abs(Number(a)-135)>1e-8),style:'Victorian 3-facet',finishedHeightMM:inherited.finishedHeightMM,heightSafetyBufferMM:inherited.heightSafetyBufferMM,requestedPitchDeg:inherited.requestedPitchDeg,widthMM:w,projectionMM:p,pitchDeg:pitch,frameMM:inherited.frameMM,soffitMM,soffitMode,plyBaseWidthMM,fasciaThicknessMM,fittingToleranceMM,stripTrimAllowanceMM,soffitStripWidthMM,upstandArrangement,upstandHeightMM,bossTopContinuationMM,
+  return {valid:true,errors:[],adjustedAngles:angles.some(a=>Math.abs(Number(a)-standardAngle)>1e-8),frontFacetCount,maxSupportSpacingMM:maxSpacing,style:`Victorian ${frontFacetCount}-facet`,finishedHeightMM:inherited.finishedHeightMM,heightSafetyBufferMM:inherited.heightSafetyBufferMM,requestedPitchDeg:inherited.requestedPitchDeg,widthMM:w,projectionMM:p,pitchDeg:pitch,frameMM:inherited.frameMM,soffitMM,soffitMode,plyBaseWidthMM,fasciaThicknessMM,fittingToleranceMM,stripTrimAllowanceMM,soffitStripWidthMM,upstandArrangement,upstandHeightMM,bossTopContinuationMM,
     cornerAnglesDeg:angles.map(Number),mitresDeg:turns.map(a=>a/2),frontLengthMM,internalOutline,externalOutline,facets,hips,intermediateBars,jackRafters,
     ridge,ridgeEndYMM:ridge.yMM,terminalTrussCentreMM:inherited.terminalTrussCentreMM,layout,riseMM:inherited.riseMM,
     externalWidthMM:Math.max(...externalOutline.map(a=>a.xMM))-Math.min(...externalOutline.map(a=>a.xMM)),externalProjectionMM:Math.max(...externalOutline.map(a=>a.yMM)),

@@ -1,0 +1,15 @@
+/* Screen containers share the tab bar's 1100px shell and 16px inset.
+   Print rules and the fixed-size manufacture sheets remain independent. */
+@media screen {
+  html { scrollbar-gutter: stable; }
+  .app-page-content {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    max-width: 1100px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+    min-width: 0;
+  }
+}

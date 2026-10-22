@@ -7,7 +7,7 @@ export const roofStyles = [
  {id:'edwardian',name:'Edwardian',hint:'Square-cornered front',ready:true},
  {id:'double-edwardian',name:'Double Hipped Edwardian',hint:'Hipped ends around a central ridge',ready:false},
  {id:'victorian',name:'3 Facet Victorian',hint:'Angled front corners',ready:true},
- {id:'victorian-five',name:'5 Facet Victorian',hint:'Five facets around the front',ready:false},
+ {id:'victorian-five',name:'5 Facet Victorian',hint:'Five facets around the front',ready:true},
  {id:'combination',name:'Edwardian / Victorian',hint:'Square on one side, faceted on the other',ready:false},
  {id:'edwardian-p',name:'Edwardian P-Shape',hint:'Square front with a lean-to extension',ready:false,wide:true},
  {id:'victorian-p',name:'Victorian P-Shape',hint:'Faceted front with a lean-to extension',ready:false,wide:true},
@@ -21,7 +21,7 @@ export function startRoofDesign(id,navigate,storage=localStorage){
   storage.removeItem('leanToInputs');storage.removeItem('tl_tile_system');
   navigate('/quote/lean-to',{state:{fresh:true,roofStyle:id==='lean-to'?'leanTo':'hippedLeanTo',hippedSides:'both'}});
  }else{
-  storage.removeItem(id==='gable'?'gableDesignPreviewInputs':id==='victorian'?'victorianPlanPreviewInputs':'edwardianInputs');
+  storage.removeItem(id==='gable'?'gableDesignPreviewInputs':id==='victorian'?'victorianPlanPreviewInputs':id==='victorian-five'?'victorianFiveInputs':'edwardianInputs');
   navigate('/quote/'+id,{state:{fresh:true}});
  }
  return true;

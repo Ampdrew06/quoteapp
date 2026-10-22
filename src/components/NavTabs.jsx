@@ -1,6 +1,11 @@
+import "./AppPageLayout.css";
+import {useRememberRoofNavigation,readRoofNavigation,roofFamilyFromPath} from '../lib/roofNavigation';
+import GableNavigation from '../pages/gable/GableNavigation';
+import EdwardianNavigation from '../pages/edwardian/EdwardianNavigation';
+import VictorianNavigation from '../pages/victorian/VictorianNavigation';
 // src/components/NavTabs.jsx
 import React from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { isAdminUser, isTradeUser } from "../lib/userRole";
 
 const publicTabsLeft = [
@@ -24,6 +29,15 @@ const adminTabsLeft = [
 ];
 
 export default function NavTabs() {
+  const {pathname}=useLocation();
+  const routeFamily=roofFamilyFromPath(pathname);
+  useRememberRoofNavigation(routeFamily);
+  // Shared administration pages return to the roof being worked on.
+  const shared=['/quotes','/jobs','/customers','/materials','/my-quotes'].some(p=>pathname===p||pathname.startsWith(p+'/'));
+  const family=shared?readRoofNavigation():routeFamily;
+  if(family==='gable')return <GableNavigation/>;
+  if(family==='edwardian')return <EdwardianNavigation/>;
+  if(family==='victorian'||family==='victorian-five')return <VictorianNavigation five={family==='victorian-five'}/>;
   const tabsLeft = isAdminUser() ? adminTabsLeft : [...publicTabsLeft,...(isTradeUser()?[{to:"/my-quotes",label:"My Quotes"}]:[])];
   return (
     <div className="print:hidden nav-strip">

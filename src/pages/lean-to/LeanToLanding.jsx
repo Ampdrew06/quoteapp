@@ -1,3 +1,4 @@
+import {computeRoofLabour,isSlateCovering,britmetBenchmarkInputs} from '../../lib/Calculations/roofLabourPricing';
 import {validateTradeHippedDesign} from '../../lib/geometry/tradeHippedDesignValidation';
 import {readActiveDesignRecord,clearActiveDesignRecord,activateDesignRecord,restoreActiveDesignRecord,designRecordPatch} from '../../lib/activeDesignRecord';
 import {buildCentralBossDesign,normalizeBossArrangementInputs} from '../../lib/geometry/centralBossDesign';
@@ -22,7 +23,7 @@ import PlanDiagramLeanTo from "../../components/PlanDiagramLeanTo";
 import { useLocation, useNavigate } from "react-router-dom";
 import NavTabs from "../../components/NavTabs";
 import { getCurrentCustomer } from "../../lib/customers";
-import { computePricing, computeLabourPricing, computeDeliveryPricing, getLabourPricingConfig, getDeliveryPricingConfig, getMarkupPricingConfig } from "../../lib/pricing";
+import { computePricing, computeDeliveryPricing, getLabourPricingConfig, getDeliveryPricingConfig, getMarkupPricingConfig } from "../../lib/pricing";
 import { getNextQuoteNumber, updateQuote, saveQuote as saveQuoteToCloud } from "../../lib/quotes";
 import TemplateGeometryVisualizer from "../../components/TemplateGeometryVisualizer";
 import WallplateGeometryVisualizer from "../../components/WallplateGeometryVisualizer";
@@ -1033,50 +1034,7 @@ const universalMaterialsCostForPricing = summaryMaterials.materialsCostForPricin
 const pricing = useMemo(() => {
   const labourConfig = getLabourPricingConfig();
 
-  const labourFeatures = {
-    roofVent: false,
-    fixedUnit: false,
-    reinforcedRingBeam: false,
-  };
-const areaM2 =
-  (Number(widthMM || 0) * Number(projMM || 0)) / 1_000_000;
-
-let baseDays = 1;
-
-if (areaM2 > 8.75) {
-  baseDays = 1 + ((areaM2 - 8.75) * 0.15);
-}
-
-baseDays = Math.min(baseDays, 3);
-baseDays = Math.ceil(baseDays * 10) / 10;
-
-const savedInputs = (() => {
-  try {
-    return JSON.parse(localStorage.getItem("leanToInputs") || "{}");
-  } catch {
-    return {};
-  }
-})();
-
-const labourDaysOverride = Number(savedInputs.labourDaysOverride);
-
-const effectiveMinimumDays =
-  Number.isFinite(labourDaysOverride) && labourDaysOverride > 0
-    ? labourDaysOverride
-    : Math.max(Number(labourConfig.minimumDays || 1), baseDays);
-
-const labourConfigAdjusted = {
-  ...labourConfig,
-  minimumDays: effectiveMinimumDays,
-};
-  const labour = computeLabourPricing({
-    widthMM: Number(widthMM || 0),
-    projectionMM: Number(projMM || 0),
-    tileSystem,
-    config: labourConfigAdjusted,
-    features: labourFeatures,
-  });
-
+  const labour=computeRoofLabour({widthMM,projectionMM:projMM,roofStyle:totalsInput.roofStyle||roofStyle,config:labourConfig,overrideDays:savedSummaryInputs.labourDaysOverride});
   const deliveryConfig = getDeliveryPricingConfig();
 
 const deliveryMilesForPricing =
@@ -1096,6 +1054,7 @@ console.log("DO_PRICE_DEBUG", {
   materialsCostForPricing: universalMaterialsCostForPricing,
   deliveryDistanceMiles,
 });
+const benchmark=isSlateCovering(tileSystem)?buildSummaryMaterialsModel({inputs:britmetBenchmarkInputs({...savedSummaryInputs,...totalsInput}),materials:m,exclusions:summaryExclusions,adjustments:summaryQuantityAdjustments,addedItems:readSummaryAddedItems()}):null;
 return computePricing(
   universalMaterialsCostForPricing,
   {
@@ -1103,6 +1062,7 @@ return computePricing(
     profit_pct: markupConfig.profitPct,
   },
   {
+  ...(benchmark?{britmetMaterialsCost:benchmark.materialsCostForPricing}:{}),
   labourCost: labour.labourCost,
   deliveryCost: deliveryResult.deliveryCost,
   discountPct,
@@ -1750,7 +1710,7 @@ const displayExtProjectionMM =
 <NavTabs />
 
       {/* Page body */}
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: 16 }}>
+      <div className="app-page-content" style={{ maxWidth: 1100, margin: "0 auto", padding: 16 }}>
 
         {/* Logo */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "12px 0 8px" }}>

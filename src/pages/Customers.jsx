@@ -142,7 +142,7 @@ const testSupabase = async () => {
     <div style={{ fontFamily: "Inter, system-ui, Arial" }}>
       <NavTabs />
 
-      <div style={{ maxWidth: 1000, margin: "0 auto", padding: 16 }}>
+      <div className="app-page-content" style={{ maxWidth: 1000, margin: "0 auto", padding: 16 }}>
         <h1>Customers</h1>
         <button onClick={testSupabase}>
   Test Supabase

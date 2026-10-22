@@ -35,7 +35,7 @@ function Upstands({beams,bays}) {
       <rect x={x} y="48" width="150" height="70" fill="none" stroke="#111827" strokeWidth="2"/>
       <path d={`M${x},44V29H${x+150}V44`} fill="none" stroke="#64748b"/>
       <text x={x+75} y="23" textAnchor="middle" fontSize="17" fontWeight="700">{mm(bay.widthMM)} mm</text>
-      {beams.map((b,k)=><text key={b.manufactureRef} x={x+75} y={beams.length===1?89:78+k*22} textAnchor="middle" fontSize="15" fontWeight="700">{b.manufactureRef} B{index+1}</text>)}
+      {Array.from({length:Math.ceil(beams.length/2)},(_,k)=>beams.slice(k*2,k*2+2)).map((pair,k)=><text key={k} x={x+75} y={88-(Math.ceil(beams.length/2)-1)*9+k*18} textAnchor="middle" fontSize={beams.length>1?12:15} fontWeight="700">{pair.map(b=>`${b.manufactureRef} B${b.upstandBayOrder?.[index]??index+1}`).join(' / ')}</text>)}
     </g>;})}
   </svg>)}</div>;
 }

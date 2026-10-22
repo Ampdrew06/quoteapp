@@ -3,8 +3,8 @@ import {buildVictorianMaterialsReconciliation} from './victorianMaterialsReconci
 import {buildSummaryAddedItemLines} from './summaryAddedItems';
 const round=n=>Number(n.toFixed(2));
 const rate=n=>n==null||n===''||!Number.isFinite(Number(n))||Number(n)<0?null:Number(n);
-export function buildVictorianSummaryMaterialsModel({inputs={},materials={},adjustments=inputs.summaryPricingState?.adjustments||{},exclusions=inputs.summaryPricingState?.exclusions||{},addedItems=inputs.summaryAddedItems||[]}={}){
- const geometry=buildVictorianGeometry({inputs,materials}),base=buildVictorianMaterialsReconciliation({geometry,materials,productId:inputs.tileProductId??'britmetShingle',plasticsColour:inputs.plasticsColour??'white',gutterProfile:inputs.gutterProfile??'ogee'});
+export function buildVictorianSummaryMaterialsModel({inputs={},materials={},adjustments=inputs.summaryPricingState?.adjustments||{},exclusions=inputs.summaryPricingState?.exclusions||{},addedItems=inputs.summaryAddedItems||[],geometryBuilder=buildVictorianGeometry}={}){
+ const geometry=geometryBuilder({inputs,materials}),base=buildVictorianMaterialsReconciliation({geometry,materials,productId:inputs.tileProductId??'britmetShingle',plasticsColour:inputs.plasticsColour??'white',gutterProfile:inputs.gutterProfile??'ogee'});
  if(!base.valid)return {...base,materialsCostForPricing:0};
  const band=base.audits.plastics.band;
  const zeroRates={plastics_fascia_joints:materials[`fascia_joint_300_${band}_price`]??materials[`fascia_joint_price_each_${band}`],metal_jack_rafter_hooks:materials.jack_rafter_hook_price_each??materials.metal?.jack_rafter_hook?.price_each,metal_jack_rafter_brackets:materials.jack_rafter_bracket_price_each??materials.metal?.jack_rafter_bracket?.price_each};

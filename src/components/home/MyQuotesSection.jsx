@@ -4,7 +4,7 @@ import {getCurrentCustomer} from '../../lib/customers';
 import {isTradeUser} from '../../lib/userRole';
 import {getMyQuotes,openMyQuote,ownsTradeQuote} from '../../lib/myQuotes';
 import {designFamily} from '../../lib/activeDesignRecord';
-const styleName=row=>row.inputs_json?.roofStyle==='hippedLeanTo'?'Hipped Lean-To':({ 'lean-to':'Lean-To',gable:'Gable',edwardian:'Edwardian',victorian:'Victorian'})[designFamily(row)]||'Roof';
+const styleName=row=>row.inputs_json?.roofStyle==='hippedLeanTo'?'Hipped Lean-To':({ 'lean-to':'Lean-To',gable:'Gable',edwardian:'Edwardian',victorian:'3 Facet Victorian','victorian-five':'5 Facet Victorian'})[designFamily(row)]||'Roof';
 export default function MyQuotesSection({compact=false}){
  const navigate=useNavigate(),[rows,setRows]=useState([]),[busy,setBusy]=useState(true),[error,setError]=useState(''),[refresh,setRefresh]=useState(0),[search,setSearch]=useState('');
  const accountId=getCurrentCustomer()?.id;

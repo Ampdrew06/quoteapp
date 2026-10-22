@@ -1,3 +1,4 @@
+import {checklistLaths} from './checklistLaths';
 import {buildSummaryIdiotList} from './summaryIdiotList';
 import {planPlasticsStock} from './plasticsIntegrationAudit';
 // Physical supply: price exclusions do not remove goods required for delivery.
@@ -14,11 +15,11 @@ export function buildVictorianIdiotList(model,materials={}){
  const runs=[];
  for(const [key,lengths] of Object.entries(groups)){
   let remaining=Math.max(0,Number(row(`laths_${key}`)?.qty)||0);
-  lengths.forEach((length,index)=>{const runM=Math.min(length,remaining);if(runM>1e-9)runs.push({edgeId:`${key}-${index}`,side:'loose-lath',widthMM:50,runM});remaining=Math.max(0,remaining-runM);});
-  if(remaining>1e-8)runs.push({edgeId:`${key}-extra`,side:'loose-lath',widthMM:50,runM:remaining});
+  lengths.forEach((length,index)=>{const runM=Math.min(length,remaining);if(runM>1e-9)runs.push({edgeId:`${key}-${index}`,side:'loose-lath',widthMM:50,runM,group:key});remaining=Math.max(0,remaining-runM);});
+  if(remaining>1e-8)runs.push({edgeId:`${key}-extra`,side:'loose-lath',widthMM:50,runM:remaining,group:key});
  }
  const stock=planPlasticsStock(runs,l.stockM);
- list.sections.laths=stock.qty?[{key:'victorian_loose_laths',item:'Loose 25×50 laths',qty:stock.qty,units:`×${l.stockM}m`}]:[];
+ list.sections.laths=checklistLaths(runs.filter(r=>r.group!=='internal'),runs.filter(r=>r.group==='internal'),l.stockM);
  const timberExtras=(list.sections.timber||[]).filter(r=>r.isAddedItem);
  list.sections.timber=[];
  list.sections.misc=[...(list.sections.misc||[]),...timberExtras];

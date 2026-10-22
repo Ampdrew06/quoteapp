@@ -14,6 +14,15 @@
  * = gross
  */
 export function computePricing(materialsCost, m = {}, extras = {}) {
+  if(extras.britmetMaterialsCost!=null){
+    const reference=computePricing(extras.britmetMaterialsCost,m,{...extras,britmetMaterialsCost:undefined});
+    const delta=Number(materialsCost)-Number(extras.britmetMaterialsCost),net=reference.net+delta;
+    const fraction=1-reference.discountPct/100;
+    if(!(fraction>0))throw new Error('Customer discount must be below 100%.');
+    const retailNet=net/fraction,baseCost=Number(materialsCost)+reference.labourCost;
+    const contribution=reference.net-Number(extras.britmetMaterialsCost)-reference.labourCost-reference.delivery;
+    return {...reference,materialsCost:Number(materialsCost),baseCost,retailNet,net,discountAmount:retailNet-net,netBeforeDelivery:retailNet-reference.delivery,profit:retailNet-reference.delivery-baseCost,marginPct:net>0?contribution/net*100:0,contribution,contributionMatched:true,britmetMaterialsCost:Number(extras.britmetMaterialsCost),britmetNet:reference.net,vat:net*reference.vatRate,gross:net*(1+reference.vatRate)};
+  }
   const safeM = m || {};
   const cost = Number(materialsCost) || 0;
 

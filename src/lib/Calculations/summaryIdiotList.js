@@ -1,3 +1,4 @@
+import {checklistLaths} from './checklistLaths';
 import {buildHippedLeanToRingBeamSchedule} from '../Manufacturing/ringBeamManufactureSchedule';
 import { buildHippedLeanToManufacturingMembers } from '../Manufacturing/manufacturingSequenceBuilder';
 // Supply checklist adapter for the already integrated Summary model.
@@ -44,17 +45,25 @@ export function buildSummaryIdiotList(model, materials = {}) {
       return { key: row.key, item, qty, units, isAddedItem: !!row.isAddedItem };
     }).filter(row => row.qty > 0);
   }
+  // Regular Lean-To manufacture passes the integrated model too, but has no
+  // manufactureGeometry. Split its loose laths before the hipped-only adapter.
+  if(!model?.manufactureGeometry&&model?.lathUseBreakdown){
+    const uses=model.lathUseBreakdown,source=model.sections.timber.lines.find(r=>['laths_25x50_lengths','laths_25x50_total_m'].includes(r.key));
+    const looseM=Math.max(0,positive(source?.qty)-positive(uses.fittedM)),internalM=Math.min(looseM,positive(uses.internalM));
+    sections.laths=checklistLaths([{edgeId:'external',runM:looseM-internalM,widthMM:50}],[{edgeId:'internal',runM:internalM,widthMM:50}],coverage(materials.lath_stock_length_m,4.8));
+    sections.timber=(sections.timber||[]).filter(r=>r.isAddedItem||!['laths_25x50_lengths','laths_25x50_total_m'].includes(r.key));
+  }
   const despatchOnly=Boolean(model?.manufactureGeometry);
   if(despatchOnly){
     const g=model.manufactureGeometry;
     if(g.bossArrangement==='central')sections.assemblies=[{key:'truss',item:'Assembled central truss',qty:1,units:'Ea'},...(sections.assemblies||[]).filter(r=>r.key!=='wallbar')];
     const schedule=buildHippedLeanToRingBeamSchedule({geometry:g});
     const fittedLathM=schedule?.valid?positive(schedule.totals.outerFixingLath25x50LengthM)+positive(schedule.totals.finishingLath25x50LengthM):0;
-    sections.laths=(sections.timber||[]).filter(r=>['laths_25x50_lengths','laths_25x50_total_m'].includes(r.key)||(r.isAddedItem&&/lath/i.test(r.item))).map(r=>{
-      if(r.isAddedItem)return r;
-      const source=model.sections.timber.lines.find(x=>x.key===r.key),stockM=coverage(materials.lath_stock_length_m,4.8);
-      return {...r,item:`Loose 25×50 laths (${stockM.toFixed(2)}m lengths)`,qty:Math.ceil(Math.max(0,positive(source.qty)-fittedLathM-1e-9)/stockM),units:'Lengths'};
-    }).filter(r=>r.qty>0);
+    const source=model.sections.timber.lines.find(r=>['laths_25x50_lengths','laths_25x50_total_m'].includes(r.key));
+    const stockM=coverage(materials.lath_stock_length_m,4.8),looseM=Math.max(0,positive(source?.qty)-fittedLathM);
+    const internalM=Math.min(looseM,positive(model.hippedInsulationIntegration?.internalLaths?.totalM));
+    sections.laths=checklistLaths([{edgeId:'external',runM:looseM-internalM,widthMM:50}],[{edgeId:'internal',runM:internalM,widthMM:50}],stockM);
+    sections.laths.push(...(sections.timber||[]).filter(r=>r.isAddedItem&&/lath/i.test(r.item)));
     // Explicitly added timber supplies remain visible, even when normal raw stock is fitted.
     const otherTimberExtras=(sections.timber||[]).filter(r=>r.isAddedItem&&!/lath/i.test(r.item));
     sections.misc=[...(sections.misc||[]),...otherTimberExtras];

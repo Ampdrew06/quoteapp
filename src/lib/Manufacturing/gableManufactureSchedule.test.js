@@ -32,6 +32,6 @@ test('invalid designs have no manufacture schedule',()=>{expect(buildGableManufa
 
 test('loose lath and PIR extras survive checklist filtering without changing costs',()=>{
  const base=build(),extra=build({summaryPricingState:{adjustments:{gable_laths:2,gable_pir50:1}}});
- expect(extra.s.checklist.sections.laths[0].qty).toBe(base.s.checklist.sections.laths[0].qty+2);
+ expect(extra.s.checklist.sections.laths.find(r=>r.key==='loose_laths_extra').qty).toBe(2);expect(extra.s.checklist.sections.laths[0].qty).toBe(base.s.checklist.sections.laths[0].qty);
  expect(extra.s.checklist.sections.misc.find(r=>r.key==='gable_pir50').qty).toBe(1);
 });

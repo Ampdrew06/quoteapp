@@ -460,7 +460,7 @@ export default function TilesLaths() {
       >
         <NavTabs />
 
-        <main
+        <main className="app-page-content"
           style={{
             maxWidth: 1100,
             margin: "0 auto",
@@ -1097,7 +1097,7 @@ export default function TilesLaths() {
       >
         <NavTabs />
 
-        <main
+        <main className="app-page-content"
           style={{
             maxWidth: 1100,
             margin: "0 auto",
@@ -1132,7 +1132,7 @@ export default function TilesLaths() {
     <div style={{ fontFamily: "Inter, system-ui, Arial" }}>
       <NavTabs />
 
-      <div
+      <div className="app-page-content"
         style={{
           maxWidth: 980,
           margin: "0 auto",

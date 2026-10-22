@@ -1,0 +1,12 @@
+import React from 'react';
+const mm=n=>Number(n).toFixed(1).replace(/\.0$/,'');
+export default function VictorianJackSetoutPages({geometry:g}){
+ const facets=g.facets.filter(f=>g.jackRafters.some(j=>j.facetId===f.id)),pages=[];
+ for(let n=0;n<facets.length;n+=6)pages.push(facets.slice(n,n+6));
+ return <>{pages.map((facets,page)=><section className="em-page vj-page" key={page}><h2>Jack rafters · Setting out{page?' — continued':''}</h2><p>Ringbeam positions only. Jack cut lengths await connection verification.</p><div className="vj-grid">{facets.map(f=>{
+ const index=g.facets.indexOf(f),jacks=g.jackRafters.filter(j=>j.facetId===f.id).sort((a,b)=>a.positionMM-b.positionMM),L=f.internalLengthMM,dx=(f.end.xMM-f.start.xMM)/L,dy=(f.end.yMM-f.start.yMM)/L;
+ const local=p=>({x:(p.xMM-f.start.xMM)*dx+(p.yMM-f.start.yMM)*dy,y:(p.xMM-f.start.xMM)*dy-(p.yMM-f.start.yMM)*dx});
+ const top=local(g.ridge),map=p=>({x:65+p.x/L*610,y:230-p.y/top.y*175}),a=map({x:0,y:0}),b=map({x:L,y:0}),r=map(top),positions=[0,...jacks.map(j=>j.positionMM),L];
+ return <div className="vj-card" key={f.id}><h3>RB{index+1} · {f.label}</h3><svg viewBox="0 0 740 345" role="img" aria-label={f.label+' jack rafter positions, schematic plan'}><path d={`M${a.x},${a.y}L${r.x},${r.y}L${b.x},${b.y}Z`} fill="none" stroke="#111827" strokeWidth="2"/><text x={r.x} y="35" textAnchor="middle" fontSize="14">BOSS / RIDGE</text><text x="370" y="215" textAnchor="middle" fontSize="16" fontWeight="700">RB{index+1}</text>{jacks.map(j=>{const s=map(local(j.start)),e=map(local(j.end));return <g key={j.id}><path d={`M${s.x},${s.y}L${e.x},${e.y}`} fill="none" stroke="#2563eb" strokeWidth="3"/><text x={e.x} y="250" textAnchor="middle" fontSize="16" fontWeight="700">{j.id}</text></g>;})}{positions.slice(1).map((p,i)=>{const x1=65+positions[i]/L*610,x2=65+p/L*610;return <g key={i}><path d={`M${x1},265V284M${x2},265V284M${x1},276H${x2}`} stroke="#64748b" fill="none"/><text x={(x1+x2)/2} y="300" textAnchor="middle" fontSize="16" fontWeight="700">{mm(p-positions[i])} mm</text></g>;})}<text x="370" y="333" textAnchor="middle" fontSize="14">Internal edge {mm(L)} mm · schematic plan</text></svg></div>;
+ })}</div></section>)}<style>{`.vj-page{height:279mm;break-inside:avoid}.vj-page>p{font-size:11px;margin:4px 0 10px}.vj-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.vj-card{border:1px solid #cbd5e1;border-radius:6px;padding:7px;min-width:0;break-inside:avoid}.vj-card h3{font-size:12px;margin:0 0 4px}.vj-card svg{height:61mm!important;width:100%}`}</style></>;
+}

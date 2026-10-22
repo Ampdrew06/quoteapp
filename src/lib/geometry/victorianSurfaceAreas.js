@@ -5,7 +5,7 @@ export function buildVictorianSurfaceAreas({geometry:g,eavesExtensionMM=0,flatWi
  if(!g?.valid)return fail('Valid Victorian plan required.');
  const extension=Number(eavesExtensionMM),flatWidth=Number(flatWidthMM);
  if(![extension,flatWidth].every(Number.isFinite)||extension<0||flatWidth<0||flatWidth>=g.widthMM)return fail('Invalid surface extension or ceiling flat width.');
- const polygon=g.internalOutline,lines=polygon.map((a,i)=>{const b=polygon[(i+1)%polygon.length],dx=b.xMM-a.xMM,dy=b.yMM-a.yMM,l=Math.hypot(dx,dy),nx=-dy/l,ny=dx/l;return {nx,ny,c:nx*a.xMM+ny*a.yMM+(i===5?0:extension)};});
+ const polygon=g.internalOutline,lines=polygon.map((a,i)=>{const b=polygon[(i+1)%polygon.length],dx=b.xMM-a.xMM,dy=b.yMM-a.yMM,l=Math.hypot(dx,dy),nx=-dy/l,ny=dx/l;return {nx,ny,c:nx*a.xMM+ny*a.yMM+(i===polygon.length-1?0:extension)};});
  const domain=lines.map((b,i)=>{const a=lines[(i+lines.length-1)%lines.length],d=a.nx*b.ny-b.nx*a.ny;return {x:(a.c*b.ny-b.c*a.ny)/d,y:(a.nx*b.c-b.nx*a.c)/d};});
  const planes=g.facets.map(f=>{const dx=f.end.xMM-f.start.xMM,dy=f.end.yMM-f.start.yMM,l=f.internalLengthMM,t=Math.tan(f.pitchDeg*Math.PI/180);return {id:f.id,pitchDeg:f.pitchDeg,z:p=>t*(dy*(p.x-f.start.xMM)-dx*(p.y-f.start.yMM))/l};});
  const flatHeightMM=(g.widthMM-flatWidth)/2*Math.tan(g.pitchDeg*Math.PI/180);

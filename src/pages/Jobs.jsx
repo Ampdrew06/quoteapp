@@ -1,3 +1,4 @@
+import {isVictorianFiveQuote} from '../lib/Calculations/victorianFiveQuotation';
 import {isVictorianQuote} from '../lib/Calculations/victorianQuotation';
 import {isEdwardianQuote} from '../lib/Calculations/edwardianQuotation';
 import {activateDesignRecord} from '../lib/activeDesignRecord';
@@ -71,6 +72,7 @@ if (!s) return jobsOnly;
     const item = (q || []).find((r) => r?.quote_number === quoteNumber);
     if (!item) return;
     activateDesignRecord(item);
+    if(isVictorianFiveQuote(item)){nav("/quote/victorian-five/plan-manufacture");return;}
     if(isVictorianQuote(item)){nav("/quote/victorian/plan-manufacture");return;}
     if(isEdwardianQuote(item)){nav("/quote/edwardian/plan-manufacture");return;}
     if(isGableQuote(item)) {
@@ -127,6 +129,7 @@ const convertToJob = async (quote) => {
 
   alert(`Quote ${quote.quote_number} converted to Job ${jobNumber}.`);
 
+  if(isVictorianFiveQuote(quote)){nav("/quote/victorian-five/plan-manufacture");return;}
   if(isVictorianQuote(quote)){nav("/quote/victorian/plan-manufacture");return;}
   if(isEdwardianQuote(quote)){nav("/quote/edwardian/plan-manufacture");return;}
   if(isGableQuote(quote)) {
@@ -139,7 +142,7 @@ const convertToJob = async (quote) => {
     <div style={{ fontFamily: "Inter, system-ui, Arial" }}>
       <NavTabs />
 
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: 16 }}>
+      <div className="app-page-content" style={{ maxWidth: 1100, margin: "0 auto", padding: 16 }}>
         <h1 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 10px" }}>
           Jobs
         </h1>

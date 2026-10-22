@@ -1,3 +1,6 @@
+import VictorianHippedPreview from '../pages/victorian-hipped/VictorianHippedPreview';
+import DesignedRoofTilesLaths from '../pages/shared/DesignedRoofTilesLaths';
+import VictorianFivePlanPreview from '../pages/victorian/VictorianFivePlanPreview';
 import MyQuotes from '../pages/MyQuotes';
 import VictorianIdiotList from '../pages/victorian/VictorianIdiotList';
 import VictorianDesign from '../pages/victorian/VictorianDesign';
@@ -79,6 +82,7 @@ export default function AppRoutes() {
         <Route path="/tiles-laths" element={<CentralBossIntegrationGate automaticTilesOnly allowCentralCosting><TilesLaths /></CentralBossIntegrationGate>} />
 
         <Route path="/quote/edwardian/plan-manufacture" element={<EdwardianManufacture />} />
+        <Route path="/quote/edwardian/tiles-laths" element={<DesignedRoofTilesLaths family="edwardian" />} />
         <Route path="/quote/edwardian/technical" element={<EdwardianGeometryAudit />} />
         <Route path="/quote/edwardian/summary" element={<EdwardianSummary />} />
         <Route path="/quote/edwardian/idiot-list" element={<EdwardianIdiotList />} />
@@ -87,6 +91,7 @@ export default function AppRoutes() {
         <Route path="/quote/gable/idiot-list" element={<GablePage idiotList />} />
         <Route path="/quote/gable/summary" element={<GablePage summary />} />
         <Route path="/quote/gable/plan-manufacture" element={<GableManufacture />} />
+        <Route path="/quote/gable/tiles-laths" element={<DesignedRoofTilesLaths family="gable" />} />
         <Route path="/quote/gable/technical" element={<GablePage technical />} />
         <Route path="/design/gable" element={<GableDesignPreview />} />
 
@@ -94,7 +99,16 @@ export default function AppRoutes() {
         <Route path="/quote/victorian/summary" element={<VictorianSummary />} />
         <Route path="/quote/victorian/plan-manufacture" element={<VictorianManufacture />} />
         <Route path="/quote/victorian" element={<VictorianDesign />} />
+        <Route path="/quote/victorian-five" element={<VictorianDesign five />} />
+        <Route path="/quote/victorian-five/plan-manufacture" element={<VictorianManufacture five />} />
+        <Route path="/quote/victorian-five/idiot-list" element={<VictorianIdiotList five />} />
+        <Route path="/quote/victorian-five/summary" element={<VictorianSummary five />} />
+        <Route path="/quote/victorian-five/tiles-laths" element={<DesignedRoofTilesLaths family="victorian-five" />} />
+        <Route path="/quote/victorian-five/technical" element={<VictorianFivePlanPreview />} />
+        <Route path="/quote/victorian/tiles-laths" element={<DesignedRoofTilesLaths family="victorian" />} />
         <Route path="/quote/victorian/technical" element={<VictorianPlanPreview />} />
+
+        <Route path="/quote/victorian-hipped/technical" element={<VictorianHippedPreview />} />
 
         {/* Placeholder for other designs */}
         <Route path="/design/:design" element={<DesignPlaceholder />} />

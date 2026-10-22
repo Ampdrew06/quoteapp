@@ -1,7 +1,7 @@
 import {buildGableQuotation,buildGableQuoteRecord} from './gableQuotation';
 import {buildVictorianSummaryMaterialsModel} from './victorianSummaryMaterialsModel';
 // Retain established rectangular width/projection labour allowance used by Edwardian.
-export const buildVictorianQuotation=args=>buildGableQuotation({...args,modelBuilder:buildVictorianSummaryMaterialsModel});
+export const buildVictorianQuotation=args=>buildGableQuotation({...args,roofFamily:'victorian',modelBuilder:buildVictorianSummaryMaterialsModel});
 
 export function buildVictorianQuoteRecord(args){
  const record=buildGableQuoteRecord({...args,family:'victorian'});

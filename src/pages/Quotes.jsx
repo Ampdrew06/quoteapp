@@ -1,3 +1,4 @@
+import {isVictorianFiveQuote} from '../lib/Calculations/victorianFiveQuotation';
 import {isAdminUser} from '../lib/userRole';
 import MyQuotes from './MyQuotes';
 import {isVictorianQuote} from '../lib/Calculations/victorianQuotation';
@@ -76,6 +77,7 @@ export function AdminQuotes() {
     if (!item) return;
     activateDesignRecord(item);
 
+    if(isVictorianFiveQuote(item)){nav("/quote/victorian-five");return;}
     if(isVictorianQuote(item)){nav("/quote/victorian");return;}
     if(isEdwardianQuote(item)){nav("/quote/edwardian");return;}
     if (isGableQuote(item)) {
@@ -134,6 +136,7 @@ const convertToJob = async (quote) => {
 
   alert(`Quote ${quote.quote_number} converted to Job ${jobNumber}.`);
 
+  if(isVictorianFiveQuote(quote)){nav("/quote/victorian-five/plan-manufacture");return;}
   if(isVictorianQuote(quote)){nav("/quote/victorian/plan-manufacture");return;}
   if(isEdwardianQuote(quote)){nav("/quote/edwardian/plan-manufacture");return;}
   if(isGableQuote(quote)) {
@@ -146,7 +149,7 @@ const convertToJob = async (quote) => {
     <div style={{ fontFamily: "Inter, system-ui, Arial" }}>
       <NavTabs />
 
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: 16 }}>
+      <div className="app-page-content" style={{ maxWidth: 1100, margin: "0 auto", padding: 16 }}>
         <h1 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 10px" }}>
           Quotations
         </h1>
@@ -232,7 +235,7 @@ const convertToJob = async (quote) => {
                         >
                           Edit
                         </button>
-{r.status !== "converted_to_job" && (
+{r.status !== "converted_to_job"  && (
   <button
     onClick={() => convertToJob(r)}
     className="border rounded px-2 py-1"

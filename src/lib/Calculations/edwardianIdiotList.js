@@ -1,4 +1,4 @@
-import {planPlasticsStock} from './plasticsIntegrationAudit';
+import {checklistLaths} from './checklistLaths';
 import {buildEdwardianInternalLathAudit} from './edwardianInternalLathAudit';
 import {buildSummaryIdiotList} from './summaryIdiotList';
 export function buildEdwardianIdiotList(model,materials={}){
@@ -8,9 +8,8 @@ export function buildEdwardianIdiotList(model,materials={}){
  const a=model.audits,g=a.geometry,runs=[];
  a.tiling.result.facets.forEach(f=>f.lathRows.forEach((r,n)=>runs.push({edgeId:f.facet.id+'-'+n,runM:r.widthMM/1000,widthMM:50})));
  if(a.tiling.steel)a.tiling.edges.forEach(e=>{for(const side of [1,2])runs.push({edgeId:e.id+'-'+side,runM:e.lengthMM/1000,widthMM:50});});
- buildEdwardianInternalLathAudit({geometry:g,materials}).rows.forEach(r=>runs.push({edgeId:'internal-'+r.id,runM:r.lengthMM/1000,widthMM:50}));
- const looseQty=planPlasticsStock(runs,a.laths.stockM).qty+Number(model.quantityAdjustments?.edwardian_laths||0);
- list.sections.laths=[{key:'edwardian_laths',item:'Loose 25×50 laths',qty:Math.max(0,looseQty),units:'Lengths'}].filter(r=>r.qty>0);
+ const internalRuns=buildEdwardianInternalLathAudit({geometry:g,materials}).rows.map(r=>({edgeId:'internal-'+r.id,runM:r.lengthMM/1000,widthMM:50}));
+ list.sections.laths=checklistLaths(runs,internalRuns,a.laths.stockM,model.quantityAdjustments?.edwardian_laths);
  list.sections.timber=(list.sections.timber||[]).filter(r=>r.key!=='edwardian_laths'||r.isAddedItem);
  const fitted=['boss_rafter_terminal','spar_hook','jack_rafter_hooks','jack_rafter_brackets'];
  list.sections.metal=(list.sections.metal||[]).flatMap(r=>{

@@ -1,3 +1,4 @@
+import {buildVictorianFiveSummaryMaterialsModel,buildVictorianFiveQuotation} from '../../lib/Calculations/victorianFiveQuotation';
 import VictorianNavigation from './VictorianNavigation';
 import {summaryOrderQuantity} from '../../lib/Calculations/summaryOrderQuantity';
 import {summaryInsulationAreaDisplay} from '../../lib/Calculations/summaryInsulationAreaDisplay';
@@ -16,9 +17,9 @@ import {buildSummaryItemCatalog,normalizeAddedItems} from '../../lib/Calculation
 const labels={timber:'Timber Elements',tiles:'Tile Elements',plastics:'Plastic Elements',metal:'Metal Elements',gutters:'Guttering Elements',misc:'Miscellaneous Elements'};
 
 
-export default function VictorianSummary(){return isAdminUser()?<VictorianSummaryContent/>:<Navigate to="/quote" replace/>;}
-export function VictorianSummaryContent(){
- const storageKey='victorianPlanPreviewInputs',family='victorian',modelBuilder=buildVictorianSummaryMaterialsModel,quotationBuilder=buildVictorianQuotation;
+export default function VictorianSummary({five=false}={}){return isAdminUser()?<VictorianSummaryContent five={five} key={five?'five':'three'}/>:<Navigate to="/quote" replace/>;}
+export function VictorianSummaryContent({five=false}={}){
+ const storageKey=five?'victorianFiveInputs':'victorianPlanPreviewInputs',family=five?'victorian-five':'victorian',modelBuilder=five?buildVictorianFiveSummaryMaterialsModel:buildVictorianSummaryMaterialsModel,quotationBuilder=five?buildVictorianFiveQuotation:buildVictorianQuotation;
  const KEY=storageKey;
  const read=()=>{try{return JSON.parse(localStorage.getItem(KEY)||'{}')||{};}catch{return {};}};
  const [inputs,setInputs]=useState(read),[materials,setMaterials]=useState(getMaterials),[customers,setCustomers]=useState([]);
@@ -46,15 +47,14 @@ export function VictorianSummaryContent(){
  const timberOrderDisplay={};
  const customer=customers.find(c=>c.id===inputs.selectedCustomerId)||null;
  const quotation=quotationBuilder({inputs,materials,customer,labourConfig,deliveryConfig,markupConfig});
- return <main style={{fontFamily:'Inter,system-ui,Arial',maxWidth:1120,margin:'0 auto',padding:12}}>
- <VictorianNavigation/>
- <h1>Victorian · Summary</h1><p>Admin review. Installed weight is a partial allowance until the final weight review. Save and reopen quotes from Design/Options.</p>
+ return <><VictorianNavigation five={five}/><main className="vs" style={{fontFamily:'Inter,system-ui,Arial',fontSize:14,maxWidth:1100,margin:'0 auto',padding:16}}>
+ <h1>{five?'5 Facet Victorian':'Victorian'} · Summary</h1><details><summary>Quote details and delivery</summary>
  <section style={{display:'flex',flexWrap:'wrap',gap:12,margin:'12px 0'}}>
  <label>Customer<select value={inputs.selectedCustomerId||'retail'} onChange={e=>patch({selectedCustomerId:e.target.value,customerName:customers.find(c=>c.id===e.target.value)?.name||'Retail'})}><option value="retail">Retail</option>{customers.filter(c=>c.id!=='retail').map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
  <label>Customer reference<input value={inputs.customerReference||''} onChange={e=>patch({customerReference:e.target.value})}/></label>
  <label>Delivery postcode<input value={inputs.deliveryPostcode||''} onChange={e=>patch({deliveryPostcode:e.target.value,deliveryDistanceMiles:'',deliveryDistancePostcode:''})}/></label>
  <label>One-way delivery miles · admin entry<input type="number" min="0" step="0.1" value={inputs.deliveryDistanceMiles??''} onChange={e=>patch({deliveryDistanceMiles:e.target.value,deliveryDistancePostcode:inputs.deliveryPostcode||''})}/></label>
- </section><p style={{fontSize:12}}>For this admin review, enter the verified one-way road distance. Without a postcode the existing customer/default delivery allowance applies.</p>
+ </section><p style={{fontSize:12}}>Without a postcode the existing customer/default delivery allowance applies.</p></details>
  <SummaryHeader/>
  {!model.valid?<p role="status">{model.errors.join(' ')} <Link to={"/quote/"+family}>Return to Design/Options</Link></p>:<>
  {Object.entries(model.sections).map(([section,data])=>{
@@ -71,5 +71,5 @@ export function VictorianSummaryContent(){
  {!quotation.distanceReady&&<p role="status">Calculate delivery distance on Design/Options before issuing the quotation.</p>}
  </SummaryPricingOverview>
  </>}
- </main>;
+ <style>{`.vs>h1{font-size:24px;margin:12px 0 8px}.vs>details{margin:12px 0}.vs>details>summary{cursor:pointer}`}</style></main></>;
 }

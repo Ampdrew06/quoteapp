@@ -40,19 +40,19 @@ test('explicit 150mm site restriction differs from an unrestricted 150mm stock b
  expect(normal.facets[1].externalLengthMM-normal.facets[1].internalLengthMM).toBeCloseTo(450*Math.tan(Math.PI/8),6);
 });
 
-test('front support thresholds use internal widths and jack spacing never exceeds 750mm',()=>{
- for(const [L,count] of [[750,0],[750.1,3],[1500,3],[1500.1,0],[2200,0]]){
+test('front support thresholds use internal widths and jack spacing never exceeds 850mm',()=>{
+ for(const [L,count] of [[850,0],[850.1,3],[1700,3],[1700.1,0],[2200,0]]){
   const g=build({widthMM:L*(1+Math.SQRT2),projMM:6500});expect(g.valid).toBe(true);expect(g.intermediateBars.length).toBe(count);
-  g.facets.slice(1,4).forEach(f=>{const positions=[0,...g.intermediateBars.filter(r=>r.facetId===f.id).map(r=>r.positionMM),...g.jackRafters.filter(r=>r.facetId===f.id).map(r=>r.positionMM),f.internalLengthMM].sort((a,b)=>a-b);for(let i=1;i<positions.length;i++)expect(positions[i]-positions[i-1]).toBeLessThanOrEqual(750+1e-6);});
+  g.facets.slice(1,4).forEach(f=>{const positions=[0,...g.intermediateBars.filter(r=>r.facetId===f.id).map(r=>r.positionMM),...g.jackRafters.filter(r=>r.facetId===f.id).map(r=>r.positionMM),f.internalLengthMM].sort((a,b)=>a-b);for(let i=1;i<positions.length;i++)expect(positions[i]-positions[i-1]).toBeLessThanOrEqual(850+1e-6);});
  }
 });
 test('Victorian trusses start at 697 and continue at 665 to the fixed boss datum',()=>{
  const g=build();expect(g.layout.centresMM).toEqual([31.5,697,1362,1876]);
 });
 
-test('side closing spans up to 750mm need no jack below the boss',()=>{
+test('side closing spans up to 850mm need no jack below the boss',()=>{
  const reference=build();expect(reference.jackRafters.filter(r=>['facet-1','facet-5'].includes(r.facetId))).toHaveLength(0);
- for(const [run,count] of [[703,0],[750,0],[750.1,2],[1400,4]]){
+ for(const [run,count] of [[703,0],[850,0],[850.1,2],[1400,4]]){
   // Regular fronts: shoulder minus ridge = width * (sqrt(2)-1)/2.
   const widthMM=run*2/(Math.SQRT2-1);
   const g=build({widthMM,projMM:7000});expect(g.valid).toBe(true);

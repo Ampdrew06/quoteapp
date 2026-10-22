@@ -25,7 +25,7 @@ test('despatch checklist contains loose laths and plasterboard guide, omitting f
  expect(base.checklist.sections.metal.some(r=>r.key==='spar_hook')).toBe(false);
  expect(base.checklist.sections.misc.some(r=>r.key==='edwardian_pir50')).toBe(false);
  expect(base.checklist.sections.misc.find(r=>r.key==='plasterboard_guide').informational).toBe(true);
- expect(changed.checklist.sections.laths[0].qty).toBe(base.checklist.sections.laths[0].qty+2);
+ expect(changed.checklist.sections.laths.find(r=>r.key==='loose_laths_extra').qty).toBe(2);expect(changed.checklist.sections.laths[0].qty).toBe(base.checklist.sections.laths[0].qty);
  expect(changed.checklist.sections.metal.find(r=>r.key==='spar_hook').qty).toBe(1);
  expect(changed.checklist.sections.misc.find(r=>r.key==='edwardian_pir50').qty).toBe(1);
  expect(changed.members).toEqual(base.members);

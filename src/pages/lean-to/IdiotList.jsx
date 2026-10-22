@@ -796,7 +796,7 @@ scan("miscLines", miscLines);
     <div style={{ fontFamily: "Inter, system-ui, Arial" }}>
       {showNavTabs && <NavTabs />}
 
-      <div
+      <div className="app-page-content"
         style={{
           maxWidth: 1120,
           margin: "0 auto",
@@ -974,5 +974,5 @@ export default function IdiotList({ showNavTabs = true, materialsModel = null, i
       addedItems:q.summaryAddedItems ?? [] });
   }, [useIntegrated, materialsModel, q, m]);
   if (!useIntegrated) return <LegacyIdiotList showNavTabs={showNavTabs} />;
-  return <div>{showNavTabs && <NavTabs />}<SummaryIdiotList model={model} materials={m} inputs={q} /></div>;
+  return <div>{showNavTabs && <NavTabs />}<div className={showNavTabs?"app-page-content":undefined}><SummaryIdiotList model={model} materials={m} inputs={q} /></div></div>;
 }

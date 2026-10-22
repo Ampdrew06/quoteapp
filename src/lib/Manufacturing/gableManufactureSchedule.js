@@ -1,4 +1,4 @@
-import {planPlasticsStock} from '../Calculations/plasticsIntegrationAudit';
+import {checklistLaths} from '../Calculations/checklistLaths';
 import {buildSummaryIdiotList} from '../Calculations/summaryIdiotList';
 export function buildGableManufactureSchedule(model,materials={}) {
  if(!model?.valid)return {valid:false,errors:model?.errors||['Valid Gable design required.']};
@@ -13,10 +13,8 @@ export function buildGableManufactureSchedule(model,materials={}) {
  const projectionM=g.manufacturingProjectionMM/1000;
  model.audits.tiling.result.facets.forEach(f=>f.lathRows.forEach((row,n)=>allRuns.push({edgeId:f.facet.id+'-'+n,runM:row.widthMM/1000,widthMM:50})));
  if(model.audits.tiling.ridgeLathM>0)for(const side of ['left','right'])allRuns.push({edgeId:'ridge-'+side,runM:projectionM,widthMM:50});
- model.audits.laths.internal.rows.forEach(row=>allRuns.push({edgeId:'internal-'+row.id,runM:row.lengthMM/1000,widthMM:50}));
- const looseLaths=planPlasticsStock(allRuns,model.audits.laths.stockM).qty;
- const lathDelta=Number(model.quantityAdjustments?.gable_laths||0);
- checklist.sections.laths=[{key:'gable_laths',item:'Loose 25×50 laths',qty:Math.max(0,looseLaths+lathDelta),units:'Lengths'}].filter(r=>r.qty>0);
+ const internalRuns=model.audits.laths.internal.rows.map(row=>({edgeId:'internal-'+row.id,runM:row.lengthMM/1000,widthMM:50}));
+ checklist.sections.laths=checklistLaths(allRuns,internalRuns,model.audits.laths.stockM,model.quantityAdjustments?.gable_laths);
  checklist.sections.timber=(checklist.sections.timber||[]).filter(r=>r.isAddedItem||r.key!=='gable_laths');
  checklist.sections.misc=(checklist.sections.misc||[]).filter(r=>r.key!=='gable_pir50'||r.isAddedItem);
  const extraPir=Number(model.quantityAdjustments?.gable_pir50||0);

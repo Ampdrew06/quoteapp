@@ -2862,6 +2862,7 @@ const miscTotals = sectionTotals(miscLinesForSectionAdjusted, false);
   const installedWeightKg = materialsWeightKg + plasterboardWeightKg;
   return {
     sections, pricingSections, materialsCostForPricing, materialsBaseCost,
+    lathUseBreakdown:{internalM:Math.max(0,internalLathsM),externalM:Math.max(0,summaryExternalFixingLathM)+hipRidgeSummaryContribution.additionalLathM,fittedM:Math.max(0,ringBeamOuterLathsM)+Math.max(0,ringBeamUpstandLathsM)},
     centralTrussCosts,
     wallplateIntegrationAudit,
     tileOrderIntegration: automaticRoofTilingAudit.tileOrderIntegration || null,
