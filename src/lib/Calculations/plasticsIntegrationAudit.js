@@ -1,7 +1,11 @@
 import { calculateFasciaCutHeight } from "../Manufacturing/fasciaCutHeight";
 const positive = (value) => Math.max(0, Number(value) || 0);
+// Resolve sub-0.05mm eaves-solver differences for stock selection only.
+// Keep the original geometry for dimensions and installed material quantities.
+const stockDepth = value => Math.abs(Number(value)-Math.round(Number(value))) <= 0.05
+  ? Math.round(Number(value)) : Number(value);
 const nextWidth = (widths, required) => widths.map(Number).filter(Number.isFinite)
-  .sort((a, b) => a - b).find((width) => width >= required) ?? null;
+  .sort((a, b) => a - b).find((width) => width >= stockDepth(required)) ?? null;
 
 // A fitting layout, not a factory cut list. Whole boards are supplied.
 export function planPlasticsStock(runs, stockM) {
@@ -36,7 +40,7 @@ export function planPlasticsStock(runs, stockM) {
 export function planSoffitStock(runs, stockM, widths, kerfMM = 3) {
   const lanePlan = planPlasticsStock(runs.map(run => ({ ...run,
     side: run.side === "front" ? "soffitFront" : run.side,
-    widthMM: run.soffitGeometryMM })), stockM);
+    widthMM: stockDepth(run.soffitGeometryMM) })), stockM);
   const pending = [...lanePlan.boards];
   const boards = [];
   while (pending.length) {

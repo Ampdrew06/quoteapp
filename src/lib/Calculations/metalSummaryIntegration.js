@@ -1,10 +1,12 @@
-import { buildWatercourseWallbarRequirement } from './metalIntegrationAudit';
+import { buildWatercourseWallbarRequirement,buildRingbeamCornerBraceRequirement } from './metalIntegrationAudit';
 // Preserve audited hardware rows; replace all legacy watercourse rows exactly once.
 export function integrateMetalSummaryWatercourse(lines = [], geometry, materials = {}) {
   if (!geometry || !Number.isFinite(Number(geometry.leftExternalWallBarSlopeMM)) ||
       !Number.isFinite(Number(geometry.rightExternalWallBarSlopeMM))) return lines;
   const requirement = buildWatercourseWallbarRequirement(geometry, materials);
-  const remaining = lines.filter(row => !/watercourse|secret[\s_-]*gutter/i.test(`${row.key || ''} ${row.label || row.name || ''}`));
+  const remaining = lines.filter(row => row.key!=='ringbeam_corner_brace' && !/watercourse|secret[\s_-]*gutter/i.test(`${row.key || ''} ${row.label || row.name || ''}`));
+  const braces=buildRingbeamCornerBraceRequirement(Number(!!geometry.hasLeftHip)+Number(!!geometry.hasRightHip),materials);
+  if(braces.qty)remaining.push({...braces,_k:braces.key,order_qty:braces.qty,line:braces.cost,total:braces.cost,weight_kg:0,weight_unconfigured:true});
   if (!requirement.qty) return remaining;
   const weight = Number(requirement.weightKg.toFixed(2));
   const cost = Number((requirement.cost ?? 0).toFixed(2));

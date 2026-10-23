@@ -1,3 +1,4 @@
+import {orderSteelHipRidgeRuns} from './steelHipRidgeOrder';
 import {buildVictorianLathAudit} from './victorianLathAudit';
 import {buildSteelTileCourseAudit} from './steelTileCourseAudit';
 import {getSlatePitchRule} from './tileProductConfig';
@@ -13,12 +14,11 @@ export function buildVictorianTilingAudit({geometry:g,materials:m={},productId='
  const orientations=g.facets.map((f,i)=>i===0?'facet-left-side':i===g.facets.length-1?'facet-right-side':'facet-front');
  const courseResult={...laths.result,facets:laths.result.facets.map((f,i)=>({...f,facet:{...f.facet,id:orientations[i]}}))};
  const sequence=steel?buildSteelTileCourseAudit({automaticRoofTiling:{productId,result:courseResult},minimumStarterMM:200}):null;
- if(steel&&(!sequence.valid||!sequence.staggerComplete))return fail(['Steel staggered course ordering could not be completed.']);
- const mainTiles=steel?sequence.staggerOrder:laths.result.tileQuantityOrdered,extraTiles=steel?sequence.allowanceTiles:0;
+ const mainTiles=laths.result.tileQuantityOrdered,extraTiles=steel?laths.result.orderAllowanceTiles:0;
  const ridgeDensity=steel?null:rate(m[`${prefix}_ridge_units_per_m`]??(productId==='liteSlate'?5.5:null));
  if(!steel&&ridgeDensity==null)reviews.push('Confirm ridge/hip coverage for this slate product before completing edge-tile quantities.');
- const edgeQty=length=>steel?Math.ceil(Math.max(0,length-1250)/1150)+1:ridgeDensity==null?null:Math.ceil(length/1000*ridgeDensity);
- const edges=laths.edges.map(e=>({...e,tileQty:edgeQty(e.lengthMM)})),ridgeTiles=edges[0].tileQty,hipTiles=edges.slice(1).some(e=>e.tileQty==null)?null:edges.slice(1).reduce((n,e)=>n+e.tileQty,0);
+ const edgeQty=length=>steel?orderSteelHipRidgeRuns([{lengthMM:length}])[0].tileQty:ridgeDensity==null?null:Math.ceil(length/1000*ridgeDensity);
+ const edges=steel?orderSteelHipRidgeRuns(laths.edges):laths.edges.map(e=>({...e,tileQty:edgeQty(e.lengthMM)})),ridgeTiles=edges[0].tileQty,hipTiles=edges.slice(1).some(e=>e.tileQty==null)?null:edges.slice(1).reduce((n,e)=>n+e.tileQty,0);
  const roofAreaM2=laths.facets.reduce((n,f)=>n+(f.baseWidthMM+f.topWidthMM)*f.heightMM/2e6,0);
  const mainPrice=productId==='britmetShingle'?first(m.tile_britmet_price_each,m.britmetShingle?.price_each):productId==='metrotileShingle'?first(m.tile_metrotile_price_each,m.metrotileShingle?.price_each):first(m[`${prefix}_tile_price_each`],productId==='tapcoSlate'?m.tapcoSlate?.price_each:null);
  const mainUnitKg=productId==='britmetShingle'?first(m.tile_britmet_weight_kg,m.britmetShingle?.weight_kg_per_tile):productId==='metrotileShingle'?first(m.tile_metrotile_weight_kg,m.metrotileShingle?.weight_kg_per_tile):first(m[`${prefix}_tile_weight_kg_each`],m[`${prefix}_tile_weight_kg`],productId==='tapcoSlate'?m.tapcoSlate?.weight_kg_per_tile:null);
@@ -26,7 +26,7 @@ export function buildVictorianTilingAudit({geometry:g,materials:m={},productId='
  if(!Number.isFinite(mainWeightUnits)||mainWeightUnits<0)return fail(['Invalid installed tile density.']);
  const lines=[];
  const add=(key,label,quantity,unit,price,installedWeightKg,basis)=>{const p=rate(price);lines.push({key,label,quantity,unit,unitPrice:p,cost:quantity===0?0:quantity==null||p==null?null:quantity*p,installedWeightKg,basis});};
- add('main','Main tiles — course order including allowance',mainTiles,'tiles',mainPrice,mainUnitKg==null?null:mainWeightUnits*mainUnitKg,steel?`${mainTiles-extraTiles} tiles from independent same-facet stagger sequences + ${extraTiles} roof allowance.`:'Shared synthetic-slate course calculation, including doubled first courses.');
+ add('main','Main tiles — roof estimate including allowance',mainTiles,'tiles',mainPrice,mainUnitKg==null?null:mainWeightUnits*mainUnitKg,steel?`${mainTiles-extraTiles} roof-wide rounded tiles + ${extraTiles} roof allowance.`:'Shared synthetic-slate course calculation, including doubled first courses.');
  const ridgePrice=rate(m[`${prefix}_ridge_tile_price_each`]),ridgeKg=steel?getFixedProductWeightKg('hip_ridge'):first(m[`${prefix}_ridge_tile_weight_kg`],m[`ridge_tile_${prefix}_weight_kg`]);
  add('ridge','Ridge tiles — full house-wall-to-boss run',ridgeTiles,'tiles',ridgePrice,ridgeTiles==null||ridgeKg==null?null:ridgeTiles*ridgeKg,'Rounded separately for the full ridge run.');
  add('hips',`Hip tiles — ${g.hips.length} full covering runs`,hipTiles,'tiles',ridgePrice,hipTiles==null||ridgeKg==null?null:hipTiles*ridgeKg,'Full ridge-point-to-external-eaves lengths; no timber cutting deduction.');
@@ -45,9 +45,9 @@ export function buildVictorianTilingAudit({geometry:g,materials:m={},productId='
  add('starter',`${starterStockMM/1000}m tile starter — ${g.facets.length} eaves`,starterQty,'lengths',first(m.tile_starter_price_each,m.metal?.tile_starter?.price_each,m.eaves_guard_price_each,m.eavesGuard?.price_per_piece),starterKg==null?null:starterUsedM/(starterStockMM/1000)*starterKg,`${starterUsedM.toFixed(3)}m installed; cost by whole lengths. Allocate to Metal once at integration.`);
  return {valid:true,readOnly:true,errors:[],productId,productLabel:laths.productLabel,steel,facets:laths.facets,result:laths.result,sequence,mainTiles,extraTiles,edges,ridgeTiles,hipTiles,roofAreaM2,mainWeightUnits,starterUsedM,starterQty,lines,supplyReviews:reviews,
   knownCost:lines.reduce((n,l)=>n+(l.cost??0),0),knownInstalledWeightKg:lines.reduce((n,l)=>n+(l.installedWeightKg??0),0),costComplete:reviews.length===0&&lines.every(l=>l.cost!=null),weightComplete:lines.every(l=>l.installedWeightKg!=null),
-  notes:['Steel ordering reuses accepted right-to-left stagger and same-facet offcut carry, with200mm minimum visible starter plus intact95mm rib and two additional tiles per roof. Each front facet is an independent centred triangle; side facets retain their left/right house-wall datum. This is not a tile cutting list.',
+  notes:['Main steel tile orders use shared Home calculator roof-wide rounding plus two allowance tiles. Course simulations remain provisional Technical comparisons.',
    'Slate uses the shared course rules, doubled first row and pitch bands.25deg band boundaries retain the precision normalisation established in the lath audit. Tapco edge-product coverage/prices are not copied from LiteSlate.',
-   'Hip covering runs include the boss region and full ply-base toe; ridge covering ends at the house wall. Neither the160mm sloping timber deduction nor the hook-end shortening reduces covering lengths. Steel edge tiles use1250mm first coverage then1150mm, rounded independently per run.',
+   'Hip covering runs include the boss region and full ply-base toe; ridge covering ends at the house wall. Neither the160mm sloping timber deduction nor the hook-end shortening reduces covering lengths. Steel uses 1230mm nominal cover plus up to 30mm per full piece; half allocations are pooled into whole stock orders.',
    'Main installed tile weight uses gross tiled surface and the existing installed density rule, excluding spare/order waste. Hip/ridge/end-cap weights use existing product allowances; unconfigured fitting weights remain visible.',
    'External field, chamfered, support and internal laths are already in the lath audit and are NOT charged again here. Foam tape is costed here once; lath audit tape rows are quantities only.',
    five?'Confirmed5-facet supply: one Universal Ridge/Hip Adaptor and six135degree hip end caps for the150degree roof joints. Universal cap weight remains pending if unconfigured.':'One five-way junction and four135deg caps replace the Edwardian three-way/two90deg arrangement on the regular3-facet Victorian. Slate junction product confirmation remains outstanding.',

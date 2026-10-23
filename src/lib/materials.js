@@ -10,6 +10,7 @@ const STORAGE_KEY = "materials_v1";
 const CLOUD_SETTINGS_KEY = "materials_v1";
 
 export const defaultMaterials = {
+  ringbeam_corner_brace_price_each: 0.78,
   concrete_screws_units_per_box: 100,
   factory_staples_32mm_price_per_box: 35,
   factory_staples_32mm_units_per_box: 10000,
@@ -1215,6 +1216,7 @@ superquilt_15m_weight_kg_each: SQ15?.weight_kg_per_roll,
    liteslate_dry_verge_2m_price: true,
 
    // Metal Elements (flat keys edited in Materials UI)
+ringbeam_corner_brace_price_each: true,
 tile_starter_price_each: true,
 tile_starter_weight_kg_each: true,
 

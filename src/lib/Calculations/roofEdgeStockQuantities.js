@@ -1,3 +1,4 @@
+import {orderSteelHipRidgeRuns} from './steelHipRidgeOrder';
 const finite = (value, fallback = 0) => {
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
@@ -9,13 +10,6 @@ const pooledStockQuantity = (requiredLengthMM, stockLengthMM) => {
 
   return required > 0 && stock > 0 ? Math.ceil(required / stock) : 0;
 };
-
-const perEdgeStockQuantity = (edges = [], effectiveCoverMM = 0) =>
-  (edges || []).reduce(
-    (total, edge) =>
-      total + pooledStockQuantity(edge.lengthMM, effectiveCoverMM),
-    0
-  );
 
 /**
  * Convert verified raw edge requirements into purchasable stock quantities.
@@ -53,18 +47,13 @@ export function buildRoofEdgeStockQuantities({
   );
 
   const hipCoveringRequirement = requirements.hipCovering || {};
-  const hipOverallLengthMM = Math.max(
-    0,
-    finite(materials.hip_ridge_overall_length_mm, 1250)
-  );
-  const hipEffectiveCoverMM = Math.max(
-    0,
-    finite(materials.hip_ridge_effective_cover_mm, 1150)
-  );
-  const hipCoveringQty = perEdgeStockQuantity(
-    hipCoveringRequirement.edges,
-    hipEffectiveCoverMM
-  );
+  const synthetic=accessoryRequirements.productFamily==='syntheticSlate';
+  const hipOverallLengthMM=synthetic?Math.max(0,finite(materials.hip_ridge_overall_length_mm,1250)):1330;
+  const hipEffectiveCoverMM=synthetic?Math.max(0,finite(materials.hip_ridge_effective_cover_mm,1150)):1230;
+  const hipRuns=accessoryRequirements.productFamily==='syntheticSlate'
+    ?(hipCoveringRequirement.edges||[]).map(edge=>({...edge,tileQty:pooledStockQuantity(edge.lengthMM,finite(materials.hip_ridge_effective_cover_mm,1150))}))
+    :orderSteelHipRidgeRuns(hipCoveringRequirement.edges||[]);
+  const hipCoveringQty=hipRuns.reduce((sum,edge)=>sum+edge.tileQty,0);
   const hipEndCaps = requirements.hipEndCaps || {};
 
   const lines = [
@@ -95,13 +84,7 @@ export function buildRoofEdgeStockQuantities({
               finite(hipCoveringRequirement.totalLengthMM)
             ),
             calculatedPerEdge: true,
-            perEdgeQuantities: (hipCoveringRequirement.edges || []).map(
-              (edge) => ({
-                edgeId: edge.edgeId,
-                lengthMM: Math.max(0, finite(edge.lengthMM)),
-                qty: pooledStockQuantity(edge.lengthMM, hipEffectiveCoverMM),
-              })
-            ),
+            perEdgeQuantities: hipRuns.map(edge=>({edgeId:edge.edgeId,lengthMM:edge.lengthMM,qty:edge.tileQty,allocationTiles:edge.allocationTiles})),
             sourceEdgeIds: hipCoveringRequirement.edgeIds || [],
           },
         ]

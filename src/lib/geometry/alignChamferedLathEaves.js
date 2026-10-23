@@ -47,6 +47,19 @@ export function alignChamferedLathEaves(rule) {
     adjusted.matchedPlumbCutHeightMM=row.candidateVfcMM;
     adjusted.manufacturedPlumbCutHeightMM=row.candidateVfcMM;
     adjusted.plumbCutDifferenceMM=0;
+    // Standard untrimmed 150mm boards need fitting room on every ply base.
+    // This is a ply-only allowance: do not enlarge the soffit stock requirement
+    // or alter timber foot cuts / eaves-height alignment.
+    const standardBoard=rule.sideSoffitControl?.mode!=='specified' && rule.sideSoffitControl?.mode!=='none'
+      && Math.abs(Number(rule.requestedReferenceSoffitMM)-150)<1e-7
+      && Math.abs(adjusted.manufacturedSoffitMM-150)<=0.05;
+    if(standardBoard){
+      const baseWidthMM=Number(rule.frameThicknessMM)+150+5;
+      adjusted.manufacturedHorizontalFootRunMM=baseWidthMM;
+      adjusted.plyFittingAllowanceMM=5;
+      adjusted.geometry={...adjusted.geometry,raw:{...adjusted.geometry.raw,manufacturedBaseWidthMM:baseWidthMM}};
+    }
+
     return adjusted;
   };
   return {...rule,

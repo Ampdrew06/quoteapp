@@ -1,7 +1,7 @@
 import {buildVictorianTimberAudit} from './victorianTimberAudit';
 import {buildVictorianTilingAudit} from './victorianTilingAudit';
 import {buildVictorianLathAudit} from './victorianLathAudit';
-import {buildWatercourseWallbarRequirement} from './metalIntegrationAudit';
+import {buildWatercourseWallbarRequirement,buildRingbeamCornerBraceRequirement} from './metalIntegrationAudit';
 import {buildFactoryStapleAllowance} from './factoryStapleAllowance';
 import {getFixedProductWeightKg} from '../utils/weights';
 const rate=v=>v==null||v===''||!Number.isFinite(Number(v))||Number(v)<0?null:Number(v);
@@ -15,6 +15,7 @@ export function buildVictorianMetalFixingsAudit({geometry:g,materials:m={},produ
  const add=(list,key,label,qty,unit,price,basis,installedWeightKg=null)=>{const p=rate(price);list.push({key,label,qty,unit,cost:qty===0?0:qty==null||p==null?null:qty*p,basis,installedWeightKg:qty===0?0:installedWeightKg,usage:list===factoryRows?'factory':list===siteRows?'site':'installed',supplyToSite:list===siteRows});};
  const hardware=[['boss_rafter_terminal','Boss / rafter terminal',1,m.boss_rafter_terminal_price_each??m.boss_price_each??m.metal?.boss_rafter_terminal?.price_each],['spar_hook','Spar hooks',counts.sparHooks,m.spar_hook_price_each??m.metal?.spar_hook?.price_each],['jack_rafter_hooks','Jack rafter hooks',jacks,m.jack_rafter_hook_price_each??m.metal?.jack_rafter_hook?.price_each],['jack_rafter_brackets','Jack rafter brackets',jacks,m.jack_rafter_bracket_price_each??m.metal?.jack_rafter_bracket?.price_each]];
  hardware.forEach(([key,label,qty,price])=>add(metalRows,key,label,qty,'each',price,key==='spar_hook'?`${timber.componentCounts.hips} hips + ${timber.componentCounts.intermediates} intermediates = ${sparPairs} pairs, fitted before despatch.`:'Installed hardware; not a loose despatch item.',qty*getFixedProductWeightKg(key)));
+ const braces=buildRingbeamCornerBraceRequirement(g.hips.length,m);metalRows.push(braces);
  const rear=timber.truss.members,watercourse=buildWatercourseWallbarRequirement({leftExternalWallBarSlopeMM:rear[0].externalSlopeMM,rightExternalWallBarSlopeMM:rear[1].externalSlopeMM},m),waterPrice=rate(m.watercourse_price_each??m.metal?.watercourse?.price_per_piece);
  add(metalRows,'watercourse',watercourse.label,watercourse.orderQty,'2.5m lengths',waterPrice,`Both rear sloping truss members; ${watercourse.usedM.toFixed(3)}m installed. First2500mm, then2450mm cover per side.`,watercourse.weightKg);
  metalRows[metalRows.length-1].usage='site';metalRows[metalRows.length-1].supplyToSite=true;

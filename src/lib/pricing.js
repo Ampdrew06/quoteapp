@@ -19,7 +19,7 @@ export function computePricing(materialsCost, m = {}, extras = {}) {
     const delta=Number(materialsCost)-Number(extras.britmetMaterialsCost),net=reference.net+delta;
     const fraction=1-reference.discountPct/100;
     if(!(fraction>0))throw new Error('Customer discount must be below 100%.');
-    const retailNet=net/fraction,baseCost=Number(materialsCost)+reference.labourCost;
+    const retailNet=(net-reference.delivery)/fraction+reference.delivery,baseCost=Number(materialsCost)+reference.labourCost;
     const contribution=reference.net-Number(extras.britmetMaterialsCost)-reference.labourCost-reference.delivery;
     return {...reference,materialsCost:Number(materialsCost),baseCost,retailNet,net,discountAmount:retailNet-net,netBeforeDelivery:retailNet-reference.delivery,profit:retailNet-reference.delivery-baseCost,marginPct:net>0?contribution/net*100:0,contribution,contributionMatched:true,britmetMaterialsCost:Number(extras.britmetMaterialsCost),britmetNet:reference.net,vat:net*reference.vatRate,gross:net*(1+reference.vatRate)};
   }
@@ -38,7 +38,7 @@ export function computePricing(materialsCost, m = {}, extras = {}) {
 
   // 🔹 Customer discount
 const discountPct = Number(extras.discountPct ?? 0);
-const discountAmount = net * (discountPct / 100);
+const discountAmount = netBeforeDelivery * (discountPct / 100);
 const netAfterDiscount = net - discountAmount;
 
   // Support either vat_rate (decimal) or vat_pct (percentage)
@@ -95,7 +95,12 @@ export function computeDeliveryPricing(distanceMilesOneWay, config = {}) {
 
   const returnMiles = oneWayMiles * 2;
 
-  const timeCost = ((returnMiles / 50) + 1) * hourlyRate;
+  const handlingHours = Math.max(0, Number(config.handlingHours ?? 1.5) || 0);
+  // Retain the existing route-time allowance; handling is an additional cost.
+  const travelHours = returnMiles / 50 + 1;
+  const travelTimeCost = travelHours * hourlyRate;
+  const handlingCost = handlingHours * hourlyRate;
+  const timeCost = travelTimeCost + handlingCost;
 
   const fuelCost =
     vanMpg > 0 ? (returnMiles / vanMpg) * 4.54 * fuelPricePerLitre : 0;
@@ -108,6 +113,10 @@ export function computeDeliveryPricing(distanceMilesOneWay, config = {}) {
     hourlyRate,
     vanMpg,
     fuelPricePerLitre,
+    handlingHours,
+    handlingCost,
+    travelHours,
+    travelTimeCost,
     timeCost,
     fuelCost,
     deliveryCost,
@@ -117,6 +126,7 @@ export function computeDeliveryPricing(distanceMilesOneWay, config = {}) {
 export const DELIVERY_PRICING_KEY = "delivery_pricing_v1";
 
 export const defaultDeliveryPricingConfig = {
+  handlingHours: 1.5,
   hourlyRate: 17.96,
   vanMpg: 26,
   fuelPricePerLitre: 1.89,

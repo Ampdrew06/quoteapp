@@ -1,7 +1,7 @@
 import {buildEdwardianMemberAudit} from './edwardianMemberAudit';
 import {buildEdwardianTilingAudit} from './edwardianTilingAudit';
 import {buildEdwardianInternalLathAudit} from './edwardianInternalLathAudit';
-import {buildWatercourseWallbarRequirement} from './metalIntegrationAudit';
+import {buildWatercourseWallbarRequirement,buildRingbeamCornerBraceRequirement} from './metalIntegrationAudit';
 import {buildFactoryStapleAllowance} from './factoryStapleAllowance';
 import {getFixedProductWeightKg} from '../utils/weights';
 const rate=v=>v==null||v===''||!Number.isFinite(Number(v))||Number(v)<0?null:Number(v);
@@ -17,6 +17,7 @@ export function buildEdwardianMetalMiscAudit({geometry:g,materials:m={},productI
  hardware.forEach(([key,label,qty,price])=>add(metalRows,key,label,qty,'each',price,key==='spar_hook'?'Three connection pairs: two hips and one front boss rafter.':'Resolved member hardware count.',qty*getFixedProductWeightKg(key)));
  const starter=tiling.lines.find(l=>l.key==='starter'),starterUsedM=(2*g.externalProjectionMM+g.externalWidthMM)/1000,starterKg=rate(m.eaves_guard_weight_kg??m.metal?.tile_starter?.weight_kg_each);
  metalRows.unshift({key:'tile_starter',label:'Tile starter — all three eaves',qty:starterUsedM,orderQty:starter.quantity,unit:'m used / 3m lengths ordered',cost:starter.cost,installedWeightKg:starterKg==null?null:starterUsedM/3*starterKg,basis:'Same starter requirement shown in tile audit. Charge supplied stock once in Metal; weight uses consumed metres.',usage:'installed'});
+ const braces=buildRingbeamCornerBraceRequirement(2,m);metalRows.push(braces);
  const rear=member.members.filter(r=>r.type==='truss-member'&&r.positionMM===g.layout.centresMM[0]);
  const watercourse=buildWatercourseWallbarRequirement({leftExternalWallBarSlopeMM:rear.find(r=>r.id.endsWith('left')).profile.externalSlopeLengthMM,rightExternalWallBarSlopeMM:rear.find(r=>r.id.endsWith('right')).profile.externalSlopeLengthMM},m);
  metalRows.push({key:watercourse.key,label:watercourse.label,qty:watercourse.qty,orderQty:watercourse.orderQty,unit:'2.5m lengths',cost:watercourse.cost,installedWeightKg:watercourse.weightKg,basis:'Secret gutter on both sloping rear truss members against the house; installed coverage follows each upper member edge. '+watercourse.basis,usage:'installed'});

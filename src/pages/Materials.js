@@ -1957,6 +1957,7 @@ setHasUnsavedChanges(false);
   ["jack_rafter_hook", "Jack Rafter Hook"],
   ["jack_rafter_bracket", "Jack Rafter Bracket"],
   ["corner_hanger", "Corner Hanger"],
+  ["ringbeam_corner_brace", "Ringbeam Corner Brace — 400 × 12.5mm"],
   ["boss_rafter_terminal", "Boss"],
   ["reinforcement_plate", "Reinforcement Plate"],
   ["gable_strap", "Gable Strap"],
