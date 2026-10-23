@@ -1522,7 +1522,8 @@ setQuoteInputsExpanded(false);
     window.dispatchEvent(new Event("summary_adjustments_updated"));
   };
 
-  const handleSaveQuote = async () => {
+  const handleSaveQuote = async (asNew = false) => {
+  asNew = asNew === true;
   if (tradeDesignErrors.length) { setQuoteInputsExpanded(true);alert(tradeDesignErrors.join(" "));return; }
   if (isCentralBoss && !centralPricingReady) { alert(summaryMaterials.centralTrussCosts?.errors?.join(" ") || "Complete the central-boss design and its material rates before saving."); return; }
   const manualReference = (quoteRef || "").trim();
@@ -1540,7 +1541,8 @@ if (!isAdmin && !manualReference) {
 
   try {
   const currentRecord=readActiveDesignRecord('lean-to');
-  const nextQuoteNumber = currentRecord?.quote_number || await getNextQuoteNumber();
+  const updating = currentRecord && !asNew;
+  const nextQuoteNumber = updating ? currentRecord.quote_number : await getNextQuoteNumber();
   const payload = {
   summaryAddedItems: readSummaryAddedItems(),
   summaryPricingState: readSummaryPricingState(),
@@ -1654,16 +1656,16 @@ manual_reference: manualReference,
     materials_snapshot_json: getMaterials(),
   };
 
-  const saved = currentRecord ? await updateQuote(currentRecord.id,designRecordPatch(record)) : await saveQuoteToCloud(record);
+  const saved = updating ? await updateQuote(currentRecord.id,designRecordPatch(record)) : await saveQuoteToCloud(record);
 
-  if (!saved) {
+  if (!saved?.id) {
     alert("Quote was not saved. Check the console for details.");
     return;
   }
 
-  const active={...currentRecord,...record,...saved,inputs_json:record.inputs_json,status:currentRecord?.status||saved.status||'quote'};
+  const active={...updating&&currentRecord,...record,...saved,inputs_json:record.inputs_json,status:updating?(currentRecord.status||saved.status||'quote'):'quote'};
   activateDesignRecord(active);setEditingRecord(active);
-  alert(`Quote ${nextQuoteNumber} ${currentRecord?'updated':'saved'}.`);
+  alert(`Quote ${nextQuoteNumber} ${updating?'updated':'saved'}.`);
   } catch (error) {
     console.error("SAVE QUOTE FROM DESIGN/OPTIONS FAILED", error);
     alert("Quote was not saved. Please try again. If it still fails, check the console for details.");
@@ -2340,6 +2342,10 @@ title={
             >
               {editingRecord ? 'Update Quote' : 'Save Quote'}
             </button>
+
+            {editingRecord && <button type="button" onClick={() => handleSaveQuote(true)}
+              style={{ ...primaryBtn, width: "100%", background: "#0f766e", borderColor: "#0f766e" }}
+              title="Create a new quote number and keep the original quotation">Save as New Quote</button>}
 
             <button
               onClick={resetAll}

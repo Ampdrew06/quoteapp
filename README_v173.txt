@@ -1,0 +1,1 @@
+Apply over v172. Replace src/components/SummaryTemplate.jsx. Adds Sub Totals Cost below Delivery in the first totals card: materials used for pricing + labour + delivery, before contribution and VAT. Shared across all Summary pages using the common footer. Pricing calculations unchanged. Existing footer control/render checks passed.

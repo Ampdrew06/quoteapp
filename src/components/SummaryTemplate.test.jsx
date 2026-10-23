@@ -15,7 +15,7 @@ test('shared table preserves adjustment and exclusion callbacks',()=>{
 });
 test('common totals and controls render supplied pricing without recalculating it',()=>{
  const html=renderToStaticMarkup(<SummaryPricingOverview baseCost={100} materialsCost={125} installedWeight={60} materialsWeight={50} plasterboardQty={4} labour={{labourCost:300,days:1}} delivery={{deliveryCost:40,oneWayMiles:12,returnMiles:24,timeCost:30,fuelCost:10}} pricing={{net:500,vat:100,gross:600,vatRate:.2,profitPct:60,profit:180,marginPct:36}} labourConfig={{dayRate:300,minimumDays:1}} deliveryConfig={{hourlyRate:17.96,vanMpg:26,fuelPricePerLitre:1.99}} markupConfig={{profitPct:60}} onLabourConfig={()=>{}} onDeliveryConfig={()=>{}} onMarkupConfig={()=>{}} onOverride={()=>{}}/>);
- for(const label of ['Overall Totals','Pricing reconciliation','Pricing overview','Controls','Fuel Price Per Litre','£600.00','12.00 miles','4 boards'])expect(html).toContain(label);
+ for(const label of ['Overall Totals','Supporting details','Total materials cost','Controls','Fuel Price Per Litre','£600.00','12.00 miles','4 boards','Margin (%)','Contribution'])expect(html).toContain(label);
 });
 test('shared controls pass through global configuration and quote-only override separately',()=>{
  const changes=[];

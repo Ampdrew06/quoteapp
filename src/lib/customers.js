@@ -1,3 +1,4 @@
+import {sortCustomerList} from './customerListOrder';
 import { customerFromRecord, customerToRecord } from "./customerRecords";
 import { supabase } from "./supabaseClient";
 
@@ -51,13 +52,13 @@ export async function getCustomers() {
 
     if (error) {
       console.error("SUPABASE GET CUSTOMERS ERROR", error);
-      return defaultCustomers;
+      return sortCustomerList(defaultCustomers);
     }
 
-    return Array.isArray(data) ? data.map(customerFromRecord) : [];
+    return sortCustomerList(Array.isArray(data) ? data.map(customerFromRecord) : []);
   } catch (err) {
     console.error("GET CUSTOMERS FAILED", err);
-    return defaultCustomers;
+    return sortCustomerList(defaultCustomers);
   }
 }
 

@@ -1,3 +1,4 @@
+import {quoteStyleLabel} from '../lib/quoteStyleLabel';
 import {isVictorianFiveQuote} from '../lib/Calculations/victorianFiveQuotation';
 import {isAdminUser} from '../lib/userRole';
 import MyQuotes from './MyQuotes';
@@ -184,7 +185,7 @@ const convertToJob = async (quote) => {
                 <th style={th}>Customer</th>
                 <th style={th}>Reference</th>
                 <th style={th}>Date</th>
-                <th style={th}>Status</th>
+                <th style={th}>Style</th>
                 <th style={th}>Actions</th>
               </tr>
             </thead>
@@ -205,26 +206,7 @@ const convertToJob = async (quote) => {
 
                     <td style={td}>{created}</td>
 
-                    <td style={td}>
-                      <span
-                        style={{
-                          padding: "4px 8px",
-                          borderRadius: 999,
-                          background:
-                            r.status === "converted_to_job"
-                              ? "#dcfce7"
-                              : "#dbeafe",
-                          color:
-                            r.status === "converted_to_job"
-                              ? "#166534"
-                              : "#1d4ed8",
-                          fontSize: 12,
-                          fontWeight: 600,
-                        }}
-                      >
-                        {r.status || "quote"}
-                      </span>
-                    </td>
+                    <td style={td}>{quoteStyleLabel(r)}</td>
 
                     <td style={td}>
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>

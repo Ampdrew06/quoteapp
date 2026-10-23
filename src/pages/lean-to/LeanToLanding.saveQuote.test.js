@@ -4,7 +4,7 @@ import path from 'path';
 // Exercise the actual D/O callback with cloud/UI boundaries stubbed. This
 // catches name-shadowing recursion without requiring a browser or live database.
 const source = fs.readFileSync(path.join(__dirname, 'LeanToLanding.jsx'), 'utf8');
-const body = source.split('const handleSaveQuote = async () => {')[1].split('\n};\n  /*')[0];
+const body = 'let asNew = false;\n' + source.split('const handleSaveQuote = async (asNew = false) => {')[1].split('\n};\n  /*')[0];
 function fixture(overrides = {}) {
   return {
     tradeDesignErrors:[],setShowQuote:jest.fn(),readActiveDesignRecord:()=>null, activateDesignRecord:jest.fn(), setEditingRecord:jest.fn(),
@@ -110,3 +110,17 @@ test('trade cannot update a saved record owned by another customer',async()=>{
  const context=fixture({isAdmin:false,getCurrentCustomer:()=>({id:'owner'}),readActiveDesignRecord:()=>({id:'foreign',customer_id:'someone-else',quote_number:'123'})});await run(context);
  expect(context.saveQuoteToCloud).not.toHaveBeenCalled();expect(context.updateQuote).not.toHaveBeenCalled();
 });
+
+for (const roofStyle of ['leanTo','hippedLeanTo']) {
+ test(roofStyle+' saves an alternative under a new number without changing the original',async()=>{
+  const original={id:'existing',quote_number:'100',status:'converted_to_job',job_number:'J1'};
+  const context=fixture({roofStyle,tileSystem:'liteslate',readActiveDesignRecord:()=>original});
+  const copyBody=body.replace('let asNew = false;','let asNew = true;');
+  await new Function(...Object.keys(context), `return (async()=>{${copyBody}})();`)(...Object.values(context));
+  expect(context.updateQuote).not.toHaveBeenCalled();expect(context.getNextQuoteNumber).toHaveBeenCalledTimes(1);
+  expect(context.saveQuoteToCloud.mock.calls[0][0].inputs_json.tileSystem).toBe('liteslate');
+  const active=context.activateDesignRecord.mock.calls[0][0];
+  expect(active.quote_number).toBe('123');expect(active.status).toBe('quote');expect(active.job_number).toBe(undefined);
+  expect(original.quote_number).toBe('100');expect(active.id).toBe('saved');
+ });
+}

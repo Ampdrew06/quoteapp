@@ -1,3 +1,4 @@
+import {sortCustomerList,isCustomerFavourite,toggleCustomerFavourite} from '../lib/customerListOrder';
 import React, { useEffect, useState } from "react";
 import { getCustomers, saveCustomerRecord, deleteCustomerRecord } from "../lib/customers";
 import NavTabs from "../components/NavTabs";
@@ -296,12 +297,12 @@ const testSupabase = async () => {
           </button>
         </div>
 
-        <h3>Saved Customers</h3>
+        <h3>Saved Customers</h3><p style={{fontSize:12,color:'#64748b'}}>Star favourites to show them first in customer dropdowns. Favourites are saved on this browser.</p>
 
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr>
-              <th style={th}>Name</th>
+              <th style={th}>Favourite</th><th style={th}>Name</th>
               <th style={th}>Login Code</th>
               <th style={th}>Role</th>
               <th style={th}>Discount</th>
@@ -310,9 +311,9 @@ const testSupabase = async () => {
             </tr>
           </thead>
           <tbody>
-            {customers.map((c) => (
+            {sortCustomerList(customers,{favouritesFirst:false}).map((c) => (
               <tr key={c.id}>
-                <td style={td}>{c.name}</td>
+                <td style={td}><button type="button" aria-label={(isCustomerFavourite(c.id)?'Unfavourite ':'Favourite ')+c.name} aria-pressed={isCustomerFavourite(c.id)} title={isCustomerFavourite(c.id)?'Remove from favourites':'Show first in customer dropdowns'} onClick={()=>{toggleCustomerFavourite(c.id);setCustomers(old=>[...old]);}} style={{border:0,background:'transparent',fontSize:21,color:isCustomerFavourite(c.id)?'#d97706':'#64748b',cursor:'pointer'}}>{isCustomerFavourite(c.id)?'★':'☆'}</button></td><td style={td}>{c.name}</td>
                 <td style={td}>{c.loginCode || "—"}</td>
                 <td style={td}>{c.role}</td>
                 <td style={td}>{Number(c.discountPct || 0)}%</td>

@@ -48,19 +48,21 @@ export function VictorianDesignContent({five=false}={}){
  const quote=()=>{if(!admin&&!String(inputs.deliveryPostcode||'').trim()){setQuoteInputsExpanded(true);setMessage('Enter a delivery postcode before quoting.');return;}setQuoteInputsExpanded(!(g.valid&&q.valid));setInputs(old=>({...old,quoteDisplayed:true}));if(q.valid&&!q.distanceReady&&String(inputs.deliveryPostcode||'').trim())lookup();if(g.valid&&q.valid)setTimeout(()=>document.getElementById('victorian-quote-edit-toggle')?.scrollIntoView({behavior:'smooth',block:'start'}),0);};
  const newQuote=()=>{setQuoteInputsExpanded(false);request.current++;setBusy(false);setMessage('');clearActiveDesignRecord();setInputs(bindCustomer(normalize({},getCurrentCustomer()?.id||'retail')));};
  const reset=()=>{setQuoteInputsExpanded(false);request.current++;setBusy(false);setMessage('');if(restoreActiveDesignRecord(family))setInputs(bindCustomer(normalize(readActiveDesignRecord(family).inputs_json)));else newQuote();};
- const save=async()=>{
+ const save=async(asNew=false)=>{
+  asNew=asNew===true;
   if(!q.ready||busy)return;
   if(!String(inputs.customerReference||'').trim()){setMessage('Enter a customer reference before saving.');return;}
   setBusy(true);setMessage('Saving quotation…');
   try{
    const current=readActiveDesignRecord(family);
    if(!admin&&current&&current.customer_id!==getCurrentCustomer()?.id)throw new Error('Reopen your quote from My Quotes before saving.');
-   const quoteNumber=current?.quote_number||await getNextQuoteNumber();
+   const updating=current&&!asNew;
+   const quoteNumber=updating?current.quote_number:await getNextQuoteNumber();
    const record=recordBuilder({inputs,materials,quotation:q,customer,quoteNumber,bookDetails:readVictorianBookDraft(inputs)});
-   const saved=current?await updateQuote(current.id,designRecordPatch(record)):await saveQuote(record);
+   const saved=updating?await updateQuote(current.id,designRecordPatch(record)):await saveQuote(record);
    if(!saved?.id)throw new Error('Quote was not saved. Please check the connection and try again.');
-   activateDesignRecord({...current,...record,...saved,inputs_json:record.inputs_json,status:current?.status||saved.status||'quote'});
-   setInputs(record.inputs_json);setMessage(`Quote ${quoteNumber} ${current?'updated':'saved'}.`);
+   activateDesignRecord({...updating&&current,...record,...saved,inputs_json:record.inputs_json,status:updating?(current.status||saved.status||'quote'):'quote'});
+   setInputs(record.inputs_json);setMessage(`Quote ${quoteNumber} ${updating?'updated':'saved'}.`);
   }catch(error){setMessage(error.message||'Quote was not saved.');}
   finally{setBusy(false);}
  };
@@ -88,7 +90,7 @@ export function VictorianDesignContent({five=false}={}){
 
  {admin&&<label>Customer<select aria-label="Customer" value={inputs.selectedCustomerId} style={fieldStyle} onChange={e=>{const selected=customers.find(c=>c.id===e.target.value);setInputs(old=>({...old,selectedCustomerId:e.target.value,customerName:selected?.name||'Retail'}));}}><option value="retail">Retail (No Discount)</option>{inputs.selectedCustomerId!=='retail'&&!customers.some(c=>c.id===inputs.selectedCustomerId)&&<option value={inputs.selectedCustomerId}>Selected customer (loading)</option>}{customers.filter(c=>c.id!=='retail').map(c=><option key={c.id} value={c.id}>{c.name} ({Number(c.discountPct??c.discount_pct??0)}%)</option>)}</select></label>}
  </div>
- </div><div className="vd-actions"><button type="button" disabled={busy} onClick={quote}>Quote</button><button type="button" disabled={busy||!q.ready} onClick={save}>{readActiveDesignRecord(family)?'Update Quote':'Save Quote'}</button><button type="button" disabled={busy} onClick={reset}>Reset</button></div>{message&&<p role="status">{message}</p>}<div hidden={collapsed}><details style={{marginTop:12}}><summary>Delivery and quote tools</summary><button type="button" disabled={busy||!String(inputs.deliveryPostcode||'').trim()} onClick={lookup}>Calculate delivery distance</button><button type="button" disabled={busy} onClick={newQuote}>New Quote</button>
+ </div><div className="vd-actions"><button type="button" disabled={busy} onClick={quote}>Quote</button><button type="button" disabled={busy||!q.ready} onClick={save}>{readActiveDesignRecord(family)?'Update Quote':'Save Quote'}</button><button type="button" disabled={busy} onClick={reset}>Reset</button></div>{readActiveDesignRecord(family)&&<button type="button" disabled={busy||!q.ready} onClick={()=>save(true)} style={{marginTop:10,padding:'10px 18px',border:'1px solid #0f766e',borderRadius:6,color:'#0f766e',background:'white'}} title="Create a new quote number and keep the original quotation">Save as New Quote</button>}{message&&<p role="status">{message}</p>}<div hidden={collapsed}><details style={{marginTop:12}}><summary>Delivery and quote tools</summary><button type="button" disabled={busy||!String(inputs.deliveryPostcode||'').trim()} onClick={lookup}>Calculate delivery distance</button><button type="button" disabled={busy} onClick={newQuote}>New Quote</button>
  {admin&&String(inputs.deliveryPostcode||'').trim()&&<label>One-way delivery miles (admin override)<input aria-label="One-way delivery miles (admin override)" type="number" min="0" step="0.1" value={q.distanceReady?inputs.deliveryDistanceMiles??'':''} onChange={e=>{request.current++;setBusy(false);setMessage('');setInputs(old=>({...old,deliveryDistanceMiles:e.target.value,deliveryDistancePostcode:old.deliveryPostcode}));}} style={{...fieldStyle,maxWidth:180,display:'block'}}/></label>}
  <p>Reset restores the opened quote; New Quote starts a separate design.{admin&&' Advanced geometry controls are on Technical.'}</p></details></div></fieldset></section>
  {inputs.quoteDisplayed&&<div ref={result}>{g.valid?<GableQuoteResults inputs={inputs} geometry={g} materials={materials} customers={customer?[customer]:[]} quotationBuilder={quotationBuilder} Plan={VictorianCustomerPlan} outletText="one outlet"/>:<p role="alert">{g.errors.join(' ')}</p>}</div>}

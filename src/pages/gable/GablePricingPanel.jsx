@@ -23,23 +23,25 @@ export default function GablePricingPanel({inputs,materials,customers=[],onChang
   }catch(error){if(id===request.current)setMessage(error.message||'Delivery lookup failed.');}
   finally{if(id===request.current)setBusy(false);}
  };
- const save=async()=>{
+ const save=async(asNew=false)=>{
+  asNew=asNew===true;
   if(!q.ready||busy)return;
   if(!String(inputs.customerReference||'').trim()){setMessage('Enter a customer reference on Design/Options before saving.');return;}
   setBusy(true);setMessage('Saving quotation…');
   try{
    const current=readActiveDesignRecord(family);
-   const quoteNumber=current?.quote_number||await getNextQuoteNumber();
+   const updating=current&&!asNew;
+   const quoteNumber=updating?current.quote_number:await getNextQuoteNumber();
    const record=recordBuilder({inputs,materials,quotation:q,customer,quoteNumber});
-   const saved=current?await updateQuote(current.id,designRecordPatch(record)):await saveQuote(record);
-   if(!saved)throw new Error('Quote was not saved. Please check the connection and try again.');
-   activateDesignRecord({...current,...record,...saved,inputs_json:record.inputs_json,status:current?.status||saved.status||'quote'});
-   setMessage(`Quote ${quoteNumber} ${current?'updated':'saved'}.`);
+   const saved=updating?await updateQuote(current.id,designRecordPatch(record)):await saveQuote(record);
+   if(!saved?.id)throw new Error('Quote was not saved. Please check the connection and try again.');
+   activateDesignRecord({...updating&&current,...record,...saved,inputs_json:record.inputs_json,status:updating?(current.status||saved.status||'quote'):'quote'});
+   setMessage(`Quote ${quoteNumber} ${updating?'updated':'saved'}.`);
   }catch(error){setMessage(error.message||'Quote was not saved.');}
   finally{setBusy(false);}
  };
  const actions=compact?<div className="gd-actions"><button type="button" disabled={busy} onClick={()=>{if(!admin&&!String(inputs.deliveryPostcode||'').trim()){setMessage('Enter a delivery postcode before quoting.');return;}onQuote();if(q.valid&&!q.distanceReady&&String(inputs.deliveryPostcode||'').trim())lookup();}}>Quote</button><button type="button" onClick={save} disabled={!q.ready||busy}>{readActiveDesignRecord(family)?'Update Quote':'Save Quote'}</button><button type="button" onClick={onReset} disabled={busy}>Reset</button></div>:null;
- return <>{actions}{(!compact||showQuote)&&!actionsOnly&&<section style={{padding:18,margin:'20px 0',border:'1px solid #94a3b8',borderRadius:8}} aria-label={family+" quotation pricing"}>
+ return <>{actions}{compact&&readActiveDesignRecord(family)&&<button type="button" disabled={!q.ready||busy} onClick={()=>save(true)} style={{marginTop:10,padding:'10px 18px',border:'1px solid #0f766e',borderRadius:6,color:'#0f766e',background:'white'}} title="Create a new quote number and keep the original quotation">Save as New Quote</button>}{(!compact||showQuote)&&!actionsOnly&&<section style={{padding:18,margin:'20px 0',border:'1px solid #94a3b8',borderRadius:8}} aria-label={family+" quotation pricing"}>
  <h2>Quotation pricing</h2>
  {!q.valid?<p role="status">{q.errors.join(' ')}</p>:<>
  {admin&&<p>Materials: <strong>{money(q.model.materialsCostForPricing)}</strong> · Labour: {money(q.labour.labourCost)} ({q.labour.days.toFixed(1)} days) · Delivery: {money(q.delivery.deliveryCost)} ({q.delivery.oneWayMiles.toFixed(1)} miles one way).</p>}
@@ -50,7 +52,7 @@ export default function GablePricingPanel({inputs,materials,customers=[],onChang
  {q.model.supplyReviews.map(note=><p key={note} role="status">{note}</p>)}
  {q.model.missingPrices.length>0&&<p role="status">Configure these Materials prices before quoting: {q.model.missingPrices.map(r=>r.label).join('; ')}.</p>}
  {q.ready&&<><p style={{fontSize:22}}><strong>{money(q.pricing.net)} + VAT</strong> · {money(q.pricing.gross)} including VAT</p>{admin&&<p>Markup: {q.pricing.profitPct}% · Customer discount: {q.pricing.discountPct}% · VAT: {money(q.pricing.vat)}.</p>}</>}
- <p>{!summary&&admin&&<Link className="nav-tab" to={"/quote/"+family+"/summary"}>Review Summary</Link>} {!compact&&<button type="button" onClick={save} disabled={!q.ready||busy}>{readActiveDesignRecord(family)?'Update Quote':'Save Quote'}</button>}</p>
+ <p>{!summary&&admin&&<Link className="nav-tab" to={"/quote/"+family+"/summary"}>Review Summary</Link>} {!compact&&<button type="button" onClick={save} disabled={!q.ready||busy}>{readActiveDesignRecord(family)?'Update Quote':'Save Quote'}</button>} {!compact&&readActiveDesignRecord(family)&&<button type="button" disabled={!q.ready||busy} onClick={()=>save(true)}>Save as New Quote</button>}</p>
  </>}
  {message&&<p role="status">{message}</p>}
  </section>}{compact&&(!showQuote||actionsOnly)&&message&&<p role="status">{message}</p>}</>;

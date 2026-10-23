@@ -1,3 +1,4 @@
+import {quoteStyleLabel} from '../lib/quoteStyleLabel';
 import {isVictorianFiveQuote} from '../lib/Calculations/victorianFiveQuotation';
 import {isVictorianQuote} from '../lib/Calculations/victorianQuotation';
 import {isEdwardianQuote} from '../lib/Calculations/edwardianQuotation';
@@ -178,7 +179,8 @@ const convertToJob = async (quote) => {
                 <th style={th}>Customer</th>
                 <th style={th}>Reference</th>
                 <th style={th}>Delivery Date</th>
-                <th style={th}>Actions</th>
+                <th style={th}>Style</th>
+                <th style={th} aria-label="Job controls"></th>
               </tr>
             </thead>
 
@@ -202,26 +204,7 @@ const convertToJob = async (quote) => {
   {r.requested_delivery_date || "—"}
 </td>
 
-                    <td style={td}>
-                      <span
-                        style={{
-                          padding: "4px 8px",
-                          borderRadius: 999,
-                          background:
-                            r.status === "converted_to_job"
-                              ? "#dcfce7"
-                              : "#dbeafe",
-                          color:
-                            r.status === "converted_to_job"
-                              ? "#166534"
-                              : "#1d4ed8",
-                          fontSize: 12,
-                          fontWeight: 600,
-                        }}
-                      >
-                        {r.status || "quote"}
-                      </span>
-                    </td>
+                    <td style={td}>{quoteStyleLabel(r)}</td>
 
                     <td style={td}>
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -263,7 +246,7 @@ const convertToJob = async (quote) => {
 
               {filtered.length === 0 && (
                 <tr>
-                  <td style={td} colSpan={6}>
+                  <td style={td} colSpan={7}>
                     &mdash; No quotations saved yet &mdash;
                   </td>
                 </tr>
