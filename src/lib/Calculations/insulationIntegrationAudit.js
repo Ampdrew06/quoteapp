@@ -45,9 +45,15 @@ export const chooseSuperQuiltMix = ({
   if (required <= 0) return { rolls12: 0, rolls15: 0, rollCount: 0, coverageM2: 0, cost: 0 };
   const limit = Math.ceil(required / 12) + 3;
   let best = null;
-  for (let rolls12 = 0; rolls12 <= limit; rolls12 += 1) {
-    for (let rolls15 = 0; rolls15 <= limit; rolls15 += 1) {
+  for (let rolls12 = 0; rolls12 <= limit; rolls12 += 0.5) {
+    for (let rolls15 = 0; rolls15 <= limit; rolls15 += 0.5) {
       if (rolls12 + rolls15 === 0) continue;
+      // Supply at least one full roll. A single additional half roll may be
+      // taken from factory stock; do not model arbitrary quarter-roll cuts.
+      const halfCount=Number(rolls12%1!==0)+Number(rolls15%1!==0);
+      if(halfCount>1 || Math.floor(rolls12)+Math.floor(rolls15)<1)continue;
+      // Preserve the established single full-roll choice for small roofs.
+      if(required<=15 && halfCount)continue;
       const coverageM2 = rolls12 * 12 + rolls15 * 15;
       if (coverageM2 + 1e-9 < required) continue;
       const rollCount = rolls12 + rolls15;
