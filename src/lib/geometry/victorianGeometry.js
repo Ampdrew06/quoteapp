@@ -29,7 +29,7 @@ export function buildVictorianPlanGeometry({inputs={},materials={}}={},frontFace
   if(inputs.ridgeMode&&inputs.ridgeMode!=='automatic')return fail('Victorian front-pitch override requires further geometry review.');
   if(inputs.sideSoffitMode&&inputs.sideSoffitMode!=='automatic')return fail('Independent Victorian side soffits require further geometry review.');
   if(inputs.maxFinishedHeightMM&&angles.some(a=>Math.abs(Number(a)-standardAngle)>1e-8))return fail('Maximum finished height currently requires standard Victorian corners.');
-  const inherited=buildEdwardianGeometry({inputs:{...inputs,ridgeMode:'automatic'},materials,shortRidgeAdjustment:false});
+  const inherited=buildEdwardianGeometry({inputs:{...inputs,frontRafterPositionsMM:undefined,frontRafterSpacingOverride:undefined,ridgeMode:'automatic'},materials,shortRidgeAdjustment:false});
   if(!inherited.valid)return fail(inherited.errors.join(' '));
   pitch=inherited.pitchDeg;
   const soffitMode=inputs.soffitMode??(Number(inputs.soffitMM??150)===150?'standard':'specified');

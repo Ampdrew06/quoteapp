@@ -16,7 +16,7 @@ export function buildEdwardianMemberAudit({geometry:g}={}) {
  const terminalFrontFaceMM=g.terminalTrussCentreMM+EDWARDIAN_TERMINAL_TRUSS_ASSEMBLY_MM/2;
  const bossLowerEndpointMM=terminalFrontFaceMM+EDWARDIAN_BOSS_LOWER_GAP_MM;
  const bossInternalRunMM=g.projectionMM-bossLowerEndpointMM;
- members.push({id:'front-boss-rafter',label:'Front boss rafter',type:'boss-rafter',positionMM:half,profile:{valid:bossInternalRunMM>0,facetPitchDeg:g.frontPitchDeg,
+ if(g.frontRafters.some(r=>r.role==='boss-rafter'))members.push({id:'front-boss-rafter',label:'Front boss rafter',type:'boss-rafter',positionMM:half,profile:{valid:bossInternalRunMM>0,facetPitchDeg:g.frontPitchDeg,
   internalSlopeLengthMM:bossInternalRunMM/c(g.frontPitchDeg),
   externalSlopeLengthMM:(bossInternalRunMM+front.horizontalFootCutMM)/c(g.frontPitchDeg)+hook.externalEdgeAdjustmentMM,
   ...front,topCutOffSquareDeg:hook.topCutOffSquareDeg,topCutLengthMM:hook.topCutLengthMM,

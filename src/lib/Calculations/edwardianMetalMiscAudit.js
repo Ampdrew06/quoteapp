@@ -9,12 +9,12 @@ export function buildEdwardianMetalMiscAudit({geometry:g,materials:m={},productI
  const member=buildEdwardianMemberAudit({geometry:g}),tiling=buildEdwardianTilingAudit({geometry:g,materials:m,productId}),internal=buildEdwardianInternalLathAudit({geometry:g,materials:m});
  const fail=errors=>({valid:false,readOnly:true,errors,metalRows:[],siteRows:[],factoryRows:[]});
  if(!member.valid||!tiling.valid||!internal.valid)return fail([...member.errors,...tiling.errors,...internal.errors]);
- const jacks=member.members.filter(r=>/jack$/.test(r.type)).length,sparPairs=3;
+ const jacks=member.members.filter(r=>/jack$/.test(r.type)).length,sparPairs=member.members.filter(r=>r.type==='hip'||r.type==='boss-rafter').length;
  const counts={bosses:1,sparHooks:sparPairs*2,sparPairs,jacks,joistHangers:0,memberFeet:member.members.length,trusses:g.layout.trussCount};
  const metalRows=[],siteRows=[],factoryRows=[];
  const add=(list,key,label,qty,unit,price,basis,weightKg=null)=>{const p=rate(price);list.push({key,label,qty,unit,cost:p==null?null:qty*p,basis,installedWeightKg:weightKg,usage:list===factoryRows?'factory':list===siteRows?'site':'installed',supplyToSite:list===siteRows});};
- const hardware=[['boss_rafter_terminal','Boss / rafter terminal',1,m.boss_rafter_terminal_price_each??m.boss_price_each??m.metal?.boss_rafter_terminal?.price_each],['spar_hook','Spar hooks',6,m.spar_hook_price_each??m.metal?.spar_hook?.price_each],['jack_rafter_hooks','Jack rafter hooks',jacks,m.jack_rafter_hook_price_each??m.metal?.jack_rafter_hook?.price_each],['jack_rafter_brackets','Jack rafter brackets',jacks,m.jack_rafter_bracket_price_each??m.metal?.jack_rafter_bracket?.price_each]];
- hardware.forEach(([key,label,qty,price])=>add(metalRows,key,label,qty,'each',price,key==='spar_hook'?'Three connection pairs: two hips and one front boss rafter.':'Resolved member hardware count.',qty*getFixedProductWeightKg(key)));
+ const hardware=[['boss_rafter_terminal','Boss / rafter terminal',1,m.boss_rafter_terminal_price_each??m.boss_price_each??m.metal?.boss_rafter_terminal?.price_each],['spar_hook','Spar hooks',counts.sparHooks,m.spar_hook_price_each??m.metal?.spar_hook?.price_each],['jack_rafter_hooks','Jack rafter hooks',jacks,m.jack_rafter_hook_price_each??m.metal?.jack_rafter_hook?.price_each],['jack_rafter_brackets','Jack rafter brackets',jacks,m.jack_rafter_bracket_price_each??m.metal?.jack_rafter_bracket?.price_each]];
+ hardware.forEach(([key,label,qty,price])=>add(metalRows,key,label,qty,'each',price,key==='spar_hook'?`${sparPairs} connection pairs from the resolved hips and boss rafters.`:'Resolved member hardware count.',qty*getFixedProductWeightKg(key)));
  const starter=tiling.lines.find(l=>l.key==='starter'),starterUsedM=(2*g.externalProjectionMM+g.externalWidthMM)/1000,starterKg=rate(m.eaves_guard_weight_kg??m.metal?.tile_starter?.weight_kg_each);
  metalRows.unshift({key:'tile_starter',label:'Tile starter — all three eaves',qty:starterUsedM,orderQty:starter.quantity,unit:'m used / 3m lengths ordered',cost:starter.cost,installedWeightKg:starterKg==null?null:starterUsedM/3*starterKg,basis:'Same starter requirement shown in tile audit. Charge supplied stock once in Metal; weight uses consumed metres.',usage:'installed'});
  const braces=buildRingbeamCornerBraceRequirement(2,m);metalRows.push(braces);
@@ -59,7 +59,7 @@ export function buildEdwardianMetalMiscAudit({geometry:g,materials:m={},productI
  factoryRows.push({...staples,supplyToSite:false});
  return {valid:true,readOnly:true,errors:[],counts,metalRows,siteRows,factoryRows,watercourse,
   fixings:{siteScrews,tileScrews,internalScrews,externalFieldScrews,supportScrews,externalScrews,factoryScrews,rivets},
-  notes:['One terminal serves two hips and the front boss rafter: three spar-hook pairs. Every front/side jack uses one hook and bracket; no joist hangers are used by the self-supporting trusses.',
+  notes:['One terminal serves both hips and any central front boss rafter. Each uses a spar-hook pair. Every jack uses one hook and bracket; no joist hangers are used by the self-supporting trusses.',
    'Tile starter is the same requirement already shown in the tile audit. It will be placed in Metal once at integration, not charged in both elements.',
    'Both sloping rear truss members meet the house wall and receive secret gutter. Cost uses 2.5m aluminium stock with 50mm overlaps; installed weight uses actual coverage at 0.18kg/m.',
    'Loose site screws use existing whole-box rounding. Internal and external lath screws round independently to 250; field intersections include conservative end supports and 24mm member-reach tolerance.',

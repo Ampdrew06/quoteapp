@@ -21,7 +21,7 @@ export default function EdwardianManufacturePlan({schedule:s}){
  {sideCentres.slice(1).map((p,n)=><g key={`side-gap-${n}`}>{label(px(0)-16,py((p+sideCentres[n])/2)+6,Math.round(p-sideCentres[n]),'end')}</g>)}
  {frontPositions.slice(1).map((p,n)=><g key={`gap-${n}`}>{label(px((p+frontPositions[n])/2),T+H+52,Math.round(p-frontPositions[n]),'middle','#111827',false)}</g>)}
  {g.sideJacks.filter(r=>r.side==='right').map(r=><g key={`side-position-${r.id}`}>{label(L+W+10,py(r.positionMM)+6,Math.round(r.positionMM),'start','#111827',true)}</g>)}
- {line(ridgeX,py(g.externalProjectionMM),ridgeX,ridgeY,'#2563eb')}{label(ridgeX+24,py((g.projectionMM+g.ridgeEndYMM)/2),'R1','start','#2563eb',true)}
+ {g.frontRafters.some(r=>r.role==='boss-rafter')&&<>{line(ridgeX,py(g.externalProjectionMM),ridgeX,ridgeY,'#2563eb')}{label(ridgeX+24,py((g.projectionMM+g.ridgeEndYMM)/2),'R1','start','#2563eb',true)}</>}
  <circle cx={ridgeX} cy={ridgeY} r="7" fill="#111827"/>
  
  {label(L+32,py(g.ridgeEndYMM*.4),'RB1')}{label(L+W-32,py(g.ridgeEndYMM*.4),'RB3')}{label(L+W/2,T+H-14,'RB2')}

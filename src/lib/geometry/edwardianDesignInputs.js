@@ -13,7 +13,10 @@ export function normalizeEdwardianDesignInputs(saved={},customerId='retail'){
  return inputs;
 }
 export function updateEdwardianDesignInputs(old,key,value,admin=false){
+ if((key==='frontRafterPositionsMM'||key==='frontRafterSpacingOverride')&&!admin)return old;
+ if((key==='trussMinimumSpacingMM'||key==='allowCloserRearTrusses')&&!admin)return old;
  const next={...old,[key]:value};
+ if(key==='allowCloserRearTrusses'){if(value)next.trussMinimumSpacingMM=350;else delete next.trussMinimumSpacingMM;delete next.allowCloserRearTrusses;}
  if(key==='pitchDeg'){next.maxFinishedHeightMM='';if(!admin)next.ridgeMode='automatic';}
  if(key==='fasciaColour')next.plasticsColour=value==='White'?'white':'foiled';
  if(key==='tileProductId')next.tileColour=value==='liteSlate'?'Slate':'Titanium';

@@ -1,3 +1,4 @@
+import {resolveEdwardianFrontRafters} from './edwardianFrontRafters';
 import {buildGableTrussLayout} from './gableGeometry';
 import {buildDefaultFrontRafterLayout} from '../Manufacturing/rafterLayoutBuilder';
 import {solveFacetEavesGeometry} from './facetEavesGeometry';
@@ -71,12 +72,19 @@ export function buildEdwardianGeometry({inputs={},materials={},shortRidgeAdjustm
  const externalLeftMM=eaves.left.manufacturedHorizontalFootRunMM,externalRightMM=eaves.right.manufacturedHorizontalFootRunMM,externalFrontMM=eaves.referenceBaseWidthMM;
  const ridge={xMM:half,yMM:ridgeEndYMM};
  const frontLayout=buildDefaultFrontRafterLayout({widthMM,leftBossXMM:half,rightBossXMM:half,hasLeftHip:true,hasRightHip:true,spacingMM:665});
- const frontRafters=[...frontLayout.leftJackRafters,...frontLayout.centreRafters.slice(0,1),...frontLayout.rightJackRafters].map(r=>({...r,hipMeetingYMM:projectionMM-(projectionMM-ridgeEndYMM)*Math.min(r.centreMM,widthMM-r.centreMM)/half}));
+ let frontRafters=[...frontLayout.leftJackRafters,...frontLayout.centreRafters.slice(0,1),...frontLayout.rightJackRafters].map(r=>({...r,hipMeetingYMM:projectionMM-(projectionMM-ridgeEndYMM)*Math.min(r.centreMM,widthMM-r.centreMM)/half}));
+ const manualFront=inputs.frontRafterPositionsMM!==undefined&&inputs.frontRafterPositionsMM!==null;
+ let frontRafterWarnings=[];
+ if(manualFront){
+  const resolved=resolveEdwardianFrontRafters({positions:inputs.frontRafterPositionsMM,widthMM,ridgeEndYMM,projectionMM,allowWideGaps:inputs.frontRafterSpacingOverride===true});
+  if(!resolved.valid)return invalid(resolved.errors.join(' '));
+  frontRafters=resolved.rafters;frontRafterWarnings=resolved.warnings;
+ }
  const sideLayout=buildGableTrussLayout({externalProjectionMM:projectionMM+22.5,rearCentreMM:terminalTrussCentreMM,secondCentreMM:terminalTrussCentreMM+665});
  if(!sideLayout.valid)return invalid('Side jack spacing: '+sideLayout.errors.join(' '));
  const sideJacks=sideLayout.centresMM.slice(1,-1).flatMap(positionMM=>['left','right'].map(side=>({id:`side-${side}-jack-${positionMM}`,side,positionMM,hipMeetingXMM:half*(projectionMM-positionMM)/(projectionMM-ridgeEndYMM)})));
  const hipPitchDeg=Math.atan2(riseMM,Math.hypot(half,projectionMM-ridgeEndYMM))*180/Math.PI;
- return {valid:true,errors:[],readOnly:true,finishedHeightMM:heightAt(pitchDeg),heightSafetyBufferMM:inputs.maxFinishedHeightMM?5:0,requestedPitchDeg,widthMM,projectionMM,pitchDeg,frontPitchDeg,frontPitchAutoAdjusted,minimumBossTrussCentreMM,maximumAutomaticFrontPitchDeg,frameMM,soffitMM,ridgeMode:mode,ridge,ridgeEndYMM,ridgeSetbackMM:projectionMM-ridgeEndYMM,terminalSetbackMM,terminalTrussCentreMM,riseMM,hipPitchDeg,layout,eaves,frontRafters,sideLayout,sideJacks,
+ return {valid:true,errors:[],readOnly:true,finishedHeightMM:heightAt(pitchDeg),heightSafetyBufferMM:inputs.maxFinishedHeightMM?5:0,requestedPitchDeg,widthMM,projectionMM,pitchDeg,frontPitchDeg,frontPitchAutoAdjusted,minimumBossTrussCentreMM,maximumAutomaticFrontPitchDeg,frameMM,soffitMM,ridgeMode:mode,ridge,ridgeEndYMM,ridgeSetbackMM:projectionMM-ridgeEndYMM,terminalSetbackMM,terminalTrussCentreMM,riseMM,hipPitchDeg,layout,eaves,frontRafters,manualFront,frontRafterWarnings,sideLayout,sideJacks,
   externalLeftMM,externalRightMM,externalFrontMM,externalWidthMM:widthMM+externalLeftMM+externalRightMM,externalProjectionMM:projectionMM+externalFrontMM,
   hips:[{side:'left',start:{xMM:0,yMM:projectionMM},end:ridge},{side:'right',start:{xMM:widthMM,yMM:projectionMM},end:ridge}],
   notes:['Plan setting-out only: hip lines meet the internal front corners centrally. External hip feet and member profiles are separate cutting candidates for factory review.',
