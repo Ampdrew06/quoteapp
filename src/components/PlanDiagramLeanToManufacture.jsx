@@ -1,3 +1,4 @@
+import {resolveLeanToRafterLayout} from '../lib/geometry/leanToRafterLayout';
 // src/components/PlanDiagramLeanToManufacture.jsx
 import React, { useMemo } from "react";
 
@@ -14,7 +15,7 @@ export default function PlanDiagramLeanToManufacture({
   soffit, frameOn,
   leftOH = 0, rightOH = 0,
   leftWall = false, rightWall = false,
-  rafterSpacing = 665, firstCentre = 690,
+  rafterSpacing = 665, firstCentre = 690, rafterPositionsMM:manualRafterPositionsMM=null,
   outlet = "left", gutterColor = "black",
   pitchDeg = 15,
 }) {
@@ -93,8 +94,9 @@ const oy = M_TOP + (innerH - oh) / 2 + 14;
   const ip_px = ip * scale;
 
   // --- rafters ---
-  const centres = [];
-  for (let c = firstCentre; c <= iw; c += rafterSpacing) centres.push(c);
+  const layout=manualRafterPositionsMM!=null?resolveLeanToRafterLayout({widthMM:iw,positions:manualRafterPositionsMM}):null;
+  const centres = layout?.valid?[...layout.interiorMM]:[];
+  if(manualRafterPositionsMM==null)for (let c = firstCentre; c <= iw; c += rafterSpacing) centres.push(c);
 
   // Include the two edge rafters so we can display each
 // individual centre-to-centre bay rather than cumulative positions.

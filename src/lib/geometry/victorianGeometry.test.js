@@ -69,3 +69,17 @@ test('confirmed 50mm site envelope uses vertical 210mm upstands with explicit ov
  expect(build({upstandArrangement:'unknown'}).valid).toBe(false);
  const pitched=build({upstandArrangement:'pitched'});expect(g.internalOutline).toEqual(pitched.internalOutline);expect(g.externalOutline).toEqual(pitched.externalOutline);
 });
+
+test('manual Victorian layouts share rear trusses and independently place side/front members',()=>{
+ const g=build({victorianRearTrussPositionsMM:[650,1300],victorianSideJackPositionsMM:{left:[2200],right:[2300]},victorianFacetPositionsMM:{'facet-2':[400,1000],'facet-3':[]}});
+ expect(g.valid).toBe(true);expect(g.layout.centresMM).toEqual([31.5,650,1300,1876]);
+ expect(g.intermediateBars).toHaveLength(1);expect(g.jackRafters).toHaveLength(4);
+ expect(g.hips).toEqual(build().hips);expect(g.ridge).toEqual(build().ridge);
+});
+test('manual Victorian positions reject overlapping slots and locked boundaries',()=>{
+ for(const patch of [{victorianRearTrussPositionsMM:[31.5]},{victorianRearTrussPositionsMM:[700,730]},{victorianSideJackPositionsMM:{left:[1876]}},{victorianSideJackPositionsMM:{right:[2600]}},{victorianFacetPositionsMM:{'facet-2':[40]}},{victorianFacetPositionsMM:{'facet-3':[500,520]}}])expect(build(patch).valid).toBe(false);
+});
+test('null Victorian overrides restore the automatic member layout',()=>{
+ const restored=build({victorianRearTrussPositionsMM:null,victorianSideJackPositionsMM:{left:null,right:null},victorianFacetPositionsMM:{'facet-2':null,'facet-3':null,'facet-4':null}});
+ expect(restored.layout).toEqual(build().layout);expect(restored.intermediateBars).toEqual(build().intermediateBars);expect(restored.jackRafters).toEqual(build().jackRafters);
+});

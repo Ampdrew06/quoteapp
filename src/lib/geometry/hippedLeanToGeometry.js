@@ -1,3 +1,4 @@
+import {applyHippedFrontRafterPositions,validateHippedRafterPositions} from './hippedRafterLayout';
 import {buildCentralBossDesign} from './centralBossDesign';
 import { alignChamferedLathEaves } from "./alignChamferedLathEaves";
 import { applyRectangularRingBeamJoints } from '../Manufacturing/rectangularRingBeamJoints';
@@ -33,6 +34,7 @@ const SPAR_HOOK_TO_WALLPLATE_FACE_MM = 156;
 
 export function calculateHippedLeanToGeometry({
   widthMM,
+  hippedRafterPositionsMM = null,
   projectionMM,
   pitchDeg,
   soffitDepthMM,
@@ -204,7 +206,7 @@ const rightSidePitchDeg = rightBossGeometry?.pitchDeg ?? 0;
 const bossQty = isCentralBoss ? 1 : (hasLeftHip ? 1 : 0) + (hasRightHip ? 1 : 0);
 // Each boss receives the hip plus the aligned front-section rafter.
 // Both timber connections use a pair of spar hooks: 4 hooks per boss.
-const sparHookQty = isCentralBoss ? 6 : bossQty * 4;
+let sparHookQty = isCentralBoss ? 6 : bossQty * 4;
 const hipTopCutDeg = Math.min(18, Math.max(leftHipPitchDeg, rightHipPitchDeg));
 const frontSoffitMM = base.soffitDepthEffective || 0;
 
@@ -604,7 +606,7 @@ const resolvedCentreWidthMM = Math.max(
   resolvedRightBossXMM -
     resolvedLeftBossXMM
 );   
-const frontRafterLayoutV2 = isCentralBoss ? centralTruss.frontRafterLayout :
+const defaultFrontRafterLayout = isCentralBoss ? centralTruss.frontRafterLayout :
   buildDefaultFrontRafterLayout({
     widthMM: width,
 
@@ -622,6 +624,20 @@ const frontRafterLayoutV2 = isCentralBoss ? centralTruss.frontRafterLayout :
         materials?.rafter_spacing_mm ?? 665
       ),
   });
+
+const manualRafterErrors=[];
+for(const [facet,length,exists] of [['front',width,true],['left',projection,hasLeftHip],['right',projection,hasRightHip]]){
+ if(exists&&hippedRafterPositionsMM?.[facet]!=null){
+  const result=validateHippedRafterPositions({positions:hippedRafterPositionsMM[facet],widthMM:length});
+  if(!result.valid)manualRafterErrors.push(`${facet}: ${result.errors.join(' ')}`);
+ }
+}
+const manualRafterLayout={valid:manualRafterErrors.length===0,errors:manualRafterErrors};
+const frontRafterLayoutV2=applyHippedFrontRafterPositions(defaultFrontRafterLayout,hippedRafterPositionsMM?.front,{widthMM:width,hasLeftHip,hasRightHip});
+
+if(hippedRafterPositionsMM?.front!=null&&manualRafterLayout.valid){
+ sparHookQty=2*((hasLeftHip?1:0)+(hasRightHip?1:0)+frontRafterLayoutV2.bossRafterCount);
+}
 
 const fasciaLipMM = Number(materials?.fascia_lip_mm ?? 25);
 const frameThicknessMM = Number(materials?.side_frame_thickness_mm ?? 70);
@@ -1036,6 +1052,17 @@ intermediateJackRafters.push({
   rightMM,
   clearGapToHipSeatMM,
 });
+  }
+
+  const edited=hippedRafterPositionsMM?.[side];
+  if(edited!=null){
+    const resolved=validateHippedRafterPositions({positions:edited,widthMM:lengthMM});
+    if(resolved.valid){
+      intermediateJackRafters.splice(0,intermediateJackRafters.length,...resolved.interiorMM.map(centreMM=>({
+        type:'side-jack',centreMM,leftMM:centreMM-halfSlotMM,rightMM:centreMM+halfSlotMM,
+        clearGapToHipSeatMM:lengthMM-slotWidthMM-centreMM-halfSlotMM,
+      })));
+    }
   }
 
   // Boundary slot at the front mitred end for the hip.
@@ -1797,6 +1824,7 @@ resolvedLeftBossXMM,
 resolvedRightBossXMM,
 
 frontRafterLayoutV2,
+manualRafterLayout,
 
  leftHipPlanLengthMM,
  rightHipPlanLengthMM,

@@ -1,7 +1,14 @@
+import {resolveLeanToRafterLayout} from './leanToRafterLayout';
 import {buildCentralBossTrussAudit} from './centralBossTrussAudit';
 const radians=deg=>deg*Math.PI/180;
-export function buildGableTrussLayout({externalProjectionMM,rearPackerMM=9,joistWidthMM=45,rearCentreMM=rearPackerMM+joistWidthMM/2,targetSpacingMM=665,secondCentreMM=rearCentreMM+targetSpacingMM,minSpacingMM=400,maxSpacingMM=700}={}) {
+export function buildGableTrussLayout({externalProjectionMM,rearPackerMM=9,joistWidthMM=45,rearCentreMM=rearPackerMM+joistWidthMM/2,targetSpacingMM=665,secondCentreMM=rearCentreMM+targetSpacingMM,minSpacingMM=400,maxSpacingMM=700,trussPositionsMM=null}={}) {
  const end=Number(externalProjectionMM)-joistWidthMM/2,start=Number(rearCentreMM);
+ if(trussPositionsMM!=null){
+  const edited=resolveLeanToRafterLayout({widthMM:Number(externalProjectionMM),positions:trussPositionsMM,boundaryStartMM:start,boundaryEndMM:end});
+  const errors=edited.errors.map(message=>message.replace(/Rafter|rafter/g,'Truss'));
+  if(!Number.isFinite(start)||!Number.isFinite(end)||end-start<=48)errors.push('Fixed wall and front trusses must leave more than 48mm between centres.');
+  return {valid:errors.length===0,errors,centresMM:edited.centresMM,gapsMM:edited.gapsMM,trussCount:edited.count,rearCentreMM:start,frontCentreMM:end,manual:true,secondCentreRetained:false,minSpacingMM,maxSpacingMM,targetSpacingMM};
+ }
  if(![end,start,secondCentreMM,targetSpacingMM,minSpacingMM,maxSpacingMM].every(Number.isFinite)||minSpacingMM<=0||maxSpacingMM<minSpacingMM||end<=start)return {valid:false,errors:['Invalid truss layout dimensions.'],centresMM:[],gapsMM:[]};
  const intervals=span=>{
   const minimum=Math.ceil((span-1e-8)/maxSpacingMM),maximum=Math.floor((span+1e-8)/minSpacingMM);
@@ -46,7 +53,7 @@ export function buildGableGeometry({inputs={},materials={}}={}) {
  const angle=radians(pitchDeg),cos=Math.cos(angle),tan=Math.tan(angle),half=widthMM/2;
  const externalWidthMM=widthMM+2*frameMM+leftSoffitMM+rightSoffitMM,externalProjectionMM=projectionMM+frameMM+frontOverhangMM;
  const frontSoffitClearanceMM=5,manufacturingProjectionMM=externalProjectionMM+frontSoffitClearanceMM;
- const layout=buildGableTrussLayout({externalProjectionMM:manufacturingProjectionMM});
+ const layout=buildGableTrussLayout({externalProjectionMM:manufacturingProjectionMM,trussPositionsMM:inputs.gableTrussPositionsMM});
  const feet=[leftSoffitMM,rightSoffitMM].map((soffit,i)=>{const hfcMM=frameMM+soffit;return {side:i?'right':'left',hfcMM,vfcMM:depth/cos-hfcMM*tan,internalSlopeMM:half/cos,externalSlopeMM:(half+hfcMM)/cos};});
  if(feet.some(f=>f.vfcMM<=0))errors.push('Selected side soffit leaves no positive VFC.');
  const truss=buildCentralBossTrussAudit({widthMM,projectionMM,frontPitchDeg:pitchDeg,trussPitchDeg:pitchDeg,memberDepthMM:depth,ringBeamHeightMM:ringHeight,sideHfcMM:feet[0].hfcMM});

@@ -7,7 +7,7 @@ const source = fs.readFileSync(path.join(__dirname, 'LeanToLanding.jsx'), 'utf8'
 const body = 'let asNew = false;\n' + source.split('const handleSaveQuote = async (asNew = false) => {')[1].split('\n};\n  /*')[0];
 function fixture(overrides = {}) {
   return {
-    tradeDesignErrors:[],setShowQuote:jest.fn(),readActiveDesignRecord:()=>null, activateDesignRecord:jest.fn(), setEditingRecord:jest.fn(),
+    leanToRafterPositionsMM:null,hippedRafterPositionsMM:null,tradeDesignErrors:[],setShowQuote:jest.fn(),readActiveDesignRecord:()=>null, activateDesignRecord:jest.fn(), setEditingRecord:jest.fn(),
     designRecordPatch:record=>record,updateQuote:jest.fn().mockResolvedValue({id:'existing'}),
     localStorage:{getItem:()=>null},setQuoteInputsExpanded:jest.fn(),missingPostcode:false,
     quoteRef: '  Factory test  ', isAdmin: true, canQuote: true,isCentralBoss:false,centralPricingReady:true,bossArrangement:'offset',
@@ -124,3 +124,32 @@ for (const roofStyle of ['leanTo','hippedLeanTo']) {
   expect(original.quote_number).toBe('100');expect(active.id).toBe('saved');
  });
 }
+
+test('Lean-To saves manual rafter positions with the design',async()=>{
+ const context=fixture({roofStyle:'leanTo',leanToRafterPositionsMM:[650,1300,1950]});await run(context);
+ expect(context.saveQuoteToCloud.mock.calls[0][0].inputs_json.leanToRafterPositionsMM).toEqual([650,1300,1950]);
+});
+test('invalid manual Lean-To layout cannot be saved',async()=>{
+ const context=fixture({summaryMaterials:{leanToRafterLayout:{valid:false,errors:['Invalid centres']}}});await run(context);
+ expect(context.saveQuoteToCloud).not.toHaveBeenCalled();
+});
+
+test('Hipped Lean-To retains each manual facet in saved inputs',async()=>{
+ const positions={front:[700,1400,2400],left:[800,1500],right:[900]};
+ const context=fixture({hippedRafterPositionsMM:positions});await run(context);
+ expect(context.saveQuoteToCloud.mock.calls[0][0].inputs_json.hippedRafterPositionsMM).toEqual(positions);
+});
+test('invalid manual Hipped Lean-To layout cannot be saved',async()=>{
+ const context=fixture({summaryMaterials:{manufactureGeometry:{manualRafterLayout:{valid:false,errors:['Invalid centres']}}}});await run(context);
+ expect(context.saveQuoteToCloud).not.toHaveBeenCalled();
+});
+test('Hipped manual positions survive update and save-as-new',async()=>{
+ const positions={front:[700,1400,2400],left:[800],right:[900]};
+ const original={id:'existing',quote_number:'100'};
+ const context=fixture({hippedRafterPositionsMM:positions,readActiveDesignRecord:()=>original});await run(context);
+ expect(context.updateQuote.mock.calls[0][1].inputs_json.hippedRafterPositionsMM).toEqual(positions);
+ const copy=fixture({hippedRafterPositionsMM:positions,readActiveDesignRecord:()=>original});
+ const copyBody=body.replace('let asNew = false;','let asNew = true;');
+ await new Function(...Object.keys(copy), `return (async()=>{${copyBody}})();`)(...Object.values(copy));
+ expect(copy.saveQuoteToCloud.mock.calls[0][0].inputs_json.hippedRafterPositionsMM).toEqual(positions);
+});

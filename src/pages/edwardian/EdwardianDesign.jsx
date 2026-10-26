@@ -1,4 +1,4 @@
-import EdwardianFrontRafterEditor from './EdwardianFrontRafterEditor';
+import EdwardianFacetEditor from './EdwardianFacetEditor';
 import React,{useState,useEffect} from 'react';
 import {useLocation,useNavigate} from 'react-router-dom';
 import {getMaterials} from '../../lib/materials';
@@ -28,7 +28,7 @@ export default function EdwardianDesign(){
  return <><EdwardianNavigation/><main style={{maxWidth:1100,margin:'0 auto',padding:16,fontFamily:'Inter,system-ui,Arial'}}>
  <h1 style={{fontSize:24,fontWeight:700,margin:'12px 0 8px'}}>Timberlite Edwardian</h1><p style={{color:'#555',marginTop:0,marginBottom:14}}>Enter your sizes and options below. We’ll show a plan preview and your price. Frame thickness is defaulted to 70mm, please confirm this when ordering.</p>
  <EdwardianDesignForm inputs={inputs} update={update} materials={materials} customers={visibleCustomers} admin={admin} onChange={patch=>setInputs(old=>({...old,...patch}))} onQuote={()=>setShowQuote(true)} onReset={reset} showQuote={showQuote} validDesign={g.valid}/>
- <EdwardianFrontRafterEditor inputs={inputs} materials={materials} admin={admin} onChange={patch=>setInputs(old=>({...old,...patch}))}/>
+ <EdwardianFacetEditor inputs={inputs} materials={materials} admin={admin} onChange={patch=>setInputs(old=>({...old,...patch}))}/>
  {g.valid&&(g.frontRafterWarnings||[]).map(w=><p key={w} role="status" style={{color:'#92400e'}}>{w}</p>)}
  {g.valid&&g.frontPitchAutoAdjusted&&<p role="status">Sides {g.pitchDeg.toFixed(1)}° · Front automatically adjusted to {g.frontPitchDeg.toFixed(1)}° to place the boss truss 200mm from the wall.</p>}
  {showQuote&&(g.valid?<GableQuoteResults inputs={inputs} geometry={g} materials={materials} customers={visibleCustomers} quotationBuilder={buildEdwardianQuotation} Plan={EdwardianCustomerPlan} frontPitch={inputs.ridgeMode==='frontPitch'||g.frontPitchAutoAdjusted} outletText="one outlet"/>:<p role="status">{g.errors.join(' ')}</p>)}

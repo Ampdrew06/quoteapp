@@ -1,3 +1,4 @@
+import {resolveLeanToRafterLayout} from './geometry/leanToRafterLayout';
 import {computeLeanToManufactureGeometry} from './leanToManufactureGeometry';
 
 // src/lib/leanToTotals.js
@@ -297,6 +298,7 @@ if (typeof window !== "undefined") {
   const misc = computeMiscLeanTo(
     {
       tile_system: tileSystem,
+      leanToRafterPositionsMM:inputs.roofStyle==='hippedLeanTo'?null:inputs.leanToRafterPositionsMM,
       pitchDeg,
       internalWidthMM: widthMM,
       internalProjectionMM: projMM,
@@ -512,7 +514,8 @@ const extWidthM = extWidthMM / 1000;
   if (iw > 0 && timberSpacing > 0 && timberFirstCtr > 0) {
     for (let c = timberFirstCtr; c <= iw; c += timberSpacing) timberCentresCount++;
   }
-  const raftersCount = Math.max(2, timberCentresCount + 2);
+  const leanToRafterLayout=(inputs.roofStyle??inputs.roof_style??'leanTo')!=='hippedLeanTo'&&inputs.leanToRafterPositionsMM!=null?resolveLeanToRafterLayout({widthMM:iw,positions:inputs.leanToRafterPositionsMM}):null;
+  const raftersCount = leanToRafterLayout?.valid?leanToRafterLayout.count:Math.max(2, timberCentresCount + 2);
 
  const geom = calculateLeanToGeometry({
   widthMM: iw,
@@ -533,6 +536,7 @@ const isHippedLeanTo = roofStyle === "hippedLeanTo";
 
 const hippedGeom = isHippedLeanTo
   ? calculateHippedLeanToGeometry({
+      hippedRafterPositionsMM: inputs.hippedRafterPositionsMM,
       bossArrangement: inputs.bossArrangement ?? "offset",
       widthMM: iw,
       projectionMM: ip,
@@ -651,7 +655,8 @@ const sparHookQty = isHippedLeanTo
 
   const soffitStrip_m2 = (extWidthMM / 1000) * (soffitVisibleHeightMM / 1000);
   const wallplateFace_m2 = (extWidthMM / 1000) * (220 / 1000);
-  const ringBeamUpstands_m2 = (extWidthMM / 1000) * (195 / 1000);
+  const manualSlotDeltaM = leanToRafterLayout?.valid ? (raftersCount - Math.max(2, timberCentresCount + 2)) * 0.048 : 0;
+  const ringBeamUpstands_m2 = Math.max(0, extWidthM - manualSlotDeltaM) * (195 / 1000);
 
   const totalPly9_m2 = soffitStrip_m2 + wallplateFace_m2 + ringBeamUpstands_m2;
   const ply9BaseCost = totalPly9_m2 * Number(m.ply9mm?.price_per_m2 ?? 0);
@@ -673,8 +678,8 @@ const sparHookQty = isHippedLeanTo
   const chamferLathM = extWidthM;
 
   const upstandBayWidthM = 0.617;
-  const upstandCountForLaths = Math.max(0, raftersCount - 1);
-  const ringBeamUpstandLathsM = upstandCountForLaths * upstandBayWidthM;
+  const upstandCountForLaths = Math.max(0, Math.max(2, timberCentresCount + 2) - 1);
+  const ringBeamUpstandLathsM = Math.max(0, upstandCountForLaths * upstandBayWidthM - manualSlotDeltaM);
 
   const totalLathsM =
     Math.max(0, externalLathsM) +

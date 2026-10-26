@@ -1,3 +1,5 @@
+import HippedRafterPositionEditor from '../../components/HippedRafterPositionEditor';
+import RafterPositionEditor from '../../components/RafterPositionEditor';
 import {computeRoofLabour,isSlateCovering,britmetBenchmarkInputs} from '../../lib/Calculations/roofLabourPricing';
 import {validateTradeHippedDesign} from '../../lib/geometry/tradeHippedDesignValidation';
 import {readActiveDesignRecord,clearActiveDesignRecord,activateDesignRecord,restoreActiveDesignRecord,designRecordPatch} from '../../lib/activeDesignRecord';
@@ -100,7 +102,9 @@ const grid2Responsive = {
   const navigate = useNavigate();
 
   // ——— Simple customer inputs ———
-  const [widthMM, setWidth]   = useState("");   // internal width
+  const [widthMM, setWidth]   = useState("");
+  const [leanToRafterPositionsMM,setLeanToRafterPositionsMM]=useState(null);
+  const [hippedRafterPositionsMM,setHippedRafterPositionsMM]=useState(null);   // internal width
   const [projMM, setProj]     = useState("");   // internal projection
   const [pitchDeg, setPitch]  = useState(15);   // default 15°
   const [
@@ -177,6 +181,8 @@ useEffect(() => {
 }
 
     const stored = JSON.parse(raw) || {};
+    setLeanToRafterPositionsMM(stored.leanToRafterPositionsMM??null);
+    setHippedRafterPositionsMM(stored.hippedRafterPositionsMM??null);
     const saved = {...stored,...(stored.bossArrangement === 'central' ? stored.offsetBossConfiguration : {})};
     setBossArrangement(stored.bossArrangement === 'central' ? 'central' : 'offset');
     if (saved.leftHipWidthManual !== undefined) setLeftHipWidthManual(Boolean(saved.leftHipWidthManual));
@@ -303,6 +309,8 @@ useEffect(() => {
 
     const merged = {
   ...existing,
+  leanToRafterPositionsMM,
+  hippedRafterPositionsMM,
   internalWidthMM:
     widthMM === "" ? undefined : Number(widthMM),
   internalProjectionMM:
@@ -356,6 +364,8 @@ useEffect(() => {
   }
 }, [
   inputsRestored,
+  leanToRafterPositionsMM,
+  hippedRafterPositionsMM,
   widthMM,
   projMM,
   pitchDeg,
@@ -411,6 +421,7 @@ window.dispatchEvent(new Event("summary_adjustments_updated"));
 
         // Reset local state (blank/default form)
         setWidth("");
+        setLeanToRafterPositionsMM(null);setHippedRafterPositionsMM(null);
         setProj("");
         setPitch(15);
         setLeftWall(false);
@@ -541,6 +552,7 @@ const centralDesign = isCentralBoss ? buildCentralBossDesign({inputs:centralDesi
 const hippedGeom =
   roofStyle === "hippedLeanTo"
     ? calculateHippedLeanToGeometry({
+        hippedRafterPositionsMM,
         widthMM: num(widthMM),
         projectionMM: num(projMM),
         pitchDeg: num(pitchDeg, 15),
@@ -751,6 +763,8 @@ const persistInputs = (opts = {}) => {
   const payload = {
   summaryAddedItems: readSummaryAddedItems(),
   summaryPricingState: readSummaryPricingState(),
+  leanToRafterPositionsMM,
+  hippedRafterPositionsMM,
 
     // core sizes
     internalWidthMM: widthMM === "" ? null : Number(widthMM),
@@ -851,6 +865,8 @@ showQuote: opts.overrideShowQuote ?? showQuote,
       const s = localStorage.getItem("leanToInputs");
       if (s) {
         const q = JSON.parse(s);
+        setLeanToRafterPositionsMM(q.leanToRafterPositionsMM??null);
+        setHippedRafterPositionsMM(q.hippedRafterPositionsMM??null);
 
         // core sizes
         if (q.internalWidthMM != null)      setWidth(String(Number(q.internalWidthMM)));
@@ -941,6 +957,8 @@ const exclusions = useMemo(() => ({}), []); // Landing = no exclusions (customer
 
 const totalsInput = useMemo(
   () => ({
+    leanToRafterPositionsMM,
+  hippedRafterPositionsMM,
     roofStyle,
     bossArrangement,
   offsetBossConfiguration: {leftHip,rightHip,leftHipWidthMM,rightHipWidthMM,leftHipWidthManual,rightHipWidthManual,requestedLeftSidePitchDeg,requestedRightSidePitchDeg},
@@ -984,6 +1002,8 @@ const totalsInput = useMemo(
     gutterColor,
   }),
   [
+    leanToRafterPositionsMM,
+  hippedRafterPositionsMM,
     roofStyle,
     activeHippedSides,
     leftHip,
@@ -1366,6 +1386,7 @@ const tradeDesignErrors = validateTradeHippedDesign({isAdmin,roofStyle,widthMM,p
 const canQuote =
   tradeDesignErrors.length === 0 &&
   centralPricingReady &&
+  summaryMaterials.leanToRafterLayout?.valid!==false&&hippedGeom?.manualRafterLayout?.valid!==false &&
   !missingWidth &&
   !missingProjection &&
   hasDeliveryPostcode;
@@ -1469,6 +1490,7 @@ setQuoteInputsExpanded(false);
     clearActiveDesignRecord();
     // clear UI
     setWidth("");
+        setLeanToRafterPositionsMM(null);setHippedRafterPositionsMM(null);
     setProj("");
     setPitch(15);
     setLeftWall(false);
@@ -1523,6 +1545,7 @@ setQuoteInputsExpanded(false);
   };
 
   const handleSaveQuote = async (asNew = false) => {
+  if(summaryMaterials.leanToRafterLayout?.valid===false||summaryMaterials.manufactureGeometry?.manualRafterLayout?.valid===false){alert((summaryMaterials.leanToRafterLayout?.errors??summaryMaterials.manufactureGeometry?.manualRafterLayout?.errors??[]).join(' '));return;}
   asNew = asNew === true;
   if (tradeDesignErrors.length) { setQuoteInputsExpanded(true);alert(tradeDesignErrors.join(" "));return; }
   if (isCentralBoss && !centralPricingReady) { alert(summaryMaterials.centralTrussCosts?.errors?.join(" ") || "Complete the central-boss design and its material rates before saving."); return; }
@@ -1546,6 +1569,8 @@ if (!isAdmin && !manualReference) {
   const payload = {
   summaryAddedItems: readSummaryAddedItems(),
   summaryPricingState: readSummaryPricingState(),
+  leanToRafterPositionsMM,
+  hippedRafterPositionsMM,
   widthMM,
   projMM,
   pitchDeg,
@@ -2357,10 +2382,14 @@ title={
           </div>
         </div>
 
+        {isAdmin&&roofStyle==='hippedLeanTo'&&<HippedRafterPositionEditor geometry={hippedGeom} widthMM={num(widthMM)} projectionMM={num(projMM)} positions={hippedRafterPositionsMM} admin={isAdmin} onApply={positions=>{setHippedRafterPositionsMM(positions);persist({hippedRafterPositionsMM:positions});}}/>}
+        {hippedGeom?.manualRafterLayout?.valid===false&&<p role="alert">{hippedGeom.manualRafterLayout.errors.join(' ')}</p>}
+        {isAdmin&&roofStyle==='leanTo'&&<RafterPositionEditor widthMM={num(widthMM)} positions={leanToRafterPositionsMM} materials={m} admin={isAdmin} onApply={positions=>{setLeanToRafterPositionsMM(positions);persist({leanToRafterPositionsMM:positions});}}/>}
+        {summaryMaterials.leanToRafterLayout?.valid===false&&<p role="alert" style={{color:'#b91c1c'}}>{(summaryMaterials.leanToRafterLayout?.errors??summaryMaterials.manufactureGeometry?.manualRafterLayout?.errors??[]).join(' ')}</p>}
         {/* Results */}
         {isCentralBoss && !centralPricingReady && <p role="status">{summaryMaterials.centralTrussCosts?.errors?.join(' ') || 'Complete the central-boss design before quoting.'}</p>}
         {tradeDesignErrors.length > 0 && <p role="alert" style={{color:"#b91c1c"}}>{tradeDesignErrors.join(" ")}</p>}
-        {showQuote && tradeDesignErrors.length === 0 && (!isCentralBoss || centralPricingReady) && (
+        {showQuote && summaryMaterials.leanToRafterLayout?.valid!==false&&hippedGeom?.manualRafterLayout?.valid!==false && tradeDesignErrors.length === 0 && (!isCentralBoss || centralPricingReady) && (
           <div id="quote-result" style={{ marginTop: 16, display: "grid", gap: 14 }}>
             {/* Plan preview */}
             <div style={card}>
@@ -2384,7 +2413,7 @@ rightHipWidth={
 }
 
 frontRafterLayout={
-  isCentralBoss ? centralDesign?.frontRafterLayout : hippedGeom?.frontRafterLayoutV2
+  hippedGeom?.frontRafterLayoutV2
 }
 
   hippedSides={activeHippedSides}
@@ -2414,6 +2443,7 @@ frontRafterLayout={
 />
 ) : (
   <PlanDiagramLeanTo
+  rafterPositionsMM={leanToRafterPositionsMM}
   iw={num(widthMM)}
   ip={num(projMM)}
 

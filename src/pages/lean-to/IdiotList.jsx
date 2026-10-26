@@ -1,3 +1,4 @@
+import {resolveLeanToRafterLayout} from '../../lib/geometry/leanToRafterLayout';
 import SummaryIdiotList from '../../components/SummaryIdiotList';
 import { buildSummaryMaterialsModel } from '../../lib/Calculations/summaryMaterialsModel';
 import { readSummaryPricingState } from '../../lib/Calculations/summaryPricingState';
@@ -380,7 +381,8 @@ for (let c = firstCtr; c <= iw; c += spacing) {
 }
 
 // +2 edge rafters, minimum 2 total
-const rafters = Math.max(2, centresCount + 2);
+const editedRafters=q.roofStyle!=='hippedLeanTo'&&q.leanToRafterPositionsMM!=null?resolveLeanToRafterLayout({widthMM:iw,positions:q.leanToRafterPositionsMM}):null;
+const rafters=editedRafters?.valid?editedRafters.count:Math.max(2,centresCount+2);
 
 // --- 50mm PIR (cradle + upstands) — same logic as Summary ---
 const cradleStripWidthMM = 140;
@@ -394,7 +396,8 @@ const cradleWastePct = Number(m?.pir50?.waste_pct ?? 0) || 0;
 const cradleAreaM2 = cradleAreaM2_raw * (1 + cradleWastePct / 100);
 
 const pir50UpstandHeightMM = 185;
-const pir50Upstands_m2 = (extWidthMM / 1000) * (pir50UpstandHeightMM / 1000);
+const manualSlotDeltaM = editedRafters?.valid ? (rafters - Math.max(2, centresCount + 2)) * 0.048 : 0;
+const pir50Upstands_m2 = Math.max(0, extWidthMM / 1000 - manualSlotDeltaM) * (pir50UpstandHeightMM / 1000);
 
 const pir50TotalM2 = cradleAreaM2 + pir50Upstands_m2;
 

@@ -1,3 +1,4 @@
+import {resolveEdwardianRearTrusses,resolveEdwardianSideJacks} from './edwardianSideLayout';
 import {resolveEdwardianFrontRafters} from './edwardianFrontRafters';
 import {buildGableTrussLayout} from './gableGeometry';
 import {buildDefaultFrontRafterLayout} from '../Manufacturing/rafterLayoutBuilder';
@@ -61,6 +62,7 @@ export function buildEdwardianGeometry({inputs={},materials={},shortRidgeAdjustm
    }
   }
  }
+ if(inputs.rearTrussPositionsMM!=null)layout=resolveEdwardianRearTrusses(inputs.rearTrussPositionsMM,terminalTrussCentreMM);
  if(!layout.valid)return invalid(layout.errors.join(' '));
  const restricted=inputs.sideSoffitMode==='specified';
  if(restricted&&!(Number(inputs.specifiedSideSoffitMM)>0))return invalid('Enter the restricted side-soffit envelope.');
@@ -81,10 +83,22 @@ export function buildEdwardianGeometry({inputs={},materials={},shortRidgeAdjustm
   frontRafters=resolved.rafters;frontRafterWarnings=resolved.warnings;
  }
  const sideLayout=buildGableTrussLayout({externalProjectionMM:projectionMM+22.5,rearCentreMM:terminalTrussCentreMM,secondCentreMM:terminalTrussCentreMM+665});
- if(!sideLayout.valid)return invalid('Side jack spacing: '+sideLayout.errors.join(' '));
- const sideJacks=sideLayout.centresMM.slice(1,-1).flatMap(positionMM=>['left','right'].map(side=>({id:`side-${side}-jack-${positionMM}`,side,positionMM,hipMeetingXMM:half*(projectionMM-positionMM)/(projectionMM-ridgeEndYMM)})));
+ if(!sideLayout.valid&&!inputs.sideJackPositionsMM)return invalid('Side jack spacing: '+sideLayout.errors.join(' '));
+ let sideJacks=(sideLayout.centresMM||[]).slice(1,-1).flatMap(positionMM=>['left','right'].map(side=>({id:`side-${side}-jack-${positionMM}`,side,positionMM,hipMeetingXMM:half*(projectionMM-positionMM)/(projectionMM-ridgeEndYMM)})));
+ const sideLayouts={};
+ for(const side of ['left','right']){
+  const positions=inputs.sideJackPositionsMM?.[side];
+  if(positions!=null){
+   const resolved=resolveEdwardianSideJacks(positions,{side,terminalMM:terminalTrussCentreMM,projectionMM,widthMM,ridgeEndYMM});
+   if(!resolved.valid)return invalid(resolved.errors.join(' '));
+   sideJacks=[...sideJacks.filter(r=>r.side!==side),...resolved.jacks];sideLayouts[side]=resolved;
+  }else if(!sideLayout.valid)return invalid('Side jack spacing: '+sideLayout.errors.join(' '));
+  const centresMM=[terminalTrussCentreMM,...sideJacks.filter(r=>r.side===side).map(r=>r.positionMM).sort((a,b)=>a-b),projectionMM];
+  sideLayouts[side]={...sideLayout,...sideLayouts[side],centresMM,gapsMM:centresMM.slice(1).map((p,i)=>p-centresMM[i])};
+ }
+ sideJacks.sort((a,b)=>a.side.localeCompare(b.side)||a.positionMM-b.positionMM);
  const hipPitchDeg=Math.atan2(riseMM,Math.hypot(half,projectionMM-ridgeEndYMM))*180/Math.PI;
- return {valid:true,errors:[],readOnly:true,finishedHeightMM:heightAt(pitchDeg),heightSafetyBufferMM:inputs.maxFinishedHeightMM?5:0,requestedPitchDeg,widthMM,projectionMM,pitchDeg,frontPitchDeg,frontPitchAutoAdjusted,minimumBossTrussCentreMM,maximumAutomaticFrontPitchDeg,frameMM,soffitMM,ridgeMode:mode,ridge,ridgeEndYMM,ridgeSetbackMM:projectionMM-ridgeEndYMM,terminalSetbackMM,terminalTrussCentreMM,riseMM,hipPitchDeg,layout,eaves,frontRafters,manualFront,frontRafterWarnings,sideLayout,sideJacks,
+ return {valid:true,errors:[],readOnly:true,finishedHeightMM:heightAt(pitchDeg),heightSafetyBufferMM:inputs.maxFinishedHeightMM?5:0,requestedPitchDeg,widthMM,projectionMM,pitchDeg,frontPitchDeg,frontPitchAutoAdjusted,minimumBossTrussCentreMM,maximumAutomaticFrontPitchDeg,frameMM,soffitMM,ridgeMode:mode,ridge,ridgeEndYMM,ridgeSetbackMM:projectionMM-ridgeEndYMM,terminalSetbackMM,terminalTrussCentreMM,riseMM,hipPitchDeg,layout,eaves,frontRafters,manualFront,frontRafterWarnings,sideLayout:sideLayouts.left,sideLayouts,sideJacks,manualSides:inputs.rearTrussPositionsMM!=null||inputs.sideJackPositionsMM!=null,
   externalLeftMM,externalRightMM,externalFrontMM,externalWidthMM:widthMM+externalLeftMM+externalRightMM,externalProjectionMM:projectionMM+externalFrontMM,
   hips:[{side:'left',start:{xMM:0,yMM:projectionMM},end:ridge},{side:'right',start:{xMM:widthMM,yMM:projectionMM},end:ridge}],
   notes:['Plan setting-out only: hip lines meet the internal front corners centrally. External hip feet and member profiles are separate cutting candidates for factory review.',

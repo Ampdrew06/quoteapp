@@ -55,3 +55,22 @@ test('setting out follows joist width and rear packer without changing slot tole
  const layout=buildGableTrussLayout({externalProjectionMM:4325,joistWidthMM:47});
  expect(layout.rearCentreMM).toBe(32.5);expect(layout.centresMM[1]).toBe(697.5);
 });
+
+test('manual Gable centres move paired trusses while preserving wall/front positions and roof geometry',()=>{
+ const auto=buildGableGeometry({inputs});
+ const g=buildGableGeometry({inputs:{...inputs,gableTrussPositionsMM:[700,1400,2100,2800,3500]}});
+ expect(g.valid).toBe(true);expect(g.layout.manual).toBe(true);
+ expect(g.layout.centresMM).toEqual([31.5,700,1400,2100,2800,3500,4402.5]);
+ expect(g.layout.trussCount).toBe(7);expect(g.finishedHeightMM).toBe(auto.finishedHeightMM);
+ expect(g.ridgeLengthMM).toBe(auto.ridgeLengthMM);
+});
+test('admin Gable layout permits wider gaps but rejects overlapping or out-of-bounds slots',()=>{
+ expect(buildGableGeometry({inputs:{...inputs,gableTrussPositionsMM:[]}}).valid).toBe(true);
+ for(const positions of [[31.5],[4402.5],[700,730],[''],[5000]])
+  expect(buildGableGeometry({inputs:{...inputs,gableTrussPositionsMM:positions}}).valid).toBe(false);
+});
+test('clearing Gable manual centres restores the original automatic layout',()=>{
+ const auto=buildGableGeometry({inputs});
+ const restored=buildGableGeometry({inputs:{...inputs,gableTrussPositionsMM:null}});
+ expect(restored.layout).toEqual(auto.layout);
+});

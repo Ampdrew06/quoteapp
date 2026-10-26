@@ -1,3 +1,4 @@
+import GableTrussPositionEditor from '../../components/GableTrussPositionEditor';
 import {LITESLATE_COLOURS} from '../../lib/tileColours';
 import {clearActiveDesignRecord,readActiveDesignRecord,restoreActiveDesignRecord} from '../../lib/activeDesignRecord';
 import GableQuoteResults from './GableQuoteResults';
@@ -16,7 +17,7 @@ import {buildGableMiscellaneousAudit} from '../../lib/Calculations/gableMiscella
 import {buildGableLathMembraneAudit} from '../../lib/Calculations/gableLathMembraneAudit';
 import {buildGableGeometry} from '../../lib/geometry/gableGeometry';
 const KEY='gableDesignPreviewInputs';
-const initial={widthMM:'',projMM:'',pitchDeg:25,frameThicknessMM:70,leftSoffitMM:150,rightSoffitMM:150,frontOverhangMM:150,separateSideSoffits:false,maxFinishedHeightMM:'',tileProductId:'britmetShingle',plasticsColour:'white',gutterProfile:'square',tileColour:'Titanium',fasciaColour:'White',gutterColour:'White',customerReference:'',deliveryPostcode:'',selectedCustomerId:'retail'};
+const initial={gableTrussPositionsMM:null,widthMM:'',projMM:'',pitchDeg:25,frameThicknessMM:70,leftSoffitMM:150,rightSoffitMM:150,frontOverhangMM:150,separateSideSoffits:false,maxFinishedHeightMM:'',tileProductId:'britmetShingle',plasticsColour:'white',gutterProfile:'square',tileColour:'Titanium',fasciaColour:'White',gutterColour:'White',customerReference:'',deliveryPostcode:'',selectedCustomerId:'retail'};
 const restore=()=>{try{
  const saved=JSON.parse(localStorage.getItem(KEY)||'{}');
  return {...initial,selectedCustomerId:getCurrentCustomer()?.id||'retail',...saved,
@@ -88,6 +89,7 @@ export default function GableDesignPreview({mode='preview',fresh=false}={}) {
  {design&&g.valid&&<GablePricingPanel inputs={{...resolved,separateSideSoffits:admin&&inputs.separateSideSoffits}} materials={materials} customers={customers} onChange={patch=>setInputs(old=>({...old,...patch}))} />}
  {design&&admin&&<p><Link className="nav-tab" to="/quote/gable/technical">Review Technical audits</Link></p>}
  </>}
+ {design&&admin&&<GableTrussPositionEditor geometry={g} inputs={resolved} materials={materials} admin={admin} onApply={positions=>setInputs(old=>({...old,gableTrussPositionsMM:positions}))}/>}
  {design&&!showQuote?null:design&&g.valid?<GableQuoteResults inputs={{...resolved,separateSideSoffits:admin&&inputs.separateSideSoffits}} geometry={g} materials={materials} customers={customers}/>:!g.valid?<p role="status">{g.errors.join(' ')}</p>:<>
  {!design&&<p>Covering: {inputs.tileProductId} · plastics: {inputs.plasticsColour} · gutter: {inputs.gutterProfile} · reference: {inputs.customerReference||'—'}</p>}
  <h2>Plan</h2>{!design&&<p><strong>Includes 5mm front soffit clearance—do not add again.</strong> Manufacturing projection: {mm(manufacturingProjection)}mm. Requested external projection remains {mm(g.externalProjectionMM)}mm.</p>}<p>Requested external {mm(g.externalWidthMM)} × {mm(g.externalProjectionMM)}mm · resolved pitch {mm(g.pitchDeg)}° · {g.layout.trussCount} trusses.</p>

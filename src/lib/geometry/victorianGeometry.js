@@ -1,3 +1,4 @@
+import {applyVictorianRafterLayout} from './victorianRafterLayout';
 import {VICTORIAN_MAX_SPACING_MM as maxSpacing,fiveFacetJackPositions} from './victorianSupportRules';
 import {buildEdwardianGeometry} from './edwardianGeometry';
 const rad=d=>d*Math.PI/180;
@@ -29,7 +30,7 @@ export function buildVictorianPlanGeometry({inputs={},materials={}}={},frontFace
   if(inputs.ridgeMode&&inputs.ridgeMode!=='automatic')return fail('Victorian front-pitch override requires further geometry review.');
   if(inputs.sideSoffitMode&&inputs.sideSoffitMode!=='automatic')return fail('Independent Victorian side soffits require further geometry review.');
   if(inputs.maxFinishedHeightMM&&angles.some(a=>Math.abs(Number(a)-standardAngle)>1e-8))return fail('Maximum finished height currently requires standard Victorian corners.');
-  const inherited=buildEdwardianGeometry({inputs:{...inputs,frontRafterPositionsMM:undefined,frontRafterSpacingOverride:undefined,ridgeMode:'automatic'},materials,shortRidgeAdjustment:false});
+  const inherited=buildEdwardianGeometry({inputs:{...inputs,frontRafterPositionsMM:undefined,frontRafterSpacingOverride:undefined,rearTrussPositionsMM:undefined,sideJackPositionsMM:undefined,ridgeMode:'automatic'},materials,shortRidgeAdjustment:false});
   if(!inherited.valid)return fail(inherited.errors.join(' '));
   pitch=inherited.pitchDeg;
   const soffitMode=inputs.soffitMode??(Number(inputs.soffitMM??150)===150?'standard':'specified');
@@ -101,10 +102,11 @@ export function buildVictorianPlanGeometry({inputs={},materials={}}={},frontFace
   });
   const minimumY=Math.min(corners[0].yMM,corners[frontFacetCount].yMM);
   if(ridge.yMM>=minimumY)return fail('The ridge must sit behind the two side-to-front corners. Review the angles or projection.');
-  return {valid:true,errors:[],adjustedAngles:angles.some(a=>Math.abs(Number(a)-standardAngle)>1e-8),frontFacetCount,maxSupportSpacingMM:maxSpacing,style:`Victorian ${frontFacetCount}-facet`,finishedHeightMM:inherited.finishedHeightMM,heightSafetyBufferMM:inherited.heightSafetyBufferMM,requestedPitchDeg:inherited.requestedPitchDeg,widthMM:w,projectionMM:p,pitchDeg:pitch,frameMM:inherited.frameMM,soffitMM,soffitMode,plyBaseWidthMM,fasciaThicknessMM,fittingToleranceMM,stripTrimAllowanceMM,soffitStripWidthMM,upstandArrangement,upstandHeightMM,bossTopContinuationMM,
+  const geometry={valid:true,errors:[],adjustedAngles:angles.some(a=>Math.abs(Number(a)-standardAngle)>1e-8),frontFacetCount,maxSupportSpacingMM:maxSpacing,style:`Victorian ${frontFacetCount}-facet`,finishedHeightMM:inherited.finishedHeightMM,heightSafetyBufferMM:inherited.heightSafetyBufferMM,requestedPitchDeg:inherited.requestedPitchDeg,widthMM:w,projectionMM:p,pitchDeg:pitch,frameMM:inherited.frameMM,soffitMM,soffitMode,plyBaseWidthMM,fasciaThicknessMM,fittingToleranceMM,stripTrimAllowanceMM,soffitStripWidthMM,upstandArrangement,upstandHeightMM,bossTopContinuationMM,
     cornerAnglesDeg:angles.map(Number),mitresDeg:turns.map(a=>a/2),frontLengthMM,internalOutline,externalOutline,facets,hips,intermediateBars,jackRafters,
     ridge,ridgeEndYMM:ridge.yMM,terminalTrussCentreMM:inherited.terminalTrussCentreMM,layout,riseMM:inherited.riseMM,
     externalWidthMM:Math.max(...externalOutline.map(a=>a.xMM))-Math.min(...externalOutline.map(a=>a.xMM)),externalProjectionMM:Math.max(...externalOutline.map(a=>a.yMM)),
     nominalExternalProjectionMM:p+frameMM+soffitMM,frontManufacturingAllowanceMM:soffitMode==='standard'?fittingToleranceMM:-fasciaThicknessMM,
     nominalFootRunMM:frameMM+soffitMM};
+  return applyVictorianRafterLayout({geometry,inputs,jackAt:jack});
 }

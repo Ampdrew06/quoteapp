@@ -1,3 +1,4 @@
+import {resolveLeanToRafterLayout} from '../../lib/geometry/leanToRafterLayout';
 import { buildLeanToBookRingBeam } from '../../lib/Manufacturing/leanToBookSchedule';
 import LeanToPlasticsGuide from '../../components/LeanToPlasticsGuide';
 import ManufacturingLeanToWallplate from '../../components/ManufacturingLeanToWallplate';
@@ -312,7 +313,8 @@ const rightWall =
   const first = num(m.rafter_first_center_mm ?? 690);
   let centresCount = 0;
   for (let c = first; c <= iw; c += spacing) centresCount++;
-  const rafterCount = Math.max(2, centresCount + 2);
+  const editedRafters=(q.roofStyle??'leanTo')==='leanTo'&&q.leanToRafterPositionsMM!=null?resolveLeanToRafterLayout({widthMM:iw,positions:q.leanToRafterPositionsMM}):null;
+  const rafterCount=editedRafters?.valid?editedRafters.count:Math.max(2,centresCount+2);
 
   // Item numbering for simple lean-to
   const firstRafterNo = 1;
@@ -489,6 +491,7 @@ const hippedGeom = useMemo(
   () =>
     roofStyleKey === "hippedLeanTo"
       ? calculateHippedLeanToGeometry({
+          hippedRafterPositionsMM:q.hippedRafterPositionsMM,
           bossArrangement: q.bossArrangement ?? "offset",
           widthMM: iw,
           projectionMM: ip,
@@ -530,6 +533,7 @@ const hippedGeom = useMemo(
   [
     roofStyleKey,
     q.bossArrangement,
+    q.hippedRafterPositionsMM,
     iw,
     ip,
     pitchDeg,
@@ -1958,8 +1962,9 @@ const ringBeamManufactureSchedule = useMemo(
   const leanToRingBeam = roofStyleKey === 'leanTo' ? buildLeanToBookRingBeam({
     widthMM: iw, lengthMM: extWidthMM,
     leftExtensionMM: leftWall ? 0 : leftSupportDepthMM + (L > 0 ? L : lip),
-    firstCentreMM: first, spacingMM: spacing, geometry: manufactureGeom, reference: `P${ringBeamNo}`,
+    rafterPositionsMM:q.leanToRafterPositionsMM,firstCentreMM: first, spacingMM: spacing, geometry: manufactureGeom, reference: `P${ringBeamNo}`,
   }) : null;
+  if((editedRafters&&!editedRafters.valid)||hippedGeom?.manualRafterLayout?.valid===false)return <><NavTabs/><p role="alert">{(editedRafters?.errors??hippedGeom?.manualRafterLayout?.errors??[]).join(' ')}</p></>;
   //const roofSizeDisplay = `${round(iw)} × ${round(ip)} mm int / ${round(extWidthMM)} × ${round(extProjectionMM)} mm ext`;
 
   return (
@@ -2005,6 +2010,7 @@ const ringBeamManufactureSchedule = useMemo(
     rightWall={rightWall}
     rafterSpacing={spacing}
     firstCentre={first}
+    rafterPositionsMM={q.leanToRafterPositionsMM}
     pitchDeg={pitchDeg}
     outlet={gutterOutlet}
   />):<p>No roof dimensions loaded</p>}

@@ -28,3 +28,22 @@ test('front jack bays never exceed850mm and never hit the boss centreline',()=>{
 test('invalid five-facet inputs fail without returning malformed plans',()=>{
  for(const patch of [{widthMM:0},{projMM:1000},{pitchDeg:0},{cornerAnglesDeg:[135,135,135,135]},{cornerAnglesDeg:[150,150,150,150,150,151]}])expect(geometry(patch).valid).toBe(false);
 });
+
+test('manual five-facet layouts use hip-connected jacks and shared rear trusses',()=>{
+ const g=geometry({widthMM:3800,projMM:4200,victorianRearTrussPositionsMM:[650,1300,1950],victorianSideJackPositionsMM:{left:[2500],right:[2600]},victorianFacetPositionsMM:{'facet-2':[250,650],'facet-3':[],'facet-4':[600]}});
+ expect(g.valid).toBe(true);expect(g.facets).toHaveLength(7);expect(g.hips).toHaveLength(6);expect(g.intermediateBars).toHaveLength(0);
+ expect(g.layout.centresMM).toEqual([31.5,650,1300,1950,2267]);
+ expect(g.jackRafters.filter(r=>r.facetId==='facet-2')).toHaveLength(2);
+ expect(g.jackRafters.filter(r=>r.facetId==='facet-3')).toHaveLength(0);
+});
+test('manual five-facet supports reject direct boss connections and overlapping slots',()=>{
+ const g=geometry({widthMM:3800,projMM:4200});
+ expect(geometry({widthMM:3800,projMM:4200,victorianFacetPositionsMM:{'facet-4':[g.frontLengthMM/2]}}).valid).toBe(false);
+ expect(geometry({widthMM:3800,projMM:4200,victorianFacetPositionsMM:{'facet-4':[Number((g.frontLengthMM/2).toFixed(1))]}}).valid).toBe(false);
+ expect(geometry({victorianFacetPositionsMM:{'facet-2':[40]}}).valid).toBe(false);
+ expect(geometry({victorianRearTrussPositionsMM:[700,730]}).valid).toBe(false);
+});
+test('null five-facet overrides restore automatic support positions',()=>{
+ const g=geometry(),restored=geometry({victorianRearTrussPositionsMM:null,victorianSideJackPositionsMM:{left:null,right:null},victorianFacetPositionsMM:{'facet-2':null}});
+ expect(restored.layout).toEqual(g.layout);expect(restored.jackRafters).toEqual(g.jackRafters);
+});

@@ -1,3 +1,4 @@
+import {resolveLeanToRafterLayout} from '../geometry/leanToRafterLayout';
 // src/lib/Calculations/miscCalc.js
 
 // --- local helpers (must be BEFORE any usage) ---
@@ -348,7 +349,8 @@ if (s50Cov > 0 && s50PricePack > 0) {
   const iw   = num(q.internalWidthMM, 4000);
   const spacing   = num(m.rafter_spacing_mm ?? 665, 665);
   const firstCtr  = num(m.rafter_first_center_mm ?? 690, 690);
-  const rafters   = 1 + Math.max(0, Math.ceil((iw - firstCtr) / spacing));
+  const manualLayout=q.leanToRafterPositionsMM!=null?resolveLeanToRafterLayout({widthMM:iw,positions:q.leanToRafterPositionsMM}):null;
+  const rafters   = manualLayout?.valid?manualLayout.count:1 + Math.max(0, Math.ceil((iw - firstCtr) / spacing));
 
   // Tile course counts:
   const pitchDeg  = num(q.pitchDeg, 15);

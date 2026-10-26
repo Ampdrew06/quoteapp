@@ -1,3 +1,4 @@
+import {resolveLeanToRafterLayout} from '../geometry/leanToRafterLayout';
 import { buildGableSummaryMaterialsModel } from './gableSummaryMaterialsModel';
 import { buildFactoryStapleAllowance, integrateFactoryAllowances } from './factoryStapleAllowance';
 import {buildCentralBossTrussCosts} from './centralBossTrussCosts';
@@ -584,6 +585,7 @@ const isHippedLeanToEarly =
 
 const hippedGeomEarly = isHippedLeanToEarly
   ? calculateHippedLeanToGeometry({
+      hippedRafterPositionsMM: inputs.hippedRafterPositionsMM,
       widthMM: iw,
       projectionMM: ip,
       pitchDeg,
@@ -616,7 +618,8 @@ const hippedGeomEarly = isHippedLeanToEarly
   }
 
   // Edge rafters added (+2)
-  const raftersCount = Math.max(2, timberCentresCount + 2);
+  const leanToRafterLayout=(inputs.roofStyle??inputs.roof_style??'leanTo')!=='hippedLeanTo'&&inputs.leanToRafterPositionsMM!=null?resolveLeanToRafterLayout({widthMM:iw,positions:inputs.leanToRafterPositionsMM}):null;
+  const raftersCount = leanToRafterLayout?.valid?leanToRafterLayout.count:Math.max(2, timberCentresCount + 2);
 
   const hippedRingBeamSchedule = isHippedLeanToEarly
     ? buildHippedLeanToRingBeamSchedule({ geometry: hippedGeomEarly })
@@ -626,10 +629,11 @@ const hippedGeomEarly = isHippedLeanToEarly
     extWidthM *
     ((Number(inputs.soffit_mm ?? inputs.eaves_overhang_mm ?? 150) + 70) /
       1000);
-  const legacyRingBeamUpstandAreaM2 = extWidthM * 0.195;
+  const manualSlotDeltaM=leanToRafterLayout?.valid?(raftersCount-Math.max(2,timberCentresCount+2))*0.048:0;
+  const legacyRingBeamUpstandAreaM2 = Math.max(0,extWidthM-manualSlotDeltaM) * 0.195;
   const legacyRingBeamFinishingLathM =
-    Math.max(0, raftersCount - 1) * 0.617;
-  const legacyRingBeamPirAreaM2 = extWidthM * 0.185;
+    Math.max(0, Math.max(0, Math.max(2,timberCentresCount+2)-1) * 0.617-manualSlotDeltaM);
+  const legacyRingBeamPirAreaM2 = Math.max(0,extWidthM-manualSlotDeltaM) * 0.185;
 
   const integratedRingBeam = selectRingBeamSummaryQuantities({
     isHippedLeanTo: isHippedLeanToEarly,
@@ -1202,6 +1206,8 @@ const metalManualLines = summaryEdgeBOM.lines;
 // Map whatever is in localStorage(leanToInputs) into the canonical shape
 // that buildLeanToTotals() expects (same as LeanToLanding).
 const totalsInput = {
+  leanToRafterPositionsMM:inputs.leanToRafterPositionsMM,
+  hippedRafterPositionsMM:inputs.hippedRafterPositionsMM,
   bossArrangement: inputs.bossArrangement ?? "offset",
   roofStyle: inputs.roofStyle ?? inputs.roof_style ?? "leanTo",
 hippedSides: inputs.hippedSides ?? "both",
@@ -1252,6 +1258,7 @@ const isHippedLeanTo = totalsInput.roofStyle === "hippedLeanTo";
 
 const hippedGeom = isHippedLeanTo
   ? calculateHippedLeanToGeometry({
+      hippedRafterPositionsMM: inputs.hippedRafterPositionsMM,
       widthMM: totalsInput.widthMM,
       projectionMM: totalsInput.projMM,
       pitchDeg: totalsInput.pitchDeg,
@@ -2861,7 +2868,7 @@ const miscTotals = sectionTotals(miscLinesForSectionAdjusted, false);
   const plasterboardWeightKg = plasterboardAreaM2 * 8.5;
   const installedWeightKg = materialsWeightKg + plasterboardWeightKg;
   return {
-    sections, pricingSections, materialsCostForPricing, materialsBaseCost,
+    sections, pricingSections, materialsCostForPricing, materialsBaseCost,leanToRafterLayout,
     lathUseBreakdown:{internalM:Math.max(0,internalLathsM),externalM:Math.max(0,summaryExternalFixingLathM)+hipRidgeSummaryContribution.additionalLathM,fittedM:Math.max(0,ringBeamOuterLathsM)+Math.max(0,ringBeamUpstandLathsM)},
     centralTrussCosts,
     wallplateIntegrationAudit,

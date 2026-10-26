@@ -1,3 +1,4 @@
+import {resolveLeanToRafterLayout} from '../lib/geometry/leanToRafterLayout';
 // src/components/PlanDiagramLeanTo.jsx
 import React, { useMemo } from "react";
 
@@ -16,7 +17,7 @@ export default function PlanDiagramLeanTo({
   soffit, frameOn,
   leftOH = 0, rightOH = 0,
   leftWall = false, rightWall = false,
-  rafterSpacing = 665, firstCentre = 690,
+  rafterSpacing = 665, firstCentre = 690, rafterPositionsMM=null,
   outlet = "left", gutterColor = "black",
   pitchDeg = 15,
 }) {
@@ -82,8 +83,9 @@ const rightDelta = rightWall
   const ip_px = ip * scale;
 
   // --- rafters ---
-  const centres = [];
-  for (let c = firstCentre; c <= iw; c += rafterSpacing) centres.push(c);
+  const layout=rafterPositionsMM!=null?resolveLeanToRafterLayout({widthMM:iw,positions:rafterPositionsMM}):null;
+  const centres = layout?.valid?[...layout.interiorMM]:[];
+  if(rafterPositionsMM==null)for (let c = firstCentre; c <= iw; c += rafterSpacing) centres.push(c);
 
   const rafterStroke = Math.max(2, Math.min(6, 0.005 * iw_px + 2));
   const labelFont = "14px Inter, system-ui, Arial";

@@ -38,7 +38,7 @@ export default function EdwardianManufacture(){
  <ManufacturePlanPage
  details={{customer:customerName,reference:inputs.customerReference,roof:'Edwardian',frame:roof.frame,tiles:`${roof.tileType} — ${inputs.tileColour||'—'}`,fascia:roof.fasciaColour,gutter:`${inputs.gutterColour||'White'} — ${inputs.gutterProfile||'square'}`,weight:roof.weight}}
  facets={[{label:'Front',pitch:`${mm(g.frontPitchDeg)}°`,support:`${mm(g.frameMM)} mm frame`,soffit:`${Math.round(g.eaves.effectiveReferenceSoffitMM)} mm`},...['left','right'].map(side=>({label:side==='left'?'Left Side':'Right Side',pitch:`${mm(g.pitchDeg)}°`,support:`${mm(g.frameMM)} mm frame`,soffit:`${Math.round(g.eaves[side].manufacturedSoffitMM)} mm`}))]}
- notes={`${g.manualFront?'Manual front rafter layout. ':''}${(g.frontRafterWarnings||[]).join(' ')} Ridge point ${mm(g.ridgeEndYMM)}mm; terminal truss centre ${mm(g.terminalTrussCentreMM)}mm from house wall (33mm setback). EP includes the shared manufacturing clearance. Dashed centre = ridge datum, no ridge timber; T = truss; H = hip; R = boss rafter; J = jack.`}
+ notes={`${g.manualFront||g.manualSides?'Manual member layout. ':''}${(g.frontRafterWarnings||[]).join(' ')} Ridge point ${mm(g.ridgeEndYMM)}mm; terminal truss centre ${mm(g.terminalTrussCentreMM)}mm from house wall (33mm setback). EP includes the shared manufacturing clearance. Dashed centre = ridge datum, no ridge timber; T = truss; H = hip; R = boss rafter; J = jack.`}
  ><EdwardianManufacturePlan schedule={s}/></ManufacturePlanPage>
  <EdwardianTrussCutPage schedule={s} assembly={<TrussAssembly truss={t} count={s.counts.trusses}/>}/>
  <ManufacturingEdwardianMemberPages groups={[...grouped.values()]} tiling={s.tiling}/>
