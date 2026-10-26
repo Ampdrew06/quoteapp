@@ -39,12 +39,12 @@ function Upstands({beams,bays}) {
     </g>;})}
   </svg>)}</div>;
 }
-export function EdwardianRingBeamCutPages({beams=[]}) {
+export function EdwardianRingBeamCutPages({beams=[],layerLabels={}}) {
   return <>{groupEdwardianRingBeams(beams).flatMap(group=>{
     const base=group[0],all=base.bays.map((bay,index)=>({bay,index})),chunks=[all.slice(0,8)];
     for(let n=8;n<all.length;n+=16)chunks.push(all.slice(n,n+16));
     return chunks.map((bays,n)=><section key={`${base.manufactureRef}-${n}`} className="em-page ev-ringbeam"><h2>{group.map(b=>b.manufactureRef).join(' & ')} · Ring-beam{n?' — upstands continued':` × ${group.length}`}</h2>
-      {!n&&<div className="ev-layers">{[['30×95 PSE','pse30x90'],['9mm ply base','ply9Base'],['25×50 outer lath','outerLath25x50']].map(([label,key])=><LayerDrawing key={key} label={label} profile={base.cuts.continuous[key]} markerId=""/>)}</div>}
+      {!n&&<div className="ev-layers">{[['30×95 PSE','pse30x90'],['9mm ply base','ply9Base'],['25×50 outer lath','outerLath25x50']].map(([label,key])=><LayerDrawing key={key} label={layerLabels[key]??label} profile={base.cuts.continuous[key]} markerId=""/>)}</div>}
       <h3>9mm ply upstands{base.cuts.upstandArrangement==='vertical'?' · vertical · 210mm cut (195 visible + 15 groove)':''}</h3><Upstands beams={group} bays={bays}/>
     </section>);
   })}<style>{`.ev-ringbeam{height:279mm;break-inside:avoid}.ev-ringbeam h3{font-size:12px;margin:8px 0 4px}.ev-layers svg{height:37mm!important;max-width:none}.ev-ringbeam .ev-upstands{height:39mm!important;max-width:none}`}</style></>;

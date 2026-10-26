@@ -108,7 +108,9 @@ export default function AppRoutes() {
         <Route path="/quote/victorian/tiles-laths" element={<DesignedRoofTilesLaths family="victorian" />} />
         <Route path="/quote/victorian/technical" element={<VictorianPlanPreview />} />
 
-        <Route path="/quote/victorian-hipped/technical" element={<VictorianHippedPreview />} />
+        <Route path="/quote/victorian-hipped" element={<VictorianHippedPreview />} />
+        <Route path="/quote/victorian-hipped/plan-manufacture" element={<VictorianHippedPreview view="manufacture" />} />
+        <Route path="/quote/victorian-hipped/technical" element={<VictorianHippedPreview view="technical" />} />
 
         {/* Placeholder for other designs */}
         <Route path="/design/:design" element={<DesignPlaceholder />} />
