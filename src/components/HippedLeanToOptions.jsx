@@ -17,7 +17,6 @@ export default function HippedLeanToOptions({
   setRequestedRightSidePitchDeg,
   sideSoffitMode,
   setSideSoffitMode,
-  sideSoffitControlSide,
   setSideSoffitControlSide,
   specifiedSideSoffitMM,
   setSpecifiedSideSoffitMM,
@@ -198,43 +197,28 @@ export default function HippedLeanToOptions({
   }}
 >
   <label>
-    Side soffit requirement
+    Soffit requirement
     <select
       value={sideSoffitMode}
       onChange={(event) => {
         const value = event.target.value;
         setSideSoffitMode(value);
-        persist({ sideSoffitMode: value });
+        setSideSoffitControlSide("both");
+        persist({ sideSoffitMode: value,sideSoffitControlSide:"both" });
       }}
       style={{ display: "block", width: "100%", marginTop: 4 }}
     >
       <option value="automatic">Automatic</option>
-      <option value="specified">Required Soffit Size</option>
+      <option value="specified">Soffit restriction to side</option>
       <option value="none">No soffit</option>
     </select>
   </label>
 
-  {sideSoffitMode !== "automatic" && (
-    <label>
-      Controlling side
-      <select
-        value={sideSoffitControlSide}
-        onChange={(event) => {
-          const value = event.target.value;
-          setSideSoffitControlSide(value);
-          persist({ sideSoffitControlSide: value });
-        }}
-        style={{ display: "block", width: "100%", marginTop: 4 }}
-      >
-        {leftHip && <option value="left">Left side</option>}
-        {rightHip && <option value="right">Right side</option>}
-      </select>
-    </label>
-  )}
+  {sideSoffitMode !== "automatic"&&<p>Applies to both open sides. With unequal pitches, the tighter side controls; any necessary front projection is retained.</p>}
 
   {sideSoffitMode === "specified" && (
     <label>
-      Required Side Soffit (mm)
+      Required side soffit (mm)
       <input
         type="number"
         min="0"
@@ -243,7 +227,9 @@ export default function HippedLeanToOptions({
         onChange={(event) => {
           const value = event.target.value;
           setSpecifiedSideSoffitMM(value);
+          setSideSoffitControlSide("both");
           persist({
+            sideSoffitControlSide:"both",
             specifiedSideSoffitMM:
               value === "" ? null : Number(value),
           });

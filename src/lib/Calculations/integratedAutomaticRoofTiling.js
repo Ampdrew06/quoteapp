@@ -4,6 +4,7 @@ import {buildSteelTileCourseAudit} from './steelTileCourseAudit';
 // Design ordering adapter. The shared/manual Home calculator remains untouched.
 // Retain the original area calculation for Technical comparison and lath data.
 export function integrateSteelTileOrdering(automatic) {
+ if(!automatic?.result || automatic.errors?.length || automatic.result.errors?.length)return automatic;
  if(automatic?.roofStyle!=='hippedLeanTo' || !['britmetShingle','metrotileShingle'].includes(automatic.productId))return automatic;
  const audit=buildSteelTileCourseAudit({automaticRoofTiling:automatic,minimumStarterMM:200});
  return {...automatic,areaEstimateResult:automatic.result,

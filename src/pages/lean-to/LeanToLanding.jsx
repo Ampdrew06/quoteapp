@@ -1,3 +1,4 @@
+import SoffitRequirementControl from '../../components/SoffitRequirementControl';
 import HippedRafterPositionEditor from '../../components/HippedRafterPositionEditor';
 import RafterPositionEditor from '../../components/RafterPositionEditor';
 import {computeRoofLabour,isSlateCovering,britmetBenchmarkInputs} from '../../lib/Calculations/roofLabourPricing';
@@ -1846,7 +1847,8 @@ const displayExtProjectionMM =
             <label>Soffit to Front (mm)
   <input
     type="number"
-    value={eavesOverhangMM}
+    disabled={roofStyle==="hippedLeanTo"&&sideSoffitMode!=="automatic"}
+    value={roofStyle==="hippedLeanTo"&&sideSoffitMode!=="automatic"?Number(hippedGeom?.effectiveFrontSoffitMM??eavesOverhangMM).toFixed(1):eavesOverhangMM}
 onChange={(e) => {
   const v = e.target.value;
 
@@ -1865,7 +1867,9 @@ onChange={(e) => {
     style={inputStyle}
   />
 </label>
-{/* Gutter style + colour */}
+{roofStyle!=="hippedLeanTo"&&<SoffitRequirementControl mode={Number(eavesOverhangMM)===0?'none':'automatic'} allowSideRestriction={false} onModeChange={mode=>{const value=mode==='none'?0:150;setEavesOverhang(value);persist({soffit_mm:value});}} style={inputStyle}/>}
+ {roofStyle!=="hippedLeanTo"&&Number(eavesOverhangMM)===0&&<p>No front soffit requested; compulsory fascia clearance remains. Optional side overhangs are separate.</p>}
+ {/* Gutter style + colour */}
             <label>Gutter profile
               <select
                 value={gutterProfile}

@@ -29,6 +29,11 @@ export default function VictorianHippedManufacturePlan({geometry:g}){
   </g>;
  })}
  {dimension(x(0),top-75,x(g.widthMM),top-75,`IW: ${mm(g.widthMM)} mm`)}
+ {g.bosses.length>0&&<g aria-label="Boss positions from internal side frames">
+ {dimension(x(0),top-45,x(g.bosses[0].xMM),top-45,`Left boss: ${mm(g.bosses[0].xMM)} mm`)}
+ {g.bosses.length>1&&dimension(x(g.bosses[0].xMM),top-45,x(g.bosses[g.bosses.length-1].xMM),top-45,`Boss centres: ${mm(g.bosses[g.bosses.length-1].xMM-g.bosses[0].xMM)} mm`)}
+ {dimension(x(g.bosses[g.bosses.length-1].xMM),top-45,x(g.widthMM),top-45,`Right boss: ${mm(g.widthMM-g.bosses[g.bosses.length-1].xMM)} mm`)}
+ </g>}
  {dimension(left,bottom+160,right,bottom+160,`EW: ${mm(g.externalWidthMM)} mm`)}
  {dimension(left-145,top,left-145,bottom,`EP: ${mm(g.externalProjectionMM)} mm`,true)}
  {dimension(right+145,top,right+145,y(g.projectionMM),`IP: ${mm(g.projectionMM)} mm`,true)}

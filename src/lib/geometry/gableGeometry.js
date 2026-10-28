@@ -1,3 +1,4 @@
+import {resolveGableSoffitInputs} from './gableSoffitInputs';
 import {resolveLeanToRafterLayout} from './leanToRafterLayout';
 import {buildCentralBossTrussAudit} from './centralBossTrussAudit';
 const radians=deg=>deg*Math.PI/180;
@@ -34,6 +35,8 @@ export function buildGableTrussLayout({externalProjectionMM,rearPackerMM=9,joist
  return {valid:true,errors:[],centresMM,gapsMM,trussCount:centresMM.length,rearCentreMM:start,frontCentreMM:end,secondCentreRetained:!!anchored,minSpacingMM,maxSpacingMM,targetSpacingMM};
 }
 export function buildGableGeometry({inputs={},materials={}}={}) {
+ if(inputs.sideSoffitMode==='specified'&&(inputs.specifiedSideSoffitMM==null||String(inputs.specifiedSideSoffitMM).trim()===''||!Number.isFinite(Number(inputs.specifiedSideSoffitMM))||Number(inputs.specifiedSideSoffitMM)<=0))return {valid:false,errors:['Enter a positive required side soffit size.']};
+ inputs=resolveGableSoffitInputs(inputs);
  const widthMM=Number(inputs.widthMM),projectionMM=Number(inputs.projMM),frameMM=Number(inputs.frameThicknessMM??70);
  const leftSoffitMM=Number(inputs.leftSoffitMM??150),rightSoffitMM=Number(inputs.rightSoffitMM??leftSoffitMM),frontOverhangMM=Number(inputs.frontOverhangMM??150);
  const depth=Number(materials.rafter_depth_mm??220),ringHeight=Number(materials.ring_beam_height_mm??40);
@@ -51,14 +54,15 @@ export function buildGableGeometry({inputs={},materials={}}={}) {
   pitchDeg=lo;
  }
  const angle=radians(pitchDeg),cos=Math.cos(angle),tan=Math.tan(angle),half=widthMM/2;
- const externalWidthMM=widthMM+2*frameMM+leftSoffitMM+rightSoffitMM,externalProjectionMM=projectionMM+frameMM+frontOverhangMM;
+ const lip=inputs.sideSoffitMode==='none'?Math.max(25,Number(materials.fascia_lip_mm??25)):0;
+ const externalWidthMM=widthMM+2*frameMM+leftSoffitMM+rightSoffitMM+2*lip,externalProjectionMM=projectionMM+frameMM+frontOverhangMM;
  const frontSoffitClearanceMM=5,manufacturingProjectionMM=externalProjectionMM+frontSoffitClearanceMM;
  const layout=buildGableTrussLayout({externalProjectionMM:manufacturingProjectionMM,trussPositionsMM:inputs.gableTrussPositionsMM});
- const feet=[leftSoffitMM,rightSoffitMM].map((soffit,i)=>{const hfcMM=frameMM+soffit;return {side:i?'right':'left',hfcMM,vfcMM:depth/cos-hfcMM*tan,internalSlopeMM:half/cos,externalSlopeMM:(half+hfcMM)/cos};});
+ const feet=[leftSoffitMM,rightSoffitMM].map((soffit,i)=>{const hfcMM=frameMM+soffit+lip;return {side:i?'right':'left',hfcMM,vfcMM:depth/cos-hfcMM*tan,internalSlopeMM:half/cos,externalSlopeMM:(half+hfcMM)/cos};});
  if(feet.some(f=>f.vfcMM<=0))errors.push('Selected side soffit leaves no positive VFC.');
  const truss=buildCentralBossTrussAudit({widthMM,projectionMM,frontPitchDeg:pitchDeg,trussPitchDeg:pitchDeg,memberDepthMM:depth,ringBeamHeightMM:ringHeight,sideHfcMM:feet[0].hfcMM});
  if(!layout.valid)errors.push(...layout.errors);if(!truss.valid)errors.push(...truss.errors);
- return {valid:!errors.length,errors,widthMM,projectionMM,frameMM,pitchDeg,leftSoffitMM,rightSoffitMM,frontOverhangMM,externalWidthMM,externalProjectionMM,manufacturingProjectionMM,frontSoffitClearanceMM,ridgeXMM:half,ridgeLengthMM:manufacturingProjectionMM,
+ return {valid:!errors.length,errors,...(inputs.sideSoffitMode==='none'?{soffitRequestedNone:true,compulsoryFasciaLipMM:lip}:{}),widthMM,projectionMM,frameMM,pitchDeg,leftSoffitMM,rightSoffitMM,frontOverhangMM,externalWidthMM,externalProjectionMM,manufacturingProjectionMM,frontSoffitClearanceMM,ridgeXMM:half,ridgeLengthMM:manufacturingProjectionMM,
   finishedHeightMM:heightAt(pitchDeg),heightSafetyBufferMM:inputs.maxFinishedHeightMM?5:0,feet,layout,truss,
   ringBeams:[{side:'left',lengthMM:manufacturingProjectionMM},{side:'right',lengthMM:manufacturingProjectionMM}],
   assumptions:['Includes 5mm front soffit clearance—do not add again. Both ring-beams and the front truss use manufacturing projection; customer projection and soffit widths are unchanged.','External dimensions follow the agreed frame + soffit / overhang convention.','Ridge remains centred on the internal width. Each side resolves its own HFC/VFC.','Rear truss has the confirmed rear faceplate/packers; PIR cradles support slabs between trusses.','Finished height uses 220mm joist, 25mm lath and 3mm covering; ridge-cap build-up remains to be confirmed.','This is a geometry preview. Pricing, loading list and manufacture outputs are not yet integrated.']};

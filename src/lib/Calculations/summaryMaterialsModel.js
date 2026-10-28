@@ -627,7 +627,7 @@ const hippedGeomEarly = isHippedLeanToEarly
 
   const legacyRingBeamBaseAreaM2 =
     extWidthM *
-    ((Number(inputs.soffit_mm ?? inputs.eaves_overhang_mm ?? 150) + 70) /
+    (((Number(inputs.soffit_mm ?? inputs.eaves_overhang_mm ?? 150)===0?25:Number(inputs.soffit_mm ?? inputs.eaves_overhang_mm ?? 150)) + 70) /
       1000);
   const manualSlotDeltaM=leanToRafterLayout?.valid?(raftersCount-Math.max(2,timberCentresCount+2))*0.048:0;
   const legacyRingBeamUpstandAreaM2 = Math.max(0,extWidthM-manualSlotDeltaM) * 0.195;

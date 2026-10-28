@@ -1,5 +1,5 @@
 export const VICTORIAN_DESIGN_KEY='victorianPlanPreviewInputs';
-export const victorianDesignDefaults={widthMM:'',projMM:'',pitchDeg:25,frameThicknessMM:70,soffitMM:150,soffitMode:'standard',maxFinishedHeightMM:'',sideSoffitMode:'automatic',ridgeMode:'automatic',cornerAnglesDeg:[135,135,135,135],bossTopContinuationMM:160,tileProductId:'britmetShingle',tileColour:'Titanium',fasciaColour:'White',plasticsColour:'white',gutterProfile:'square',gutterColour:'White',deliveryPostcode:'',customerReference:'',selectedCustomerId:'retail',quoteDisplayed:false};
+export const victorianDesignDefaults={widthMM:'',projMM:'',pitchDeg:25,frameThicknessMM:70,soffitMM:150,soffitMode:'standard',maxFinishedHeightMM:'',sideSoffitMode:'automatic',ridgeMode:'automatic',cornerAnglesDeg:[135,135,135,135],bossTopContinuationMM:160,tileProductId:'britmetShingle',tileColour:'Titanium',fasciaColour:'White',plasticsColour:'white',gutterProfile:'square',gutterColour:'Black',deliveryPostcode:'',customerReference:'',selectedCustomerId:'retail',quoteDisplayed:false};
 export function normalizeVictorianDesignInputs(saved={},customerId='retail'){
  const next={...victorianDesignDefaults,selectedCustomerId:customerId,...saved};
  next.cornerAnglesDeg=Array.isArray(saved.cornerAnglesDeg)&&saved.cornerAnglesDeg.length===4?[...saved.cornerAnglesDeg]:[135,135,135,135];

@@ -1,6 +1,6 @@
 import React from 'react';
 // Roof adapters supply values only. This component owns the front-page layout.
-export default function ManufactureBookFront({roof={},job=null,details={},onChange,onSave,message=''}) {
+export default function ManufactureBookFront({roof={},job=null,details={},onChange,onSave,message='',saving=false}) {
  const address=details.delivery_address_json||{};
  const edit=(key,type='text')=><input aria-label={key.replace(/_/g,' ')} type={type} value={details[key]||''} onChange={e=>onChange({...details,[key]:e.target.value})}/>;
  const setAddress=(key,value)=>onChange({...details,delivery_address_json:{...address,[key]:value}});
@@ -15,7 +15,7 @@ export default function ManufactureBookFront({roof={},job=null,details={},onChan
  <label className="mbf-instructions">Special instructions<textarea aria-label="Special instructions" value={details.order_notes||''} onChange={e=>onChange({...details,order_notes:e.target.value})}/></label>
  </div>
  <div className="mbf-signoff">{['Authorised for Fabrication','Authorised for Despatch'].map(title=><div key={title}><b>{title}</b><span>Signed ____________________ Date __________</span></div>)}</div>
- <div className="mbf-controls"><button type="button" onClick={onSave}>{job?'Save job details':'Save draft book details'}</button><span role="status">{message}</span></div>
+ <div className="mbf-controls"><button type="button" disabled={saving} onClick={onSave}>{saving?'Saving…':job?'Save job details':'Save draft book details'}</button><span role="status">{message}</span></div>
  <style>{`
  .mbf-front{box-sizing:border-box;width:100%;height:279mm;padding:5mm;display:flex;flex-direction:column;gap:3mm;font-family:Arial,sans-serif;font-size:15px;line-height:1.2;color:#111827;background:#fff;border:1px solid #cbd5e1}
  .mbf-front .mbf-title{font:700 26px Arial,sans-serif!important;text-align:center;margin:0!important;flex:none}

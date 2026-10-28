@@ -1,6 +1,6 @@
 // Form adapter: retain saved geometry, but offer pitch controls rather than manual ridge coordinates.
 export const EDWARDIAN_DESIGN_KEY='edwardianInputs';
-export const edwardianDesignDefaults={widthMM:'',projMM:'',pitchDeg:25,frameThicknessMM:70,soffitMM:150,maxFinishedHeightMM:'',ridgeMode:'automatic',frontPitchDeg:25,sideSoffitMode:'automatic',specifiedSideSoffitMM:100,tileProductId:'britmetShingle',tileColour:'Titanium',plasticsColour:'white',fasciaColour:'White',gutterProfile:'square',gutterColour:'White',customerReference:'',deliveryPostcode:'',selectedCustomerId:'retail'};
+export const edwardianDesignDefaults={widthMM:'',projMM:'',pitchDeg:25,frameThicknessMM:70,soffitMM:150,maxFinishedHeightMM:'',ridgeMode:'automatic',frontPitchDeg:25,sideSoffitMode:'automatic',specifiedSideSoffitMM:100,tileProductId:'britmetShingle',tileColour:'Titanium',plasticsColour:'white',fasciaColour:'White',gutterProfile:'square',gutterColour:'Black',customerReference:'',deliveryPostcode:'',selectedCustomerId:'retail'};
 export function normalizeEdwardianDesignInputs(saved={},customerId='retail'){
  const inputs={...edwardianDesignDefaults,selectedCustomerId:customerId,...saved};
  if(saved.ridgeMode==='manual'){

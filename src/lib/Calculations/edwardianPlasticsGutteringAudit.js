@@ -4,11 +4,11 @@ import {buildHippedGutteringIntegrationAudit} from './gutteringIntegrationAudit'
 export function buildEdwardianPlasticsGutteringAudit({geometry:g,materials:m={},plasticsColour='white',gutterProfile='square'}={}){
  const fail=errors=>({valid:false,readOnly:true,errors,plasticLines:[],gutterLines:[]});
  const ring=buildEdwardianRingBeamAudit({geometry:g});if(!ring.valid)return fail(ring.errors);
- const facets=ring.ringBeams.map(b=>({id:b.side==='front'?'facet-front':`facet-${b.side}-side`,ringBeam:{...b,eavesGeometry:{...b.eavesGeometry,soffitDepthMM:b.side==='front'?g.eaves.effectiveReferenceSoffitMM:g.eaves[b.side].manufacturedSoffitMM}}}));
+ const facets=ring.ringBeams.map(b=>({id:b.side==='front'?'facet-front':`facet-${b.side}-side`,ringBeam:{...b,eavesGeometry:{...b.eavesGeometry,soffitDepthMM:g.soffitRequestedNone?(b.side==='front'?Math.max(0,g.eaves.effectiveReferenceSoffitMM-Number(m.fascia_lip_mm??25)):0):b.side==='front'?g.eaves.effectiveReferenceSoffitMM:g.eaves[b.side].manufacturedSoffitMM}}}));
  const edgeModel={valid:true,edges:['left','front','right'].map(side=>({id:`eaves-${side}`,kind:'eaves',side,lengthMM:side==='front'?g.externalWidthMM:g.externalProjectionMM,facetIds:[side==='front'?'facet-front':`facet-${side}-side`]}))};
  const front=g.eaves.referenceGeometry.raw;
  const structuralHeightMM=Number(m.ring_beam_height_mm??40)+front.manufacturedPlumbCutHeightMM+25/Math.cos(g.frontPitchDeg*Math.PI/180);
- const geometry={widthMM:g.widthMM,projectionMM:g.projectionMM,frontFinishedFasciaHeightMM:structuralHeightMM,facets};
+ const geometry={...(g.soffitRequestedNone?{soffitRequestedNone:true}:{}),widthMM:g.widthMM,projectionMM:g.projectionMM,frontFinishedFasciaHeightMM:structuralHeightMM,facets};
  const materials={...m,side_frame_thickness_mm:g.frameMM};
  const plastics=buildHippedPlasticsIntegrationAudit({geometry,edgeModel,materials,plasticsColor:plasticsColour});
  const guttering=buildHippedGutteringIntegrationAudit({edgeModel,materials,profile:gutterProfile});

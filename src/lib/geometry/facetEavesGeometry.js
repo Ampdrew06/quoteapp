@@ -32,7 +32,7 @@ const normaliseSideSoffitControl = (control) => {
 
   return {
     mode,
-    side: control?.side === "right" ? "right" : "left",
+    side: control?.side === "both" ? "both" : control?.side === "right" ? "right" : "left",
     requestedProjectionMM: Math.max(
       0,
       toFiniteNumber(control?.requestedProjectionMM)
@@ -687,8 +687,14 @@ export function solveFacetEavesGeometry({
    * compulsory 25 mm finishing-fascia lip outside the frame.
    */
   if (resolvedSideSoffitControl) {
-    const requestedControllingSide =
-      resolvedSideSoffitControl.side;
+    let requestedControllingSide = resolvedSideSoffitControl.side;
+    if(requestedControllingSide==='both'){
+      // Reuse the existing side-led construction. With unequal side pitches,
+      // choose the limiting side so the other side cannot exceed the request.
+      const base=resolvedSideSoffitControl.mode==='none'?frameThicknessMM+resolvedFasciaLipMM:frameThicknessMM+resolvedSideSoffitControl.requestedProjectionMM-resolvedFasciaThicknessMM-resolvedPlyProjectionAllowanceMM;
+      const height=p=>(rafterDepthMM+25)/Math.cos(degToRad(p))-(base-resolvedManufacturingClearanceMM)*Math.tan(degToRad(p));
+      requestedControllingSide=!hasLeftFacet?'right':!hasRightFacet?'left':height(leftPitchDeg)>=height(rightPitchDeg)?'left':'right';
+    }
 
     const controllingSide =
       requestedControllingSide === "left" && !hasLeftFacet && hasRightFacet

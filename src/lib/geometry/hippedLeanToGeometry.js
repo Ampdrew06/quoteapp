@@ -214,7 +214,7 @@ const requestedFrontSoffitMM = frontSoffitMM;
 
 const facetEavesRule = isCentralBoss ? centralTruss.eaves : alignChamferedLathEaves(solveFacetEavesGeometry({
   requestedReferenceSoffitMM:
-    requestedFrontSoffitMM,
+    sideSoffitMode==="none"&&!hasLeftHip&&!hasRightHip?0:requestedFrontSoffitMM,
 
   referencePitchDeg:
     pitchDeg,
@@ -246,9 +246,7 @@ const facetEavesRule = isCentralBoss ? centralTruss.eaves : alignChamferedLathEa
       ? {
           mode: sideSoffitMode,
           side:
-            sideSoffitControlSide === "right"
-              ? "right"
-              : "left",
+            sideSoffitControlSide === "both" ? "both" : sideSoffitControlSide === "right" ? "right" : "left",
           requestedProjectionMM:
             specifiedSideSoffitMM,
         }
@@ -1635,7 +1633,7 @@ facetEavesSolutionValid:
   ),
 
 sideSoffitMode:
-  facetEavesRule.sideSoffitControl?.mode ?? "automatic",
+  sideSoffitMode==="none"?"none":facetEavesRule.sideSoffitControl?.mode ?? "automatic",
 
 sideSoffitControlSide:
   facetEavesRule.sideSoffitControl?.side ?? null,

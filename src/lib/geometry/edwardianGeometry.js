@@ -64,11 +64,11 @@ export function buildEdwardianGeometry({inputs={},materials={},shortRidgeAdjustm
  }
  if(inputs.rearTrussPositionsMM!=null)layout=resolveEdwardianRearTrusses(inputs.rearTrussPositionsMM,terminalTrussCentreMM);
  if(!layout.valid)return invalid(layout.errors.join(' '));
- const restricted=inputs.sideSoffitMode==='specified';
+ const none=inputs.sideSoffitMode==='none',restricted=inputs.sideSoffitMode==='specified';
  if(restricted&&!(Number(inputs.specifiedSideSoffitMM)>0))return invalid('Enter the restricted side-soffit envelope.');
  const eaves=alignChamferedLathEaves(solveFacetEavesGeometry({requestedReferenceSoffitMM:soffitMM,referencePitchDeg:frontPitchDeg,leftPitchDeg:pitchDeg,rightPitchDeg:pitchDeg,hasLeftFacet:true,hasRightFacet:true,
   materials:{...materials,side_frame_thickness_mm:frameMM},minimumSoffitMM:25,manufacturingRoundIncrementMM:5,
-  sideSoffitControl:restricted?{mode:'specified',side:'left',requestedProjectionMM:Number(inputs.specifiedSideSoffitMM)}:null,
+  sideSoffitControl:restricted||none?{mode:none?'none':'specified',side:'left',requestedProjectionMM:Number(inputs.specifiedSideSoffitMM)}:null,
   fasciaThicknessMM:Number(materials.fascia_thickness_mm??10),plyProjectionAllowanceMM:Number(materials.ply_projection_allowance_mm??5),fasciaLipMM:Number(materials.fascia_lip_mm??25)}));
  if(!eaves.solutionValid)return invalid('The eaves solver cannot satisfy these pitches and soffits.');
  const externalLeftMM=eaves.left.manufacturedHorizontalFootRunMM,externalRightMM=eaves.right.manufacturedHorizontalFootRunMM,externalFrontMM=eaves.referenceBaseWidthMM;
@@ -98,7 +98,7 @@ export function buildEdwardianGeometry({inputs={},materials={},shortRidgeAdjustm
  }
  sideJacks.sort((a,b)=>a.side.localeCompare(b.side)||a.positionMM-b.positionMM);
  const hipPitchDeg=Math.atan2(riseMM,Math.hypot(half,projectionMM-ridgeEndYMM))*180/Math.PI;
- return {valid:true,errors:[],readOnly:true,finishedHeightMM:heightAt(pitchDeg),heightSafetyBufferMM:inputs.maxFinishedHeightMM?5:0,requestedPitchDeg,widthMM,projectionMM,pitchDeg,frontPitchDeg,frontPitchAutoAdjusted,minimumBossTrussCentreMM,maximumAutomaticFrontPitchDeg,frameMM,soffitMM,ridgeMode:mode,ridge,ridgeEndYMM,ridgeSetbackMM:projectionMM-ridgeEndYMM,terminalSetbackMM,terminalTrussCentreMM,riseMM,hipPitchDeg,layout,eaves,frontRafters,manualFront,frontRafterWarnings,sideLayout:sideLayouts.left,sideLayouts,sideJacks,manualSides:inputs.rearTrussPositionsMM!=null||inputs.sideJackPositionsMM!=null,
+ return {valid:true,errors:[],readOnly:true,...(none?{soffitRequestedNone:true}:{}),finishedHeightMM:heightAt(pitchDeg),heightSafetyBufferMM:inputs.maxFinishedHeightMM?5:0,requestedPitchDeg,widthMM,projectionMM,pitchDeg,frontPitchDeg,frontPitchAutoAdjusted,minimumBossTrussCentreMM,maximumAutomaticFrontPitchDeg,frameMM,soffitMM,ridgeMode:mode,ridge,ridgeEndYMM,ridgeSetbackMM:projectionMM-ridgeEndYMM,terminalSetbackMM,terminalTrussCentreMM,riseMM,hipPitchDeg,layout,eaves,frontRafters,manualFront,frontRafterWarnings,sideLayout:sideLayouts.left,sideLayouts,sideJacks,manualSides:inputs.rearTrussPositionsMM!=null||inputs.sideJackPositionsMM!=null,
   externalLeftMM,externalRightMM,externalFrontMM,externalWidthMM:widthMM+externalLeftMM+externalRightMM,externalProjectionMM:projectionMM+externalFrontMM,
   hips:[{side:'left',start:{xMM:0,yMM:projectionMM},end:ridge},{side:'right',start:{xMM:widthMM,yMM:projectionMM},end:ridge}],
   notes:['Plan setting-out only: hip lines meet the internal front corners centrally. External hip feet and member profiles are separate cutting candidates for factory review.',

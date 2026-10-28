@@ -1,3 +1,5 @@
+import {solveFacetEavesGeometry} from './facetEavesGeometry';
+import {alignChamferedLathEaves} from './alignChamferedLathEaves';
 import {applyVictorianRafterLayout} from './victorianRafterLayout';
 import {VICTORIAN_MAX_SPACING_MM as maxSpacing,fiveFacetJackPositions} from './victorianSupportRules';
 import {buildEdwardianGeometry} from './edwardianGeometry';
@@ -28,20 +30,30 @@ export function buildVictorianPlanGeometry({inputs={},materials={}}={},frontFace
   const corners=front.map(a=>({xMM:a.xMM,yMM:a.yMM+shift}));
   if(Math.min(corners[0].yMM,corners[frontFacetCount].yMM)<=0)return fail('The projection is too short for this Victorian front.');
   if(inputs.ridgeMode&&inputs.ridgeMode!=='automatic')return fail('Victorian front-pitch override requires further geometry review.');
-  if(inputs.sideSoffitMode&&inputs.sideSoffitMode!=='automatic')return fail('Independent Victorian side soffits require further geometry review.');
+  const sideMode=inputs.sideSoffitMode||'automatic',controlled=sideMode!=='automatic';
+  if(!['automatic','specified','none'].includes(sideMode))return fail('Choose a valid soffit requirement.');
+  if(controlled&&angles.some(a=>Math.abs(Number(a)-standardAngle)>1e-8))return fail('Restricted/no-soffit Victorian roofs currently require standard corner angles.');
+  const requested=Number(inputs.specifiedSideSoffitMM);
+  if(sideMode==='specified'&&(inputs.specifiedSideSoffitMM==null||String(inputs.specifiedSideSoffitMM).trim()===''||!Number.isFinite(requested)||requested<=0))return fail('Enter a positive required side soffit size.');
   if(inputs.maxFinishedHeightMM&&angles.some(a=>Math.abs(Number(a)-standardAngle)>1e-8))return fail('Maximum finished height currently requires standard Victorian corners.');
-  const inherited=buildEdwardianGeometry({inputs:{...inputs,frontRafterPositionsMM:undefined,frontRafterSpacingOverride:undefined,rearTrussPositionsMM:undefined,sideJackPositionsMM:undefined,ridgeMode:'automatic'},materials,shortRidgeAdjustment:false});
+  const inherited=buildEdwardianGeometry({inputs:{...inputs,frontRafterPositionsMM:undefined,frontRafterSpacingOverride:undefined,rearTrussPositionsMM:undefined,sideJackPositionsMM:undefined,ridgeMode:'automatic',sideSoffitMode:'automatic'},materials,shortRidgeAdjustment:false});
   if(!inherited.valid)return fail(inherited.errors.join(' '));
   pitch=inherited.pitchDeg;
-  const soffitMode=inputs.soffitMode??(Number(inputs.soffitMM??150)===150?'standard':'specified');
+  const soffitMode=controlled?'specified':inputs.soffitMode??(Number(inputs.soffitMM??150)===150?'standard':'specified');
   if(!['standard','specified'].includes(soffitMode))return fail('Choose standard board or specified envelope soffit mode.');
-  const soffitMM=Number(inputs.soffitMM??150),frameMM=inherited.frameMM;
+  const soffitMM=controlled?(sideMode==='none'?0:requested):Number(inputs.soffitMM??150),frameMM=inherited.frameMM;
+  let eaves=controlled?alignChamferedLathEaves(solveFacetEavesGeometry({requestedReferenceSoffitMM:Number(inputs.soffitMM??150),referencePitchDeg:pitch,leftPitchDeg:pitch,rightPitchDeg:pitch,hasLeftFacet:true,hasRightFacet:true,materials:{...materials,side_frame_thickness_mm:frameMM},sideSoffitControl:{mode:sideMode,side:'left',requestedProjectionMM:sideMode==='none'?0:requested},fasciaThicknessMM:Number(materials.fascia_thickness_mm??10),plyProjectionAllowanceMM:Number(materials.ply_projection_allowance_mm??5),fasciaLipMM:Number(materials.fascia_lip_mm??25)})):null;
+  if(controlled&&!eaves.solutionValid)return fail('The requested soffit cannot form valid Victorian eaves.');
+  // Standard Victorian facets have equal pitches: use the controlled side
+  // foot/base on every facet, without the front-only stock fitting allowance.
+  if(controlled)eaves={...eaves,referenceBaseWidthMM:eaves.left.manufacturedHorizontalFootRunMM,referenceTimberHorizontalFootCutMM:eaves.left.matchedHorizontalFootRunMM,referenceGeometry:eaves.left.geometry,effectiveReferenceSoffitMM:soffitMM};
   const fasciaThicknessMM=Number(materials.fascia_thickness_mm??10);
   const fittingToleranceMM=Number(materials.ply_projection_allowance_mm??5);
   const stripTrimAllowanceMM=Number(materials.soffit_trim_allowance_mm??5);
-  const plyBaseWidthMM=frameMM+soffitMM+(soffitMode==='standard'?fittingToleranceMM:-fasciaThicknessMM);
+  const plyBaseWidthMM=controlled?eaves.left.manufacturedHorizontalFootRunMM:frameMM+soffitMM+(soffitMode==='standard'?fittingToleranceMM:-fasciaThicknessMM);
+  if(controlled&&plyBaseWidthMM<95-1e-7)return fail(sideMode==='none'?'The configured no-soffit fascia lip cannot accommodate the 95mm ringbeam PSE. Workshop review is required.':'The required side soffit is too small for the 95mm ringbeam PSE. Choose No soffit for the standard fascia-lip detail, or increase the required size.');
   if(![plyBaseWidthMM,fasciaThicknessMM,fittingToleranceMM,stripTrimAllowanceMM].every(Number.isFinite)||plyBaseWidthMM<=0||Math.min(fasciaThicknessMM,fittingToleranceMM,stripTrimAllowanceMM)<0)return fail('Valid soffit and ply-base allowances are required.');
-  const soffitStripWidthMM=soffitMode==='standard'?soffitMM:Math.max(0,soffitMM-fasciaThicknessMM-stripTrimAllowanceMM);
+  const soffitStripWidthMM=sideMode==='none'?0:controlled?Math.max(0,requested-fasciaThicknessMM-stripTrimAllowanceMM):soffitMode==='standard'?soffitMM:Math.max(0,soffitMM-fasciaThicknessMM-stripTrimAllowanceMM);
   const upstandArrangement=inputs.upstandArrangement??(soffitMode==='specified'&&soffitMM===50?'vertical':'pitched');
   if(!['vertical','pitched'].includes(upstandArrangement))return fail('Choose pitched or vertical upstands.');
   const upstandHeightMM=upstandArrangement==='vertical'?210:195;
@@ -102,11 +114,11 @@ export function buildVictorianPlanGeometry({inputs={},materials={}}={},frontFace
   });
   const minimumY=Math.min(corners[0].yMM,corners[frontFacetCount].yMM);
   if(ridge.yMM>=minimumY)return fail('The ridge must sit behind the two side-to-front corners. Review the angles or projection.');
-  const geometry={valid:true,errors:[],adjustedAngles:angles.some(a=>Math.abs(Number(a)-standardAngle)>1e-8),frontFacetCount,maxSupportSpacingMM:maxSpacing,style:`Victorian ${frontFacetCount}-facet`,finishedHeightMM:inherited.finishedHeightMM,heightSafetyBufferMM:inherited.heightSafetyBufferMM,requestedPitchDeg:inherited.requestedPitchDeg,widthMM:w,projectionMM:p,pitchDeg:pitch,frameMM:inherited.frameMM,soffitMM,soffitMode,plyBaseWidthMM,fasciaThicknessMM,fittingToleranceMM,stripTrimAllowanceMM,soffitStripWidthMM,upstandArrangement,upstandHeightMM,bossTopContinuationMM,
+  const geometry={...(controlled?{eaves,soffitRequirement:sideMode,requestedSideSoffitMM:sideMode==='none'?0:requested,soffitProjectionMM:plyBaseWidthMM-frameMM,soffitNote:sideMode==='none'?`No soffit boards; compulsory fascia lip projects ${Number((plyBaseWidthMM-frameMM).toFixed(1))}mm beyond the frame.`:`Both sides: ${requested}mm overall fascia envelope. All facets share this setting at the standard equal pitches.`}:{}),valid:true,errors:[],adjustedAngles:angles.some(a=>Math.abs(Number(a)-standardAngle)>1e-8),frontFacetCount,maxSupportSpacingMM:maxSpacing,style:`Victorian ${frontFacetCount}-facet`,finishedHeightMM:inherited.finishedHeightMM,heightSafetyBufferMM:inherited.heightSafetyBufferMM,requestedPitchDeg:inherited.requestedPitchDeg,widthMM:w,projectionMM:p,pitchDeg:pitch,frameMM:inherited.frameMM,soffitMM,soffitMode,plyBaseWidthMM,fasciaThicknessMM,fittingToleranceMM,stripTrimAllowanceMM,soffitStripWidthMM,upstandArrangement,upstandHeightMM,bossTopContinuationMM,
     cornerAnglesDeg:angles.map(Number),mitresDeg:turns.map(a=>a/2),frontLengthMM,internalOutline,externalOutline,facets,hips,intermediateBars,jackRafters,
     ridge,ridgeEndYMM:ridge.yMM,terminalTrussCentreMM:inherited.terminalTrussCentreMM,layout,riseMM:inherited.riseMM,
     externalWidthMM:Math.max(...externalOutline.map(a=>a.xMM))-Math.min(...externalOutline.map(a=>a.xMM)),externalProjectionMM:Math.max(...externalOutline.map(a=>a.yMM)),
-    nominalExternalProjectionMM:p+frameMM+soffitMM,frontManufacturingAllowanceMM:soffitMode==='standard'?fittingToleranceMM:-fasciaThicknessMM,
-    nominalFootRunMM:frameMM+soffitMM};
+    nominalExternalProjectionMM:controlled?p+plyBaseWidthMM:p+frameMM+soffitMM,frontManufacturingAllowanceMM:controlled?0:soffitMode==='standard'?fittingToleranceMM:-fasciaThicknessMM,
+    nominalFootRunMM:controlled?plyBaseWidthMM:frameMM+soffitMM};
   return applyVictorianRafterLayout({geometry,inputs,jackAt:jack});
 }

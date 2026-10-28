@@ -28,7 +28,7 @@ export function buildCentralBossDesign({inputs={},materials={}}={}) {
   referencePitchDeg:frontPitchDeg,leftPitchDeg:initial.sidePitchDeg,rightPitchDeg:initial.sidePitchDeg,
   hasLeftFacet:true,hasRightFacet:true,materials,minimumSoffitMM:25,manufacturingRoundIncrementMM:5,
   sideSoffitControl:inputs.sideSoffitMode==='specified' || inputs.sideSoffitMode==='none' ? {
-   mode:inputs.sideSoffitMode,side:inputs.sideSoffitControlSide==='right'?'right':'left',
+   mode:inputs.sideSoffitMode,side:inputs.sideSoffitControlSide==='both'?'both':inputs.sideSoffitControlSide==='right'?'right':'left',
    requestedProjectionMM:Number(inputs.specifiedSideSoffitMM ?? 0)} : null,
   fasciaThicknessMM:Number(materials.fascia_thickness_mm ?? 10),
   plyProjectionAllowanceMM:Number(materials.ply_projection_allowance_mm ?? 5),fasciaLipMM:Number(materials.fascia_lip_mm ?? 25),

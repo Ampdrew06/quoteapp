@@ -12,7 +12,7 @@ export function buildGablePlasticsGutteringAudit({geometry:g,materials:m={},plas
  if(Math.min(fasciaStockM,soffitStockM,gutterStockM,spacingMM,jStockM)<=0)return fail('Stock lengths and bracket spacing must be positive.');
  const fasciaSizes=m.fascia_stock_sizes_mm??[200,225,250,300,400],soffitSizes=m.soffit_board_widths_mm??[100,150,175,200];
  const fasciaRates=m[`fascia_price_per_length_${band}_mm`]??{},soffitRates=m[`soffit_price_per_length_${band}_mm`]??{};
- const sideRows=g.feet.map(f=>{const cut=calculateFasciaCutHeight(g.truss.ringBeamHeightMM+f.vfcMM+25/cos);return {edgeId:`eaves-${f.side}`,side:f.side,runM:projection/1000,fasciaCut:cut,widthMM:nextWidth(fasciaSizes,cut.coverageHeightMM),soffitGeometryMM:f.hfcMM-g.frameMM};});
+ const sideRows=g.feet.map(f=>{const cut=calculateFasciaCutHeight(g.truss.ringBeamHeightMM+f.vfcMM+25/cos);return {edgeId:`eaves-${f.side}`,side:f.side,runM:projection/1000,fasciaCut:cut,widthMM:nextWidth(fasciaSizes,cut.coverageHeightMM),soffitGeometryMM:g.soffitRequestedNone?0:f.hfcMM-g.frameMM};});
  // Sloping fascia stops where it reaches the outer edge of the central gusset.
  const frontRows=g.feet.map(f=>({edgeId:`front-${f.side}`,side:'frontSlope',runM:(g.widthMM/2+f.hfcMM-g.truss.gusset.widthMM/2)/cos/1000,widthMM:300,soffitGeometryMM:g.frontOverhangMM}));
  const fasciaRuns=[...sideRows,...frontRows];
@@ -31,8 +31,8 @@ export function buildGablePlasticsGutteringAudit({geometry:g,materials:m={},plas
  add(plasticLines,'joints','Fascia joints — two box-end joins plus stock joins',2+fasciaPlan.joints,'each',m[`fascia_joint_300_${band}_price`]);
  // J-trim follows the external frame/A-frame profile, not the overhanging roof perimeter.
  const frontJRunMM=2*(g.widthMM/2+g.frameMM-g.truss.gusset.widthMM/2)/cos+g.truss.closure.cutLengthMM;
- const jRunM=(2*(g.projectionMM+g.frameMM)+frontJRunMM)/1000;
- add(plasticLines,'jTrim','J-trim — side frames and front slopes/flat',Math.ceil(jRunM/jStockM),`${jStockM}m lengths`,m[`fascia_j_section_${band}_price`]);
+ const jRunM=((g.soffitRequestedNone?0:2*(g.projectionMM+g.frameMM))+frontJRunMM)/1000;
+ add(plasticLines,'jTrim','J-trim — side frames and front slopes/flat',soffitRuns.length?Math.ceil(jRunM/jStockM):0,`${jStockM}m lengths`,m[`fascia_j_section_${band}_price`]);
  const ventM=m.vent_rounding_mode==='exact'?2*projection/1000:Math.ceil(2*projection/1000);
  add(plasticLines,'venting','Factory venting — side eaves',ventM,'m',m.fascia_vent_price_per_m);
  const hRunMM=soffitPlan.runPieces.reduce((s,r)=>s+Math.max(0,r.lengthsM.length-1)*(soffitRuns.find(x=>x.edgeId===r.edgeId)?.soffitGeometryMM??0),0);

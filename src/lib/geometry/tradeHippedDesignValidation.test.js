@@ -18,7 +18,8 @@ test('trade requires positive finite dimensions and enabled hip runs',()=>{
   expect(validate({...base,widthMM:7000,leftHipWidthMM:value}).length).toBe(1);
  }
 });
-test('simple lean-to and inactive hips are unaffected',()=>{
+test('simple lean-to is unaffected and no-hip Hipped route has a clear instruction',()=>{
  expect(validate({...base,roofStyle:'leanTo'})).toEqual([]);
- expect(validate({...base,leftHip:false,rightHip:false})).toEqual([]);
+ expect(validate({...base,leftHip:false,rightHip:false}).length).toBe(1);
+ expect(validate({...base,isAdmin:true,leftHip:false,rightHip:false}).length).toBe(1);
 });

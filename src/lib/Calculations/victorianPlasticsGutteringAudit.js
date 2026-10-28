@@ -11,7 +11,7 @@ export function buildVictorianPlasticsGutteringAudit({geometry:g,materials:m={},
  if(g.adjustedAngles)return fail(['Adjusted-angle plastic and gutter corners require review.']);
  const five=g.frontFacetCount===5,cornerAngle=five?150:135,stockCornerAngle=135,cornerQty=g.hips.length;
  const soffit=buildVictorianSoffitSupply(g,m);
- const e=buildEdwardianGeometry({inputs:{widthMM:g.widthMM,projMM:g.projectionMM,pitchDeg:g.pitchDeg,frameThicknessMM:g.frameMM,soffitMM:g.soffitMM,sideSoffitMode:g.soffitMode==='specified'?'specified':'automatic',specifiedSideSoffitMM:g.soffitMM},materials:m});
+ const e=g.eaves?{valid:true,frontPitchDeg:g.pitchDeg,eaves:g.eaves}:buildEdwardianGeometry({inputs:{widthMM:g.widthMM,projMM:g.projectionMM,pitchDeg:g.pitchDeg,frameThicknessMM:g.frameMM,soffitMM:g.soffitMM,sideSoffitMode:g.soffitMode==='specified'?'specified':'automatic',specifiedSideSoffitMM:g.soffitMM},materials:m});
  if(!soffit.valid||!e.valid)return fail([...(soffit.errors||[]),...(e.errors||[])]);
  const band=/^(white|smooth white|white grain)$/i.test(String(plasticsColour).trim())?'white':'foiled';
  const fasciaStockM=Number(m.fascia_stock_length_m??5);
@@ -35,7 +35,7 @@ export function buildVictorianPlasticsGutteringAudit({geometry:g,materials:m={},
  if(!frame.valid)return fail(frame.errors);
  const jRunM=frame.facets.reduce((n,f)=>n+f.externalLengthMM/1000,0),jStockM=Number(m.j_section_stock_length_m??5);
  if(!(jStockM>0))return fail(['Positive J-trim stock length required.']);
- add('j_trim',`Soffit starter / J-trim — ${plasticsColour}`,Math.ceil(jRunM/jStockM),`${jStockM}m lengths`,m[`fascia_j_section_${band}_price`]??m[`j_section_price_each_${band}`]);
+ add('j_trim',`Soffit starter / J-trim — ${plasticsColour}`,soffit.stripWidthMM>0?Math.ceil(jRunM/jStockM):0,`${jStockM}m lengths`,m[`fascia_j_section_${band}_price`]??m[`j_section_price_each_${band}`]);
  // Equal-depth 135-degree mitre seam: depth / sin(half interior angle).
  const hCornerMM=soffit.stripWidthMM>0?Math.ceil(soffit.stripWidthMM/Math.sin(cornerAngle/2*Math.PI/180)/10)*10:0;
  const soffitFit=planPlasticsStock(rows.map(r=>({...r,widthMM:soffit.stripWidthMM})),soffit.stockLengthMM/1000);
@@ -53,7 +53,7 @@ export function buildVictorianPlasticsGutteringAudit({geometry:g,materials:m={},
  const lines=[...plasticLines,...gutterLines];
  return {valid:true,readOnly:true,errors:[],band,rows,soffit,fasciaPlan,fasciaCut,fasciaWidthMM,totalRunM,jRunM,hCornerMM,hLengthMM,ventQtyM,guttering:{...guttering,counts,items:gutterLines,totalCost:gutterLines.some(r=>r.cost==null)?null:gutterLines.reduce((n,r)=>n+r.cost,0),assumptions:[`Victorian perimeter: ${cornerQty} ${cornerAngle}-degree roof joints; supply ${cornerQty}135-degree stock corners.5-facet gutter bends are factory cut/welded; fascia corners are adapted or mitred on site.`]},plasticLines,gutterLines,knownCost:lines.reduce((n,r)=>n+(r.cost??0),0),costComplete:lines.every(r=>r.cost!=null),notes:[
  five?'Full fascia, soffit and straight gutter lengths remain site-cut stock. Six135° fascia corners are supplied for fitting/adapting or site mitring; six135° gutter bends are cut/welded in the factory to suit150° roof joints. No additional fabrication charge has been invented.':'Full fascia, soffit and gutter stock is supplied for site cutting; this is a stock allowance, not a numbered factory cut list.',
- 'Specified soffit includes the fascia envelope; the Leah 50mm detail uses 35mm strips. The ripping allowance includes saw kerf.',
+ g.soffitRequirement==='none'?'No soffit boards, J-trim or H-trim are supplied. The compulsory fascia lip remains.':g.soffitRequirement==='specified'?`Both sides use the required ${g.requestedSideSoffitMM}mm fascia envelope; strips are ${g.soffitStripWidthMM}mm after fascia and fitting/trim allowances.`:'Specified soffit includes the fascia envelope; the Leah 50mm detail uses 35mm strips. The ripping allowance includes saw kerf.',
  `J-trim follows the external frame polygon. H-trim covers ${cornerQty} ${cornerAngle}° mitres and necessary straight soffit joins; priced by consumption from shared stock.`,
  'Whole gutter stock follows the actual perimeter runs and the existing shared joint allowance.',
  'Gutter brackets retain the shared continuous-perimeter allowance. One downpipe assembly includes two offset bends, two clips and a shoe; site-specific extras are not inferred from the historical job.',

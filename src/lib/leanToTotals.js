@@ -449,7 +449,7 @@ export function buildLeanToQuoteBase(inputs = {}, exclusions = {}) {
 
   const sft = Number(inputs.side_frame_thickness_mm) || Number(m.side_frame_thickness_mm) || 70;
   const lip = Number(inputs.fascia_lip_mm) || Number(m.fascia_lip_mm) || 25;
-  const soff = Number(inputs.soffit_mm) || Number(inputs.eaves_overhang_mm) || 150;
+  const soff = Number(inputs.soffit_mm ?? inputs.eaves_overhang_mm ?? 150);
   const frameOn = Number(inputs.frame_on_mm) || Number(m.frame_on_mm) || 70;
 
 const leftWall =
@@ -651,7 +651,7 @@ const sparHookQty = isHippedLeanTo
 
   // 9mm ply (base cost)
   const soffitVisibleHeightMM =
-    Number(inputs.soffit_mm ?? inputs.eaves_overhang_mm ?? 150) + 70;
+    (Number(inputs.soffit_mm ?? inputs.eaves_overhang_mm ?? 150)===0?25:Number(inputs.soffit_mm ?? inputs.eaves_overhang_mm ?? 150)) + 70;
 
   const soffitStrip_m2 = (extWidthMM / 1000) * (soffitVisibleHeightMM / 1000);
   const wallplateFace_m2 = (extWidthMM / 1000) * (220 / 1000);

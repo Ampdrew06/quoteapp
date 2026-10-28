@@ -66,7 +66,7 @@ function plasticsAccessories(geometry, rows, fasciaPlan, soffitPlan, materials, 
   const frameMM = positive(materials.side_frame_thickness_mm ?? 70);
   const widthMM = positive(geometry.widthMM);
   const projectionMM = positive(geometry.projectionMM);
-  const frameRuns = rows.map(row => ({ edgeId: row.edgeId, side: row.side,
+  const frameRuns = (geometry.soffitRequestedNone?rows.filter(row=>row.soffitGeometryMM>0):rows).map(row => ({ edgeId: row.edgeId, side: row.side,
     runM: (row.side === "front" ? widthMM + 2 * frameMM : projectionMM + frameMM) / 1000 }));
   const frameValid = widthMM > 0 && projectionMM > 0;
   const jRunM = frameValid ? frameRuns.reduce((sum, run) => sum + run.runM, 0) : null;
@@ -80,7 +80,7 @@ function plasticsAccessories(geometry, rows, fasciaPlan, soffitPlan, materials, 
     for (let index = 1; index < run.lengthsM.length; index++)
       hPieces.push({ label: `${run.edgeId} straight soffit joint`, lengthMM: row.soffitGeometryMM });
   });
-  if (front) rows.filter(row => row.side === "left" || row.side === "right").forEach(row => {
+  if (front) rows.filter(row => (row.side === "left" || row.side === "right") && (!geometry.soffitRequestedNone || (row.soffitGeometryMM>0&&front.soffitGeometryMM>0))).forEach(row => {
     // 90-degree mitre crosses both perpendicular board depths.
     hPieces.push({ label: `${row.side} soffit mitre`, lengthMM: Math.ceil(Math.hypot(front.soffitGeometryMM, row.soffitGeometryMM) / 10) * 10 });
   });
@@ -123,7 +123,9 @@ export function buildHippedPlasticsIntegrationAudit({ geometry = null, edgeModel
     const fasciaCut = calculateFasciaCutHeight(structuralFasciaHeightMM);
     const finishedFasciaHeightMM = fasciaCut?.externalCutHeightMM ?? 0;
     const fasciaWidthMM = profile ? nextWidth(materials.fascia_stock_sizes_mm || [200, 225, 250, 300, 400], fasciaCut?.coverageHeightMM) : null;
-    const soffitGeometryMM = positive(profile?.soffitDepthMM);
+    const rawSoffitMM=positive(profile?.soffitDepthMM);
+    const noSoffit=geometry.sideSoffitMode==="none";
+    const soffitGeometryMM = noSoffit ? (edge.side==="front"?Math.max(0,rawSoffitMM-Number(materials.fascia_lip_mm??25)):0) : rawSoffitMM;
     const soffitWidthMM = soffitGeometryMM > 0 ? nextWidth(widths, soffitGeometryMM) : 0;
     if (!profile || !vfcMM || !fasciaWidthMM) errors.push(`Missing resolved eaves profile: ${edge.id}`);
     if (soffitWidthMM === null) errors.push(`Soffit dimension exceeds configured stock widths: ${edge.id}`);
@@ -143,7 +145,7 @@ export function buildHippedPlasticsIntegrationAudit({ geometry = null, edgeModel
   const soffitPlan = planSoffitStock(soffitRuns, soffitStockM, widths, kerfMM);
   const soffitCost = soffitPlan.order.some(item => soffitPrices[item.widthMM] == null)
     ? null : soffitPlan.order.reduce((sum, item) => sum + item.qty * positive(soffitPrices[item.widthMM]), 0);
-  const accessories = plasticsAccessories(geometry, rows, fasciaPlan, soffitPlan, materials, band, plasticsColor);
+  const accessories = plasticsAccessories(geometry.sideSoffitMode==="none"?{...geometry,soffitRequestedNone:true}:geometry, rows, fasciaPlan, soffitPlan, materials, band, plasticsColor);
   const totalRunM = rows.reduce((sum, row) => sum + row.runM, 0);
   const ventMode = materials.vent_rounding_mode ?? "ceil";
   const ventQtyM = ventMode === "exact" ? totalRunM : Math.ceil(totalRunM);

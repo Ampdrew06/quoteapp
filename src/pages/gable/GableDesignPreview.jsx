@@ -17,7 +17,7 @@ import {buildGableMiscellaneousAudit} from '../../lib/Calculations/gableMiscella
 import {buildGableLathMembraneAudit} from '../../lib/Calculations/gableLathMembraneAudit';
 import {buildGableGeometry} from '../../lib/geometry/gableGeometry';
 const KEY='gableDesignPreviewInputs';
-const initial={gableTrussPositionsMM:null,widthMM:'',projMM:'',pitchDeg:25,frameThicknessMM:70,leftSoffitMM:150,rightSoffitMM:150,frontOverhangMM:150,separateSideSoffits:false,maxFinishedHeightMM:'',tileProductId:'britmetShingle',plasticsColour:'white',gutterProfile:'square',tileColour:'Titanium',fasciaColour:'White',gutterColour:'White',customerReference:'',deliveryPostcode:'',selectedCustomerId:'retail'};
+const initial={gableTrussPositionsMM:null,widthMM:'',projMM:'',pitchDeg:25,frameThicknessMM:70,leftSoffitMM:150,rightSoffitMM:150,frontOverhangMM:150,separateSideSoffits:false,maxFinishedHeightMM:'',tileProductId:'britmetShingle',plasticsColour:'white',gutterProfile:'square',tileColour:'Titanium',fasciaColour:'White',gutterColour:'Black',customerReference:'',deliveryPostcode:'',selectedCustomerId:'retail'};
 const restore=()=>{try{
  const saved=JSON.parse(localStorage.getItem(KEY)||'{}');
  return {...initial,selectedCustomerId:getCurrentCustomer()?.id||'retail',...saved,

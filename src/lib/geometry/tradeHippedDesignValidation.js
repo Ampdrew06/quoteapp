@@ -1,6 +1,7 @@
 // Customer geometry guard only. Admin retains unrestricted diagnostic access.
 // No roof size, aspect-ratio or structural span limits are imposed here.
 export function validateTradeHippedDesign({isAdmin=false,roofStyle,widthMM,projMM,bossArrangement='offset',leftHip=true,rightHip=true,leftHipWidthMM,rightHipWidthMM}) {
+ if(roofStyle==='hippedLeanTo'&&bossArrangement!=='central'&&!leftHip&&!rightHip)return ['Both hips are removed. Select Lean-To from Home for this roof; the no-hip configuration is not yet connected to the shared Lean-To calculations.'];
  if(isAdmin||roofStyle!=='hippedLeanTo')return [];
  const width=Number(widthMM),projection=Number(projMM);
  if(!Number.isFinite(width)||width<=0||!Number.isFinite(projection)||projection<=0)return ['Enter a positive width and projection before quoting.'];
