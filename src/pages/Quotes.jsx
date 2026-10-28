@@ -1,3 +1,4 @@
+import {isVictorianHippedQuote} from '../lib/Calculations/victorianHippedQuotation';
 import {quoteStyleLabel} from '../lib/quoteStyleLabel';
 import {isVictorianFiveQuote} from '../lib/Calculations/victorianFiveQuotation';
 import {isAdminUser} from '../lib/userRole';
@@ -78,6 +79,7 @@ export function AdminQuotes() {
     if (!item) return;
     activateDesignRecord(item);
 
+    if(isVictorianHippedQuote(item)){nav("/quote/victorian-hipped");return;}
     if(isVictorianFiveQuote(item)){nav("/quote/victorian-five");return;}
     if(isVictorianQuote(item)){nav("/quote/victorian");return;}
     if(isEdwardianQuote(item)){nav("/quote/edwardian");return;}
@@ -137,6 +139,7 @@ const convertToJob = async (quote) => {
 
   alert(`Quote ${quote.quote_number} converted to Job ${jobNumber}.`);
 
+  if(isVictorianHippedQuote(quote)){nav("/quote/victorian-hipped/plan-manufacture");return;}
   if(isVictorianFiveQuote(quote)){nav("/quote/victorian-five/plan-manufacture");return;}
   if(isVictorianQuote(quote)){nav("/quote/victorian/plan-manufacture");return;}
   if(isEdwardianQuote(quote)){nav("/quote/edwardian/plan-manufacture");return;}

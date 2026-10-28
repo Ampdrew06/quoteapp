@@ -27,7 +27,7 @@ export function buildVictorianHippedMemberSchedule({geometry:g,inputs={},materia
  const controls={wallplateFaceMM:Number(inputs.memberWallplateFaceMM??materials.wallplate_thickness_mm??63),hipBossPlanMM:Number(inputs.hipBossPlanMM??156),bossRafterSlopeMM:Number(inputs.bossRafterSlopeMM??150)};
  if(['memberWallplateFaceMM','hipBossPlanMM','bossRafterSlopeMM'].some(key=>inputs[key]==='')||Object.values(controls).some(v=>!Number.isFinite(v)||v<0))return fail(['Enter non-negative wallplate-face and boss connection allowances.']);
  const depth=220,width=45,members=[],errors=[];
- const plans=[...g.hips.map(h=>({...h,reference:h.id,role:'hip'})),...g.rafterLayout.members];
+ const plans=[...g.hips.map(h=>({...h,reference:h.reference||h.id,role:'hip'})),...g.rafterLayout.members];
  for(const p of plans){
   const plan=length(p.start,p.end),pitch=p.pitchDeg,c=Math.cos(rad(pitch)),s=Math.sin(rad(pitch));
   const foot=toe(g,p,width),hfc=foot.horizontalFootCutMM,vfc=depth/c-hfc*Math.tan(rad(pitch));
@@ -39,7 +39,7 @@ export function buildVictorianHippedMemberSchedule({geometry:g,inputs={},materia
    const h={x:hip.end.xMM-hip.start.xMM,y:hip.end.yMM-hip.start.yMM};
    connection=calculateJackHipSetback({hipWidthRunMM:Math.abs(cross(axis,h)),hipProjectionRunMM:Math.abs(axis.x*h.x+axis.y*h.y),facet:'front',hipTimberWidthMM:width,jackTimberWidthMM:width,closestCornerGapMM:5});
    if(!connection.valid){errors.push(`${p.reference}: invalid jack/hip angle.`);continue;}
-   connection={...connection,supportingHipRef:hip.id};bossPlan=connection.hipCentrelineSetbackMM;
+   connection={...connection,supportingHipRef:hip.reference||hip.id};bossPlan=connection.hipCentrelineSetbackMM;
   }else{
    const wallNormal=Math.abs(axis.y);
    if(!(wallNormal>1e-7)){errors.push(`${p.reference}: member does not cross the wallplate face.`);continue;}
@@ -64,7 +64,7 @@ export function buildVictorianHippedMemberSchedule({geometry:g,inputs={},materia
   if(![bottom,hfc,vfc,top].every(Number.isFinite)||Math.min(bottom,hfc,vfc,top)<=0)errors.push('The wall-side rafter does not leave a positive cutting profile.');
   else for(const wall of g.wallMembers){
    const lowerEnd={xMM:bottom*c,yMM:bottom*s},upperFoot={xMM:-hfc,yMM:vfc},upperEnd={xMM:-hfc+top*c,yMM:vfc+top*s};
-   members.push({ref:wall.id,id:wall.id,type:'Wall-side rafter',role:'wall-rafter',facetId:'F3',bossId:null,pitchDeg:pitch,topCutOffSquareDeg:pitch,topCutLengthMM:length(lowerEnd,upperEnd),topEdgeMM:top,bottomEdgeMM:bottom,horizontalFootCutMM:hfc,verticalFootCutMM:vfc,firstTrimDistanceMM:hfc,planLengthMM:g.projectionMM,wallplateFacePlanMM:Number(raw.wallplateThicknessMM),bossAllowancePlanMM:0,bossAllowanceSlopeMM:0,jackConnection:null,hookAdjustmentMM:0,ruleSource:'leanToGeometry',reviewRequired:true,points:[{xMM:0,yMM:0},lowerEnd,upperEnd,upperFoot,{xMM:-hfc,yMM:0}].map(q=>({...q,xMM:-q.xMM}))});
+   members.push({ref:g.manufactureNumbering?.byId[wall.id]||wall.id,id:wall.id,type:'Wall-side rafter',role:'wall-rafter',facetId:'F3',bossId:null,pitchDeg:pitch,topCutOffSquareDeg:pitch,topCutLengthMM:length(lowerEnd,upperEnd),topEdgeMM:top,bottomEdgeMM:bottom,horizontalFootCutMM:hfc,verticalFootCutMM:vfc,firstTrimDistanceMM:hfc,planLengthMM:g.projectionMM,wallplateFacePlanMM:Number(raw.wallplateThicknessMM),bossAllowancePlanMM:0,bossAllowanceSlopeMM:0,jackConnection:null,hookAdjustmentMM:0,ruleSource:'leanToGeometry',reviewRequired:true,points:[{xMM:0,yMM:0},lowerEnd,upperEnd,upperFoot,{xMM:-hfc,yMM:0}].map(q=>({...q,xMM:-q.xMM}))});
   }
  }
  if(errors.length)return fail(errors);

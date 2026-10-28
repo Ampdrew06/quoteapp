@@ -10,10 +10,7 @@ export function buildVictorianHippedChecklist(model){
  const sections={};
  if(!model.valid)return {valid:false,sections,installedWeightKg:0};
  const {timber,misc}=model.audits;
- sections.assemblies=[{key:'members',item:'Roof members — match numbered manufacture book',qty:timber.members.members.length,units:'Ea'},
-  {key:'ringbeams',item:'Assembled ring-beams',qty:timber.geometry.facets.length,units:'Ea'},
-  {key:'wallbars',item:'Sloping wallbars',qty:timber.wallplate.wallbars.length,units:'Ea'},
-  {key:'wallplate',item:'Horizontal wallplate',qty:timber.wallplate.horizontal?1:0,units:'Ea'}].filter(r=>r.qty>0);
+ sections.assemblies=timber.geometry.manufactureNumbering.entries.map(r=>({key:r.id,item:`${r.reference} — ${r.type}`,qty:1,units:'Ea'}));
  const factory=new Set(['vh_misc_glue','vh_misc_factory_screws','vh_misc_rivets','vh_misc_staples','vh_venting']);
  for(const section of model.sections.filter(s=>s.key!=='timber')){
   sections[section.key==='guttering'?'gutters':section.key]=section.rows.filter(r=>!factory.has(r.key)&&!r.label.startsWith('Factory fascia venting')&&Number(r.orderQty)>0).map(r=>({key:r.key,item:r.label,qty:Number(r.orderQty),units:r.adjustmentUnit||r.units}));

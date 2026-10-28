@@ -30,7 +30,7 @@ export default function VictorianHippedTechnicalAudits({inputs={},materials={}}=
  {model.covering.result.warnings.filter(w=>!w.includes('round up once per facet')).map(w=><p key={w}>{w}</p>)}
  {model.covering.notes.map(note=><p key={note}>{note}</p>)}
  </details>
- <h2>Calculation notes</h2><ul>{[...model.notes.filter(n=>!n.includes('Main and hip tile quantities')),...tiles.notes.filter(n=>!n.includes('tile starters')),'Quote saving/reopening and final weight review remain pending.'].map(note=><li key={note}>{note}</li>)}</ul>
+ <h2>Calculation notes</h2><ul>{[...model.notes.filter(n=>!n.includes('Main and hip tile quantities')),...tiles.notes.filter(n=>!n.includes('tile starters')),'Saved quotes retain applied geometry and manual rafter positions. Final weight review remains pending.'].map(note=><li key={note}>{note}</li>)}</ul>
  <style>{`.vh-technical-audits{margin-top:24px}.vh-technical-audits>details{margin:14px 0}.vh-technical-audits>details>summary{font-weight:700;cursor:pointer}.vh-technical-audits table{width:100%;border-collapse:collapse;font-size:12px;margin:12px 0}.vh-technical-audits th,.vh-technical-audits td{border:1px solid #cbd5e1;padding:6px;text-align:left}.vh-technical-audits h2{font-size:18px}`}</style>
  </section>;
 }

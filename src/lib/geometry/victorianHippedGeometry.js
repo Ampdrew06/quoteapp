@@ -1,3 +1,4 @@
+import {buildVictorianHippedMemberNumbering} from '../Manufacturing/victorianHippedMemberNumbering';
 import {solveLeanToPitchForMaximumFinishedHeight} from '../leanToManufactureGeometry';
 import {buildVictorianHippedEndGeometry} from './victorianHippedEndGeometry';
 import {resolveVictorianHippedEaves} from './victorianHippedEaves';
@@ -24,6 +25,10 @@ export function buildVictorianHippedGeometry({inputs={},materials={}}={}){
  }
  const g=buildResolvedVictorianHippedGeometry({inputs:resolved,materials});
  if(!g.valid)return g;
+ const numbering=buildVictorianHippedMemberNumbering(g);
+ g.rafterLayout.members.forEach(r=>{r.reference=numbering.byId[r.id];});
+ g.hips.forEach(h=>{h.reference=numbering.byId[h.id];});
+ g.manufactureNumbering=numbering;
  const rad=g.pitchDeg*Math.PI/180;
  return {...g,requestedPitchDeg:Number(inputs.pitchDeg),finishedHeightMM:Number(materials.ring_beam_height_mm??40)+g.projectionMM*Math.tan(rad)+248/Math.cos(rad)};
 }
@@ -63,6 +68,6 @@ function buildResolvedVictorianHippedGeometry({inputs={},materials={}}={}){
  facets.forEach((f,i)=>{f.externalLengthMM=length(external[i],external[i+1]);});
  const hips=[outline[1],outline[2],outline[3],outline[4]].map((end,i)=>{const start=bosses[i<2?0:1],plan=length(start,end);return {id:`H${i+1}`,bossId:start.id,start,end,planLengthMM:plan,geometricSlopeMM:Math.hypot(plan,rise),pitchDeg:Math.atan2(rise,plan)*180/Math.PI};});
  const geometry={valid:true,errors:[],style:'Victorian Hipped Lean-To',eaves,sidePitchDeg:wallplateJoint.pitchDeg,wallplateJoint,widthMM:w,projectionMM:p,cornerInsetMM:c,bossInsetMM:b,pitchDeg:pitch,riseMM:rise,frameMM:frame,soffitMM:eaves.effectiveReferenceSoffitMM??soffit,soffitMode:mode,plyBaseWidthMM:eaves.referenceBaseWidthMM??d,fasciaThicknessMM:fascia,fittingToleranceMM:tolerance,cornerAnglesDeg:[135,135,135,135],mitresDeg:[22.5,22.5,22.5,22.5],internalOutline:outline,externalOutline:external,bosses,facets,hips,horizontalWallplateMM:w-2*b,externalWidthMM:Math.max(...external.map(q=>q.xMM))-Math.min(...external.map(q=>q.xMM)),externalProjectionMM:Math.max(...external.map(q=>q.yMM)),internalPlanAreaM2:(w*p-c*c)/1e6,internalSlopeAreaM2:facets.reduce((n,f)=>n+f.slopeAreaM2,0),wallplate:[{start:outline[0],end:bosses[0]},{start:bosses[0],end:bosses[1]},{start:bosses[1],end:outline[5]}]};
- const rafterLayout=buildVictorianHippedRafterLayout({geometry,positionsByFacet:inputs.victorianHippedFacetPositionsMM,materials});
+ const rafterLayout=buildVictorianHippedRafterLayout({geometry,positionsByFacet:inputs.victorianHippedFacetPositionsMM,alignmentByFacet:inputs.victorianHippedRafterAlignment,materials});
  return {...geometry,valid:rafterLayout.valid,errors:rafterLayout.errors,rafterLayout};
 }

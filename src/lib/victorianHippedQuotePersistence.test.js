@@ -1,0 +1,32 @@
+import {saveVictorianHippedDesign} from './victorianHippedQuotePersistence';
+import {activateDesignRecord} from './activeDesignRecord';
+import {buildVictorianHippedQuotation} from './Calculations/victorianHippedQuotation';
+import {victorianHippedDefaults,buildVictorianHippedGeometry} from './geometry/victorianHippedGeometry';
+import {getMaterials} from './materials';
+
+test('saving and updating retain manual positions, measured facets and job metadata',async()=>{
+ const materials={...getMaterials(),gutter_square_corner_135_ext_price:4.37,expanding_foam_roll_price_each:9.3,concrete_screws_price_per_box:19.61,d4_glue_price_per_tub:6.49,screws_1_5x10_price_per_box:3.2,screws_1_5x10_units_per_box:200,spar_hook_rivets_price_per_box:16,spar_hook_rivets_units_per_box:500};
+ const inputs={...victorianHippedDefaults,requestedSidePitchDeg:25,widthMM:7304,projMM:3371,customerReference:'HUTCHINSON',facetGeometry:{mode:'lengths',leftSideMM:2235,rightSideMM:2235,leftChamferMM:1615,rightChamferMM:1615,frontMM:5007,toleranceMM:2}};
+ inputs.victorianHippedRafterAlignment={F2:'perpendicular',F4:'perpendicular'};
+ const auto=buildVictorianHippedGeometry({inputs,materials});
+ inputs.victorianHippedFacetPositionsMM={F3:auto.rafterLayout.facets.find(f=>f.facetId==='F3').positionsMM.slice(1)};
+ const quotation=buildVictorianHippedQuotation({inputs,materials,requirePostcode:false}),data={};
+ const storage={getItem:k=>data[k]||null,setItem:(k,v)=>{data[k]=v;},removeItem:k=>{delete data[k];}};
+ let patch;
+ const api={getNextQuoteNumber:async()=>'4700',saveQuote:async r=>({...r,id:'saved'}),updateQuote:async(id,p)=>{patch=p;return {id,...p};}};
+ const args={inputs,materials,quotation,customer:null};
+ const first=await saveVictorianHippedDesign(args,{api,storage});
+ expect(first.record.inputs_json.victorianHippedFacetPositionsMM).toEqual(inputs.victorianHippedFacetPositionsMM);
+ expect(first.record.inputs_json.facetGeometry).toEqual(inputs.facetGeometry);
+ activateDesignRecord({...first.record,status:'converted_to_job',job_number:'JOB20' },storage);
+ const restored=JSON.parse(data.victorianHippedPreviewInputs);
+ expect(restored.victorianHippedRafterAlignment).toEqual(inputs.victorianHippedRafterAlignment);
+ expect(restored.victorianHippedFacetPositionsMM).toEqual(inputs.victorianHippedFacetPositionsMM);
+ const updated=await saveVictorianHippedDesign(args,{api,storage});
+ expect(updated.record.job_number).toBe('JOB20');
+ expect(patch.status).toBeUndefined();
+ expect(patch.job_number).toBeUndefined();
+ const before=data.activeDesignRecord;
+ await expect(saveVictorianHippedDesign(args,{api:{...api,updateQuote:async()=>null},storage})).rejects.toThrow('not saved');
+ expect(data.activeDesignRecord).toBe(before);
+});

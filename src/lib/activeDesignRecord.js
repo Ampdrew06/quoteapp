@@ -5,7 +5,7 @@ export const designFamily=record=>{
  const style=record?.inputs_json?.roofStyle||record?.roof_style||'lean-to';
  return ['leanTo','hippedLeanTo','lean-to','hipped-lean-to'].includes(style)?'lean-to':style;
 };
-const inputKey=family=>family==='victorian-five'?'victorianFiveInputs':family==='victorian'?'victorianPlanPreviewInputs':family==='gable'?'gableDesignPreviewInputs':family==='lean-to'?'leanToInputs':family+'Inputs';
+const inputKey=family=>family==='victorian-hipped'?'victorianHippedPreviewInputs':family==='victorian-five'?'victorianFiveInputs':family==='victorian'?'victorianPlanPreviewInputs':family==='gable'?'gableDesignPreviewInputs':family==='lean-to'?'leanToInputs':family+'Inputs';
 export function readActiveDesignRecord(family,storage=globalThis.localStorage){
  try{const value=JSON.parse(storage.getItem(KEY)||'null');return value?.record?.id&&value.family===family?value.record:null;}catch{return null;}
 }

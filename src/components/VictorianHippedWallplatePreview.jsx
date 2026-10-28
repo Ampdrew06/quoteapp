@@ -19,10 +19,10 @@ export function VictorianHippedWallplateAssembly({schedule:s}) {
    <text x={A.x+(n?14:-14)} y={A.y-5} textAnchor={n?'start':'end'} fontSize="16" fontWeight="700">A</text>
    <text x={B.x+(n?16:-16)} y={B.y+5} textAnchor={n?'start':'end'} fontSize="16" fontWeight="700" fill="#7c3aed">B</text>
    <text x={C.x+(n?-14:14)} y={C.y+18} textAnchor={n?'end':'start'} fontSize="16" fontWeight="700">C</text>
-   <text x={(foot.x+A.x)/2} y={(foot.y+A.y)/2-12} transform={`rotate(${n?w.pitchDeg:-w.pitchDeg} ${(foot.x+A.x)/2} ${(foot.y+A.y)/2-12})`} textAnchor="middle" fontSize="16">WB{n+1} · top {mm(w.externalSlopeMM)}mm</text>
+   <text x={(foot.x+A.x)/2} y={(foot.y+A.y)/2-12} transform={`rotate(${n?w.pitchDeg:-w.pitchDeg} ${(foot.x+A.x)/2} ${(foot.y+A.y)/2-12})`} textAnchor="middle" fontSize="16">{s.wallbars.find(m=>m.side===side)?.ref} · top {mm(w.externalSlopeMM)}mm</text>
   </g>;})}
-  {dimension(tl.x,tr.x,tl.y-30,`WP1 top ${mm(s.horizontal.topEdgeMM)}mm`)}
-  {dimension(bl.x,br.x,bl.y+50,`WP1 bottom ${mm(s.horizontal.bottomEdgeMM)}mm`)}
+  {dimension(tl.x,tr.x,tl.y-30,`${s.horizontal.ref} top ${mm(s.horizontal.topEdgeMM)}mm`)}
+  {dimension(bl.x,br.x,bl.y+50,`${s.horizontal.ref} bottom ${mm(s.horizontal.bottomEdgeMM)}mm`)}
   <text x="550" y="42" textAnchor="middle" fontSize="19" fontWeight="700">House-wall elevation · equal-depth mitred joints</text>
   <text x="550" y="411" textAnchor="middle" fontSize="16">Horizontal plan span {mm(s.planBossDistanceMM)}mm · ringbeam datum {mm(a.ringBeamHeightMM)}mm</text>
   <text x="550" y="439" textAnchor="middle" fontSize="16">Top height {mm(a.topHeightMM)}mm · underside {mm(a.bottomHeightMM)}mm from factory floor</text>
@@ -37,7 +37,7 @@ export default function VictorianHippedWallplatePreview({geometry,materials}) {
   <p role="status" className="vh-joint-note">Uses the regular hipped lean-to wallplate rules. {w?`Wallbar pitch: ${s.assemblySidePitchDeg.toFixed(2)}°.`:'No hipped end wallbars.'} Victorian hip and rafter cuts remain under review.</p>
   <VictorianHippedWallplateAssembly schedule={s}/>
   <div className="vh-wallplate-grid"><>{w&&<article><h3>{refs} · sloping wallbars × {s.wallbars.length}</h3><WorkshopShape points={w.points} title="Sloping wallbar cutting profile" showAngles={false} cutPitch={w.topCutOffSquareDeg} footPitch={w.pitchDeg} compact/></article>}</>
-   <article><h3>WP1 · horizontal wallplate × 1</h3><p>End cuts off square: left {mm(s.horizontal.leftCutOffSquareDeg)}° · right {mm(s.horizontal.rightCutOffSquareDeg)}° (0° = square).</p><WorkshopShape points={s.horizontal.points} title="Horizontal wallplate cutting profile" showAngles={false} compact/></article></div>
+   <article><h3>{s.horizontal.ref} · horizontal wallplate × 1</h3><p>End cuts off square: left {mm(s.horizontal.leftCutOffSquareDeg)}° · right {mm(s.horizontal.rightCutOffSquareDeg)}° (0° = square).</p><WorkshopShape points={s.horizontal.points} title="Horizontal wallplate cutting profile" showAngles={false} compact/></article></div>
   <details><summary>Boss joint coordinates and datums</summary><p>{s.datumNote}</p><div className="vh-table"><table><thead><tr><th>Side</th><th>A · inward top</th><th>B · inward boss centre</th><th>C · inward bottom</th><th>Wallbar pitch</th><th>Joint saw setting</th></tr></thead><tbody>{['left','right'].filter(side=>s.assembly[side]).map(side=>{const w=s.assembly[side];return <tr key={side}><td>{side}</td><td>{mm(w.topPositionMM)}</td><td>{mm(w.bossCentrePositionMM)}</td><td>{mm(w.bottomPositionMM)}</td><td>{w.pitchDeg.toFixed(2)}°</td><td>{s.mitres[side].wallbarTopCutOffSquareDeg.toFixed(2)}° off square</td></tr>;})}</tbody></table></div></details>
   <style>{`.vh-joint-note{background:#fffbeb;border:1px solid #fcd34d;border-radius:6px;padding:10px}.vh-wallplate-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.vh-wallplate-grid article{border:1px solid #cbd5e1;border-radius:7px;padding:10px;min-width:0;break-inside:avoid}.vh-wallplate-grid h3{font-size:15px;margin:0 0 4px}.vh-wallplate-grid p{font-size:13px;margin:5px 0}.vh-wallplate-grid svg{max-height:none!important;margin:4px 0!important}.vh-wallplate>details{margin:14px 0}@media(max-width:650px){.vh-wallplate-grid{grid-template-columns:1fr}}`}</style>
  </section>;

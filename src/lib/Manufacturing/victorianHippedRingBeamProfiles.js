@@ -44,7 +44,8 @@ export function buildVictorianHippedRingBeamProfiles({geometry:g,inputs={}}={}) 
    const widthMM=slots[n].left-slots[n-1].right;
    if(widthMM>1e-7)upstands.push({bay:upstands.length+1,widthMM,heightMM:height,thicknessMM:9,startMM:slots[n-1].right,endMM:slots[n].left});
   }
-  return {...beam,layers:matchedLayers(beam,i),facetId:f.id,facetPitchDeg:f.pitchDeg,internalLengthMM:length,slots,upstands,upstandArrangement:arrangement,upstandHeightMM:height};
+  slots.forEach(slot=>{const id=slot.reference==='Wall'?(f.start.yMM===0&&slot.left===0?'WB1':f.end.yMM===0&&slot.right===length?'WB2':'Wall'):slot.reference;slot.reference=g.manufactureNumbering?.byId[id]||slot.reference;});
+  return {...beam,reference:g.manufactureNumbering?.byId[`ring:${f.id}`]||beam.reference,layers:matchedLayers(beam,i),facetId:f.id,facetPitchDeg:f.pitchDeg,internalLengthMM:length,slots,upstands,upstandArrangement:arrangement,upstandHeightMM:height};
  });}catch(error){return fail([error.message]);}
  if(errors.length)return fail(errors);
  const totalWidthM=beams.flatMap(b=>b.upstands).reduce((sum,u)=>sum+u.widthMM/1000,0);
