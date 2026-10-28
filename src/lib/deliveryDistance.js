@@ -1,3 +1,4 @@
+/* global globalThis */
 // Same server route used by the existing roof quotation pages.
 export async function lookupDeliveryDistance(postcode,{request=globalThis.fetch}={}){
  const code=String(postcode||'').trim();if(!code)throw new Error('Enter a delivery postcode.');

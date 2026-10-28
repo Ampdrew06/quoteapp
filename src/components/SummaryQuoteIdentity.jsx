@@ -1,3 +1,4 @@
+/* global globalThis */
 import React from 'react';
 import {readActiveDesignRecord} from '../lib/activeDesignRecord';
 const text=value=>value==null?'':String(value).trim();
