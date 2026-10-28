@@ -1,5 +1,9 @@
 /* Screen containers share the tab bar's 1100px shell and 16px inset.
    Print rules and the fixed-size manufacture sheets remain independent. */
+.nav-strip,
+.nav-strip .nav-tab {
+  font-family: Inter, system-ui, Arial, sans-serif;
+}
 @media screen {
   html { scrollbar-gutter: stable; }
   .app-page-content {

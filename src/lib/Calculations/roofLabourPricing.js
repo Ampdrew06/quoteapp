@@ -1,8 +1,8 @@
 export const roofLabourBaselines={
- 'lean-to':{days:1,areaM2:9},'hipped-lean-to':{days:1.5,areaM2:8.36},gable:{days:1.8,areaM2:12},edwardian:{days:2,areaM2:9},victorian:{days:2,areaM2:9},'victorian-five':{days:2,areaM2:9},combination:{days:2.1,areaM2:9},'double-edwardian':{days:2.2,areaM2:9},'edwardian-p':{days:2.5,areaM2:12.25},'victorian-p':{days:2.5,areaM2:12.25}
+ 'lean-to':{days:1,areaM2:9},'hipped-lean-to':{days:1.5,areaM2:8.36},'victorian-hipped':{days:1.8,areaM2:8.36},gable:{days:1.8,areaM2:12},edwardian:{days:2,areaM2:9},victorian:{days:2,areaM2:9},'victorian-five':{days:2,areaM2:9},combination:{days:2.1,areaM2:9},'double-edwardian':{days:2.2,areaM2:9},'edwardian-p':{days:2.5,areaM2:12.25},'victorian-p':{days:2.5,areaM2:12.25}
 };
 export function roofLabourFamily(style){return ({leanTo:'lean-to',hippedLeanTo:'hipped-lean-to'})[style]||style||'lean-to';}
-export const roofLabourLabels={'lean-to':'Lean-To','hipped-lean-to':'Hipped Lean-To (offset / central)',gable:'Gable',edwardian:'Edwardian',victorian:'3 Facet Victorian','victorian-five':'5 Facet Victorian',combination:'Edwardian / Victorian','double-edwardian':'Double Hipped Edwardian','edwardian-p':'Edwardian P-Shape','victorian-p':'Victorian P-Shape'};
+export const roofLabourLabels={'lean-to':'Lean-To','hipped-lean-to':'Hipped Lean-To (offset / central)','victorian-hipped':'Victorian Hipped Lean-To',gable:'Gable',edwardian:'Edwardian',victorian:'3 Facet Victorian','victorian-five':'5 Facet Victorian',combination:'Edwardian / Victorian','double-edwardian':'Double Hipped Edwardian','edwardian-p':'Edwardian P-Shape','victorian-p':'Victorian P-Shape'};
 export function resolveRoofLabourBaseline(style,config={}){
  const family=roofLabourFamily(style),base=roofLabourBaselines[family];
  if(!base)throw new Error('No agreed labour baseline for '+family);

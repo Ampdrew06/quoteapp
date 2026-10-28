@@ -3,6 +3,7 @@ import {useRememberRoofNavigation,readRoofNavigation,roofFamilyFromPath} from '.
 import GableNavigation from '../pages/gable/GableNavigation';
 import EdwardianNavigation from '../pages/edwardian/EdwardianNavigation';
 import VictorianNavigation from '../pages/victorian/VictorianNavigation';
+import VictorianHippedNavigation from '../pages/victorian-hipped/VictorianHippedNavigation';
 // src/components/NavTabs.jsx
 import React from "react";
 import { NavLink, useLocation } from "react-router-dom";
@@ -37,6 +38,7 @@ export default function NavTabs() {
   const family=shared?readRoofNavigation():routeFamily;
   if(family==='gable')return <GableNavigation/>;
   if(family==='edwardian')return <EdwardianNavigation/>;
+  if(family==='victorian-hipped')return <VictorianHippedNavigation/>;
   if(family==='victorian'||family==='victorian-five')return <VictorianNavigation five={family==='victorian-five'}/>;
   const tabsLeft = isAdminUser() ? adminTabsLeft : [...publicTabsLeft,...(isTradeUser()?[{to:"/my-quotes",label:"My Quotes"}]:[])];
   return (

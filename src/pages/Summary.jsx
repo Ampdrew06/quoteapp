@@ -995,7 +995,7 @@ return (
         padding: 12,
       }}
     >
-      <SummaryHeader/>
+      <SummaryHeader inputs={inputs} family={inputs.roofStyle||'lean-to'} customer={deliveryCustomer}/>
       <Section section="timber" title="Timber Elements" lines={timberLinesAdjusted} totals={timberTotals} showChargeable />
       <Section section="tiles" title="Tile Elements" lines={tilesLinesAdjusted} totals={tilesTotals} showChargeable={false} />
       <Section section="plastics" title="Plastics Elements" lines={plasticsLinesAdjusted} totals={plasticsTotals} showChargeable={false} />

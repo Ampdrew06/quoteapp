@@ -1,0 +1,7 @@
+Replace only start-quoteapp-with-api.bat in your QuoteApp project folder (beside package.json) with this version. Keep the same filename and location: your existing desktop shortcut will still work.
+
+Close the currently running local-server window first, then double-click your usual shortcut to this BAT file. It starts Vercel on port3000, suppresses React opening the random internal port, and opens http://localhost:3000/quote once the delivery endpoint responds. Keep the launcher window open while using the app.
+
+The browser check uses a GET request to the API, which returns Method not allowed; it does not call Google or request a delivery route. The check waits up to10 minutes for compilation/login/setup, opens the browser once and exits. It requires standard Windows PowerShell. If startup fails, read the server error in the launcher window. No app source, package configuration, environment files or live deployment are changed.
+
+Commands were checked against Vercel/React documentation and the supplied API handler. This Windows BAT could not be executed in this Linux workspace.

@@ -1,3 +1,4 @@
+import {buildVictorianHippedJointLayers} from './victorianHippedJointProfiles';
 import {buildVictorianRingBeamProfiles} from './victorianRingBeamProfiles';
 import {RING_BEAM_MEMBER_SLOT_WIDTH_MM} from './ringBeamBuilder';
 
@@ -13,25 +14,19 @@ export function buildVictorianHippedRingBeamProfiles({geometry:g,inputs={}}={}) 
  // Hipped Lean-To members supply the actual remaining slots below.
  const base=buildVictorianRingBeamProfiles({...g,layout:{centresMM:[24]},intermediateBars:[],jackRafters:[],upstandHeightMM:height});
  if(!base.valid)return base;
- // Variable-width ply joints follow the actual offset-line intersection.
- const matchedLayers=(beam,i)=>{
-  const f=g.facets[i],L=f.internalLengthMM,width=f.plyBaseWidthMM??g.plyBaseWidthMM;
-  const u={x:(f.end.xMM-f.start.xMM)/L,y:(f.end.yMM-f.start.yMM)/L};
-  const a=g.externalOutline[i],b=g.externalOutline[i+1];
-  const start=((f.start.xMM-a.xMM)*u.x+(f.start.yMM-a.yMM)*u.y)/width;
-  const end=((b.xMM-f.end.xMM)*u.x+(b.yMM-f.end.yMM)*u.y)/width;
-  const layer=(offset,depth)=>{
-   const si=offset*start,ei=offset*end,so=(offset+depth)*start,eo=(offset+depth)*end;
-   return {widthMM:depth,internalEdgeLengthMM:L+si+ei,externalEdgeLengthMM:L+so+eo,startInnerExtensionMM:si,endInnerExtensionMM:ei,startOuterExtensionMM:so,endOuterExtensionMM:eo,startMitreDeg:Math.atan(start)*180/Math.PI,endMitreDeg:Math.atan(end)*180/Math.PI,startSquareLegMM:Math.abs(start)<1e-9?depth:0,endSquareLegMM:Math.abs(end)<1e-9?depth:0,outline:[{xMM:0,yMM:0},{xMM:L+si+ei,yMM:0},{xMM:L+eo+si,yMM:depth},{xMM:si-so,yMM:depth}]};
-  };
-  return {...beam.layers,ply9Base:layer(0,width),outerLath25x50:layer(width-50,50)};
- };
+ const jointMethod=inputs.ringbeamJointMethod??'standard';
+ if(!['standard','calculated'].includes(jointMethod))return fail(['Choose a valid ringbeam joint method.']);
+ const matchedLayers=(beam,i)=>buildVictorianHippedJointLayers({geometry:g,facet:g.facets[i],index:i,baseLayers:beam.layers,method:jointMethod});
  const errors=[];
- const beams=base.beams.map((beam,i)=>{
+ let beams;
+ try{beams=base.beams.map((beam,i)=>{
   const f=g.facets[i],length=f.internalLengthMM;
+  const seatAt=(point,fallback)=>g.hips.find(h=>Math.hypot(h.end.xMM-point.xMM,h.end.yMM-point.yMM)<1e-6)?.id||fallback;
+  const startRef=seatAt(f.start,f.start.yMM===0?'Wall':g.leftEndType==='wall'?'WL':'Wall');
+  const endRef=seatAt(f.end,f.end.yMM===0?'Wall':g.rightEndType==='wall'?'WR':'Wall');
   const slots=[
-   {left:0,right:slotWidth,widthMM:slotWidth,centreMM:24,reference:i===0?'Wall':`H${i}`,kind:i===0?'wall-seat':'hip-seat'},
-   {left:length-slotWidth,right:length,widthMM:slotWidth,centreMM:length-24,reference:i===4?'Wall':`H${i+1}`,kind:i===4?'wall-seat':'hip-seat'},
+   {left:0,right:slotWidth,widthMM:slotWidth,centreMM:24,reference:startRef,kind:startRef.startsWith('H')?'hip-seat':'wall-seat'},
+   {left:length-slotWidth,right:length,widthMM:slotWidth,centreMM:length-24,reference:endRef,kind:endRef.startsWith('H')?'hip-seat':'wall-seat'},
   ];
   const edge={x:(f.end.xMM-f.start.xMM)/length,y:(f.end.yMM-f.start.yMM)/length};
   for(const r of g.rafterLayout.members.filter(r=>r.facetId===f.id)){
@@ -50,9 +45,9 @@ export function buildVictorianHippedRingBeamProfiles({geometry:g,inputs={}}={}) 
    if(widthMM>1e-7)upstands.push({bay:upstands.length+1,widthMM,heightMM:height,thicknessMM:9,startMM:slots[n-1].right,endMM:slots[n].left});
   }
   return {...beam,layers:matchedLayers(beam,i),facetId:f.id,facetPitchDeg:f.pitchDeg,internalLengthMM:length,slots,upstands,upstandArrangement:arrangement,upstandHeightMM:height};
- });
+ });}catch(error){return fail([error.message]);}
  if(errors.length)return fail(errors);
  const totalWidthM=beams.flatMap(b=>b.upstands).reduce((sum,u)=>sum+u.widthMM/1000,0);
- return {valid:true,errors:[],beams,upstandArrangement:arrangement,upstandHeightMM:height,nominalSlotWidthMM:slotWidth,
-  totals:{ringBeams:beams.length,upstands:beams.reduce((sum,b)=>sum+b.upstands.length,0),pseLengthM:beams.reduce((sum,b)=>sum+Math.max(b.layers.pse30x90.internalEdgeLengthMM,b.layers.pse30x90.externalEdgeLengthMM)/1000,0),plyBaseAreaM2:beams.reduce((sum,b)=>sum+area(b.layers.ply9Base.outline),0),upstandAreaM2:totalWidthM*height/1000,outerLathLengthM:beams.reduce((sum,b)=>sum+Math.max(b.layers.outerLath25x50.internalEdgeLengthMM,b.layers.outerLath25x50.externalEdgeLengthMM)/1000,0),finishingLathLengthM:totalWidthM,pir50FaceAreaM2:totalWidthM*.185}};
+ return {valid:true,errors:[],beams,jointMethod,upstandArrangement:arrangement,upstandHeightMM:height,nominalSlotWidthMM:slotWidth,
+  totals:{ringBeams:beams.length,upstands:beams.reduce((sum,b)=>sum+b.upstands.length,0),pseLengthM:beams.reduce((sum,b)=>sum+Math.max(b.layers.pse30x90.blankLengthMM??0,b.layers.pse30x90.internalEdgeLengthMM,b.layers.pse30x90.externalEdgeLengthMM)/1000,0),plyBaseAreaM2:beams.reduce((sum,b)=>sum+area(b.layers.ply9Base.outline),0),upstandAreaM2:totalWidthM*height/1000,outerLathLengthM:beams.reduce((sum,b)=>sum+Math.max(b.layers.outerLath25x50.blankLengthMM??0,b.layers.outerLath25x50.internalEdgeLengthMM,b.layers.outerLath25x50.externalEdgeLengthMM)/1000,0),finishingLathLengthM:totalWidthM,pir50FaceAreaM2:totalWidthM*.185}};
 }

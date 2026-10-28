@@ -18,9 +18,10 @@ export function EdwardianTrussCutPage({schedule:s,assembly}) {
 // Group mirrored cutting patterns only when all three layers AND bay widths match.
 export function groupEdwardianRingBeams(beams=[]) {
   const number=n=>Number(Number(n||0).toFixed(3));
+  const shape=p=>{if(!p.jointMethod)return undefined;const points=p.outline||[],min=Math.min(...points.map(q=>q.xMM)),max=Math.max(...points.map(q=>q.xMM));const signature=flip=>JSON.stringify(points.map(q=>[number(flip?max-q.xMM:q.xMM-min),number(q.yMM)]).sort((a,b)=>a[0]-b[0]||a[1]-b[1]));return [signature(false),signature(true)].sort()[0];};
   const groups=new Map();
   beams.forEach(b=>{
-    const key=JSON.stringify({layers:Object.values(b.cuts.continuous).map(p=>({width:number(p.widthMM),inner:number(p.internalEdgeLengthMM),outer:number(p.externalEdgeLengthMM),ends:[[p.startOuterExtensionMM,p.startSquareLegMM,p.startMitreDeg],[p.endOuterExtensionMM,p.endSquareLegMM,p.endMitreDeg]].map(a=>a.map(number)).sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b)))})),bays:b.bays.map(r=>number(r.widthMM)),height:b.cuts.upstandHeightMM});
+    const key=JSON.stringify({layers:Object.values(b.cuts.continuous).map(p=>({shape:shape(p),width:number(p.widthMM),inner:number(p.internalEdgeLengthMM),outer:number(p.externalEdgeLengthMM),ends:[[p.startOuterExtensionMM,p.startSquareLegMM,p.startMitreDeg],[p.endOuterExtensionMM,p.endSquareLegMM,p.endMitreDeg]].map(a=>a.map(number)).sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b)))})),bays:b.bays.map(r=>number(r.widthMM)),height:b.cuts.upstandHeightMM});
     if(!groups.has(key))groups.set(key,[]);groups.get(key).push(b);
   });return [...groups.values()];
 }
@@ -44,6 +45,7 @@ export function EdwardianRingBeamCutPages({beams=[],layerLabels={}}) {
     const base=group[0],all=base.bays.map((bay,index)=>({bay,index})),chunks=[all.slice(0,8)];
     for(let n=8;n<all.length;n+=16)chunks.push(all.slice(n,n+16));
     return chunks.map((bays,n)=><section key={`${base.manufactureRef}-${n}`} className="em-page ev-ringbeam"><h2>{group.map(b=>b.manufactureRef).join(' & ')} · Ring-beam{n?' — upstands continued':` × ${group.length}`}</h2>
+      {base.cuts.jointMethod&&<p style={{fontSize:12,margin:'4px 0'}}>Joint method: {base.cuts.jointMethod==='calculated'?'Calculated common joint':'Standard mitre + perimeter trim — see secondary trim list'}</p>}
       {!n&&<div className="ev-layers">{[['30×95 PSE','pse30x90'],['9mm ply base','ply9Base'],['25×50 outer lath','outerLath25x50']].map(([label,key])=><LayerDrawing key={key} label={layerLabels[key]??label} profile={base.cuts.continuous[key]} markerId=""/>)}</div>}
       <h3>9mm ply upstands{base.cuts.upstandArrangement==='vertical'?' · vertical · 210mm cut (195 visible + 15 groove)':''}</h3><Upstands beams={group} bays={bays}/>
     </section>);

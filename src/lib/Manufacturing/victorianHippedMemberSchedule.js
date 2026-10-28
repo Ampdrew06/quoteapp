@@ -1,3 +1,4 @@
+import {calculateLeanToGeometry} from '../geometry/leanToGeometry';
 import {calculateJackHipSetback,calculateSparHookEnd} from '../geometry/hipPerimeterIntersection';
 import {buildVictorianHippedRingBeamProfiles} from './victorianHippedRingBeamProfiles';
 
@@ -54,7 +55,19 @@ export function buildVictorianHippedMemberSchedule({geometry:g,inputs={},materia
   if(![hfc,vfc,bottom,top,...foot.samples].every(Number.isFinite)||Math.min(hfc,vfc,bottom,top)<=0){errors.push(`${p.reference}: the foot or connection allowances leave no positive cutting profile.`);continue;}
   members.push({ref:p.reference,id:p.id,type:({hip:'Hip','boss-rafter':'Boss rafter',rafter:'Rafter',jack:'Jack rafter'})[p.role],role:p.role,facetId:p.facetId??null,bossId:p.bossId??null,pitchDeg:pitch,topCutOffSquareDeg:cutAngle,topCutLengthMM:length(lowerEnd,upperEnd),topEdgeMM:top,bottomEdgeMM:bottom,horizontalFootCutMM:hfc,verticalFootCutMM:vfc,firstTrimDistanceMM:foot.firstTrimDistanceMM,planLengthMM:plan,wallplateFacePlanMM:facePlan,bossAllowancePlanMM:p.role==='hip'?bossPlan:0,bossAllowanceSlopeMM:bossSlope,jackConnection:connection,hookAdjustmentMM:hook?.externalEdgeAdjustmentMM??0,reviewRequired:true,points:[{xMM:0,yMM:0},lowerEnd,upperEnd,upperFoot,{xMM:-hfc,yMM:0}].map(q=>({...q,xMM:-q.xMM}))});
  }
+ // Wall-side rafters use the established regular lean-to internal cut run.
+ // Their foot follows the front eaves, not the removed hipped side facet.
+ if(g.wallMembers?.length){
+  const raw=calculateLeanToGeometry({widthMM:g.widthMM,projectionMM:g.projectionMM,pitchDeg:g.pitchDeg,soffitDepthMM:g.soffitMM,materials:{...materials,side_frame_thickness_mm:g.frameMM}}).raw;
+  const foot=g.eaves.rows.find(e=>e.facetId==='F3'),pitch=g.pitchDeg,c=Math.cos(rad(pitch)),s=Math.sin(rad(pitch));
+  const bottom=Number(raw.internalRafterLengthMM),hfc=foot.horizontalFootCutMM,vfc=foot.verticalFootCutMM,top=bottom+hfc/c;
+  if(![bottom,hfc,vfc,top].every(Number.isFinite)||Math.min(bottom,hfc,vfc,top)<=0)errors.push('The wall-side rafter does not leave a positive cutting profile.');
+  else for(const wall of g.wallMembers){
+   const lowerEnd={xMM:bottom*c,yMM:bottom*s},upperFoot={xMM:-hfc,yMM:vfc},upperEnd={xMM:-hfc+top*c,yMM:vfc+top*s};
+   members.push({ref:wall.id,id:wall.id,type:'Wall-side rafter',role:'wall-rafter',facetId:'F3',bossId:null,pitchDeg:pitch,topCutOffSquareDeg:pitch,topCutLengthMM:length(lowerEnd,upperEnd),topEdgeMM:top,bottomEdgeMM:bottom,horizontalFootCutMM:hfc,verticalFootCutMM:vfc,firstTrimDistanceMM:hfc,planLengthMM:g.projectionMM,wallplateFacePlanMM:Number(raw.wallplateThicknessMM),bossAllowancePlanMM:0,bossAllowanceSlopeMM:0,jackConnection:null,hookAdjustmentMM:0,ruleSource:'leanToGeometry',reviewRequired:true,points:[{xMM:0,yMM:0},lowerEnd,upperEnd,upperFoot,{xMM:-hfc,yMM:0}].map(q=>({...q,xMM:-q.xMM}))});
+  }
+ }
  if(errors.length)return fail(errors);
  const groups=new Map();for(const m of members){const key=JSON.stringify([m.role,m.pitchDeg,m.topCutOffSquareDeg,m.topEdgeMM,m.bottomEdgeMM,m.horizontalFootCutMM,m.verticalFootCutMM,m.firstTrimDistanceMM].map(v=>typeof v==='number'?Number(v.toFixed(3)):v));if(!groups.has(key))groups.set(key,[]);groups.get(key).push(m);}
- return {valid:true,errors:[],members,groups:[...groups.values()],controls,reviewRequired:true,counts:{hips:members.filter(m=>m.role==='hip').length,bossRafters:members.filter(m=>m.role==='boss-rafter').length,rafters:members.filter(m=>m.role==='rafter').length,jacks:members.filter(m=>m.role==='jack').length},datumNote:'Plan centres use the internal frame and wallplate-boss datums. Wallplate face is measured from the house-wall line along the wall normal; hip allowance is additional plan distance, boss-rafter allowance is additional slope length. These inherited allowances require factory confirmation for this style.'};
+ return {valid:true,errors:[],members,groups:[...groups.values()],controls,reviewRequired:true,counts:{hips:members.filter(m=>m.role==='hip').length,bossRafters:members.filter(m=>m.role==='boss-rafter').length,rafters:members.filter(m=>m.role==='rafter').length,...(g.wallMembers?.length?{wallRafters:g.wallMembers.length}:{}),jacks:members.filter(m=>m.role==='jack').length},datumNote:'Plan centres use the internal frame and wallplate-boss datums. Wallplate face is measured from the house-wall line along the wall normal; hip allowance is additional plan distance, boss-rafter allowance is additional slope length. These inherited allowances require factory confirmation for this style.'};
 }

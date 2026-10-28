@@ -465,6 +465,7 @@ export function normalizeFacetTilingInput(
     facetPitchDeg;
 
   return {
+    ...((tilingGeometry?.outline ?? facet?.outline) != null ? {outline: tilingGeometry?.outline ?? facet?.outline} : {}),
     id: facet?.id ?? null,
 
     label:
@@ -509,6 +510,14 @@ export function normalizeFacetTilingInput(
 }
 
 export function widthAtFacetPosition(facet, yMM) {
+  if (Array.isArray(facet.outline) && facet.outline.length >= 3) {
+    const y = Math.min(Math.max(Number(yMM) || 0, 0), facet.heightMM), hits=[];
+    facet.outline.forEach((a,i)=>{const b=facet.outline[(i+1)%facet.outline.length];
+      if(Math.abs(a.yMM-b.yMM)<1e-8){if(Math.abs(y-a.yMM)<1e-7)hits.push(a.xMM,b.xMM);}
+      else if(y>=Math.min(a.yMM,b.yMM)-1e-7&&y<=Math.max(a.yMM,b.yMM)+1e-7){const t=(y-a.yMM)/(b.yMM-a.yMM);hits.push(a.xMM+t*(b.xMM-a.xMM));}
+    });
+    return hits.length?Math.max(0,Math.max(...hits)-Math.min(...hits)):0;
+  }
   const baseWidthMM = Number(facet.baseWidthMM);
   const topWidthMM = Number(facet.topWidthMM);
   const heightMM = Number(facet.heightMM);
@@ -518,9 +527,27 @@ export function widthAtFacetPosition(facet, yMM) {
   return baseWidthMM + (topWidthMM - baseWidthMM) * (y / heightMM);
 }
 
+// Exact strip mean for a convex developed polygon, split at every vertex height.
+function meanCourseWidth(facet, lo, hi) {
+  if(!Array.isArray(facet.outline))return (widthAtFacetPosition(facet,lo)+widthAtFacetPosition(facet,hi))/2;
+  const ys=[...new Set([lo,hi,...facet.outline.map(p=>p.yMM).filter(y=>y>lo&&y<hi)])].sort((a,b)=>a-b);
+  let area=0;for(let i=1;i<ys.length;i++)area+=(ys[i]-ys[i-1])*(widthAtFacetPosition(facet,ys[i])+widthAtFacetPosition(facet,ys[i-1]))/2;
+  return hi>lo?area/(hi-lo):0;
+}
 function validateFacet(facet, product) {
   const warnings = [];
   const errors = [];
+  if (facet.outline != null && (!Array.isArray(facet.outline) || facet.outline.length < 3 || facet.outline.some(p=>![p.xMM,p.yMM].every(Number.isFinite)) || !(polygonAreaMM2(facet.outline)>0))) {
+    errors.push("Developed facet outline must contain at least three finite points with positive area.");
+  }
+
+  if (Array.isArray(facet.outline) && facet.outline.length >= 3 && facet.outline.every(p=>[p.xMM,p.yMM].every(Number.isFinite))) {
+    const p=facet.outline,turns=p.map((a,i)=>{const b=p[(i+1)%p.length],c=p[(i+2)%p.length];return (b.xMM-a.xMM)*(c.yMM-b.yMM)-(b.yMM-a.yMM)*(c.xMM-b.xMM);}).filter(t=>Math.abs(t)>1e-5);
+    if(turns.some(t=>t>0)&&turns.some(t=>t<0))errors.push("Developed facet outlines must be convex.");
+    const lo=Math.min(...p.map(v=>v.yMM)),hi=Math.max(...p.map(v=>v.yMM));
+    if(Math.abs(lo)>1e-5||Math.abs(hi-facet.heightMM)>1e-5)errors.push("Developed outline heights must match the facet height and start at zero.");
+    if(facet.openings?.length)errors.push("Openings on developed polygon facets are not supported yet.");
+  }
   const baseWidthMM = asFiniteNumber(facet?.baseWidthMM);
   const topWidthMM = asFiniteNumber(facet?.topWidthMM);
   const heightMM = asFiniteNumber(facet?.heightMM);
@@ -598,7 +625,7 @@ const courses = lathPositionsMM.map((startYMM, index) => {
 
   const startWidthMM = widthAtFacetPosition(facet, startYMM);
   const endWidthMM = widthAtFacetPosition(facet, endYMM);
-  const averageWidthMM = round((startWidthMM + endWidthMM) / 2, 3);
+  const averageWidthMM = round(meanCourseWidth(facet, startYMM, endYMM), 3);
   const tileCountRaw = averageWidthMM / product.effectiveCoverWidthMM;
 
   return {
@@ -771,7 +798,7 @@ function calculateSyntheticSlateFacet(facet, product, warnings) {
 
     const startWidthMM = widthAtFacetPosition(facet, startYMM);
     const endWidthMM = widthAtFacetPosition(facet, endYMM);
-    const requiredWidthMM = Math.max(startWidthMM, endWidthMM);
+    const requiredWidthMM = Math.max(startWidthMM, endWidthMM, ...(facet.outline || []).filter(p=>p.yMM>startYMM&&p.yMM<endYMM).map(p=>widthAtFacetPosition(facet,p.yMM)));
 
     const slateQuantity = Math.ceil(
       requiredWidthMM / product.effectiveSlateWidthMM
@@ -944,7 +971,7 @@ if (errors.length > 0) {
   };
 }
 
-  const facetAreaM2 =
+  const facetAreaM2 = Array.isArray(normalizedFacet.outline) ? polygonAreaMM2(normalizedFacet.outline) / 1_000_000 :
     ((normalizedFacet.baseWidthMM + normalizedFacet.topWidthMM) / 2) *
     normalizedFacet.heightMM /
     1_000_000;

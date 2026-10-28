@@ -48,14 +48,7 @@ export function VictorianSummaryContent({five=false}={}){
  const customer=customers.find(c=>c.id===inputs.selectedCustomerId)||null;
  const quotation=quotationBuilder({inputs,materials,customer,labourConfig,deliveryConfig,markupConfig});
  return <><VictorianNavigation five={five}/><main className="vs" style={{fontFamily:'Inter,system-ui,Arial',fontSize:14,maxWidth:1100,margin:'0 auto',padding:16}}>
- <h1>{five?'5 Facet Victorian':'Victorian'} · Summary</h1><details><summary>Quote details and delivery</summary>
- <section style={{display:'flex',flexWrap:'wrap',gap:12,margin:'12px 0'}}>
- <label>Customer<select value={inputs.selectedCustomerId||'retail'} onChange={e=>patch({selectedCustomerId:e.target.value,customerName:customers.find(c=>c.id===e.target.value)?.name||'Retail'})}><option value="retail">Retail</option>{customers.filter(c=>c.id!=='retail').map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
- <label>Customer reference<input value={inputs.customerReference||''} onChange={e=>patch({customerReference:e.target.value})}/></label>
- <label>Delivery postcode<input value={inputs.deliveryPostcode||''} onChange={e=>patch({deliveryPostcode:e.target.value,deliveryDistanceMiles:'',deliveryDistancePostcode:''})}/></label>
- <label>One-way delivery miles · admin entry<input type="number" min="0" step="0.1" value={inputs.deliveryDistanceMiles??''} onChange={e=>patch({deliveryDistanceMiles:e.target.value,deliveryDistancePostcode:inputs.deliveryPostcode||''})}/></label>
- </section><p style={{fontSize:12}}>Without a postcode the existing customer/default delivery allowance applies.</p></details>
- <SummaryHeader/>
+ <SummaryHeader inputs={inputs} family={family} customer={customer}/>
  {!model.valid?<p role="status">{model.errors.join(' ')} <Link to={"/quote/"+family}>Return to Design/Options</Link></p>:<>
  {Object.entries(model.sections).map(([section,data])=>{
  const choices=catalog.filter(item=>item.section===section&&!(inputs.summaryAddedItems||[]).some(added=>added.section===section&&added.catalogId===item.id));

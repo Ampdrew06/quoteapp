@@ -43,7 +43,7 @@ export default function RoofSummary({storageKey='gableDesignPreviewInputs',famil
  const customer=customers.find(c=>c.id===inputs.selectedCustomerId)||null;
  const quotation=quotationBuilder({inputs,materials,customer,labourConfig,deliveryConfig,markupConfig});
  return <main style={{fontFamily:'Inter,system-ui,Arial',maxWidth:1120,margin:'0 auto',padding:12}}>
- <SummaryHeader/>
+ <SummaryHeader inputs={inputs} family={family} customer={customer}/>
  {!model.valid?<p role="status">{model.errors.join(' ')} <Link to={"/quote/"+family}>Return to Design/Options</Link></p>:<>
  {Object.entries(model.sections).map(([section,data])=>{
  const choices=catalog.filter(item=>item.section===section&&!(inputs.summaryAddedItems||[]).some(added=>added.section===section&&added.catalogId===item.id));

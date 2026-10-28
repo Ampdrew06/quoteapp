@@ -3,7 +3,7 @@ import {buildVictorianHippedRingBeamProfiles as build} from './victorianHippedRi
 
 const geometry=patch=>buildVictorianHippedGeometry({inputs:{...inputs,...patch}});
 test('five ringbeam profiles match external ply geometry and partition each internal run',()=>{
- const g=geometry(),r=build({geometry:g,inputs});
+ const g=geometry(),r=build({geometry:g,inputs:{...inputs,ringbeamJointMethod:'calculated'}});
  expect(r.valid).toBe(true);expect(r.beams).toHaveLength(5);expect(r.upstandHeightMM).toBe(195);
  r.beams.forEach((b,i)=>{
   expect(b.layers.ply9Base.widthMM).toBeCloseTo(g.facets[i].plyBaseWidthMM,7);expect(b.layers.pse30x90.widthMM).toBe(95);

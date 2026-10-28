@@ -24,7 +24,7 @@ export function buildVictorianHippedRafterLayout({geometry:g,positionsByFacet={}
   return hits.sort((a,b)=>a.run-b.run)[0];
  };
  for(const [i,f] of g.facets.entries()){
-  const side=i===0||i===4,manual=positionsByFacet?.[f.id]!=null;
+  const side=f.id==='F1'||f.id==='F5',manual=positionsByFacet?.[f.id]!=null;
   let positions=[];
   if(manual)positions=positionsByFacet[f.id];
   else if(side){
@@ -33,8 +33,8 @@ export function buildVictorianHippedRafterLayout({geometry:g,positionsByFacet={}
     if(f.internalLengthMM-48-(p+24)<400)break;
     positions.push(p);
    }
-  }else if(i===2){
-   const left=g.bosses[0].xMM-f.start.xMM,right=g.bosses[1].xMM-f.start.xMM;
+  }else if(f.id==='F3'){
+   const left=(g.bosses.find(b=>b.id==='BL')?.xMM??f.start.xMM)-f.start.xMM,right=(g.bosses.find(b=>b.id==='BR')?.xMM??f.end.xMM)-f.start.xMM;
    positions=buildDefaultFrontRafterLayout({widthMM:f.internalLengthMM,leftBossXMM:left,rightBossXMM:right,hasLeftHip:left>0&&left<f.internalLengthMM,hasRightHip:right>0&&right<f.internalLengthMM,spacingMM:spacing}).allRafters.map(r=>r.centreMM);
   }else if(f.internalLengthMM>VICTORIAN_MAX_SPACING_MM+1e-7){
    if(f.internalLengthMM<=2*VICTORIAN_MAX_SPACING_MM+1e-7)positions=[f.internalLengthMM/2];
@@ -46,12 +46,12 @@ export function buildVictorianHippedRafterLayout({geometry:g,positionsByFacet={}
   const facetMembers=[];
   resolved.interiorMM.forEach((positionMM,n)=>{
    // Both sides are measured from the wall. Front facets follow the perimeter.
-   const along=i===4?f.internalLengthMM-positionMM:positionMM,t=along/f.internalLengthMM;
+   const along=f.id==='F5'?f.internalLengthMM-positionMM:positionMM,t=along/f.internalLengthMM;
    const end={xMM:f.start.xMM+(f.end.xMM-f.start.xMM)*t,yMM:f.start.yMM+(f.end.yMM-f.start.yMM)*t};
    // Chamfer boss rafters fan from the boss to the facet midpoint. Their
    // member pitch can differ from the perpendicular facet pitch.
-   const fan=(i===1||i===3)&&f.internalLengthMM<=2*VICTORIAN_MAX_SPACING_MM+1e-7&&Math.abs(along-f.internalLengthMM/2)<0.01;
-   const boss=fan?g.bosses[i===1?0:1]:null;
+   const fan=(f.id==='F2'||f.id==='F4')&&f.internalLengthMM<=2*VICTORIAN_MAX_SPACING_MM+1e-7&&Math.abs(along-f.internalLengthMM/2)<0.01;
+   const boss=fan?g.bosses.find(b=>b.id===(f.id==='F2'?'BL':'BR')):null;
    const hit=boss?{start:{xMM:boss.xMM,yMM:boss.yMM}}:hitBoundary(f,end);
    if(!hit){errors.push(`${f.label}: no supporting hip or wallplate at ${positionMM}mm.`);return;}
    const planLengthMM=distance(hit.start,end),atBoss=g.bosses.find(b=>distance(hit.start,b)<0.1),onWall=Math.abs(hit.start.yMM)<1e-6;

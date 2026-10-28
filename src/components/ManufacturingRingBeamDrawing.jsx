@@ -36,6 +36,9 @@ export function LayerDrawing({ label, profile, markerId }) {
   const path = outline ? outline.map((p,i)=>`${i?'L':'M'} ${map(p).x} ${map(p).y}`).join(' ')+' Z' : `M ${innerX1} 35 L ${innerX2} 35 L ${outerX2} 82 L ${outerX1} 82 Z`;
   const topStart=outline?map({xMM:0,yMM:0}).x:innerX1;
   const topEnd=outline?map({xMM:internalLengthMM,yMM:0}).x:innerX2;
+  const outerEdge=profile?.jointMethod&&outline?outline.filter(p=>Math.abs(p.yMM-widthMM)<1e-6):null;
+  const outerDimX1=outerEdge?.length?map({xMM:Math.min(...outerEdge.map(p=>p.xMM)),yMM:widthMM}).x:outerX1;
+  const outerDimX2=outerEdge?.length?map({xMM:Math.max(...outerEdge.map(p=>p.xMM)),yMM:widthMM}).x:outerX2;
   return (
     <svg
       viewBox="0 0 620 128"
@@ -57,8 +60,8 @@ export function LayerDrawing({ label, profile, markerId }) {
         Internal {dim(internalLengthMM)} mm
       </text>
 
-      <line x1={outerX1} y1="99" x2={outerX2} y2="99" stroke="#64748b" markerStart={markerId?`url(#${markerId})`:undefined} markerEnd={markerId?`url(#${markerId})`:undefined} />
-      <text x={(outerX1 + outerX2) / 2} y="118" textAnchor="middle" fontSize="15" fontWeight="700">
+      <line x1={outerDimX1} y1="99" x2={outerDimX2} y2="99" stroke="#64748b" markerStart={markerId?`url(#${markerId})`:undefined} markerEnd={markerId?`url(#${markerId})`:undefined} />
+      <text x={(outerDimX1 + outerDimX2) / 2} y="118" textAnchor="middle" fontSize="15" fontWeight="700">
         External {dim(externalLengthMM)} mm
       </text>
 

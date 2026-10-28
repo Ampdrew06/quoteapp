@@ -1,0 +1,43 @@
+import {planPlasticsStock,planSoffitStock} from './plasticsIntegrationAudit';
+import {calculateFasciaCutHeight} from '../Manufacturing/fasciaCutHeight';
+const rate=v=>v===null||v===undefined||v===''||!Number.isFinite(Number(v))||Number(v)<0?null:Number(v);
+const round=v=>Math.round((v+Number.EPSILON)*100)/100;
+const next=(widths,depth)=>widths.map(Number).filter(Number.isFinite).sort((a,b)=>a-b).find(w=>w+0.05>=depth);
+// Stocks and accessories follow the accepted ringbeam perimeter, not the tile overhang.
+export function buildVictorianHippedPlasticsSummary({timber,inputs={},materials:m={}}={}){
+ const fail=errors=>({valid:false,errors,rows:[],missingPrices:[],totals:{cost:0,weight:0,chargeableCost:0}});
+ if(!timber?.valid)return fail(timber?.errors||['Valid roof geometry required.']);
+ const g=timber.geometry,colour=inputs.fasciaColour||'White',band=/^(white|smooth white|white grain)$/i.test(String(colour).trim())?'white':'foiled',stockM=Number(m.fascia_stock_length_m??5),soffitStockM=Number(m.soffit_stock_length_m??5),jStockM=Number(m.j_section_stock_length_m??5),kerf=Number(m.soffit_rip_kerf_mm??3),trim=Number(m.soffit_trim_allowance_mm??5),floor=Number(m.ring_beam_height_mm??40);
+ if(![stockM,soffitStockM,jStockM].every(v=>Number.isFinite(v)&&v>0)||![kerf,trim,floor].every(v=>Number.isFinite(v)&&v>=0))return fail(['Positive plastics stock lengths and non-negative kerf/trim/datum are required.']);
+ // The resolved finished eaves height is above the ringbeam datum.
+ const fasciaCut=calculateFasciaCutHeight(g.eaves.rows.find(e=>e.facetId==='F3').targetFinishedHeightMM+floor),fasciaWidth=next(m.fascia_stock_sizes_mm||[200,225,250,300,400],fasciaCut?.coverageHeightMM);
+ const runs=g.facets.map(f=>{const e=f.eaves,projection=e.plyBaseWidthMM-g.frameMM;
+  // Keep the requested standard front board; the added ply fitting tolerance is not another soffit width.
+  const standard=Math.abs(projection-(g.soffitMM+g.fittingToleranceMM))<0.05;
+  const depth=e.soffitStripWidthMM??(g.soffitMode==='standard'?(f.id==='F3'||standard?g.soffitMM:projection):Math.max(0,projection-trim));
+  return {edgeId:f.id,label:f.label,side:f.id==='F3'?'front':'side',runM:f.externalLengthMM/1000,widthMM:fasciaWidth,soffitGeometryMM:depth};
+ });
+ if(!fasciaWidth||runs.some(r=>!Number.isFinite(r.soffitGeometryMM)||r.soffitGeometryMM<0||!Number.isFinite(r.runM)||r.runM<=0))return fail(['Resolved fascia/soffit dimensions exceed supported stock or are invalid.']);
+ const widths=m.soffit_board_widths_mm||[100,150,175,200];if(runs.some(r=>r.soffitGeometryMM>0&&!next(widths,r.soffitGeometryMM)))return fail(['Soffit depth exceeds the configured board widths.']);
+ const fasciaPlan=planPlasticsStock(runs,stockM),soffitPlan=planSoffitStock(runs.filter(r=>r.soffitGeometryMM>0),soffitStockM,widths,kerf);
+ // Offset the applied surveyed polygon: wall edges stay fixed.
+ const offset=depthFor=>{const lines=g.internalOutline.map((a,i)=>{const b=g.internalOutline[(i+1)%g.internalOutline.length],L=Math.hypot(b.xMM-a.xMM,b.yMM-a.yMM),nx=-(b.yMM-a.yMM)/L,ny=(b.xMM-a.xMM)/L,f=g.facets.find(f=>Math.hypot(f.start.xMM-a.xMM,f.start.yMM-a.yMM)<1e-6&&Math.hypot(f.end.xMM-b.xMM,f.end.yMM-b.yMM)<1e-6);return {nx,ny,c:nx*a.xMM+ny*a.yMM+(f?depthFor(f):0)};});return lines.map((b,i)=>{const a=lines[(i+lines.length-1)%lines.length],det=a.nx*b.ny-b.nx*a.ny;return {xMM:(a.c*b.ny-b.c*a.ny)/det,yMM:(a.nx*b.c-b.nx*a.c)/det};});};
+ const frame=offset(()=>g.frameMM),outer=offset(f=>g.frameMM+runs.find(r=>r.edgeId===f.id).soffitGeometryMM);
+ const indexFor=f=>g.internalOutline.findIndex(p=>Math.hypot(p.xMM-f.start.xMM,p.yMM-f.start.yMM)<1e-6);
+ const jRunM=g.facets.reduce((n,f)=>{const i=indexFor(f),a=frame[i],b=frame[(i+1)%frame.length];return n+Math.hypot(b.xMM-a.xMM,b.yMM-a.yMM)/1000;},0);
+ const seams=g.hips.map(h=>{const i=g.internalOutline.findIndex(p=>Math.hypot(p.xMM-h.end.xMM,p.yMM-h.end.yMM)<1e-6);return {hip:h.id,lengthMM:Math.ceil(Math.hypot(outer[i].xMM-frame[i].xMM,outer[i].yMM-frame[i].yMM)/10)*10,angle:g.facets.some(f=>(f.id==='F2'||f.id==='F4')&&(Math.hypot(f.start.xMM-h.end.xMM,f.start.yMM-h.end.yMM)<1e-6||Math.hypot(f.end.xMM-h.end.xMM,f.end.yMM-h.end.yMM)<1e-6))?135:90};});
+ const hStraightMM=soffitPlan.runPieces.reduce((n,p)=>n+Math.max(0,p.lengthsM.length-1)*runs.find(r=>r.edgeId===p.edgeId).soffitGeometryMM,0),hMM=seams.reduce((n,s)=>n+s.lengthMM,0)+hStraightMM;
+ const state=inputs.victorianHippedPlasticsSummary||{},rows=[];
+ const add=(key,label,base,units,price,weight,basis,whole=true)=>{const raw=Number(state.adjustments?.[key]??0),delta=Number.isFinite(raw)?raw:0,qty=Math.max(0,whole?Math.ceil(base+delta-1e-9):base+delta),p=rate(price),excluded=!!state.exclusions?.[key],cost=qty===0?0:p===null?null:round(qty*p);
+  rows.push({key,label,qty,orderQty:qty,units,cost:cost??0,chargeableCost:excluded?0:cost??0,excluded,unitPrice:p,weightKg:weight,weightText:weight===null?'Unconfigured':weight.toFixed(2)+' kg',priceMissing:cost===null,adjustment:state.adjustments?.[key]??'',adjustmentUnit:units,qtyBasis:basis,orderBasis:'Whole stock except H-trim consumption and exact venting mode; no extra percentage waste.',baseQty:base,basis});};
+ const fasciaKg=rate(m[`fascia_weight_kg_per_m_${band}`]),soffitKg=rate(m[`soffit_weight_kg_per_m_${band}`]),totalM=runs.reduce((n,r)=>n+r.runM,0);
+ add('vh_fascia',`${fasciaWidth}mm Reveal Liner — ${colour}`,fasciaPlan.qty,`${stockM}m boards`,m[`fascia_price_per_length_${band}_mm`]?.[fasciaWidth],fasciaKg===null?null:totalM*fasciaKg,'Accepted external ringbeam runs; shared suitable offcuts and centred front full board.');
+ soffitPlan.order.forEach(o=>{const usedM=soffitPlan.boards.filter(b=>b.widthMM===o.widthMM).reduce((n,b)=>n+b.strips.reduce((s,l)=>s+l.pieces.reduce((t,p)=>t+p.lengthM,0),0),0);add(`vh_soffit_${o.widthMM}`,`${o.widthMM}mm soffit — ${colour}`,o.qty,`${soffitStockM}m boards`,m[`soffit_price_per_length_${band}_mm`]?.[o.widthMM],soffitKg===null?null:usedM*soffitKg,'Actual per-facet soffit strip depths; shared offcuts and paired matching side strips where width plus kerf permits.');});
+ const jKg=rate(m[`j_section_weight_kg_each_${band}`]);add('vh_jtrim',`Soffit starter / J-trim — ${colour}`,Math.ceil(jRunM/jStockM),'lengths',m[`fascia_j_section_${band}_price`]??m[`j_section_price_each_${band}`],jKg===null?null:jRunM/jStockM*jKg,'Runs follow the frame offset, excluding soffit projection and tile overhang.');
+ const hKg=rate(m[`h_section_weight_kg_each_${band}`]);add('vh_htrim',`H-trim — ${colour}`,hMM,'mm from shared 5m stock',rate(m[`fascia_h_section_${band}_price`])===null?null:Number(m[`fascia_h_section_${band}_price`])/5000,hMM===0?0:hKg===null?null:hMM/5000*hKg,'Actual unequal-depth corner seam lengths rounded up to 10mm, plus required straight soffit joins; priced by consumed millimetres.',false);
+ for(const angle of [90,135]){const qty=seams.filter(s=>s.angle===angle).length,kg=rate(m.fascia_corner_weight_kg_each);add(`vh_fascia_corner_${angle}`,`${angle}° fascia corners — ${colour}`,qty,'each',m[`fascia_corner_${angle}${angle===90?'_ext':''}_300_${band}_price`]??(angle===90?m[`fascia_corner_price_each_${band}`]:null),qty===0?0:kg===null?null:qty*kg,'One stock corner per actual hip toe; surveyed angles retain their nominal corner family.');}
+ const jointKg=rate(m.fascia_joint_weight_kg_each);add('vh_fascia_joint',`Fascia straight joints — ${colour}`,fasciaPlan.joints,'each',m[`fascia_joint_300_${band}_price`]??m[`fascia_joint_price_each_${band}`],fasciaPlan.joints===0?0:jointKg===null?null:fasciaPlan.joints*jointKg,'Follows the shared fitting layout; manual quantity adjustment remains available.');
+ const vent=m.vent_rounding_mode==='exact'?totalM:Math.ceil(totalM);add('vh_factory_vent','Factory fascia venting — all eaves',vent,'m',m.fascia_vent_price_per_m??0.5,0,'Factory machining charge; not an additional installed material weight.',false);
+ const totals={cost:round(rows.reduce((n,r)=>n+r.chargeableCost,0)),chargeableCost:round(rows.reduce((n,r)=>n+r.chargeableCost,0)),weight:round(rows.reduce((n,r)=>n+(r.weightKg??0),0))};
+ return {valid:true,errors:[],rows,totals,missingPrices:rows.filter(r=>r.priceMissing&&!r.excluded),band,runs,fasciaCut,fasciaWidth,fasciaPlan,soffitPlan,jRunM,hMM,seams,totalM,partial:true,notes:['Whole fascia/soffit lengths are supplied for fitting. Offcut/rip planning is an allowance, not a numbered cutting list.','Standard front soffit stock excludes the added ply fitting tolerance. Specified soffit strips deduct the configured trim allowance from the calculated frame-to-ply projection.','Installed weights retain saved kg/m and fitting rates; unconfigured weights remain visible. Polytop pins will be included once in Miscellaneous.']};
+}

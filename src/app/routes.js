@@ -1,3 +1,6 @@
+import VictorianHippedTilesLaths from '../pages/victorian-hipped/VictorianHippedTilesLaths';
+import VictorianHippedIdiotList from '../pages/victorian-hipped/VictorianHippedIdiotList';
+import VictorianHippedSummary from '../pages/victorian-hipped/VictorianHippedSummary';
 import VictorianHippedPreview from '../pages/victorian-hipped/VictorianHippedPreview';
 import DesignedRoofTilesLaths from '../pages/shared/DesignedRoofTilesLaths';
 import VictorianFivePlanPreview from '../pages/victorian/VictorianFivePlanPreview';
@@ -108,6 +111,9 @@ export default function AppRoutes() {
         <Route path="/quote/victorian/tiles-laths" element={<DesignedRoofTilesLaths family="victorian" />} />
         <Route path="/quote/victorian/technical" element={<VictorianPlanPreview />} />
 
+        <Route path="/quote/victorian-hipped/tiles-laths" element={<VictorianHippedTilesLaths />} />
+        <Route path="/quote/victorian-hipped/idiot-list" element={<VictorianHippedIdiotList />} />
+        <Route path="/quote/victorian-hipped/summary" element={<VictorianHippedSummary />} />
         <Route path="/quote/victorian-hipped" element={<VictorianHippedPreview />} />
         <Route path="/quote/victorian-hipped/plan-manufacture" element={<VictorianHippedPreview view="manufacture" />} />
         <Route path="/quote/victorian-hipped/technical" element={<VictorianHippedPreview view="technical" />} />
