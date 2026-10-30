@@ -16,6 +16,18 @@ export function buildVictorianHippedMetalGutterSummary({timber,inputs={},materia
  if(!Number.isFinite(starterMM)||starterMM<=0)return fail(['Tile starter stock coverage must be positive.']);
  const starterKg=rate(m.tile_starter_weight_kg_each??m.metal?.tile_starter?.weight_kg_each??m.eaves_guard_weight_kg??m.eavesGuard?.weight_kg_per_piece);
  add(metal,'vh_m_starter','Tile starter — all active eaves',Math.ceil(starterM*1000/starterMM),`${starterMM/1000}m lengths`,m.tile_starter_price_each??m.metal?.tile_starter?.price_each??m.eaves_guard_price_each??m.eavesGuard?.price_per_piece,starterKg===null?null:starterM/(starterMM/1000)*starterKg,`${starterM.toFixed(3)}m installed; suitable factory-cut stock pooled across eaves. No tile-overhang metres added.`);
+ // Match the established starter policy: charge installed metres, show whole
+ // lengths for ordering. Existing saved adjustments remain whole-length extras.
+ const starterRow=metal.rows[metal.rows.length-1],starterStockM=starterMM/1000;
+ const chargedStarterM=Math.max(0,starterM+Number(starterRow.adjustment||0)*starterStockM);
+ const starterPricePerM=starterRow.unitPrice===null?null:starterRow.unitPrice/starterStockM;
+ const starterCost=chargedStarterM===0?0:starterPricePerM===null?null:round(chargedStarterM*starterPricePerM);
+ Object.assign(starterRow,{qty:chargedStarterM,baseQty:starterM,units:'m',unitPrice:starterPricePerM,
+  cost:starterCost??0,chargeableCost:starterRow.excluded?0:starterCost??0,priceMissing:starterCost===null,
+  orderQty:Math.max(0,Math.ceil(chargedStarterM/starterStockM-1e-9)),
+  orderBasis:`Whole ${starterStockM}m lengths; cost uses metres consumed.`,
+  qtyBasis:`${starterM.toFixed(3)}m installed; saved adjustments add/remove whole ${starterStockM}m lengths.`,
+  basis:'Cost and installed weight use metres consumed; stock quantities are ordering allowances.'});
  const specs=[['hangers','Joist hangers',counts.plainRafters,m.joist_hanger_price_each??m.metal?.joist_hanger?.price_each,rate(m.joist_hanger_weight_kg_each??m.metal?.joist_hanger?.weight_kg_each),'One per ordinary wallplate-connected rafter; fixed wall-side members excluded.'],['jack_hooks','Jack rafter hooks',counts.jacks,m.jack_rafter_hook_price_each??m.metal?.jack_rafter_hook?.price_each,getFixedProductWeightKg('jack_rafter_hooks'),'One per actual hip-connected jack.'],['jack_brackets','Jack rafter brackets',counts.jacks,m.jack_rafter_bracket_price_each??m.metal?.jack_rafter_bracket?.price_each,getFixedProductWeightKg('jack_rafter_brackets'),'One per actual hip-connected jack.'],['bosses','Boss / rafter terminals',counts.bosses,m.boss_rafter_terminal_price_each??m.boss_price_each??m.metal?.boss_rafter_terminal?.price_each,getFixedProductWeightKg('boss_rafter_terminal'),'One per active boss; none at a wall end.'],['spar','Spar hooks',counts.sparHooks,m.spar_hook_price_each??m.metal?.spar_hook?.price_each,getFixedProductWeightKg('spar_hook'),'Two per hip or boss-connected rafter in the applied member schedule. Manual rafter layouts feed these counts.'],['braces','Ringbeam corner braces — 400 × 12.5mm',g.hips.length,m.ringbeam_corner_brace_price_each??0.78,rate(m.ringbeam_corner_brace_weight_kg_each),'One loose site brace per ringbeam mitred corner.']];
  specs.forEach(([key,label,qty,price,kg,basis])=>add(metal,`vh_m_${key}`,label,qty,'each',price,qty===0?0:kg===null?null:qty*kg,basis));
  const wallRuns=['left','right'].map(side=>{const wb=timber.wallplate.wallbars.find(b=>b.side===side),fixed=schedule.find(p=>p.id===(side==='left'?'WL':'WR'));return {side,lengthMM:wb?.topEdgeMM??fixed?.topEdgeMM??0};});

@@ -18,7 +18,7 @@ export function buildVictorianHippedChecklist(model,{groupAssemblies=false}={}){
  }
  const factory=new Set(['vh_misc_glue','vh_misc_factory_screws','vh_misc_rivets','vh_misc_staples','vh_venting']);
  for(const section of model.sections.filter(s=>s.key!=='timber')){
-  sections[section.key==='guttering'?'gutters':section.key]=section.rows.filter(r=>!factory.has(r.key)&&!r.label.startsWith('Factory fascia venting')&&Number(r.orderQty)>0).map(r=>({key:r.key,item:r.label,qty:Number(r.orderQty),units:r.adjustmentUnit||r.units}));
+  sections[section.key==='guttering'?'gutters':section.key]=section.rows.filter(r=>r.usage!=='factory'&&r.supplyToSite!==false&&!factory.has(r.key)&&!r.label.startsWith('Factory fascia venting')&&Number(r.orderQty)>0).map(r=>({key:r.key,item:r.label,qty:Number(r.orderQty),units:r.adjustmentUnit||r.units}));
  }
  const loose=timber.rows.filter(r=>['vh_field_laths','vh_chamfer_laths','vh_internal_laths','vh_hip_laths'].includes(r.key));
  sections.laths=loose.filter(r=>r.qty>0).map(r=>({key:r.key,item:r.label,qty:r.qty,units:'m — cut schedule'}));

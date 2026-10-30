@@ -16,8 +16,8 @@ test('ordered roof includes both side facets and separate internal/external supp
  expect(result.internalScrews).toBe(86);
  expect(result.externalRowScrews).toBe(141);
  expect(result.supportScrews).toBe(36);
- expect(result.perimeterScrews).toBe(52);
- expect(result.externalScrews).toBe(229);
+ expect(result.perimeterScrews).toBe(0);
+ expect(result.externalScrews).toBe(177);
  expect(result.internalBoxes).toBe(1);
  expect(result.externalBoxes).toBe(1);
  expect(result.rows.filter(r=>r.facet==='left').length>0).toBe(true);
@@ -35,15 +35,15 @@ test('steel support fixings use full hip length at 500mm centres plus ends',()=>
  expect(result.supportScrews).toBe(18);
  expect(result.supportRows[0].laths).toBe(2);
 });
-test('slate omits steel hip support fixings while retaining facet and perimeter allowances',()=>{
+test('slate retains facet fixings without steel support or duplicate ringbeam allowances',()=>{
  const {result}=build({tileSystem:'liteslate'});
  expect(result.valid).toBe(true);
  expect(result.supportScrews).toBe(0);
  expect(result.externalRowScrews>0).toBe(true);
- expect(result.perimeterScrews).toBe(52);
+ expect(result.perimeterScrews).toBe(0);
 });
 test('larger roofs require extra boxes and missing data cannot invent an allowance',()=>{
- const {result}=build({widthMM:7040,projMM:2910,leftHipWidthMM:1600,rightHipWidthMM:1600});
+ const {result}=build({widthMM:10000,projMM:4000,leftHipWidthMM:2000,rightHipWidthMM:2000});
  expect(result.externalScrews>250).toBe(true);
  expect(result.externalBoxes).toBe(2);
  expect(buildHippedLathFixingAudit().valid).toBe(false);

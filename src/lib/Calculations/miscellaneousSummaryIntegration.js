@@ -2,7 +2,7 @@
 const round = value => Number(Number(value).toFixed(2));
 export const miscellaneousIntegrationKeys = [
   'expanding_foam', 'alu_roll_tape', 'screws_rafter_eaves',
-  'screws_lath_fixings', 'screws_tile_fixings', 'd4_glue',
+  'screws_lath_fixings', 'screws_tile_fixings', 'concrete_screws', 'd4_glue',
   'factory_screws_1_5x10', 'factory_spar_rivets', 'factory_drywall_32mm',
 ];
 export function integrateMiscellaneousSummary(audit, lines = []) {
@@ -14,7 +14,8 @@ export function integrateMiscellaneousSummary(audit, lines = []) {
     const previousQty = Number(previous.qty ?? previous.order_qty ?? 0);
     const previousWeight = Number(previous.weight_kg ?? previous.totalWeightKg ?? previous.weightKg ?? 0);
     // Retain the accepted existing site allowance weights; factory weights need a configured basis.
-    const weight = item.usage === 'factory' ? 0 : round(previousQty > 0 ? previousWeight * qty / previousQty : 0);
+    const fixedWeight=Object.prototype.hasOwnProperty.call(item,'installedWeightKg');
+    const weight=fixedWeight?round(item.installedWeightKg??0):item.usage === 'factory' ? 0 : round(previousQty > 0 ? previousWeight * qty / previousQty : 0);
     const cost = round(item.cost ?? 0);
     const row = { ...previous, key: item.key, _k: item.key,
       label: item.usage === 'factory' ? `${item.label} (factory use; weight unconfigured)` : (previous.label || item.label),
@@ -25,7 +26,8 @@ export function integrateMiscellaneousSummary(audit, lines = []) {
       weight_kg: weight, weightKg: weight, totalWeightKg: weight, total_weight_kg: weight,
       weight_kg_each: qty > 0 ? weight / qty : 0,
       usage: item.usage || 'site', supplyToSite: item.usage !== 'factory',
-      price_unconfigured: item.cost == null, weight_unconfigured: item.usage === 'factory',
+      ...(fixedWeight?{installedWeightFixed:true,supplyUnitPrice:qty>0?Number(item.cost??0)/qty:0,weightBasis:'Installed fixing count; spare box contents excluded.'}:{}),
+      price_unconfigured: item.cost == null, weight_unconfigured: fixedWeight?item.installedWeightKg===null:item.usage === 'factory',
       requirement_basis: item.basis,
     };
     return [item.key, row];

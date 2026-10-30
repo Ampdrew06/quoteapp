@@ -1,3 +1,6 @@
+import {installedMainTileWeight,installedHipTileWeight,fixedInstalledWeight} from './roofCoveringWeightRules';
+import {PIR_MEMBER_WIDTH_MM,pir50InstalledWeight} from './pirInsulationRules';
+import {resolvePir100SheetRate,pricePir100SheetAllowance} from './pir100SheetSupply';
 import {resolveLeanToRafterLayout} from '../geometry/leanToRafterLayout';
 import { buildGableSummaryMaterialsModel } from './gableSummaryMaterialsModel';
 import { buildFactoryStapleAllowance, integrateFactoryAllowances } from './factoryStapleAllowance';
@@ -13,7 +16,7 @@ import { calculateLeanToGeometry } from "../geometry/leanToGeometry";
 import { buildHippedLeanToTotals } from "../hippedLeanToTotals";
 import { calculateHippedLeanToGeometry } from "../geometry/hippedLeanToGeometry";
 import { buildIntegratedAutomaticRoofTiling as buildAutomaticRoofTiling } from "./integratedAutomaticRoofTiling";
-import { applyUniversalTilingToSummaryLines, selectSummaryExternalFixingLathM } from "./summaryTilingBOM";
+import { applyUniversalTilingToSummaryLines, selectSummaryExternalFixingLathM, isMainRoofTileLine } from "./summaryTilingBOM";
 import { buildHipRidgeLathIntegrationAudit } from "./hipRidgeLathIntegrationAudit";
 import { buildHippedPlasticsIntegrationAudit } from "./plasticsIntegrationAudit";
 import { integratePlasticsSummary } from "./plasticsSummaryIntegration";
@@ -68,27 +71,41 @@ const applyAdjustmentsToLines = (lines = [], adjustments = {}) => {
 
     if (!Number.isFinite(rawQty) || adj === 0) return r;
 
-    const newQty = Math.max(0, rawQty + adj);
+    if(r.pir50Supply){
+      const a=r.pir50Supply,qty=Math.max(0,a.areaM2+adj),sheets=Math.max(0,Math.ceil(qty/a.sheetAreaM2-1e-9)),cost=Number((qty*a.pricePerM2).toFixed(2));
+      return {...r,qty,order_qty:sheets,orderQty:sheets,qty_order:sheets,line:cost,cost,total:cost,totalCost:cost,total_cost:cost};
+    }
+    if(r.pir100SheetAllowance){
+      // Existing saved adjustments are area allowances (m²), not sheets.
+      // Keep that meaning, round supply once, and retain installed weight.
+      const supplied=pricePir100SheetAllowance({areaM2:r.pir100SheetAllowance.areaM2,extraAreaM2:adj,rate:r.pir100SheetAllowance.rate});
+      if(!supplied.valid)return {...r,price_unconfigured:true};
+      return {...r,qty:supplied.suppliedAreaM2,orderQty:supplied.sheets,order_qty:supplied.sheets,qty_order:supplied.sheets,orderUnit:'Sheets',
+       line:supplied.cost,cost:supplied.cost,total:supplied.cost,totalCost:supplied.cost,total_cost:supplied.cost};
+    }
+    const newQty = Math.max(0, r.installedWeightFixed?Math.ceil(rawQty+adj-1e-9):rawQty + adj);
     const ratio = rawQty > 0 ? newQty / rawQty : 1;
 
     const oldCost = asCost(r);
     const oldWeight = lineWeightKg(r);
+    const newCost=r.installedWeightFixed?Number((newQty*(r.supplyUnitPrice??asUnitPrice(r))).toFixed(2)):Number((oldCost*ratio).toFixed(2));
 
     return {
       ...r,
       qty: newQty,
+      ...(r.installedWeightFixed?{order_qty:newQty,orderQty:newQty,qty_order:newQty}:{}),
 
       // cost fields
-      line: Number((oldCost * ratio).toFixed(2)),
-      total: Number((oldCost * ratio).toFixed(2)),
-      cost: Number((oldCost * ratio).toFixed(2)),
-      totalCost: Number((oldCost * ratio).toFixed(2)),
+      line: newCost,
+      total: newCost,
+      cost: newCost,
+      totalCost: newCost,
 
       // weight fields
-      weight_kg: Number((oldWeight * ratio).toFixed(2)),
-      weightKg: Number((oldWeight * ratio).toFixed(2)),
-      totalWeightKg: Number((oldWeight * ratio).toFixed(2)),
-      total_weight_kg: Number((oldWeight * ratio).toFixed(2)),
+      weight_kg: r.installedWeightFixed?oldWeight:Number((oldWeight*ratio).toFixed(2)),
+      weightKg: r.installedWeightFixed?oldWeight:Number((oldWeight*ratio).toFixed(2)),
+      totalWeightKg: r.installedWeightFixed?oldWeight:Number((oldWeight*ratio).toFixed(2)),
+      total_weight_kg: r.installedWeightFixed?oldWeight:Number((oldWeight*ratio).toFixed(2)),
     };
   });
 };
@@ -130,6 +147,7 @@ const asCost = (line) => {
 
 // Total line weight (kg) – prefer explicit totals, then qty × per-unit weight
 const lineWeightKg = (line) => {
+  if(line?.installedWeightFixed)return Number(line.weight_kg??0);
   // 1) If the line explicitly gives a total weight, trust that first
   const directWeightCandidates = [
     line.totalWeightKg,
@@ -186,6 +204,7 @@ export function buildSummaryMaterialsModel({ inputs = {}, materials = {}, exclus
   const lineWeightKg = (r) => {
 
   if (!r || r.isAddedItem) return 0;
+  if(r.installedWeightFixed)return Number(r.weight_kg??0);
 
   // 1) If the row already has a TOTAL weight field, use it
   const total =
@@ -750,7 +769,11 @@ const hippedInsulationIntegration = isHippedLeanToEarly
       geometry: hippedGeomEarly,
       ringSchedule: hippedRingBeamSchedule,
       timberSchedule: provisionalHippedTimber,
-      memberWidthMM: 48,
+      memberWidthMM: PIR_MEMBER_WIDTH_MM,
+      frameMM:Number(m?.side_frame_thickness_mm??70),
+      pir50WastePercent:Number(m?.pir50?.waste_pct??5),
+      pir50SheetWidthMM:Number(m?.pir50?.sheet_w_m??1.2)*1000,
+      pir50SheetLengthMM:Number(m?.pir50?.sheet_h_m??2.4)*1000,
       cradleStripWidthMM: 140,
       wastePercent: Number(
         m?.slab100_wastage_pct ?? m?.pir50?.waste_pct ?? 5
@@ -1590,6 +1613,18 @@ if (k === "slab100") {
         coverageM2
       : 0);
 
+  if(useHippedAudit){
+    const rate=resolvePir100SheetRate(m),supplied=pricePir100SheetAllowance({areaM2,rate});
+    if(supplied.valid)return {...line,label:'100mm PIR insulation (sheet)',name:'100mm PIR insulation (sheet)',_k:'slab100 100mm PIR insulation (sheet)',
+      weight_kg:Number((hippedInsulationIntegration.pir100.netAreaM2*weightPerM2).toFixed(2)),
+      qty:Number(areaM2.toFixed(3)),used_m2:hippedInsulationIntegration.pir100.netAreaM2,units:'m²',unit:'m²',unitLabel:'m²',
+      unitPrice:rate.sheetPrice/rate.sheetAreaM2,priceEach:rate.sheetPrice/rate.sheetAreaM2,
+      orderQty:supplied.sheets,order_qty:supplied.sheets,qty_order:supplied.sheets,orderUnit:'Sheets',
+      line:supplied.cost,cost:supplied.cost,total:supplied.cost,totalCost:supplied.cost,total_cost:supplied.cost,
+      pir100SheetAllowance:{areaM2,rate},price_unconfigured:false};
+    return {...line,price_unconfigured:true};
+  }
+
   return {
     ...line,
     label: "100mm PIR insulation (sheet)",
@@ -1939,6 +1974,23 @@ if (summaryHipBOM.valid) {
 }
 
 
+// Separate installed covering from supply allowance without altering tile orders.
+if(isHippedLeanToEarly&&automaticRoofTilingAudit?.result&&!automaticRoofTilingAudit.errors?.length){
+ const automatic=automaticRoofTilingAudit,steel=['britmetShingle','metrotileShingle'].includes(automatic.productId);
+ const facets=automatic.result.facets.map(r=>{
+  const f=r.facet,points=f.outline,area=Array.isArray(points)&&points.length?Math.abs(points.reduce((n,p,i)=>{const q=points[(i+1)%points.length];return n+p.xMM*q.yMM-q.xMM*p.yMM;},0))/2/1e6:(f.baseWidthMM+f.topWidthMM)*f.heightMM/2e6;
+  return {areaM2:Math.max(0,area-Number(r.openingAreaM2??0)),pitchDeg:f.pitchDeg};
+ });
+ const mainWeight=installedMainTileWeight({productId:automatic.productId,facets,materials:m});let mainApplied=false;
+ tilesLines=tilesLines.map(row=>{
+  if(!mainApplied&&isMainRoofTileLine(row)){mainApplied=true;return fixedInstalledWeight(row,mainWeight);}
+  if(row.key==='hip_ridge')return fixedInstalledWeight(row,installedHipTileWeight({steel,edges:row.perEdgeQuantities??[{qty:asQty(row)}],kgEach:steel?getFixedProductWeightKg('hip_ridge'):m.liteslate_ridge_tile_weight_kg??m.ridge_tile_liteslate_weight_kg}));
+  if(['hip_end_cap_90','hip_end_cap_135'].includes(row.key)){const prefix=automatic.productId==='tapcoSlate'?'tapco':'liteslate',kg=steel?getFixedProductWeightKg(row.key):m[`${prefix}_${row.key}_weight_kg`];return fixedInstalledWeight(row,kg==null||!Number.isFinite(Number(kg))?null:asQty(row)*Number(kg));}
+  if(/touch/i.test(row.key+' '+row.label))return fixedInstalledWeight(row,0);
+  return row;
+ });
+}
+
 // Raw metal rows (from calculators + manual)
 const metalLinesRaw = [
   ...(baseLines || []).filter((r) => {
@@ -2058,7 +2110,7 @@ const integratedCradleAreaM2 =
     ? hippedInsulationIntegration.pir50.cradleOrderAreaM2
     : cradleAreaM2;
 
-const pir50TotalM2 = integratedCradleAreaM2 + (pir50Upstands_m2 || 0);
+const pir50TotalM2 = isHippedLeanToEarly&&hippedInsulationIntegration?.valid?hippedInsulationIntegration.pir50.combinedAreaM2:integratedCradleAreaM2+(pir50Upstands_m2||0);
 
 const pir50TotalOrderQty =
   pir50SheetAreaM2 > 0 ? Math.ceil(pir50TotalM2 / pir50SheetAreaM2) : 0;
@@ -2067,7 +2119,7 @@ const pir50KgPerM2 = Number(m?.pir50?.weight_kg_per_m2 ?? 0) || 0;
 const cradleWeightMult = Number(m?.pir50_cradle_weight_multiplier ?? 1) || 1;
 const upstandWeightMult = 1; // upstands not machined (make a knob later if needed)
 
-const pir50TotalWeightKg =
+const pir50TotalWeightKg = isHippedLeanToEarly&&hippedInsulationIntegration?.valid?pir50InstalledWeight({cradleAreaM2:hippedInsulationIntegration.pir50.cradleNetAreaM2,ringAreaM2:pir50Upstands_m2||0,kgPerM2:pir50KgPerM2,cradleMultiplier:Number(m?.pir50_cradle_weight_multiplier??1)}):
   (integratedCradleAreaM2 * pir50KgPerM2 * cradleWeightMult) +
   ((pir50Upstands_m2 || 0) * pir50KgPerM2);
 
@@ -2082,6 +2134,7 @@ const miscManualLines = [
           qty: Number(pir50TotalM2.toFixed(3)),
           units: "m²",
           order_qty: pir50TotalOrderQty,
+          ...(isHippedLeanToEarly&&hippedInsulationIntegration?.valid?{used_m2:hippedInsulationIntegration.pir50.netAreaM2,orderQty:pir50TotalOrderQty,qty_order:pir50TotalOrderQty,pir50Supply:{areaM2:pir50TotalM2,sheetAreaM2:pir50SheetAreaM2,pricePerM2:Number(m?.pir50?.price_per_m2??m?.pir50_per_m2??0)}}:{}),
           weight_kg: Number(pir50TotalWeightKg.toFixed(2)),
         },
       ]

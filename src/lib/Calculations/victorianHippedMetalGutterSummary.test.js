@@ -3,6 +3,15 @@ import {buildVictorianHippedTimberSummary} from './victorianHippedTimberSummary'
 import {victorianHippedDefaults} from '../geometry/victorianHippedGeometry';
 import {getMaterials} from '../materials';
 const materials=getMaterials();
+test('starter charges metres consumed while ordering whole lengths and retaining saved adjustment units',()=>{
+ const m={...materials,tile_starter_price_each:12,eaves_guard_piece_cover_mm:3000};
+ const inputs={...victorianHippedDefaults,requestedSidePitchDeg:25},timber=buildVictorianHippedTimberSummary({inputs,materials:m});
+ const a=build({timber,inputs,materials:m}),row=a.metal.rows.find(r=>r.key==='vh_m_starter');
+ expect(row.qty).toBe(a.starterM);expect(row.orderQty).toBe(Math.ceil(a.starterM/3));
+ expect(row.cost).toBe(Math.round(a.starterM*4*100)/100);
+ const changed=build({timber,materials:m,inputs:{...inputs,victorianHippedMetalGutterSummary:{adjustments:{vh_m_starter:1}}}}).metal.rows.find(r=>r.key==='vh_m_starter');
+ expect(changed.qty).toBe(row.qty+3);expect(changed.orderQty).toBe(row.orderQty+1);expect(changed.weightKg).toBe(row.weightKg);
+});
 test('hardware follows actual applied member roles',()=>{
  const inputs={...victorianHippedDefaults,requestedSidePitchDeg:25},timber=buildVictorianHippedTimberSummary({inputs,materials}),a=build({timber,inputs,materials});
  expect(a.valid).toBe(true);expect(a.counts.sparHooks).toBe(2*timber.members.members.filter(p=>p.role==='hip'||p.role==='boss-rafter').length);

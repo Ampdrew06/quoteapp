@@ -117,6 +117,7 @@ const asCost = (line) => {
 
 // Total line weight (kg) – prefer explicit totals, then qty × per-unit weight
 const lineWeightKg = (line) => {
+  if(line?.installedWeightFixed)return Number(line.weight_kg??0);
   // 1) If the line explicitly gives a total weight, trust that first
   const directWeightCandidates = [
     line.totalWeightKg,
@@ -345,6 +346,7 @@ const m = useMemo(
   const lineWeightKg = (r) => {
 
   if (!r || r.isAddedItem) return 0;
+  if(r.installedWeightFixed)return Number(r.weight_kg??0);
 
   // 1) If the row already has a TOTAL weight field, use it
   const total =
@@ -845,7 +847,7 @@ const displayUnits = (r) => {
 // ---------- table renderer with footer row ----------
 
 const Section=({title,section,lines,totals,showChargeable})=>{
- const rows=(lines||[]).map(r=>({key:r.key,label:r.label||r.name||r.item||r.key,qty:asQty(r),orderQty:summaryOrderQuantity(r,asQty(r)),units:displayUnits(r),weightText:r.isAddedItem?'—':fmtKg(lineWeightKg(r)),cost:asCost(r),chargeableCost:lineChargeableCost(r),excluded:isExcluded(r.key),isAddedItem:r.isAddedItem,priceMissing:r.price_unconfigured&&r.isAddedItem,adjustment:r.isAddedItem?(r.qty-1||''):(adjustments[r.key]??''),source:r,...(section==='misc'?summaryInsulationAreaDisplay(r):{})}));
+ const rows=(lines||[]).map(r=>({key:r.key,label:r.label||r.name||r.item||r.key,qty:asQty(r),orderQty:summaryOrderQuantity(r,asQty(r)),units:displayUnits(r),weightText:r.isAddedItem?'—':r.installedWeightFixed&&r.weight_unconfigured?'Unconfigured':fmtKg(lineWeightKg(r)),cost:asCost(r),chargeableCost:lineChargeableCost(r),excluded:isExcluded(r.key),isAddedItem:r.isAddedItem,priceMissing:r.price_unconfigured&&r.isAddedItem,adjustment:r.isAddedItem?(r.qty-1||''):(adjustments[r.key]??''),source:r,...(section==='misc'?summaryInsulationAreaDisplay(r):{})}));
  const onAdjust=(row,raw)=>{
  const r=row.source;if(r.isAddedItem){if(raw===''||Number.isFinite(Number(raw)))updateAddedItem(r,{qty:Math.max(0,1+(Number(raw)||0))});return;}
  const next={...adjustments},nextValues=loadAdjustmentValues();

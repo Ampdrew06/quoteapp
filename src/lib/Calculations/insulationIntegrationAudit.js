@@ -1,3 +1,5 @@
+import {PIR_MEMBER_WIDTH_MM,pirBoardAllowance,frameLineRoofArea} from './pirInsulationRules';
+import {buildJackRafterManufactureAudit} from './jackRafterManufactureAudit';
 import { buildProvisionalHippedLeanToTimber } from "./provisionalHippedLeanToTimber";
 
 const finite = (value, fallback = 0) => {
@@ -74,8 +76,8 @@ export const chooseSuperQuiltMix = ({
 /**
  * Read-only insulation audit for a Hipped Lean-To.
  *
- * PIR100 is derived from the internal roof surfaces, less the plan-width
- * footprint of the Steico roof members. PIR50 cradle is driven by the faces
+ * PIR100 is derived from the outside-frame roof surfaces, less the nominal
+ * footprint of the Steico roof members extended to the same frame boundary. PIR50 cradle is driven by the faces
  * that border insulation bays: two faces per roof member and one inward face
  * on each active sloping wallbar. Horizontal wallplate members are excluded.
  */
@@ -85,11 +87,15 @@ export function buildHippedLeanToInsulationAudit({
   ringSchedule = null,
   timberSchedule = null,
   currentSummaryPir50AreaM2 = null,
-  memberWidthMM = 48,
+  memberWidthMM = PIR_MEMBER_WIDTH_MM,
+  frameMM = 0,
   cradleStripWidthMM = 140,
   wastePercent = 5,
   sheetWidthMM = 1200,
   sheetLengthMM = 2400,
+  pir50WastePercent = wastePercent,
+  pir50SheetWidthMM = sheetWidthMM,
+  pir50SheetLengthMM = sheetLengthMM,
   internalLathCentresMM = 400,
   superQuiltOverlapMM = 50,
   superQuiltWastePercent = 6,
@@ -149,37 +155,57 @@ export function buildHippedLeanToInsulationAudit({
     (sum, member) => sum + nonNegative(member.internalLengthMM) / 1000,
     0
   );
-  const timberFootprintAreaM2 =
-    memberInternalLengthM * (nonNegative(memberWidthMM) / 1000);
-  const pir100NetAreaM2 = Math.max(
-    0,
-    grossInternalRoofAreaM2 - timberFootprintAreaM2
-  );
-  const wasteMultiplier = 1 + nonNegative(wastePercent) / 100;
-  const pir100OrderAreaM2 = pir100NetAreaM2 * wasteMultiplier;
+  const frame=Number(frameMM);
+  if(!Number.isFinite(frame)||frame<0)return {valid:false,errors:['Frame thickness must be non-negative.']};
+  const jackAudit=frame>0?buildJackRafterManufactureAudit({roofInputs,geometry}):null;
+  const memberFrameExtensionM=member=>{
+    if(!frame)return 0;
+    if(member.type==='hip'){
+      const side=String(member.id).startsWith('left')?'left':'right',hipWidth=side==='left'?leftHipWidthMM:rightHipWidthMM;
+      const plan=Math.hypot(hipWidth,projectionMM),pitch=geometry[side+'HipManufactureV2']?.hipPitchDeg??geometry[side+'HipPitchDeg'];
+      return frame*plan/Math.max(hipWidth,projectionMM)/Math.cos(degToRad(pitch))/1000;
+    }
+    const jack=jackAudit?.jacks.find(j=>j.id===member.id),pitch=jack?.profile?.facetPitchDeg??geometry.frontPitchDeg;
+    return frame/Math.cos(degToRad(pitch))/1000;
+  };
+  const memberFrameExtensionsM=timber.members.map(memberFrameExtensionM);
+  if(memberFrameExtensionsM.some(v=>!Number.isFinite(v)))return {valid:false,errors:['Member frame extensions could not be resolved.']};
+  const memberLengthToFrameM=memberInternalLengthM+memberFrameExtensionsM.reduce((n,v)=>n+v,0);
+  const pt=(xMM,yMM)=>({xMM,yMM}),outline=[pt(0,0),pt(0,projectionMM),pt(widthMM,projectionMM),pt(widthMM,0)],rise=projectionMM*Math.tan(degToRad(geometry.frontPitchDeg));
+  const frameFacets=[...(geometry.hasLeftHip?[{start:outline[0],end:outline[1],pitchDeg:Math.atan2(rise,leftHipWidthMM)*180/Math.PI}]:[]),{start:outline[1],end:outline[2],pitchDeg:geometry.frontPitchDeg},...(geometry.hasRightHip?[{start:outline[2],end:outline[3],pitchDeg:Math.atan2(rise,rightHipWidthMM)*180/Math.PI}]:[])];
+  const frameSurface=rise>0?frameLineRoofArea({outline,facets:frameFacets,frameMM:frame}):{areaM2:grossInternalRoofAreaM2};
+  if(!frameSurface)return {valid:false,errors:['Frame-line insulation surfaces do not close.']};
+  const timberFootprintAreaM2=memberLengthToFrameM*(nonNegative(memberWidthMM)/1000);
+  const pir100NetAreaM2=Math.max(0,frameSurface.areaM2-timberFootprintAreaM2);
+  const wasteMultiplier=1+nonNegative(wastePercent)/100;
+  const pir100Board=pirBoardAllowance({areaM2:pir100NetAreaM2,sheetWidthM:sheetWidthMM/1000,sheetLengthM:sheetLengthMM/1000,wastePercent});
+  if(!pir100Board)return {valid:false,errors:['Positive PIR100 sheet dimensions and non-negative waste are required.']};
+  const pir100OrderAreaM2=pir100Board.orderArea;
 
   const leftWallbarLengthM =
-    nonNegative(geometry.leftInternalWallBarSlopeMM) / 1000;
+    (nonNegative(geometry.leftInternalWallBarSlopeMM)+(geometry.hasLeftHip?frame/Math.cos(degToRad(geometry.leftSidePitchDeg)):0)) / 1000;
   const rightWallbarLengthM =
-    nonNegative(geometry.rightInternalWallBarSlopeMM) / 1000;
+    (nonNegative(geometry.rightInternalWallBarSlopeMM)+(geometry.hasRightHip?frame/Math.cos(degToRad(geometry.rightSidePitchDeg)):0)) / 1000;
   const wallbarCradleLengthM = leftWallbarLengthM + rightWallbarLengthM;
-  const roofMemberCradleLengthM = memberInternalLengthM * 2;
+  const roofMemberCradleLengthM = memberLengthToFrameM * 2;
   const cradleTotalLengthM =
     roofMemberCradleLengthM + wallbarCradleLengthM;
   const cradleNetAreaM2 =
     cradleTotalLengthM * (nonNegative(cradleStripWidthMM) / 1000);
-  const cradleOrderAreaM2 = cradleNetAreaM2 * wasteMultiplier;
+  const cradleOrderAreaM2 = cradleNetAreaM2 * (1+nonNegative(pir50WastePercent)/100);
   const ringBeamPir50AreaM2 = nonNegative(
     ringSchedule?.totals?.pir50AreaM2
   );
   const pir50CombinedAreaM2 =
-    cradleOrderAreaM2 + ringBeamPir50AreaM2;
+    (cradleNetAreaM2 + ringBeamPir50AreaM2)*(1+nonNegative(pir50WastePercent)/100);
 
   const sheetAreaM2 =
     (nonNegative(sheetWidthMM) * nonNegative(sheetLengthMM)) / 1_000_000;
   const orderQty = (areaM2) =>
     sheetAreaM2 > 0 ? Math.ceil(nonNegative(areaM2) / sheetAreaM2) : 0;
 
+  const pir50Board=pirBoardAllowance({areaM2:cradleNetAreaM2+ringBeamPir50AreaM2,sheetWidthM:pir50SheetWidthMM/1000,sheetLengthM:pir50SheetLengthMM/1000,wastePercent:pir50WastePercent});
+  if(!pir50Board)return {valid:false,errors:['Positive PIR50 sheet dimensions and non-negative waste are required.']};
   const currentPir50 = Number(currentSummaryPir50AreaM2);
   const currentPir50AreaM2 = Number.isFinite(currentPir50)
     ? Math.max(0, currentPir50)
@@ -252,6 +278,10 @@ export function buildHippedLeanToInsulationAudit({
     status: "Read only",
     assumptions: {
       memberWidthMM: nonNegative(memberWidthMM),
+      frameMM:frame,
+      pir50WastePercent:pir50Board.wastePct,
+      pir50SheetWidthMM:Number(pir50SheetWidthMM),
+      pir50SheetLengthMM:Number(pir50SheetLengthMM),
       cradleStripWidthMM: nonNegative(cradleStripWidthMM),
       wastePercent: nonNegative(wastePercent),
       sheetWidthMM: nonNegative(sheetWidthMM),
@@ -264,15 +294,20 @@ export function buildHippedLeanToInsulationAudit({
     facets: facetAreas,
     pir100: {
       grossInternalRoofAreaM2,
+      grossFrameRoofAreaM2:frameSurface.areaM2,
+      measurementBoundary:'outside-frame',
       timberFootprintAreaM2,
       netAreaM2: pir100NetAreaM2,
       orderAreaM2: pir100OrderAreaM2,
-      orderQty: orderQty(pir100OrderAreaM2),
+      orderQty: pir100Board.sheets,
       currentSummaryAreaM2: currentPir100AreaM2,
       currentSummaryOrderQty: orderQty(currentPir100AreaM2),
     },
     pir50: {
       roofMemberInternalLengthM: memberInternalLengthM,
+      roofMemberLengthToFrameM:memberLengthToFrameM,
+      netAreaM2:pir50Board.area,
+      wastePercent:pir50Board.wastePct,
       roofMemberCradleLengthM,
       wallbarCradleLengthM,
       cradleTotalLengthM,
@@ -280,7 +315,7 @@ export function buildHippedLeanToInsulationAudit({
       cradleOrderAreaM2,
       ringBeamAreaM2: ringBeamPir50AreaM2,
       combinedAreaM2: pir50CombinedAreaM2,
-      orderQty: orderQty(pir50CombinedAreaM2),
+      orderQty: pir50Board.sheets,
       currentSummaryAreaM2: currentPir50AreaM2,
       currentSummaryOrderQty:
         currentPir50AreaM2 == null ? null : orderQty(currentPir50AreaM2),

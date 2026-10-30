@@ -5,6 +5,23 @@ import {victorianHippedDefaults} from '../geometry/victorianHippedGeometry';
 import {getMaterials} from '../materials';
 const materials=getMaterials(),inputs={...victorianHippedDefaults,requestedSidePitchDeg:25};
 const timber=buildVictorianHippedTimberSummary({inputs,materials});
+test('ringbeam insulation includes both faces and PIR50 is charged by its area allowance',()=>{
+ const a=build({timber,inputs,materials});
+ expect(timber.ring.totals.pirFacesPerBay).toBe(2);
+ expect(a.ringAreaM2).toBeCloseTo(timber.ring.totals.finishingLathLengthM*.185*2,7);
+ const row=a.rows.find(r=>r.key==='vh_misc_pir50');
+ expect(row.cost).toBe(Math.round(a.pir50.orderArea*materials.pir50.price_per_m2*100)/100);
+ expect(row.orderQty).toBe(a.pir50.sheets);
+ const changed=build({timber,inputs:{...inputs,victorianHippedMiscSummary:{adjustments:{vh_misc_pir50:1}}},materials}).rows.find(r=>r.key===row.key);
+ expect(changed.orderQty).toBe(row.orderQty+1);expect(changed.qty).toBe(row.qty);expect(changed.weightKg).toBe(row.weightKg);
+});
+test('hanger drywall screws are factory consumption and staples follow PSE runs',()=>{
+ const m={...materials,drywall_screws_32mm_price_per_box:20,drywall_screws_32mm_units_per_box:1000},a=build({timber,inputs,materials:m});
+ const hangers=timber.members.members.filter(r=>r.role==='rafter').length,row=a.rows.find(r=>r.key==='vh_misc_factory_drywall');
+ expect(row.qty).toBe(hangers*28);expect(row.cost).toBe(Math.round(hangers*28/1000*20*100)/100);
+ expect(row.usage).toBe('factory');expect(row.supplyToSite).toBe(false);
+ expect(a.staples.ringBeamLengthM).toBe(timber.ring.totals.pseLengthM);
+});
 test('PIR areas pool and receive their waste allowance once before sheet rounding',()=>{
  const a=build({timber,inputs,materials});expect(a.valid).toBe(true);
  expect(a.pir50.area).toBeCloseTo(a.cradleAreaM2+a.ringAreaM2,7);

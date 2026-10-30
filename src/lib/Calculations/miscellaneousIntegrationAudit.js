@@ -1,3 +1,4 @@
+import {tileFixingSupply,concreteScrewAllowance,installedFixingWeight} from './roofFixingAllowances';
 import { buildHippedLathFixingAudit } from './hippedLathFixingAudit';
 
 const n=value=>Math.max(0,Number(value)||0);
@@ -8,9 +9,9 @@ export function buildHippedMiscellaneousIntegrationAudit({geometry,internalAreaM
   const system=String(tileSystem).toLowerCase();
   const slate=system==='liteslate'||system==='tapco'||system==='tapcoslate';
   const tileRate=n(slate?materials.tileFixings?.per_tile_liteslate??2:materials.tileFixings?.per_tile_britmet??3);
-  const accessoryRates={hip_ridge:4,hip_end_cap_90:2,hip_end_cap_135:2};
-  const accessoryUnits=edgeLines.reduce((sum,row)=>sum+n(row.order_qty??row.qty)*n(accessoryRates[row.key]),0);
-  const tileUnits=n(tileQuantity)*tileRate+accessoryUnits;
+  const tileSupply=tileFixingSupply({mainQty:n(tileQuantity),hipQty:edgeLines.filter(r=>r.key==='hip_ridge').reduce((n0,r)=>n0+n(r.order_qty??r.qty),0),capQty:edgeLines.filter(r=>['hip_end_cap_90','hip_end_cap_135'].includes(r.key)).reduce((n0,r)=>n0+n(r.order_qty??r.qty),0),steel:!slate,materials});
+  if(!tileSupply)errors.push('Valid tile fixing rates and pack size are required.');
+  const accessoryUnits=tileSupply?.accessoryScrews??0,tileUnits=tileSupply?.totalScrews??0;
   const jacks=['leftJackRafterCount','rightJackRafterCount','leftSideIntermediateJackCount','rightSideIntermediateJackCount'].reduce((sum,key)=>sum+n(geometry?.[key]),0);
   const hips=Number(geometry?.hasLeftHip===true)+Number(geometry?.hasRightHip===true);
   const siteMembers=n(geometry?.plainRafterCount)+n(geometry?.bossRafterCount)+jacks+hips;
@@ -18,7 +19,7 @@ export function buildHippedMiscellaneousIntegrationAudit({geometry,internalAreaM
   const siteBoxUnits=Math.max(1,n(materials.rafterEavesScrews?.units_per_box??200));
   const siteBoxes=Math.ceil(siteScrews/siteBoxUnits);
   const boxUnits=Math.max(1,n(materials.tileFixings?.units_per_box??200));
-  const tileBoxes=Math.max(1,Math.ceil(tileUnits/boxUnits));
+  const tileBoxes=tileSupply?.boxes??0;
   const find=key=>legacyLines.find(row=>row.key===key);
   const current=key=>{const row=find(key);return row?Number(row.qty??row.order_qty??0):null;};
   const candidate=(key,label,qty,rate,basis,review)=>({key,label,currentQty:current(key),candidateQty:qty,
@@ -32,10 +33,19 @@ export function buildHippedMiscellaneousIntegrationAudit({geometry,internalAreaM
     candidate('screws_rafter_eaves','Rafter / eaves screws',siteBoxes,materials.screws_3x10_price_per_box??materials.rafterEavesScrews?.price_per_box,`${siteMembers} plain/boss rafters, hips and jacks × 2 = ${siteScrews} screws; ${siteBoxUnits}/box`,'Confirmed provisional site allowance: two 5×80 screws per member at the ring-beam; review after physical build. Factory attachment fixings appear separately below.'),
     candidate('screws_lath_fixings','Internal / external lath screws',lathAudit.valid?lathAudit.totalBoxes:null,materials.screws_2x8_price_per_box??materials.lathFixings?.price_per_box,
       lathAudit.valid?`Internal ${lathAudit.internalScrews} screws → ${lathAudit.internalBoxes} box(es); external ${lathAudit.externalScrews} screws → ${lathAudit.externalBoxes} box(es); 250/box`:'Resolved lath rows and member profiles required',
-      lathAudit.valid?`External: ${lathAudit.externalRowScrews} row intersections + ${lathAudit.supportScrews} hip/ridge support + ${lathAudit.perimeterScrews} perimeter finishing allowance. Support/finishing allowance at 500mm centres plus ends; conservative supply quantities.`:lathAudit.errors.join(' ')),
+      lathAudit.valid?`External: ${lathAudit.externalRowScrews} row intersections + ${lathAudit.supportScrews} hip/ridge support. Ringbeam assembly is already covered by factory glue/staples. Support/finishing allowance at 500mm centres plus ends; conservative supply quantities.`:lathAudit.errors.join(' ')),
     candidate('screws_tile_fixings','Tile fixing screws',Number.isFinite(Number(tileQuantity))?tileBoxes:null,materials.screws_1x8_price_per_box??materials.tileFixings?.price_per_box,
       `${n(tileQuantity)} ordered main tiles × ${tileRate} + ${accessoryUnits} hip/cap fixings = ${tileUnits} screws; ${boxUnits}/box`,'Confirmed main-tile allowance: three per ordered steel tile, two per slate tile; review after physical tests. Additional guide: hip/ridge tile 4; hip end cap 2; Y adaptor 6; five-way adaptor 10; universal adaptor 5; gable hip end cap 3. Hip/ridge tiles and hip end caps are included from the edge BOM. Adaptors and gable end caps remain pending until their order rows are supported.'),
   ];
+  const concrete=concreteScrewAllowance(materials);
+  rows.push(candidate('concrete_screws','150mm concrete screws',concrete.qty,concrete.unitPrice,'Eight-screw roof allowance, prorated from configured box price.','Shared roof allowance; manual supply adjustments remain available.'));
+  const fixedWeights={
+    screws_rafter_eaves:installedFixingWeight({count:siteScrews,unitsPerBox:siteBoxUnits,boxWeightKg:materials.screws_3x10_weight_kg_per_box}),
+    screws_lath_fixings:installedFixingWeight({count:(lathAudit.internalScrews??0)+(lathAudit.externalScrews??0),unitsPerBox:250,boxWeightKg:materials.screws_2x8_weight_kg_per_box}),
+    screws_tile_fixings:installedFixingWeight({count:tileUnits,unitsPerBox:boxUnits,boxWeightKg:materials.screws_1x8_weight_kg_per_box}),
+    concrete_screws:installedFixingWeight({count:concrete.qty,unitsPerBox:concrete.unitsPerBox,boxWeightKg:materials.concrete_screws_weight_kg_per_box}),
+  };
+  rows.forEach(r=>{if(Object.prototype.hasOwnProperty.call(fixedWeights,r.key))r.installedWeightKg=fixedWeights[r.key];});
   const sparPairs=n(geometry?.sparHookQty)/2;
   const factoryScrews=sparPairs*14+jacks*10+n(geometry?.bossQty)*6;
   const rivets=sparPairs*4;

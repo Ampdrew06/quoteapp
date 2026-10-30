@@ -1,3 +1,4 @@
+import {lathFixingSupply,lathRowFixingCount} from './roofFixingAllowances';
 import { buildFrontRafterManufactureProfiles } from '../Manufacturing/frontRafterManufactureProfiles';
 import { buildJackRafterManufactureAudit } from './jackRafterManufactureAudit';
 
@@ -34,8 +35,7 @@ export function buildHippedLathFixingAudit({ roofInputs = {}, geometry,
     const members = [...group.members, ...jackAudit.jacks.filter(j => j.facetId === group.jackId)];
     // End supports are hips on the front, and wallbar/hip on side facets.
     // Keep both end allowances at short rows and boss junctions for supply safety.
-    const count = (positionMM, surface) => 2 + members.filter(m =>
-      n(m.profile?.[`${surface}SlopeLengthMM`]) + 24 >= positionMM).length;
+    const count = (positionMM, surface) => lathRowFixingCount(members.map(m=>n(m.profile?.[`${surface}SlopeLengthMM`])),positionMM);
     const overhangSlopeMM = n(roofInputs.eaves_overhang_mm ?? 50) / pitchCos(group.pitch);
     for (const row of facet.lathRows || []) {
       if (!(n(row.widthMM) > 0)) continue;
@@ -53,26 +53,25 @@ export function buildHippedLathFixingAudit({ roofInputs = {}, geometry,
   const supportRows = steel ? edgeModel.edges.filter(e => e.kind === 'hip' || e.kind === 'ridge')
     .map(e => ({ edgeId: e.id, lengthMM: n(e.lengthMM), laths: 2,
       screws: n(e.lengthMM) > 0 ? 2 * (Math.ceil(n(e.lengthMM) / spacingMM) + 1) : 0 })) : [];
-  // Additional 25x50 outer-edge and upstand finishing uses also need a loose
-  // screw allowance. Budget two runs at 500mm centres, with end fixings.
-  const perimeterRows = edgeModel.edges.filter(e => e.kind === 'eaves')
-    .map(e => ({ edgeId: e.id, lengthMM: n(e.lengthMM), laths: 2,
-      screws: n(e.lengthMM) > 0 ? 2 * (Math.ceil(n(e.lengthMM) / spacingMM) + 1) : 0 }));
+  // Ringbeam outer fixing and upstand finishing laths are factory assembly.
+  // Their glue/staple allowance is already counted; no extra loose screws.
+  const perimeterRows=[];
   const sum = list => list.reduce((total, row) => total + row.screws, 0);
   const internalScrews = sum(rows.filter(r => r.use === 'internal'));
   const externalRowScrews = sum(rows.filter(r => r.use === 'external'));
   const supportScrews = sum(supportRows), perimeterScrews = sum(perimeterRows);
-  const externalScrews = externalRowScrews + supportScrews + perimeterScrews;
+  const supply=lathFixingSupply({internalScrews,externalRowScrews,supportScrews});
+  const externalScrews = supply.externalScrews;
   const internalBoxes = Math.ceil(internalScrews / 250);
   const externalBoxes = Math.ceil(externalScrews / 250);
   return { valid: true, errors: [], rows, supportRows, perimeterRows, spacingMM,
     internalScrews, externalRowScrews, supportScrews, perimeterScrews, externalScrews,
-    internalBoxes, externalBoxes, totalBoxes: internalBoxes + externalBoxes, unitsPerBox: 250,
+    internalBoxes, externalBoxes, totalBoxes: supply.totalBoxes, unitsPerBox: supply.unitsPerBox,
     assumptions: [
       'One screw per transverse lath/member intersection; member reach uses the existing manufacture profiles.',
       'Both end supports are allowed on every non-zero row, including short rows; a 24mm member-face tolerance keeps the allowance conservative.',
       'Steel hip/ridge support laths use approximately 500mm centres plus an end fixing; no support-lath screws for slate.',
-      'A conservative additional allowance covers the two perimeter outer-edge/upstand lath runs at 500mm centres plus end fixings.',
+      'Ringbeam outer fixing and upstand finishing laths use the factory glue/staple allowance; no duplicate site screw allowance.',
       'Internal and external allowances each round up separately to boxes of 250; suitable surplus stays available to the fitter.',
     ] };
 }

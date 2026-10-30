@@ -406,7 +406,11 @@ export default function LeanToTechnical() {
             currentSummaryPir50AreaM2:
               ringBeamSummaryConsolidation?.lines?.pir50
                 ?.proposedQuantity,
-            memberWidthMM: 48,
+            memberWidthMM: 45,
+            frameMM:Number(materials?.side_frame_thickness_mm??70),
+            pir50WastePercent:Number(materials?.pir50?.waste_pct??5),
+            pir50SheetWidthMM:Number(materials?.pir50?.sheet_w_m??1.2)*1000,
+            pir50SheetLengthMM:Number(materials?.pir50?.sheet_h_m??2.4)*1000,
             cradleStripWidthMM: 140,
             wastePercent: Number(
               materials?.slab100_wastage_pct ??
@@ -643,7 +647,7 @@ export default function LeanToTechnical() {
                     <td style={td}>{miscAudit.lathAudit.rows.filter(row => row.facet === facet && row.use === "external").reduce((sum, row) => sum + row.screws, 0)}</td>
                   </tr>)}</tbody>
                 </table>
-                <p>Additional external fixings: {miscAudit.lathAudit.supportScrews} hip/ridge support; {miscAudit.lathAudit.perimeterScrews} perimeter finishing allowance. Supply {miscAudit.lathAudit.internalBoxes} internal + {miscAudit.lathAudit.externalBoxes} external boxes of 250.</p>
+                <p>Additional external fixings: {miscAudit.lathAudit.supportScrews} hip/ridge support. Ringbeam assembly is covered by factory glue/staples, with no duplicate perimeter screw allowance. Supply {miscAudit.lathAudit.internalBoxes} internal + {miscAudit.lathAudit.externalBoxes} external boxes of 250.</p>
                 <ul>{miscAudit.lathAudit.assumptions.map(item => <li key={item}>{item}</li>)}</ul>
               </div>
             )}
@@ -974,18 +978,18 @@ export default function LeanToTechnical() {
               <section style={panel}>
                 <h2 style={{ marginTop: 0 }}>Integration Audit — roof insulation</h2>
                 <p style={{ color: "#92400e" }}>
-                  The audited 50 mm PIR, 100 mm PIR, SuperQuilt and internal fixing-lath quantities now feed the live Summary.
+                  The audited 50 mm PIR, 100 mm PIR, SuperQuilt and internal fixing-lath quantities feed the live Summary. PIR reaches the outside frame line and excludes soffits. Facet columns below describe the internal roof; the gross PIR column includes frame extensions.
                 </p>
 
                 <h3>100 mm PIR — insulation bays</h3>
                 <div style={{ overflowX: "auto", marginBottom: 18 }}>
                   <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <thead><tr><th style={th}>Front facet</th><th style={th}>Left facet</th><th style={th}>Right facet</th><th style={th}>Gross internal surface</th><th style={th}>48 mm timber footprint</th><th style={th}>Net PIR</th><th style={th}>With 5% allowance</th><th style={th}>Boards</th></tr></thead>
+                    <thead><tr><th style={th}>Front facet</th><th style={th}>Left facet</th><th style={th}>Right facet</th><th style={th}>Gross outside-frame surface</th><th style={th}>45 mm timber footprint</th><th style={th}>Net PIR</th><th style={th}>With configured allowance</th><th style={th}>Boards</th></tr></thead>
                     <tbody><tr>
                       <td style={td}>{round(insulationIntegrationAudit.facets.frontM2, 3)} m²</td>
                       <td style={td}>{round(insulationIntegrationAudit.facets.leftM2, 3)} m²</td>
                       <td style={td}>{round(insulationIntegrationAudit.facets.rightM2, 3)} m²</td>
-                      <td style={td}>{round(insulationIntegrationAudit.pir100.grossInternalRoofAreaM2, 3)} m²</td>
+                      <td style={td}>{round(insulationIntegrationAudit.pir100.grossFrameRoofAreaM2, 3)} m²</td>
                       <td style={td}>−{round(insulationIntegrationAudit.pir100.timberFootprintAreaM2, 3)} m²</td>
                       <td style={td}>{round(insulationIntegrationAudit.pir100.netAreaM2, 3)} m²</td>
                       <td style={td}>{round(insulationIntegrationAudit.pir100.orderAreaM2, 3)} m²</td>
@@ -1005,7 +1009,7 @@ export default function LeanToTechnical() {
                         <td style={td}>{round(insulationIntegrationAudit.pir100.orderAreaM2, 3)} m²</td>
                         <td style={td}>{insulationIntegrationAudit.pir100.currentSummaryOrderQty}</td>
                         <td style={td}>{insulationIntegrationAudit.pir100.orderQty}</td>
-                        <td style={td}>All internal facet surfaces less the 48 mm Steico footprints, then 5% allowance</td>
+                        <td style={td}>Outside-frame roof surface less 45mm member footprints, then configured waste once</td>
                       </tr>
                       <tr>
                         <td style={td}><b>50 mm PIR</b></td>
@@ -1022,7 +1026,7 @@ export default function LeanToTechnical() {
                 <h3>50 mm PIR — rebated cradle and ring-beam</h3>
                 <div style={{ overflowX: "auto", marginBottom: 12 }}>
                   <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <thead><tr><th style={th}>Roof-member faces</th><th style={th}>Sloping wallbars</th><th style={th}>Total cradle length</th><th style={th}>140 mm blank area</th><th style={th}>Cradle with 5%</th><th style={th}>Ring-beam upstands</th><th style={th}>Combined 50 mm PIR</th><th style={th}>Boards</th></tr></thead>
+                    <thead><tr><th style={th}>Roof-member faces</th><th style={th}>Sloping wallbars</th><th style={th}>Total cradle length</th><th style={th}>140 mm blank area</th><th style={th}>Cradle with allowance</th><th style={th}>Ring-beam upstands</th><th style={th}>Combined 50 mm PIR</th><th style={th}>Boards</th></tr></thead>
                     <tbody><tr>
                       <td style={td}>{round(insulationIntegrationAudit.pir50.roofMemberCradleLengthM, 3)} m</td>
                       <td style={td}>{round(insulationIntegrationAudit.pir50.wallbarCradleLengthM, 3)} m</td>
@@ -1036,7 +1040,7 @@ export default function LeanToTechnical() {
                   </table>
                 </div>
                 <p style={{ marginBottom: 0, color: "#64748b", fontSize: 13 }}>
-                  The horizontal wallplate is excluded. Each sloping wallbar contributes one inward-facing cradle strip; every full rafter, jack and hip contributes both insulation-facing sides. Stock boards are {insulationIntegrationAudit.assumptions.sheetWidthMM} × {insulationIntegrationAudit.assumptions.sheetLengthMM} mm.
+                  The horizontal wallplate is excluded. Each sloping wallbar contributes one inward-facing cradle strip; every full rafter, jack and hip contributes both insulation-facing sides. PIR50 and PIR100 use their own Materials sheet sizes and waste settings. Weight uses net installed area; cradle machining applies only to cradle weight.
                 </p>
 
                 <h3>SuperQuilt — complete internal surface</h3>

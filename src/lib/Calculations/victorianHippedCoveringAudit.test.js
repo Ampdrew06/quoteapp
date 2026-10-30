@@ -4,6 +4,13 @@ import {calculateRoofTiling,widthAtFacetPosition} from './facetTilingCalc';
 import {orderSteelHipRidgeRuns} from './steelHipRidgeOrder';
 import {getMaterials} from '../materials';
 const materials=getMaterials();
+test('the adjusted 6200 x 2450 roof covers its full corners without altering timber geometry',()=>{
+ const geometry=buildVictorianHippedGeometry({inputs:{widthMM:6200,projMM:2450,pitchDeg:15,soffitMM:150,leftEndType:'edwardian',rightEndType:'edwardian',requestedSidePitchDeg:27.7},materials});
+ const before=JSON.stringify(geometry),a=build({geometry,materials});
+ expect(a.valid).toBe(true);expect(a.hipTiles).toBe(6);
+ expect(a.edges.every(e=>e.lengthMM>3135&&e.centreLineLengthMM<3135)).toBe(true);
+ expect(JSON.stringify(geometry)).toBe(before);
+});
 test('all end combinations partition the roof and retain whole stock ordering',()=>{
  for(const leftEndType of ['victorian','edwardian','wall'])for(const rightEndType of ['victorian','edwardian','wall']){
   const geometry=buildVictorianHippedGeometry({inputs:{...victorianHippedDefaults,leftEndType,rightEndType,requestedSidePitchDeg:25},materials});

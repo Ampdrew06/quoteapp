@@ -34,9 +34,9 @@ describe("buildHippedLeanToInsulationAudit", () => {
 
     expect(result.valid).toBe(true);
     expect(result.pir100.grossInternalRoofAreaM2).toBeCloseTo(18, 6);
-    expect(result.pir100.timberFootprintAreaM2).toBeCloseTo(0.288, 6);
-    expect(result.pir100.netAreaM2).toBeCloseTo(17.712, 6);
-    expect(result.pir100.orderAreaM2).toBeCloseTo(18.5976, 6);
+    expect(result.pir100.timberFootprintAreaM2).toBeCloseTo(0.27, 6);
+    expect(result.pir100.netAreaM2).toBeCloseTo(17.73, 6);
+    expect(result.pir100.orderAreaM2).toBeCloseTo(18.6165, 6);
     expect(result.pir100.orderQty).toBe(7);
   });
 
@@ -53,7 +53,7 @@ describe("buildHippedLeanToInsulationAudit", () => {
     expect(result.pir50.cradleTotalLengthM).toBeCloseTo(15, 6);
     expect(result.pir50.cradleNetAreaM2).toBeCloseTo(2.1, 6);
     expect(result.pir50.cradleOrderAreaM2).toBeCloseTo(2.205, 6);
-    expect(result.pir50.combinedAreaM2).toBeCloseTo(4.205, 6);
+    expect(result.pir50.combinedAreaM2).toBeCloseTo(4.305, 6);
     expect(result.pir50.orderQty).toBe(2);
   });
 
