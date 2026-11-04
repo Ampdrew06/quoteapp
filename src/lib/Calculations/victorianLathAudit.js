@@ -26,7 +26,7 @@ export function buildVictorianLathAudit({geometry:g,materials:m={},productId='br
  const surface=buildVictorianSurfaceAreas({geometry:g,eavesExtensionMM:g.plyBaseWidthMM+50}),internal=buildVictorianInternalLaths({geometry:g,maximumSpacingMM:maximumInternalSpacingMM});
  if(!surface.valid||!internal.valid)return fail([...(surface.errors||[]),...(internal.errors||[])]);
  const steel=product.family==='steelShingle';
- const facets=surface.facets.map(f=>{const p=local(g,f),lo=Math.min(...p.map(a=>a.y)),hi=Math.max(...p.map(a=>a.y));return {id:f.id,label:g.facets.find(a=>a.id===f.id).label,baseWidthMM:span(p,lo),topWidthMM:Math.max(0,span(p,hi)),heightMM:(hi-lo)/Math.cos(f.pitchDeg*Math.PI/180),pitchDeg:Number(f.pitchDeg.toFixed(8)),topEdgeType:steel?'ridge':'gableRidgeWithoutExtraCourse'};});
+ const facets=surface.facets.map(f=>{const p=local(g,f),lo=Math.min(...p.map(a=>a.y)),hi=Math.max(...p.map(a=>a.y));return {id:f.id,label:g.facets.find(a=>a.id===f.id).label,baseWidthMM:span(p,lo),topWidthMM:Math.max(0,span(p,hi)),heightMM:(hi-lo)/Math.cos(f.pitchDeg*Math.PI/180),pitchDeg:Number(f.pitchDeg.toFixed(8)),...((g.combination||g.variablePitchPricingValidated)?{outline:p.map(a=>({xMM:a.x,yMM:(a.y-lo)/Math.cos(f.pitchDeg*Math.PI/180)}))}:{}),topEdgeType:steel?'ridge':'gableRidgeWithoutExtraCourse'};});
  const result=calculateRoofTiling({facets,product:productId});if(result.errors.length)return fail(result.errors);
  const fieldRows=result.facets.flatMap((f,i)=>f.lathRows.map((r,n)=>({...r,id:`${facets[i].id}-${n}`,facetId:facets[i].id})));
  const fieldM=fieldRows.filter(r=>r.kind!=='chamferedPerimeter').reduce((n,r)=>n+r.widthMM/1000,0),chamferM=fieldRows.filter(r=>r.kind==='chamferedPerimeter').reduce((n,r)=>n+r.widthMM/1000,0);
@@ -47,7 +47,7 @@ export function buildVictorianLathAudit({geometry:g,materials:m={},productId='br
  internal.rows.forEach(r=>runs.push({edgeId:r.id,runM:r.lengthMM/1000,widthMM:50}));
  timber.ringBeams.forEach(b=>{runs.push({edgeId:`${b.reference}-outer`,runM:Math.max(b.layers.outerLath25x50.internalEdgeLengthMM,b.layers.outerLath25x50.externalEdgeLengthMM)/1000,widthMM:50});b.upstands.forEach(u=>runs.push({edgeId:`${b.reference}-finish-${u.bay}`,runM:u.widthMM/1000,widthMM:50}));});
  const stockPlan=planPlasticsStock(runs,stockM),allLathM=newLathM+ringLathM;
- return {valid:true,readOnly:true,errors:[],warnings:result.warnings,productId,productLabel:product.label,steel,facets,result,fieldRows,internal,support,edges,lines,alreadyCounted,newLathM,ringLathM,allLathM,stockM,stockPlan,linearMinimumLengths:Math.ceil(allLathM/stockM),
+ return {valid:true,readOnly:true,errors:[],warnings:result.warnings,productId,productLabel:product.label,steel,surface,facets,result,fieldRows,internal,support,edges,lines,alreadyCounted,newLathM,ringLathM,allLathM,stockM,stockPlan,linearMinimumLengths:Math.ceil(allLathM/stockM),
   knownCost:lines.reduce((n,l)=>n+(l.cost??0),0),knownInstalledWeightKg:lines.reduce((n,l)=>n+(l.installedWeightKg??0),0),costComplete:lines.every(l=>l.cost!=null),weightComplete:lines.every(l=>l.installedWeightKg!=null),
   notes:[`External lath rows reuse the existing tile-product set-out engine on ${g.facets.length} developed roof facets, including the50mm tile-starter extension beyond the ply base. Chamfered perimeter rows are separated from fixing rows and counted once.`,
    'Steel:225mm first fixing offset, then255mm gauge. Slate uses shared pitch bands/eaves support rows. The two side ridge edges retain the agreed no-extra-short-slate-ridge-course rule.',

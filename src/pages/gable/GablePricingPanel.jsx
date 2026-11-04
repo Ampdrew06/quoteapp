@@ -6,7 +6,7 @@ import {getLabourPricingConfig,getDeliveryPricingConfig,getMarkupPricingConfig} 
 import {getNextQuoteNumber,saveQuote,updateQuote} from '../../lib/quotes';
 import {isAdminUser} from '../../lib/userRole';
 const money=value=>'£'+Number(value||0).toFixed(2);
-export default function GablePricingPanel({inputs,materials,customers=[],onChange,summary=false,compact=false,actionsOnly=false,showQuote=true,onQuote,onReset,family='gable',quotationBuilder=buildGableQuotation,recordBuilder=buildGableQuoteRecord}) {
+export default function GablePricingPanel({inputs,materials,customers=[],onChange,summary=false,compact=false,actionsOnly=false,showQuote=true,onQuote,onReset,family='gable',quotationBuilder=buildGableQuotation,recordBuilder=buildGableQuoteRecord,onSaved}) {
  const [busy,setBusy]=useState(false),[message,setMessage]=useState('');
  const request=useRef(0),latest=useRef(inputs);latest.current=inputs;
  const customer=customers.find(c=>c.id===inputs.selectedCustomerId)||null,admin=isAdminUser();
@@ -36,6 +36,7 @@ export default function GablePricingPanel({inputs,materials,customers=[],onChang
    const saved=updating?await updateQuote(current.id,designRecordPatch(record)):await saveQuote(record);
    if(!saved?.id)throw new Error('Quote was not saved. Please check the connection and try again.');
    activateDesignRecord({...updating&&current,...record,...saved,inputs_json:record.inputs_json,status:updating?(current.status||saved.status||'quote'):'quote'});
+   onSaved?.();
    setMessage(`Quote ${quoteNumber} ${updating?'updated':'saved'}.`);
   }catch(error){setMessage(error.message||'Quote was not saved.');}
   finally{setBusy(false);}

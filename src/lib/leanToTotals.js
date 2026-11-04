@@ -1,3 +1,4 @@
+import {withRoofFrameMaterials} from './roofFrameThickness';
 import {resolveLeanToRafterLayout} from './geometry/leanToRafterLayout';
 import {computeLeanToManufactureGeometry} from './leanToManufactureGeometry';
 
@@ -79,7 +80,8 @@ orderUnit: r.orderUnit ?? r.order_unit ?? r.orderUom,
  * widthMM/projMM internal, pitchDeg, walls/overhangs, colours, gutters, tileSystem.
  */
 export function buildLeanToTotals(inputs = {}, exclusions = {}, materialsOverride = null) {
-  const m = materialsOverride || getMaterials();
+  if(inputs.frameThicknessMM!=null)inputs={...inputs,side_frame_thickness_mm:Number(inputs.frameThicknessMM),frame_on_mm:Number(inputs.frameThicknessMM)};
+  const m = withRoofFrameMaterials(inputs,materialsOverride || getMaterials());
   const { isExcluded, sumCostFromLines } = buildExclusionFns(exclusions);
 
   // ---- inputs (internal) ----
@@ -514,7 +516,7 @@ const extWidthM = extWidthMM / 1000;
   if (iw > 0 && timberSpacing > 0 && timberFirstCtr > 0) {
     for (let c = timberFirstCtr; c <= iw; c += timberSpacing) timberCentresCount++;
   }
-  const leanToRafterLayout=(inputs.roofStyle??inputs.roof_style??'leanTo')!=='hippedLeanTo'&&inputs.leanToRafterPositionsMM!=null?resolveLeanToRafterLayout({widthMM:iw,positions:inputs.leanToRafterPositionsMM}):null;
+  const leanToRafterLayout=(inputs.roofStyle??inputs.roof_style??'leanTo')!=='hippedLeanTo'?resolveLeanToRafterLayout({widthMM:iw,positions:inputs.leanToRafterPositionsMM,firstCentreMM:timberFirstCtr,spacingMM:timberSpacing}):null;
   const raftersCount = leanToRafterLayout?.valid?leanToRafterLayout.count:Math.max(2, timberCentresCount + 2);
 
  const geom = calculateLeanToGeometry({

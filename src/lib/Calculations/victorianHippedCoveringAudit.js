@@ -1,9 +1,9 @@
-import {calculateRoofTiling,widthAtFacetPosition} from './facetTilingCalc';
+import {buildRoofPlaneLathRows} from './roofPlaneLathRows';
+import {buildRoofPlaneCoveringGeometry} from './roofPlaneCoveringGeometry';
+import {calculateRoofTiling} from './facetTilingCalc';
 import {getTileProduct} from './tileProductConfig';
 import {orderSteelHipRidgeRuns} from './steelHipRidgeOrder';
 import {fullCornerHipCoveringAllowance} from './fullCornerHipCoveringAllowance';
-const area=p=>Math.abs(p.reduce((n,a,i)=>{const b=p[(i+1)%p.length];return n+a.xMM*b.yMM-b.xMM*a.yMM;},0))/2;
-function clip(points,f){const out=[];for(let i=0;i<points.length;i++){const a=points[i],b=points[(i+1)%points.length],fa=f(a),fb=f(b),ina=fa<=1e-7,inb=fb<=1e-7;if(ina)out.push(a);if(ina!==inb){const t=fa/(fa-fb);out.push({xMM:a.xMM+t*(b.xMM-a.xMM),yMM:a.yMM+t*(b.yMM-a.yMM)});}}return out;}
 // Each facet is the lowest roof plane inside the eaves domain. This preserves
 // non-trapezoidal strips where unlike soffits or survey angles meet.
 export function buildVictorianHippedCoveringAudit({geometry:g,productId='britmetShingle',materials:m={},maximumInternalSpacingMM=400,surfaceOffset='tiling'}={}){
@@ -11,19 +11,14 @@ export function buildVictorianHippedCoveringAudit({geometry:g,productId='britmet
  const product=getTileProduct(productId),spacing=Number(maximumInternalSpacingMM);
  if(!['tiling','frame'].includes(surfaceOffset))return fail(['Choose tiling or frame surface offsets.']);
  if(!g?.valid||!product||!Number.isFinite(spacing)||spacing<=0)return fail(['Valid roof geometry, tile product and positive internal lath spacing are required.']);
- const planes=g.facets.map(f=>{const ux=(f.end.xMM-f.start.xMM)/f.internalLengthMM,uy=(f.end.yMM-f.start.yMM)/f.internalLengthMM,t=Math.tan(f.pitchDeg*Math.PI/180);return {...f,ux,uy,z:p=>t*(uy*(p.xMM-f.start.xMM)-ux*(p.yMM-f.start.yMM))};});
- const lines=g.internalOutline.map((a,i)=>{const b=g.internalOutline[(i+1)%g.internalOutline.length],L=Math.hypot(b.xMM-a.xMM,b.yMM-a.yMM),nx=-(b.yMM-a.yMM)/L,ny=(b.xMM-a.xMM)/L,f=planes.find(f=>Math.hypot(f.start.xMM-a.xMM,f.start.yMM-a.yMM)<1e-6&&Math.hypot(f.end.xMM-b.xMM,f.end.yMM-b.yMM)<1e-6);return {nx,ny,c:nx*a.xMM+ny*a.yMM+(f?(surfaceOffset==='frame'?g.frameMM:f.plyBaseWidthMM+50):0)};});
- const domain=lines.map((b,i)=>{const a=lines[(i+lines.length-1)%lines.length],d=a.nx*b.ny-b.nx*a.ny;return {xMM:(a.c*b.ny-b.c*a.ny)/d,yMM:(a.nx*b.c-b.nx*a.c)/d};});
- const develop=(f,domain)=>{let points=domain;for(const q of planes)if(q!==f)points=clip(points,p=>f.z(p)-q.z(p));
-  const raw=points.map(p=>({xMM:(p.xMM-f.start.xMM)*f.ux+(p.yMM-f.start.yMM)*f.uy,yMM:((p.xMM-f.start.xMM)*f.uy-(p.yMM-f.start.yMM)*f.ux)/Math.cos(f.pitchDeg*Math.PI/180)}));
-  const lo=Math.min(...raw.map(p=>p.yMM)),hi=Math.max(...raw.map(p=>p.yMM)),minX=Math.min(...raw.map(p=>p.xMM)),outline=raw.map(p=>({xMM:p.xMM-minX,yMM:p.yMM-lo})),facet={id:f.id,label:f.label,pitchDeg:Number(f.pitchDeg.toFixed(8)),heightMM:hi-lo,outline,topEdgeType:'wall',points,areaM2:area(raw)/1e6};
-  return {...facet,baseWidthMM:widthAtFacetPosition(facet,0),topWidthMM:widthAtFacetPosition(facet,hi-lo)};
- };
- const facets=planes.map(f=>develop(f,domain)),internal=planes.map(f=>develop(f,g.internalOutline));
- if(facets.some(f=>!Number.isFinite(f.areaM2)||f.heightMM<=0||f.baseWidthMM<=0))return fail(['The external roof surfaces could not be developed.']);
- const partition=facets.reduce((n,f)=>n+area(f.points),0);if(Math.abs(partition-area(domain))>1)return fail(['The external facet areas do not close to the roof outline.']);
+ const offsetsMM=g.internalOutline.map((a,i)=>{const b=g.internalOutline[(i+1)%g.internalOutline.length],f=g.facets.find(f=>Math.hypot(f.start.xMM-a.xMM,f.start.yMM-a.yMM)<1e-6&&Math.hypot(f.end.xMM-b.xMM,f.end.yMM-b.yMM)<1e-6);return f?(surfaceOffset==='frame'?g.frameMM:f.plyBaseWidthMM+50):0;});
+ const surface=buildRoofPlaneCoveringGeometry({internalOutline:g.internalOutline,facets:g.facets,offsetsMM});
+ if(!surface.valid)return fail(surface.errors);
+ const {facets,internal,domain,lines}=surface;
  const result=calculateRoofTiling({facets,product:productId});if(result.errors.length)return fail(result.errors);
- const internalRows=[];internal.forEach(f=>{const intervals=Math.max(1,Math.ceil(f.heightMM/spacing));for(let i=0;i<=intervals;i++){const positionMM=f.heightMM*i/intervals,lengthMM=widthAtFacetPosition(f,positionMM);if(lengthMM>1e-6)internalRows.push({facetId:f.id,positionMM,lengthMM,spacingMM:f.heightMM/intervals});}});
+ const internalLaths=buildRoofPlaneLathRows({facets:internal,maximumSpacingMM:spacing});
+ if(!internalLaths.valid)return fail(internalLaths.errors);
+ const internalRows=internalLaths.rows;
  // Retain the complete centre-line run, then include the full outside corner
  // on both adjoining faces. This is a covering allowance, not a timber cut.
  const edges=g.hips.map(h=>{const dx=h.end.xMM-h.start.xMM,dy=h.end.yMM-h.start.yMM;

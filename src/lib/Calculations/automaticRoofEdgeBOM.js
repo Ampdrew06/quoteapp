@@ -29,10 +29,16 @@ export function buildAutomaticRoofEdgeBOM({
     };
   }
 
-  const edgeModel = buildRoofEdgeModel({
+  let edgeModel = buildRoofEdgeModel({
     roofInputs,
     geometry: tiling.geometry,
   });
+  if(edgeModel.valid&&tiling.coveringGeometry?.hipRuns){
+    const runs=tiling.coveringGeometry.hipRuns;
+    const edges=edgeModel.edges.map(edge=>{const run=edge.kind==='hip'?runs.find(r=>r.side===edge.side):null;return run?{...edge,lengthMM:run.lengthMM,coveringAllowance:run}:edge;});
+    const totalsByKind={};for(const edge of edges){const total=totalsByKind[edge.kind]??{count:0,lengthMM:0};totalsByKind[edge.kind]={count:total.count+1,lengthMM:total.lengthMM+edge.lengthMM};}
+    edgeModel={...edgeModel,edges,totalsByKind};
+  }
   const accessoryRequirements = buildRoofEdgeAccessoryRequirements({
     edgeModel,
     tileSystem: tiling.productId,

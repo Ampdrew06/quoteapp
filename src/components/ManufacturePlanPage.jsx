@@ -1,7 +1,7 @@
 import React from 'react';
 // Shared page-two frame. Roof adapters provide geometry and labels; this component only lays them out.
 export default function ManufacturePlanPage({details={},facets=[],children,elevation,notes}){
- const fields=[['Customer',details.customer],['Reference',details.reference],['Roof',details.roof],['Frame',details.frame],['Tiles',details.tiles],['Fascia',details.fascia],['Gutter',details.gutter],['Roof weight',details.weight]];
+ const fields=[['Customer',details.customer],['Reference',details.reference],['Roof',details.roof],['Frame',details.frame],['Tiles',details.tiles],['Fascia',details.fascia],['Gutter',details.gutter],['Roof weight',details.weight],...(details.ringbeamPerimeter?[['External ringbeam total',details.ringbeamPerimeter]]:[])];
  return <section className={`mpp-page${elevation?' mpp-with-elevation':''}`} aria-label="Manufacture book roof plan"><div className="mpp-panel">
  <h2 className="mpp-title">Roof Plan</h2>
  <div className="mpp-details">{fields.map(([label,value])=><div key={label}><b>{label}:</b> {value||'—'}</div>)}</div>

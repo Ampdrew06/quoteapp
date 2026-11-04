@@ -9,7 +9,12 @@ export default function VictorianRafterPositionEditor({inputs,materials,admin,on
  const [facet,setFacet]=useState(''),[message,setMessage]=useState('');
  const geometryBuilder=five?buildVictorianFiveGeometry:buildVictorianGeometry,modelBuilder=five?buildVictorianFiveSummaryMaterialsModel:buildVictorianSummaryMaterialsModel;
  const automatic=geometryBuilder({inputs:{...inputs,victorianRearTrussPositionsMM:undefined,victorianSideJackPositionsMM:undefined,victorianFacetPositionsMM:undefined},materials});
- if(!admin||!automatic.valid)return null;
+ if(!admin)return null;
+ if(!automatic.valid)return <section style={{margin:'14px 0'}}>
+  <label style={{fontWeight:700}}>Edit Rafter Position <select aria-label="Edit Rafter Position" disabled style={{padding:7,marginLeft:8}}><option>Select facet…</option></select></label>
+  <p style={{fontSize:12,color:'#475569'}}>Enter valid roof dimensions and apply any facet geometry changes to edit rafter positions.</p>
+  {Number(inputs.widthMM)>0&&Number(inputs.projMM)>0&&<p role="alert">{automatic.errors.join(' ')}</p>}
+ </section>;
  const f=automatic.facets.find(f=>f.id===facet),i=automatic.facets.indexOf(f);
  const side=i===0?'left':i===automatic.facets.length-1?'right':null;
  const sidePositions=(g,side)=>g.jackRafters.filter(r=>r.facetId===(side==='left'?g.facets[0].id:g.facets[g.facets.length-1].id)).map(r=>side==='left'?r.positionMM:g.facets[g.facets.length-1].internalLengthMM-r.positionMM).sort((a,b)=>a-b);

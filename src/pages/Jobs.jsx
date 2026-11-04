@@ -1,3 +1,8 @@
+import {Link} from 'react-router-dom';
+import {isAdminUser} from '../lib/userRole';
+import {setJobScheduleIncluded} from '../lib/schedule';
+import {isDoubleEdwardianQuote} from '../lib/Calculations/doubleEdwardianQuotation';
+import {isCombinationQuote} from '../lib/Calculations/combinationQuotation';
 import {isVictorianHippedQuote} from '../lib/Calculations/victorianHippedQuotation';
 import {quoteStyleLabel} from '../lib/quoteStyleLabel';
 import {isVictorianFiveQuote} from '../lib/Calculations/victorianFiveQuotation';
@@ -28,6 +33,13 @@ export default function Quotes() {
   const nav = useNavigate();
   const [q, setQ] = useState([]);
   const [search, setSearch] = useState("");
+  const [scheduleBusy,setScheduleBusy]=useState(null),[scheduleMessage,setScheduleMessage]=useState('');
+  const toggleSchedule=async(job,included)=>{
+    if(scheduleBusy)return;setScheduleBusy(job.id);setScheduleMessage('');
+    try{const updated=await setJobScheduleIncluded(job,included);setQ(old=>old.map(r=>r.id===job.id?{...r,schedule_included:updated.schedule_included}:r));setScheduleMessage(`Job ${job.job_number||job.quote_number} ${included?'included in':'removed from'} Schedule. Saved Schedule details are retained.`);}
+    catch(e){setScheduleMessage('Schedule selection not saved: '+e.message);}
+    finally{setScheduleBusy(null);}
+  };
 
   useEffect(() => {
     let alive = true;
@@ -74,6 +86,8 @@ if (!s) return jobsOnly;
     const item = (q || []).find((r) => r?.quote_number === quoteNumber);
     if (!item) return;
     activateDesignRecord(item);
+    if(isDoubleEdwardianQuote(item)){nav("/quote/double-edwardian");return;}
+    if(isCombinationQuote(item)){nav("/quote/combination/plan-manufacture");return;}
     if(isVictorianHippedQuote(item)){nav("/quote/victorian-hipped/plan-manufacture");return;}
     if(isVictorianFiveQuote(item)){nav("/quote/victorian-five/plan-manufacture");return;}
     if(isVictorianQuote(item)){nav("/quote/victorian/plan-manufacture");return;}
@@ -132,6 +146,8 @@ const convertToJob = async (quote) => {
 
   alert(`Quote ${quote.quote_number} converted to Job ${jobNumber}.`);
 
+  if(isDoubleEdwardianQuote(quote)){nav("/quote/double-edwardian");return;}
+  if(isCombinationQuote(quote)){nav("/quote/combination/plan-manufacture");return;}
   if(isVictorianHippedQuote(quote)){nav("/quote/victorian-hipped/plan-manufacture");return;}
   if(isVictorianFiveQuote(quote)){nav("/quote/victorian-five/plan-manufacture");return;}
   if(isVictorianQuote(quote)){nav("/quote/victorian/plan-manufacture");return;}
@@ -173,6 +189,8 @@ const convertToJob = async (quote) => {
           </div>
         </div>
 
+        {isAdminUser()&&<p style={{fontSize:13,color:'#475569'}}>Tick <b>Include in Schedule</b> for real orders. Converted test jobs stay off the Schedule until selected. Unticking hides the job and its totals; saved Schedule details remain available when re-included. <Link to="/schedule">Open Schedule</Link></p>}
+        {scheduleMessage&&<p role="status" style={{padding:10,background:'#edf6f7'}}>{scheduleMessage}</p>}
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
@@ -183,6 +201,7 @@ const convertToJob = async (quote) => {
                 <th style={th}>Reference</th>
                 <th style={th}>Delivery Date</th>
                 <th style={th}>Style</th>
+                {isAdminUser()&&<th style={th}>Schedule</th>}
                 <th style={th} aria-label="Job controls"></th>
               </tr>
             </thead>
@@ -209,6 +228,7 @@ const convertToJob = async (quote) => {
 
                     <td style={td}>{quoteStyleLabel(r)}</td>
 
+                    {isAdminUser()&&<td style={td}><label style={{display:'flex',gap:6,alignItems:'center',whiteSpace:'nowrap'}}><input type="checkbox" checked={r.schedule_included===true} disabled={scheduleBusy!==null} onChange={e=>toggleSchedule(r,e.target.checked)} aria-label={`Include job ${r.job_number||r.quote_number} in Schedule`}/>Include in Schedule</label></td>}
                     <td style={td}>
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                         <button
@@ -249,7 +269,7 @@ const convertToJob = async (quote) => {
 
               {filtered.length === 0 && (
                 <tr>
-                  <td style={td} colSpan={7}>
+                  <td style={td} colSpan={isAdminUser()?8:7}>
                     &mdash; No quotations saved yet &mdash;
                   </td>
                 </tr>

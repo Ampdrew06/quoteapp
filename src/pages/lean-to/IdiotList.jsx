@@ -381,7 +381,7 @@ for (let c = firstCtr; c <= iw; c += spacing) {
 }
 
 // +2 edge rafters, minimum 2 total
-const editedRafters=q.roofStyle!=='hippedLeanTo'&&q.leanToRafterPositionsMM!=null?resolveLeanToRafterLayout({widthMM:iw,positions:q.leanToRafterPositionsMM}):null;
+const editedRafters=q.roofStyle!=='hippedLeanTo'?resolveLeanToRafterLayout({widthMM:iw,positions:q.leanToRafterPositionsMM,firstCentreMM:firstCtr,spacingMM:spacing}):null;
 const rafters=editedRafters?.valid?editedRafters.count:Math.max(2,centresCount+2);
 
 // --- 50mm PIR (cradle + upstands) — same logic as Summary ---

@@ -6,6 +6,13 @@ export function buildVictorianSoffitSupply(geometry,materials={}) {
   const stripWidthMM=Number(geometry.soffitStripWidthMM),kerfMM=Number(materials.soffit_rip_kerf_mm??3);
   const widths=(materials.soffit_board_widths_mm??[100,150,175,200]).map(Number).filter(n=>Number.isFinite(n)&&n>0).sort((a,b)=>a-b);
   if(!(stockLengthMM>0)||!Number.isFinite(stripWidthMM)||stripWidthMM<0||!Number.isFinite(kerfMM)||kerfMM<0)return fail('Valid stock length, strip width and saw kerf are required.');
+  if(geometry.facetEaves){
+    const groups=new Map();geometry.facets.forEach((f,i)=>{const width=Number((stripWidthMM+geometry.facetEaves[i].plyBaseWidthMM-geometry.plyBaseWidthMM).toFixed(3));if(!groups.has(width))groups.set(width,[]);groups.get(width).push(f);});
+    const results=[...groups].map(([width,facets])=>({...buildVictorianSoffitSupply({...geometry,facetEaves:undefined,facets,soffitStripWidthMM:Math.max(0,width)},materials),facets}));
+    if(results.some(r=>!r.valid))return fail(results.flatMap(r=>r.errors||[]).join(' '));
+    const order=new Map();results.forEach(r=>r.order.forEach(o=>order.set(o.widthMM,(order.get(o.widthMM)||0)+o.qty)));
+    return {valid:true,totalRunMM:results.reduce((n,r)=>n+r.totalRunMM,0),stripWidthMM:Math.max(...results.map(r=>r.stripWidthMM)),stockLengthMM,kerfMM,stripCount:results.reduce((n,r)=>n+r.stripCount,0),order:[...order].map(([widthMM,qty])=>({widthMM,qty})),ripInstructions:results.flatMap(r=>r.ripInstructions),groups:results};
+  }
   const totalRunMM=geometry.facets.reduce((n,f)=>n+f.externalLengthMM,0);
   if(stripWidthMM===0)return {valid:true,totalRunMM,stripWidthMM,stockLengthMM,kerfMM,stripCount:0,order:[],ripInstructions:[]};
   const stripCount=Math.ceil((totalRunMM-1e-6)/stockLengthMM);

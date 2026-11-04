@@ -1,3 +1,4 @@
+import {splitOversizedSupportBays} from '../geometry/automaticSupportSpacing';
 // src/lib/Manufacturing/rafterLayoutBuilder.js
 
 // Global minimum default centre spacing used when
@@ -341,6 +342,15 @@ export const buildDefaultFrontRafterLayout = ({
     }
   }
 
+  const fixed=[0,...leftJackRafters.map(r=>r.centreMM),...centreRafters.map(r=>r.centreMM),...rightJackRafters.map(r=>r.centreMM),width];
+  for(const centreMM of splitOversizedSupportBays(fixed,spacing)){
+    if(centreMM<=0||centreMM>=width||fixed.some(p=>Math.abs(p-centreMM)<1e-7))continue;
+    const zone=hasLeftHip&&centreMM<leftBoss?'left-jack':hasRightHip&&centreMM>rightBoss?'right-jack':'centre';
+    const row={id:`front-added-${centreMM}`,facet:'front',zone,role:zone==='centre'?'plain':'jack',defaultCentreMM:centreMM,centreMM,isManuallyMoved:false};
+    (zone==='left-jack'?leftJackRafters:zone==='right-jack'?rightJackRafters:centreRafters).push(row);
+  }
+  leftJackRafters.sort((a,b)=>a.centreMM-b.centreMM);
+  rightJackRafters.sort((a,b)=>a.centreMM-b.centreMM);
   centreRafters.sort(
     (a, b) => a.centreMM - b.centreMM
   );

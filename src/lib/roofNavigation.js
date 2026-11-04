@@ -1,7 +1,7 @@
 /* global globalThis */
 import {useEffect} from 'react';
 export const ROOF_NAVIGATION_KEY='quoteapp_navigation_roof';
-const families=['lean-to','gable','edwardian','victorian','victorian-five','victorian-hipped'];
+const families=['lean-to','gable','edwardian','victorian','victorian-five','victorian-hipped','combination','double-edwardian'];
 export function rememberRoofNavigation(family,storage=globalThis.localStorage){
  try{if(families.includes(family))storage.setItem(ROOF_NAVIGATION_KEY,family);}catch{}
 }

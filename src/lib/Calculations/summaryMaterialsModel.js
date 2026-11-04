@@ -1,3 +1,4 @@
+import {withRoofFrameMaterials} from '../roofFrameThickness';
 import {installedMainTileWeight,installedHipTileWeight,fixedInstalledWeight} from './roofCoveringWeightRules';
 import {PIR_MEMBER_WIDTH_MM,pir50InstalledWeight} from './pirInsulationRules';
 import {resolvePir100SheetRate,pricePir100SheetAllowance} from './pir100SheetSupply';
@@ -196,7 +197,8 @@ export function normalizeSummaryInputs(source = {}) {
 export function buildSummaryMaterialsModel({ inputs = {}, materials = {}, exclusions = inputs.summaryPricingState?.exclusions || {}, adjustments = inputs.summaryPricingState?.adjustments || {}, addedItems = inputs.summaryAddedItems || [] } = {}) {
   if(String(inputs.roofStyle||'').toLowerCase()==='gable')return buildGableSummaryMaterialsModel({inputs,materials,exclusions,adjustments,addedItems});
   inputs = normalizeBossArrangementInputs(normalizeSummaryInputs(inputs));
-  const m = { ...materials, include_rafters_pir_cradle_in_rafters: false };
+  if(inputs.frameThicknessMM!=null)inputs={...inputs,side_frame_thickness_mm:Number(inputs.frameThicknessMM),frame_on_mm:Number(inputs.frameThicknessMM)};
+  const m = { ...withRoofFrameMaterials(inputs,materials), include_rafters_pir_cradle_in_rafters: false };
   const addedLines = buildSummaryAddedItemLines(addedItems, m);
   const isExcluded = key => String(key || '').startsWith('extra:')
     ? !!addedLines.find(row => row.key === key)?.extraExcluded : !!exclusions[key];
@@ -637,7 +639,7 @@ const hippedGeomEarly = isHippedLeanToEarly
   }
 
   // Edge rafters added (+2)
-  const leanToRafterLayout=(inputs.roofStyle??inputs.roof_style??'leanTo')!=='hippedLeanTo'&&inputs.leanToRafterPositionsMM!=null?resolveLeanToRafterLayout({widthMM:iw,positions:inputs.leanToRafterPositionsMM}):null;
+  const leanToRafterLayout=(inputs.roofStyle??inputs.roof_style??'leanTo')!=='hippedLeanTo'?resolveLeanToRafterLayout({widthMM:iw,positions:inputs.leanToRafterPositionsMM,firstCentreMM:timberFirstCtr,spacingMM:timberSpacing}):null;
   const raftersCount = leanToRafterLayout?.valid?leanToRafterLayout.count:Math.max(2, timberCentresCount + 2);
 
   const hippedRingBeamSchedule = isHippedLeanToEarly
@@ -2242,16 +2244,11 @@ const internalPlanM2 = toM2(iw2 * ip2);
 const externalPlanM2 = toM2((iw2 + lo2 + ro2) * (ip2 + eo2));
 
 // Sloped “surface” areas (m²)
-const internalUsedM2 = Number(
-  (
-    isHippedLeanToEarly && hippedInsulationIntegration?.valid
-      ? hippedInsulationIntegration.superQuilt.geometricAreaM2
-      : internalPlanM2 * slopeFactor
-  ).toFixed(4)
-);
-const externalFacetM2 = externalFacetAreaM2(automaticRoofTilingAudit.geometry?.facets || []);
-const externalUsedM2 = Number((externalFacetM2 > 0
-  ? externalFacetM2 : externalPlanM2 * slopeFactor).toFixed(4));
+const internalUsedM2 = isHippedLeanToEarly&&hippedInsulationIntegration?.valid
+  ? hippedInsulationIntegration.superQuilt.geometricAreaM2
+  : Number((internalPlanM2*slopeFactor).toFixed(4));
+const externalFacetM2 = externalFacetAreaM2(automaticRoofTilingAudit.coveringGeometry?.facets || automaticRoofTilingAudit.geometry?.facets || []);
+const externalUsedM2 = isHippedLeanToEarly&&externalFacetM2>0?externalFacetM2:Number((externalFacetM2>0?externalFacetM2:externalPlanM2*slopeFactor).toFixed(4));
 const installedCoveringRates = coveringWeightRates(m);
 
 // SuperQuilt roll coverage (m²) — infer 12/15 from label
@@ -2873,14 +2870,15 @@ const gutterLinesFinal = integrateGutteringSummary(integratedGutterAudit, legacy
 const plasticsLinesAdjusted = withAddedItems(applyAdjustmentsToLines(plasticsLinesWithUsedWeights, adjustments), "plastics");
 const metalLinesAdjusted = withAddedItems(applyAdjustmentsToLines(metalLines, adjustments), "metal");
 const gutterLinesAdjusted = withAddedItems(applyAdjustmentsToLines(gutterLinesFinal, adjustments), "gutters");
-const miscLinesAdjusted = applyAdjustmentsToLines(miscLinesIntegrated, adjustments);
+const miscInstalledWeights=isHippedLeanToEarly?miscLinesIntegrated.map(row=>['expanding_foam','alu_roll_tape','polytop_pins'].includes(row.key)?{...fixedInstalledWeight(row,null),weightBasis:'Installed consumption weight is unconfigured; supplied can/roll/box weight is not an installed-roof measurement.'}:row):miscLinesIntegrated;
+const miscLinesAdjusted = applyAdjustmentsToLines(miscInstalledWeights, adjustments);
   const plasticsTotals = sectionTotals(plasticsLinesAdjusted, false);
   const metalTotals    = sectionTotals(metalLinesAdjusted, false);
   const gutterTotals   = sectionTotals(gutterLinesAdjusted, false);
   
   const pirOrder = ["pir50_cradle", "slab100"];
 
-const miscLinesForSection = withAddedItems(miscLinesIntegrated || [], "misc").sort((a, b) => {
+const miscLinesForSection = withAddedItems(miscInstalledWeights || [], "misc").sort((a, b) => {
   const ai = pirOrder.indexOf(a.key);
   const bi = pirOrder.indexOf(b.key);
 
@@ -2921,7 +2919,7 @@ const miscTotals = sectionTotals(miscLinesForSectionAdjusted, false);
   const plasterboardWeightKg = plasterboardAreaM2 * 8.5;
   const installedWeightKg = materialsWeightKg + plasterboardWeightKg;
   return {
-    sections, pricingSections, materialsCostForPricing, materialsBaseCost,leanToRafterLayout,
+    sections, supplyExclusions:exclusions, pricingSections, materialsCostForPricing, materialsBaseCost,leanToRafterLayout,
     lathUseBreakdown:{internalM:Math.max(0,internalLathsM),externalM:Math.max(0,summaryExternalFixingLathM)+hipRidgeSummaryContribution.additionalLathM,fittedM:Math.max(0,ringBeamOuterLathsM)+Math.max(0,ringBeamUpstandLathsM)},
     centralTrussCosts,
     wallplateIntegrationAudit,

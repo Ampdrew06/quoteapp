@@ -1,3 +1,4 @@
+import {planJoinedLinearStock} from './joinedLinearStock';
 import { calculateFasciaCutHeight } from "../Manufacturing/fasciaCutHeight";
 const positive = (value) => Math.max(0, Number(value) || 0);
 // Resolve sub-0.05mm eaves-solver differences for stock selection only.
@@ -38,7 +39,7 @@ export function planPlasticsStock(runs, stockM) {
 // Keep front boards whole-width; pair matching side strips when wider stock fits.
 // This is a deterministic practical layout, not a general cutting optimiser.
 export function planSoffitStock(runs, stockM, widths, kerfMM = 3) {
-  const lanePlan = planPlasticsStock(runs.map(run => ({ ...run,
+  const lanePlan = planJoinedLinearStock(runs.map(run => ({ ...run,
     side: run.side === "front" ? "soffitFront" : run.side,
     widthMM: stockDepth(run.soffitGeometryMM) })), stockM);
   const pending = [...lanePlan.boards];
@@ -139,7 +140,7 @@ export function buildHippedPlasticsIntegrationAudit({ geometry = null, edgeModel
       soffitCost: soffitWidthMM === 0 ? 0 : soffitPrices[soffitWidthMM] == null ? null : soffitQty * positive(soffitPrices[soffitWidthMM]),
     };
   });
-  const fasciaPlan = planPlasticsStock(rows.map(row => ({ ...row, widthMM: row.fasciaWidthMM })), fasciaStockM);
+  const fasciaPlan = planJoinedLinearStock(rows.map(row => ({ ...row, widthMM: row.fasciaWidthMM })), fasciaStockM);
   const soffitRuns = rows.filter(row => row.soffitWidthMM > 0);
   const kerfMM = materials.soffit_rip_kerf_mm == null ? 3 : positive(materials.soffit_rip_kerf_mm);
   const soffitPlan = planSoffitStock(soffitRuns, soffitStockM, widths, kerfMM);
@@ -162,7 +163,7 @@ export function buildHippedPlasticsIntegrationAudit({ geometry = null, edgeModel
     assumptions: [
       "Reveal Liner stock width is measured from the internal lip to the top edge. External cut height = ceiling(structural height + 10mm soffit + 10mm lip) minus 5mm starter clearance. Select stock covering the external cut height minus the 10mm lip.",
       "Eaves runs use structural external perimeter lengths, excluding the tile overhang into guttering.",
-      "Row quantities are standalone run comparisons. Order totals use a fitting layout with shared suitable offcuts and centred full front boards; the factory still supplies full lengths.",
+      "Row quantities are standalone run comparisons. Order totals use a fitting layout with shared compatible offcuts and straight-run joins where needed to minimise stock; the factory still supplies full lengths.",
       "Front soffit uses its own stock width. Matching side strips may share a wider board when both finished widths plus the rip saw kerf fit. The factory supplies full lengths; trimming is a fitting/preparation requirement.",
       `Rip saw kerf allowance: ${kerfMM}mm (configurable; default 3mm). This practical stock plan is not a factory cut list or a global cost optimiser.`,
       "J-trim follows the active external frame runs, excluding soffit overhangs. H-trim is charged by installed cut length from shared 5m stock, not a whole length per roof.",

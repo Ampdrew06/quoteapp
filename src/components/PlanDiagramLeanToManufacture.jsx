@@ -94,9 +94,9 @@ const oy = M_TOP + (innerH - oh) / 2 + 14;
   const ip_px = ip * scale;
 
   // --- rafters ---
-  const layout=manualRafterPositionsMM!=null?resolveLeanToRafterLayout({widthMM:iw,positions:manualRafterPositionsMM}):null;
+  const layout=resolveLeanToRafterLayout({widthMM:iw,positions:manualRafterPositionsMM,firstCentreMM:firstCentre,spacingMM:rafterSpacing});
   const centres = layout?.valid?[...layout.interiorMM]:[];
-  if(manualRafterPositionsMM==null)for (let c = firstCentre; c <= iw; c += rafterSpacing) centres.push(c);
+
 
   // Include the two edge rafters so we can display each
 // individual centre-to-centre bay rather than cumulative positions.

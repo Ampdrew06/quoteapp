@@ -1,13 +1,15 @@
+import {checklistExcludedKeys,filterChecklistSupplies} from './checklistSupplyExclusions';
 import {checklistLaths} from './checklistLaths';
 import {buildHippedLeanToRingBeamSchedule} from '../Manufacturing/ringBeamManufactureSchedule';
 import { buildHippedLeanToManufacturingMembers } from '../Manufacturing/manufacturingSequenceBuilder';
 // Supply checklist adapter for the already integrated Summary model.
-// Price exclusion does not remove physically required materials from despatch.
+// Excluded Summary supplies are omitted from the picking list.
 const positive = value => Math.max(0, Number(value) || 0);
 const coverage = (value, fallback) => positive(value) || fallback;
 const clean = label => String(label || '').replace(/ — weight unconfigured/g, '').replace(/ \(factory use; weight unconfigured\)/g, '');
 export function buildSummaryIdiotList(model, materials = {}) {
   const sections = {};
+  const excluded=checklistExcludedKeys(model);
   if (model?.manufactureGeometry) {
     const names = { wallbar:model.manufactureGeometry.bossArrangement==='central'?'Truss members':'Sloping wallbars', hip:'Hips', 'jack-rafter':'Jack rafters', rafter:'Plain rafters', 'boss-rafter':'Boss rafters', wallplate:'Horizontal wallplate', 'ring-beam':'Ring-beams' };
     const members = buildHippedLeanToManufacturingMembers(model.manufactureGeometry);
@@ -15,7 +17,7 @@ export function buildSummaryIdiotList(model, materials = {}) {
       qty: members.filter(member => member.type === key).length, units:'Ea'})).filter(row => row.qty > 0);
   }
   for (const [section, data] of Object.entries(model?.sections || {})) {
-    sections[section] = (data.lines || []).filter(row => row.usage !== 'factory' && row.supplyToSite !== false && row.key !== 'vent').map(row => {
+    sections[section] = (data.lines || []).filter(row => !excluded.has(row.key)&&row.usage !== 'factory' && row.supplyToSite !== false && row.key !== 'vent').map(row => {
       // qty is authoritative: Summary applies +/- there, leaving legacy aliases unchanged.
       let qty = positive(row.qty ?? row.order_qty ?? row.orderQty);
       let units = row.units || row.uom || 'Ea';
@@ -49,7 +51,7 @@ export function buildSummaryIdiotList(model, materials = {}) {
   // manufactureGeometry. Split its loose laths before the hipped-only adapter.
   if(!model?.manufactureGeometry&&model?.lathUseBreakdown){
     const uses=model.lathUseBreakdown,source=model.sections.timber.lines.find(r=>['laths_25x50_lengths','laths_25x50_total_m'].includes(r.key));
-    const looseM=Math.max(0,positive(source?.qty)-positive(uses.fittedM)),internalM=Math.min(looseM,positive(uses.internalM));
+    const looseM=Math.max(0,(excluded.has(source?.key)?0:positive(source?.qty))-positive(uses.fittedM)),internalM=Math.min(looseM,positive(uses.internalM));
     sections.laths=checklistLaths([{edgeId:'external',runM:looseM-internalM,widthMM:50}],[{edgeId:'internal',runM:internalM,widthMM:50}],coverage(materials.lath_stock_length_m,4.8));
     sections.timber=(sections.timber||[]).filter(r=>r.isAddedItem||!['laths_25x50_lengths','laths_25x50_total_m'].includes(r.key));
   }
@@ -60,7 +62,7 @@ export function buildSummaryIdiotList(model, materials = {}) {
     const schedule=buildHippedLeanToRingBeamSchedule({geometry:g});
     const fittedLathM=schedule?.valid?positive(schedule.totals.outerFixingLath25x50LengthM)+positive(schedule.totals.finishingLath25x50LengthM):0;
     const source=model.sections.timber.lines.find(r=>['laths_25x50_lengths','laths_25x50_total_m'].includes(r.key));
-    const stockM=coverage(materials.lath_stock_length_m,4.8),looseM=Math.max(0,positive(source?.qty)-fittedLathM);
+    const stockM=coverage(materials.lath_stock_length_m,4.8),looseM=Math.max(0,(excluded.has(source?.key)?0:positive(source?.qty))-fittedLathM);
     const internalM=Math.min(looseM,positive(model.hippedInsulationIntegration?.internalLaths?.totalM));
     sections.laths=checklistLaths([{edgeId:'external',runM:looseM-internalM,widthMM:50}],[{edgeId:'internal',runM:internalM,widthMM:50}],stockM);
     sections.laths.push(...(sections.timber||[]).filter(r=>r.isAddedItem&&/lath/i.test(r.item)));
@@ -81,5 +83,5 @@ export function buildSummaryIdiotList(model, materials = {}) {
       (sections.misc||=[]).push({key:'plasterboard_guide',item:addedBoards?'Plasterboard ceiling requirement — supply listed separately':'Plasterboard 2400 × 1200mm — NOT SUPPLIED (customer to purchase)',qty:Math.ceil((ceilingM2-1e-9)/2.88),units:'Sheets',informational:true});
     }
   }
-  return { sections, despatchOnly, installedWeightKg: positive(model?.installedWeightKg) };
+  return filterChecklistSupplies({ sections, despatchOnly, installedWeightKg: positive(model?.installedWeightKg) },model);
 }

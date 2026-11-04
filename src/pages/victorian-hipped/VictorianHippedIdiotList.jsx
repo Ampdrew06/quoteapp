@@ -1,3 +1,4 @@
+import {excludedFromSupply,filterChecklistSupplies} from '../../lib/Calculations/checklistSupplyExclusions';
 import React,{useState} from 'react';
 import {Navigate} from 'react-router-dom';
 import {isAdminUser} from '../../lib/userRole';
@@ -18,12 +19,12 @@ export function buildVictorianHippedChecklist(model,{groupAssemblies=false}={}){
  }
  const factory=new Set(['vh_misc_glue','vh_misc_factory_screws','vh_misc_rivets','vh_misc_staples','vh_venting']);
  for(const section of model.sections.filter(s=>s.key!=='timber')){
-  sections[section.key==='guttering'?'gutters':section.key]=section.rows.filter(r=>r.usage!=='factory'&&r.supplyToSite!==false&&!factory.has(r.key)&&!r.label.startsWith('Factory fascia venting')&&Number(r.orderQty)>0).map(r=>({key:r.key,item:r.label,qty:Number(r.orderQty),units:r.adjustmentUnit||r.units}));
+  sections[section.key==='guttering'?'gutters':section.key]=section.rows.filter(r=>!excludedFromSupply(r)&&r.usage!=='factory'&&r.supplyToSite!==false&&!factory.has(r.key)&&!r.label.startsWith('Factory fascia venting')&&Number(r.orderQty)>0).map(r=>({key:r.key,item:r.label,qty:Number(r.orderQty),units:r.adjustmentUnit||r.units}));
  }
  const loose=timber.rows.filter(r=>['vh_field_laths','vh_chamfer_laths','vh_internal_laths','vh_hip_laths'].includes(r.key));
- sections.laths=loose.filter(r=>r.qty>0).map(r=>({key:r.key,item:r.label,qty:r.qty,units:'m — cut schedule'}));
+ sections.laths=loose.filter(r=>!excludedFromSupply(r)&&r.qty>0).map(r=>({key:r.key,item:r.label,qty:r.qty,units:'m — cut schedule'}));
  sections.misc.push({key:'plasterboard_guide',item:'Plasterboard 2400×1200mm — NOT SUPPLIED',qty:misc.plasterboard.sheets,units:'Sheets',informational:true});
- return {valid:true,sections,installedWeightKg:model.knownSuppliedWeightKg+misc.plasterboard.weightKg,weightProvisional:!model.weightComplete,despatchOnly:true};
+ return filterChecklistSupplies({valid:true,sections,installedWeightKg:model.knownSuppliedWeightKg+misc.plasterboard.weightKg,weightProvisional:!model.weightComplete,despatchOnly:true},model);
 }
 // Reuse the same physical supply list in the book, without a nested page/nav.
 export function VictorianHippedChecklist({inputs,materials,groupAssemblies=false}){

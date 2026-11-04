@@ -18,8 +18,8 @@ const labels={timber:'Timber Elements',tiles:'Tile Elements',plastics:'Plastic E
 
 
 export default function VictorianSummary({five=false}={}){return isAdminUser()?<VictorianSummaryContent five={five} key={five?'five':'three'}/>:<Navigate to="/quote" replace/>;}
-export function VictorianSummaryContent({five=false}={}){
- const storageKey=five?'victorianFiveInputs':'victorianPlanPreviewInputs',family=five?'victorian-five':'victorian',modelBuilder=five?buildVictorianFiveSummaryMaterialsModel:buildVictorianSummaryMaterialsModel,quotationBuilder=five?buildVictorianFiveQuotation:buildVictorianQuotation;
+export function VictorianSummaryContent({five=false,configuration=null}={}){
+ const storageKey=configuration?.storageKey||(five?'victorianFiveInputs':'victorianPlanPreviewInputs'),family=configuration?.family||(five?'victorian-five':'victorian'),modelBuilder=configuration?.modelBuilder||(five?buildVictorianFiveSummaryMaterialsModel:buildVictorianSummaryMaterialsModel),quotationBuilder=configuration?.quotationBuilder||(five?buildVictorianFiveQuotation:buildVictorianQuotation),Navigation=configuration?.Navigation||VictorianNavigation,Footer=configuration?.Footer;
  const KEY=storageKey;
  const read=()=>{try{return JSON.parse(localStorage.getItem(KEY)||'{}')||{};}catch{return {};}};
  const [inputs,setInputs]=useState(read),[materials,setMaterials]=useState(getMaterials),[customers,setCustomers]=useState([]);
@@ -47,7 +47,7 @@ export function VictorianSummaryContent({five=false}={}){
  const timberOrderDisplay={};
  const customer=customers.find(c=>c.id===inputs.selectedCustomerId)||null;
  const quotation=quotationBuilder({inputs,materials,customer,labourConfig,deliveryConfig,markupConfig});
- return <><VictorianNavigation five={five}/><main className="vs" style={{fontFamily:'Inter,system-ui,Arial',fontSize:14,maxWidth:1100,margin:'0 auto',padding:16}}>
+ return <><Navigation five={five}/><main className="vs" style={{fontFamily:'Inter,system-ui,Arial',fontSize:14,maxWidth:1100,margin:'0 auto',padding:16}}>
  <SummaryHeader inputs={inputs} family={family} customer={customer}/>
  {!model.valid?<p role="status">{model.errors.join(' ')} <Link to={"/quote/"+family}>Return to Design/Options</Link></p>:<>
  {Object.entries(model.sections).map(([section,data])=>{
@@ -55,14 +55,16 @@ export function VictorianSummaryContent({five=false}={}){
  const rows=data.lines.map(row=>({key:row.key,label:row.label+(row.usage==='factory'?' (factory use)':''),qty:row.qty,orderQty:summaryOrderQuantity(row),units:row.units,cost:row.line,chargeableCost:row.line,weightText:row.isAddedItem?'—':row.weight_unconfigured?'Unconfigured':row.weight_kg.toFixed(2)+' kg',excluded:row.excluded,isAddedItem:row.isAddedItem,priceMissing:row.price_unconfigured,adjustment:row.isAddedItem?(row.qty-1||''):(inputs.summaryPricingState?.adjustments?.[row.key]??''),source:row,...(section==='timber'?timberOrderDisplay[row.key]:section==='misc'?summaryInsulationAreaDisplay(row):{})}));
  return <SummaryElementSection note={section==='timber'?'Timber quantities show the accepted net metre/area allowances. Whole-stock optimisation and cutting instructions remain in the audits; no extra stock charge is added here.':''} key={section} title={section==='plastics'?'Plastics Elements':section==='misc'?'Miscellaneous':labels[section]} rows={rows} totals={data.totals} showChargeable={section==='timber'} choices={choices} onAdd={id=>{if(id)addItems([...(inputs.summaryAddedItems||[]),{section,catalogId:id,qty:1}]);}} onAdjust={adjust} onExclude={row=>exclude(row.source,!row.excluded)} onRemove={row=>addItems((inputs.summaryAddedItems||[]).filter(item=>!(item.section===section&&item.catalogId===row.source.catalogId)))}/>;
  })}
- <p><b>Weight review pending:</b> the totals below include known weights only.</p><SummaryPricingOverview sellingPriceReady={quotation.distanceReady} quoteMatchNote={false} baseCost={model.materialsBaseCost} materialsCost={model.materialsCostForPricing} materialsWeight={model.materialsWeightKg} installedWeight={model.installedWeightKg} plasterboardQty={model.plasterboard.sheets} labour={quotation.labour} delivery={quotation.delivery} pricing={quotation.pricing} labourConfig={labourConfig} deliveryConfig={deliveryConfig} markupConfig={markupConfig} overrideDays={inputs.labourDaysOverride??''} onLabourConfig={value=>{const next={...labourConfig,...value};setLabourConfig(next);saveLabourPricingConfig(next);}} onDeliveryConfig={value=>{const next={...deliveryConfig,...value};setDeliveryConfig(next);saveDeliveryPricingConfig(next);}} onMarkupConfig={value=>{const next={...markupConfig,...value};setMarkupConfig(next);saveMarkupPricingConfig(next);}} onOverride={value=>patch({labourDaysOverride:value})}>
+ {configuration&&!quotation.valid&&<p role="status">{quotation.errors.join(' ')}</p>}
+ <p><b>Weight review pending:</b> the totals below include known weights only.</p><SummaryPricingOverview sellingPriceReady={configuration?quotation.ready:quotation.distanceReady} sellingPriceMessage={configuration?'Complete the Materials prices, supply requirements, customer and delivery details before quoting.':undefined} quoteMatchNote={false} baseCost={model.materialsBaseCost} materialsCost={model.materialsCostForPricing} materialsWeight={model.materialsWeightKg} installedWeight={model.installedWeightKg} plasterboardQty={model.plasterboard.sheets} labour={quotation.labour} delivery={quotation.delivery} pricing={quotation.pricing} labourConfig={labourConfig} deliveryConfig={deliveryConfig} markupConfig={markupConfig} overrideDays={inputs.labourDaysOverride??''} onLabourConfig={value=>{const next={...labourConfig,...value};setLabourConfig(next);saveLabourPricingConfig(next);}} onDeliveryConfig={value=>{const next={...deliveryConfig,...value};setDeliveryConfig(next);saveDeliveryPricingConfig(next);}} onMarkupConfig={value=>{const next={...markupConfig,...value};setMarkupConfig(next);saveMarkupPricingConfig(next);}} onOverride={value=>patch({labourDaysOverride:value})}>
  <p style={{fontSize:12}}>Plasterboard: {model.plasterboard.installedAreaM2.toFixed(3)}m²; {model.plasterboardWeightKg.toFixed(2)}kg included once. Supply is excluded unless added. Unconfigured weights are not included. Supply extras and quantity changes do not alter installed geometry.</p>
  <details><summary>Calculation notes</summary><ul>{model.notes.map(note=><li key={note}>{note}</li>)}</ul></details>
- {model.supplyReviews.map(note=><p key={note} role="status">{note}</p>)}
+ {(configuration?quotation.model.supplyReviews:model.supplyReviews).map(note=><p key={note} role="status">{note}</p>)}
  {model.missingPrices.length>0&&<p role="status">Configure these Materials prices before quoting: {model.missingPrices.map(r=>r.label).join('; ')}.</p>}
  {!quotation.customerReady&&<p role="status">Selected customer details are loading or unavailable.</p>}
  {!quotation.distanceReady&&<p role="status">Calculate delivery distance on Design/Options before issuing the quotation.</p>}
  </SummaryPricingOverview>
  </>}
+ {Footer&&<Footer inputs={inputs} materials={materials} customers={customers} onChange={patch}/>}
  <style>{`.vs>h1{font-size:24px;margin:12px 0 8px}.vs>details{margin:12px 0}.vs>details>summary{cursor:pointer}`}</style></main></>;
 }

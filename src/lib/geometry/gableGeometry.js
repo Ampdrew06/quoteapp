@@ -1,8 +1,9 @@
+import {automaticSupportCentres} from './automaticSupportSpacing';
 import {resolveGableSoffitInputs} from './gableSoffitInputs';
 import {resolveLeanToRafterLayout} from './leanToRafterLayout';
 import {buildCentralBossTrussAudit} from './centralBossTrussAudit';
 const radians=deg=>deg*Math.PI/180;
-export function buildGableTrussLayout({externalProjectionMM,rearPackerMM=9,joistWidthMM=45,rearCentreMM=rearPackerMM+joistWidthMM/2,targetSpacingMM=665,secondCentreMM=rearCentreMM+targetSpacingMM,minSpacingMM=400,maxSpacingMM=700,trussPositionsMM=null}={}) {
+export function buildGableTrussLayout({externalProjectionMM,rearPackerMM=9,joistWidthMM=45,rearCentreMM=rearPackerMM+joistWidthMM/2,targetSpacingMM=665,secondCentreMM=rearCentreMM+targetSpacingMM,minSpacingMM=400,maxSpacingMM=665,trussPositionsMM=null}={}) {
  const end=Number(externalProjectionMM)-joistWidthMM/2,start=Number(rearCentreMM);
  if(trussPositionsMM!=null){
   const edited=resolveLeanToRafterLayout({widthMM:Number(externalProjectionMM),positions:trussPositionsMM,boundaryStartMM:start,boundaryEndMM:end});
@@ -11,26 +12,8 @@ export function buildGableTrussLayout({externalProjectionMM,rearPackerMM=9,joist
   return {valid:errors.length===0,errors,centresMM:edited.centresMM,gapsMM:edited.gapsMM,trussCount:edited.count,rearCentreMM:start,frontCentreMM:end,manual:true,secondCentreRetained:false,minSpacingMM,maxSpacingMM,targetSpacingMM};
  }
  if(![end,start,secondCentreMM,targetSpacingMM,minSpacingMM,maxSpacingMM].every(Number.isFinite)||minSpacingMM<=0||maxSpacingMM<minSpacingMM||end<=start)return {valid:false,errors:['Invalid truss layout dimensions.'],centresMM:[],gapsMM:[]};
- const intervals=span=>{
-  const minimum=Math.ceil((span-1e-8)/maxSpacingMM),maximum=Math.floor((span+1e-8)/minSpacingMM);
-  if(minimum<1||minimum>maximum)return null;
-  return Math.max(minimum,Math.min(maximum,Math.round(span/targetSpacingMM)));
- };
- const anchorGap=secondCentreMM-start,anchored=anchorGap>=minSpacingMM&&anchorGap<=maxSpacingMM?intervals(end-secondCentreMM):null;
- const count=anchored??intervals(end-start);
- if(count==null)return {valid:false,errors:['No truss layout can satisfy 400–700mm centres. Admin review is required.'],centresMM:[],gapsMM:[]};
- const origin=anchored?secondCentreMM:start,centresMM=anchored?[start,origin]:[start];
- // Preserve standard centres; redistribute only the smallest necessary tail.
- let standardCount=0;
- if(anchored && targetSpacingMM>=minSpacingMM && targetSpacingMM<=maxSpacingMM) {
-  for(let prefix=count-1;prefix>=0;prefix--) {
-   const tailGap=(end-origin-prefix*targetSpacingMM)/(count-prefix);
-   if(tailGap>=minSpacingMM-1e-8 && tailGap<=maxSpacingMM+1e-8){standardCount=prefix;break;}
-  }
- }
- for(let i=1;i<=standardCount;i++)centresMM.push(origin+i*targetSpacingMM);
- const tailOrigin=origin+standardCount*targetSpacingMM,tailCount=count-standardCount;
- for(let i=1;i<=tailCount;i++)centresMM.push(tailOrigin+(end-tailOrigin)*i/tailCount);
+ const centresMM=automaticSupportCentres({startMM:start,endMM:end,firstCentreMM:secondCentreMM,spacingMM:targetSpacingMM});
+ const anchored=Math.abs((centresMM[1]??0)-secondCentreMM)<1e-7;
  const gapsMM=centresMM.slice(1).map((value,i)=>value-centresMM[i]);
  return {valid:true,errors:[],centresMM,gapsMM,trussCount:centresMM.length,rearCentreMM:start,frontCentreMM:end,secondCentreRetained:!!anchored,minSpacingMM,maxSpacingMM,targetSpacingMM};
 }

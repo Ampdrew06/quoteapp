@@ -13,7 +13,7 @@ const build = (extra = {}) => {
 test('ordered roof includes both side facets and separate internal/external supply boxes',()=>{
  const {result}=build();
  expect(result.valid).toBe(true);
- expect(result.internalScrews).toBe(86);
+ expect(result.internalScrews).toBe(90);
  expect(result.externalRowScrews).toBe(141);
  expect(result.supportScrews).toBe(36);
  expect(result.perimeterScrews).toBe(0);

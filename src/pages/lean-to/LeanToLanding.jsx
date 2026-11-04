@@ -1,3 +1,6 @@
+import CustomerPicker from '../../components/CustomerPicker';
+import FrameThicknessEditor from '../../components/FrameThicknessEditor';
+import {withRoofFrameMaterials} from '../../lib/roofFrameThickness';
 import SoffitRequirementControl from '../../components/SoffitRequirementControl';
 import HippedRafterPositionEditor from '../../components/HippedRafterPositionEditor';
 import RafterPositionEditor from '../../components/RafterPositionEditor';
@@ -106,6 +109,7 @@ const grid2Responsive = {
   const [widthMM, setWidth]   = useState("");
   const [leanToRafterPositionsMM,setLeanToRafterPositionsMM]=useState(null);
   const [hippedRafterPositionsMM,setHippedRafterPositionsMM]=useState(null);   // internal width
+  const [frameThicknessMM,setFrameThicknessMM]=useState(70);
   const [projMM, setProj]     = useState("");   // internal projection
   const [pitchDeg, setPitch]  = useState(15);   // default 15°
   const [
@@ -169,7 +173,7 @@ useEffect(() => {
   };
 }, []);
 
-const m = useMemo(() => getMaterials(), [materialsVersion]);
+const m = useMemo(() => withRoofFrameMaterials({frameThicknessMM},getMaterials()), [materialsVersion,frameThicknessMM]);
 
 
     // Restore saved Lean-To inputs (if any) when landing on this page
@@ -182,6 +186,7 @@ useEffect(() => {
 }
 
     const stored = JSON.parse(raw) || {};
+    setFrameThicknessMM(Number(stored.frameThicknessMM??stored.side_frame_thickness_mm??70));
     setLeanToRafterPositionsMM(stored.leanToRafterPositionsMM??null);
     setHippedRafterPositionsMM(stored.hippedRafterPositionsMM??null);
     const saved = {...stored,...(stored.bossArrangement === 'central' ? stored.offsetBossConfiguration : {})};
@@ -309,6 +314,7 @@ useEffect(() => {
     const existing = raw ? JSON.parse(raw) : {};
 
     const merged = {
+  frameThicknessMM,side_frame_thickness_mm:frameThicknessMM,frame_on_mm:frameThicknessMM,
   ...existing,
   leanToRafterPositionsMM,
   hippedRafterPositionsMM,
@@ -365,6 +371,7 @@ useEffect(() => {
   }
 }, [
   inputsRestored,
+  frameThicknessMM,
   leanToRafterPositionsMM,
   hippedRafterPositionsMM,
   widthMM,
@@ -421,7 +428,7 @@ localStorage.removeItem("summary_adjustments");
 window.dispatchEvent(new Event("summary_adjustments_updated"));
 
         // Reset local state (blank/default form)
-        setWidth("");
+        setWidth("");setFrameThicknessMM(70);
         setLeanToRafterPositionsMM(null);setHippedRafterPositionsMM(null);
         setProj("");
         setPitch(15);
@@ -762,6 +769,7 @@ useEffect(() => {
   // ——— Persist to match the rest of the app ———
 const persistInputs = (opts = {}) => {
   const payload = {
+  frameThicknessMM,side_frame_thickness_mm:frameThicknessMM,frame_on_mm:frameThicknessMM,
   summaryAddedItems: readSummaryAddedItems(),
   summaryPricingState: readSummaryPricingState(),
   leanToRafterPositionsMM,
@@ -830,9 +838,7 @@ requestedRightSidePitchDeg:
     plastics_finish:
       String(plasticsColor).toLowerCase() === "white" ? "white" : "foiled",
     vent_method: "factory",
-    side_frame_thickness_mm: m.side_frame_thickness_mm ?? 70,
     fascia_lip_mm: m.fascia_lip_mm ?? 25,
-    frame_on_mm: m.frame_on_mm ?? 70,
 
    
 
@@ -866,6 +872,7 @@ showQuote: opts.overrideShowQuote ?? showQuote,
       const s = localStorage.getItem("leanToInputs");
       if (s) {
         const q = JSON.parse(s);
+        setFrameThicknessMM(Number(q.frameThicknessMM??q.side_frame_thickness_mm??70));
         setLeanToRafterPositionsMM(q.leanToRafterPositionsMM??null);
         setHippedRafterPositionsMM(q.hippedRafterPositionsMM??null);
 
@@ -958,6 +965,7 @@ const exclusions = useMemo(() => ({}), []); // Landing = no exclusions (customer
 
 const totalsInput = useMemo(
   () => ({
+    frameThicknessMM,side_frame_thickness_mm:frameThicknessMM,frame_on_mm:frameThicknessMM,
     leanToRafterPositionsMM,
   hippedRafterPositionsMM,
     roofStyle,
@@ -1002,7 +1010,7 @@ const totalsInput = useMemo(
     gutterOutlet,
     gutterColor,
   }),
-  [
+  [frameThicknessMM, 
     leanToRafterPositionsMM,
   hippedRafterPositionsMM,
     roofStyle,
@@ -1490,7 +1498,7 @@ setQuoteInputsExpanded(false);
     if(restoreActiveDesignRecord('lean-to')){window.location.reload();return;}
     clearActiveDesignRecord();
     // clear UI
-    setWidth("");
+    setWidth("");setFrameThicknessMM(70);
         setLeanToRafterPositionsMM(null);setHippedRafterPositionsMM(null);
     setProj("");
     setPitch(15);
@@ -1568,6 +1576,7 @@ if (!isAdmin && !manualReference) {
   const updating = currentRecord && !asNew;
   const nextQuoteNumber = updating ? currentRecord.quote_number : await getNextQuoteNumber();
   const payload = {
+  frameThicknessMM,side_frame_thickness_mm:frameThicknessMM,frame_on_mm:frameThicknessMM,
   summaryAddedItems: readSummaryAddedItems(),
   summaryPricingState: readSummaryPricingState(),
   leanToRafterPositionsMM,
@@ -2295,30 +2304,7 @@ onKeyDown={(e) => {
   <div style={{ marginTop: 12 }}>
     <label>
       Customer
-      <select
-        value={selectedCustomerId}
-        onChange={(e) => {
-  const id = e.target.value;
-  setSelectedCustomerId(id);
-
-  const selected = customers.find((c) => c.id === id);
-
-  persist({
-    selectedCustomerId: id,
-    customerName: id === "retail" ? "Retail" : selected?.name || "",
-    discountPct: id === "retail" ? 0 : Number(selected?.discountPct || 0),
-  });
-}}
-        style={{ marginLeft: 10, padding: 6 }}
-      >
-        <option value="retail">Retail (No Discount)</option>
-
-        {customers.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.name} ({Number(c.discountPct || 0)}%)
-          </option>
-        ))}
-      </select>
+      <CustomerPicker customers={customers} value={selectedCustomerId} onChange={e=>{const id=e.target.value;setSelectedCustomerId(id);const selected=customers.find(c=>c.id===id);persist({selectedCustomerId:id,customerName:id==='retail'?'Retail':selected?.name||'',discountPct:id==='retail'?0:Number(selected?.discountPct||0)});}} style={{marginLeft:10}}/>
     </label>
   </div>
 )}
@@ -2386,6 +2372,7 @@ title={
           </div>
         </div>
 
+        <FrameThicknessEditor admin={isAdmin} value={frameThicknessMM} onApply={value=>{setFrameThicknessMM(value);if(!leftWall)setLeftSupportDepthMM(value);if(!rightWall)setRightSupportDepthMM(value);persist({frameThicknessMM:value,side_frame_thickness_mm:value,frame_on_mm:value,...(!leftWall?{leftSupportDepthMM:value}:{}),...(!rightWall?{rightSupportDepthMM:value}:{})});}}/>
         {isAdmin&&roofStyle==='hippedLeanTo'&&<HippedRafterPositionEditor geometry={hippedGeom} widthMM={num(widthMM)} projectionMM={num(projMM)} positions={hippedRafterPositionsMM} admin={isAdmin} onApply={positions=>{setHippedRafterPositionsMM(positions);persist({hippedRafterPositionsMM:positions});}}/>}
         {hippedGeom?.manualRafterLayout?.valid===false&&<p role="alert">{hippedGeom.manualRafterLayout.errors.join(' ')}</p>}
         {isAdmin&&roofStyle==='leanTo'&&<RafterPositionEditor widthMM={num(widthMM)} positions={leanToRafterPositionsMM} materials={m} admin={isAdmin} onApply={positions=>{setLeanToRafterPositionsMM(positions);persist({leanToRafterPositionsMM:positions});}}/>}

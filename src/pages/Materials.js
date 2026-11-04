@@ -1953,6 +1953,7 @@ setHasUnsavedChanges(false);
     {[
   ["joist_hanger", "Joist Hanger"],
   ["joist_hanger_variable", "Variable Joist Hanger"],
+  ["hip_hanger", "Hip Hanger — rear valley plate"],
   ["spar_hook", "Spar Hook"],
   ["jack_rafter_hook", "Jack Rafter Hook"],
   ["jack_rafter_bracket", "Jack Rafter Bracket"],
@@ -1971,14 +1972,14 @@ setHasUnsavedChanges(false);
     }}
   >
     <legend style={{ padding: "0 6px" }}>{label}</legend>
-
+    {['hip_hanger','joist_hanger_variable'].includes(key)&&<label>Installed kg each<input type="number" min="0" step="0.001" value={m[`${key}_weight_kg_each`]??''} onChange={e=>setTop(`${key}_weight_kg_each`,e.target.value===''?'':num(e.target.value))}/></label>}
     <label>
       £ each
       <input
         type="number"
         step="0.01"
         className="border rounded px-2 py-1 w-full"
-        value={m[`${key}_price_each`] ?? 0}
+        value={m[`${key}_price_each`] ?? (key==='hip_hanger'?'':0)}
         onChange={(e) =>
           setTop(`${key}_price_each`, num(e.target.value))
         }

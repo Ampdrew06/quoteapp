@@ -1,3 +1,5 @@
+import {automaticSupportCentres} from './automaticSupportSpacing';
+import {resolveVictorianFacetGeometry} from './victorianFacetGeometry';
 import {solveFacetEavesGeometry} from './facetEavesGeometry';
 import {alignChamferedLathEaves} from './alignChamferedLathEaves';
 import {applyVictorianRafterLayout} from './victorianRafterLayout';
@@ -15,7 +17,11 @@ export function buildVictorianPlanGeometry({inputs={},materials={}}={},frontFace
   const w=Number(inputs.widthMM),p=Number(inputs.projMM);let pitch=Number(inputs.pitchDeg??25);
   if(![3,5].includes(frontFacetCount))return fail("Choose a three- or five-facet Victorian front.");
   const count=frontFacetCount+1,outlineCount=frontFacetCount+3,standardAngle=180-180/count;
-  const angles=inputs.cornerAnglesDeg??Array(count).fill(standardAngle);
+  const custom=inputs.victorianFacetGeometry?.mode&&inputs.victorianFacetGeometry.mode!=='template';
+  if(custom&&frontFacetCount!==3)return fail('Measured facet geometry is currently available on the 3-facet Victorian only.');
+  const fitted=custom?resolveVictorianFacetGeometry({widthMM:w,projectionMM:p,specification:inputs.victorianFacetGeometry}):null;
+  if(fitted&&!fitted.valid)return fail(fitted.errors.join(' '));
+  const angles=fitted?.cornerAnglesDeg??inputs.cornerAnglesDeg??Array(count).fill(standardAngle);
   if(!Array.isArray(angles)||angles.length!==count||angles.some(a=>!Number.isFinite(Number(a))||Number(a)<=90||Number(a)>=180))return fail(`${count} corner angles between 90° and 180° are required.`);
   const turns=angles.map(a=>180-Number(a));
   if(Math.abs(turns.reduce((n,a)=>n+a,0)-180)>1e-6)return fail(`The corner angles must total ${180*(count-1)}° to retain parallel sides.`);
@@ -27,15 +33,15 @@ export function buildVictorianPlanGeometry({inputs={},materials={}}={},frontFace
   let x=0,y=0;const front=[{xMM:x,yMM:y}];
   for(const a of headings){x+=frontLengthMM*Math.cos(rad(a));y+=frontLengthMM*Math.sin(rad(a));front.push({xMM:x,yMM:y});}
   const shift=p-Math.max(...front.map(a=>a.yMM));
-  const corners=front.map(a=>({xMM:a.xMM,yMM:a.yMM+shift}));
+  const corners=fitted?.corners??front.map(a=>({xMM:a.xMM,yMM:a.yMM+shift}));
   if(Math.min(corners[0].yMM,corners[frontFacetCount].yMM)<=0)return fail('The projection is too short for this Victorian front.');
   if(inputs.ridgeMode&&inputs.ridgeMode!=='automatic')return fail('Victorian front-pitch override requires further geometry review.');
   const sideMode=inputs.sideSoffitMode||'automatic',controlled=sideMode!=='automatic';
   if(!['automatic','specified','none'].includes(sideMode))return fail('Choose a valid soffit requirement.');
-  if(controlled&&angles.some(a=>Math.abs(Number(a)-standardAngle)>1e-8))return fail('Restricted/no-soffit Victorian roofs currently require standard corner angles.');
+  if(controlled&&!fitted&&angles.some(a=>Math.abs(Number(a)-standardAngle)>1e-8))return fail('Restricted/no-soffit Victorian roofs currently require standard corner angles.');
   const requested=Number(inputs.specifiedSideSoffitMM);
   if(sideMode==='specified'&&(inputs.specifiedSideSoffitMM==null||String(inputs.specifiedSideSoffitMM).trim()===''||!Number.isFinite(requested)||requested<=0))return fail('Enter a positive required side soffit size.');
-  if(inputs.maxFinishedHeightMM&&angles.some(a=>Math.abs(Number(a)-standardAngle)>1e-8))return fail('Maximum finished height currently requires standard Victorian corners.');
+  if(inputs.maxFinishedHeightMM&&!fitted&&angles.some(a=>Math.abs(Number(a)-standardAngle)>1e-8))return fail('Maximum finished height currently requires standard Victorian corners.');
   const inherited=buildEdwardianGeometry({inputs:{...inputs,frontRafterPositionsMM:undefined,frontRafterSpacingOverride:undefined,rearTrussPositionsMM:undefined,sideJackPositionsMM:undefined,ridgeMode:'automatic',sideSoffitMode:'automatic'},materials,shortRidgeAdjustment:false});
   if(!inherited.valid)return fail(inherited.errors.join(' '));
   pitch=inherited.pitchDeg;
@@ -93,29 +99,30 @@ export function buildVictorianPlanGeometry({inputs={},materials={}}={},frontFace
     return hits.length?{id,start:hits[0].start,end,facetId:f.id,positionMM:t*f.internalLengthMM}:null;
   };
   facets.slice(1,frontFacetCount+1).forEach((f,i)=>{
-    if(f.internalLengthMM<=maxSpacing+1e-7)return;
-    if(frontFacetCount===5){for(const [n,position] of fiveFacetJackPositions(f.internalLengthMM).entries()){const r=jack(f,position/f.internalLengthMM,`J${i+1}.${n+1}`);if(r)jackRafters.push(r);}return;}
-    if(f.internalLengthMM<=2*maxSpacing+1e-7)intermediateBars.push({id:`R${i+1}`,facetId:f.id,positionMM:f.internalLengthMM/2,start:ridge,end:{xMM:(f.start.xMM+f.end.xMM)/2,yMM:(f.start.yMM+f.end.yMM)/2}});
-    else {const bays=Math.ceil((f.internalLengthMM-1e-7)/maxSpacing);for(let n=1;n<bays;n++){const r=jack(f,n/bays,`J${i+1}.${n}`);if(r)jackRafters.push(r);}}
+    const positions=frontFacetCount===5?fiveFacetJackPositions(f.internalLengthMM):automaticSupportCentres({endMM:f.internalLengthMM,clearanceMM:72}).slice(1,-1);
+    for(const [n,position] of positions.entries()){
+      if(frontFacetCount===3&&Math.abs(position-f.internalLengthMM/2)<1e-7)intermediateBars.push({id:`R${i+1}`,facetId:f.id,positionMM:position,start:ridge,end:{xMM:(f.start.xMM+f.end.xMM)/2,yMM:(f.start.yMM+f.end.yMM)/2}});
+      else {const r=jack(f,position/f.internalLengthMM,`J${i+1}.${n+1}`);if(r)jackRafters.push(r);}
+    }
   });
-  const centresMM=[31.5];
-  for(let y=697;y<inherited.terminalTrussCentreMM-48;y+=665)centresMM.push(y);
-  if(inherited.terminalTrussCentreMM>centresMM[0]+48)centresMM.push(inherited.terminalTrussCentreMM);
-  else return fail('Insufficient room for the rear and boss trusses.');
-  const layout={...inherited.layout,centresMM,trussCount:centresMM.length};
+  // Rear supports share the Edwardian ridge datum and set-out rules.
+  // Keep its first ordinary truss (696.5mm, displayed as 697mm), then
+  // its adjusted bays to the fixed boss truss. Manual edits apply below.
+  const centresMM=[...inherited.layout.centresMM];
+  const gapsMM=centresMM.slice(1).map((y,i)=>y-centresMM[i]);
+  const layout={...inherited.layout,centresMM,gapsMM,trussCount:centresMM.length};
   [facets[0],facets[facets.length-1]].forEach((f,i)=>{
     const shoulder=i===0?f.end.yMM:f.start.yMM;
-    const run=shoulder-inherited.terminalTrussCentreMM,unsupportedRun=shoulder-ridge.yMM,bays=unsupportedRun<=maxSpacing+1e-7?1:Math.ceil(run/665);
-    for(let n=1;n<bays;n++){
-      const y=inherited.terminalTrussCentreMM+run*n/bays;
+    const positions=automaticSupportCentres({startMM:inherited.terminalTrussCentreMM,endMM:shoulder,clearanceMM:72}).slice(1,-1);
+    for(const y of positions){
       const t=i===0?y/f.internalLengthMM:1-y/f.internalLengthMM;
       const r=jack(f,t,`JS${i+1}.${jackRafters.length+1}`);if(r)jackRafters.push(r);
     }
   });
   const minimumY=Math.min(corners[0].yMM,corners[frontFacetCount].yMM);
   if(ridge.yMM>=minimumY)return fail('The ridge must sit behind the two side-to-front corners. Review the angles or projection.');
-  const geometry={...(controlled?{eaves,soffitRequirement:sideMode,requestedSideSoffitMM:sideMode==='none'?0:requested,soffitProjectionMM:plyBaseWidthMM-frameMM,soffitNote:sideMode==='none'?`No soffit boards; compulsory fascia lip projects ${Number((plyBaseWidthMM-frameMM).toFixed(1))}mm beyond the frame.`:`Both sides: ${requested}mm overall fascia envelope. All facets share this setting at the standard equal pitches.`}:{}),valid:true,errors:[],adjustedAngles:angles.some(a=>Math.abs(Number(a)-standardAngle)>1e-8),frontFacetCount,maxSupportSpacingMM:maxSpacing,style:`Victorian ${frontFacetCount}-facet`,finishedHeightMM:inherited.finishedHeightMM,heightSafetyBufferMM:inherited.heightSafetyBufferMM,requestedPitchDeg:inherited.requestedPitchDeg,widthMM:w,projectionMM:p,pitchDeg:pitch,frameMM:inherited.frameMM,soffitMM,soffitMode,plyBaseWidthMM,fasciaThicknessMM,fittingToleranceMM,stripTrimAllowanceMM,soffitStripWidthMM,upstandArrangement,upstandHeightMM,bossTopContinuationMM,
-    cornerAnglesDeg:angles.map(Number),mitresDeg:turns.map(a=>a/2),frontLengthMM,internalOutline,externalOutline,facets,hips,intermediateBars,jackRafters,
+  const geometry={...(fitted?{customFacetGeometry:fitted,facetGeometrySpec:inputs.victorianFacetGeometry}:{}),...(controlled?{eaves,soffitRequirement:sideMode,requestedSideSoffitMM:sideMode==='none'?0:requested,soffitProjectionMM:plyBaseWidthMM-frameMM,soffitNote:sideMode==='none'?`No soffit boards; compulsory fascia lip projects ${Number((plyBaseWidthMM-frameMM).toFixed(1))}mm beyond the frame.`:`Both sides: ${requested}mm overall fascia envelope. All facets share this setting at the standard equal pitches.`}:{}),valid:true,errors:[],adjustedAngles:angles.some(a=>Math.abs(Number(a)-standardAngle)>1e-8),frontFacetCount,maxSupportSpacingMM:maxSpacing,style:`Victorian ${frontFacetCount}-facet`,finishedHeightMM:inherited.finishedHeightMM,heightSafetyBufferMM:inherited.heightSafetyBufferMM,requestedPitchDeg:inherited.requestedPitchDeg,widthMM:w,projectionMM:p,pitchDeg:pitch,frameMM:inherited.frameMM,soffitMM,soffitMode,plyBaseWidthMM,fasciaThicknessMM,fittingToleranceMM,stripTrimAllowanceMM,soffitStripWidthMM,upstandArrangement,upstandHeightMM,bossTopContinuationMM,
+    cornerAnglesDeg:angles.map(Number),mitresDeg:turns.map(a=>a/2),frontLengthMM:fitted?.frontMM??frontLengthMM,internalOutline,externalOutline,facets,hips,intermediateBars,jackRafters,
     ridge,ridgeEndYMM:ridge.yMM,terminalTrussCentreMM:inherited.terminalTrussCentreMM,layout,riseMM:inherited.riseMM,
     externalWidthMM:Math.max(...externalOutline.map(a=>a.xMM))-Math.min(...externalOutline.map(a=>a.xMM)),externalProjectionMM:Math.max(...externalOutline.map(a=>a.yMM)),
     nominalExternalProjectionMM:controlled?p+plyBaseWidthMM:p+frameMM+soffitMM,frontManufacturingAllowanceMM:controlled?0:soffitMode==='standard'?fittingToleranceMM:-fasciaThicknessMM,

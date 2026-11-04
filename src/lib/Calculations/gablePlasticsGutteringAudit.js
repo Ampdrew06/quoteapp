@@ -1,4 +1,5 @@
-import {planPlasticsStock,planSoffitStock} from './plasticsIntegrationAudit';
+import {planJoinedLinearStock} from './joinedLinearStock';
+import {planSoffitStock} from './plasticsIntegrationAudit';
 import {calculateFasciaCutHeight} from '../Manufacturing/fasciaCutHeight';
 const rate=v=>v==null||v===''||!Number.isFinite(Number(v))||Number(v)<0?null:Number(v);
 const nextWidth=(widths,v)=>widths.map(Number).filter(Number.isFinite).sort((a,b)=>a-b).find(w=>w>=v)??null;
@@ -17,7 +18,7 @@ export function buildGablePlasticsGutteringAudit({geometry:g,materials:m={},plas
  const frontRows=g.feet.map(f=>({edgeId:`front-${f.side}`,side:'frontSlope',runM:(g.widthMM/2+f.hfcMM-g.truss.gusset.widthMM/2)/cos/1000,widthMM:300,soffitGeometryMM:g.frontOverhangMM}));
  const fasciaRuns=[...sideRows,...frontRows];
  if(fasciaRuns.some(r=>r.widthMM==null))return fail('Side fascia coverage exceeds configured stock sizes.');
- const fasciaPlan=planPlasticsStock(fasciaRuns,fasciaStockM);
+ const fasciaPlan=planJoinedLinearStock(fasciaRuns,fasciaStockM);
  const soffitRuns=[...sideRows,...frontRows,{edgeId:'front-flat',side:'frontFlat',runM:g.truss.closure.cutLengthMM/1000,soffitGeometryMM:g.frontOverhangMM}].filter(r=>r.soffitGeometryMM>0);
  const soffitPlan=planSoffitStock(soffitRuns,soffitStockM,soffitSizes,rate(m.soffit_rip_kerf_mm)??3);
  if(soffitPlan.order.some(r=>r.widthMM==null))return fail('Requested soffit width exceeds configured stock sizes.');
@@ -39,7 +40,7 @@ export function buildGablePlasticsGutteringAudit({geometry:g,materials:m={},plas
  add(plasticLines,'hTrim','H-trim — straight soffit stock joins only',hRunMM/1000,'m consumed',rate(m[`fascia_h_section_${band}_price`])==null?null:Number(m[`fascia_h_section_${band}_price`])/5);
  add(plasticLines,'pins','Colour-matched polytop pins',1,'50-pin allowance',m.polytop_pins_price_per_box??m.polytopPins?.price_per_box??m.polytop_pins_price_each);
  const gutterRuns=sideRows.map(r=>({...r,widthMM:0,side:'gutter'}));
- const gutterPlan=planPlasticsStock(gutterRuns,gutterStockM);
+ const gutterPlan=planJoinedLinearStock(gutterRuns,gutterStockM);
  const bracketsPerSide=Math.ceil(projection/spacingMM)+1;
  const counts={lengths:gutterPlan.qty,unions:gutterPlan.joints,brackets:2*bracketsPerSide,corners:0,outlets:2,stopEnds:4,pipes:2,offsetBends:4,clips:4,shoes:2,adaptors:gutterProfile==='round'?0:2};
  const select=(...keys)=>keys.map(k=>m[k]).find(v=>v!=null);

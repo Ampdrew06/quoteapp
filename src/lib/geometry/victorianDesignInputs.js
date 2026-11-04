@@ -11,6 +11,7 @@ export function normalizeVictorianDesignInputs(saved={},customerId='retail'){
 }
 export function updateVictorianDesignInputs(old,key,value){
  const next={...old,[key]:value};
+ if(['widthMM','projMM'].includes(key)&&old.victorianFacetGeometry){next.victorianFacetGeometry=null;next.cornerAnglesDeg=[135,135,135,135];next.victorianRearTrussPositionsMM=null;next.victorianSideJackPositionsMM=null;next.victorianFacetPositionsMM=null;}
  if(key==='deliveryPostcode'){next.deliveryDistanceMiles='';next.deliveryDistancePostcode='';}
  if(key==='fasciaColour')next.plasticsColour=value==='White'?'white':'foiled';
  if(key==='tileProductId')next.tileColour=value==='liteSlate'||value==='tapcoSlate'?'Slate':'Titanium';

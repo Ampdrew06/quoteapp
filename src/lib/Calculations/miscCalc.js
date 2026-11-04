@@ -349,7 +349,7 @@ if (s50Cov > 0 && s50PricePack > 0) {
   const iw   = num(q.internalWidthMM, 4000);
   const spacing   = num(m.rafter_spacing_mm ?? 665, 665);
   const firstCtr  = num(m.rafter_first_center_mm ?? 690, 690);
-  const manualLayout=q.leanToRafterPositionsMM!=null?resolveLeanToRafterLayout({widthMM:iw,positions:q.leanToRafterPositionsMM}):null;
+  const manualLayout=resolveLeanToRafterLayout({widthMM:iw,positions:q.leanToRafterPositionsMM,firstCentreMM:firstCtr,spacingMM:spacing});
   const rafters   = manualLayout?.valid?manualLayout.count:1 + Math.max(0, Math.ceil((iw - firstCtr) / spacing));
 
   // Tile course counts:

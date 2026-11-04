@@ -10,7 +10,8 @@ export default function VictorianCustomerPlan({geometry:g}){
  {g.layout.centresMM.map((centre,n)=><g key={n}>{line({xMM:0,yMM:centre},{xMM:g.widthMM,yMM:centre},'#2563eb',3)}{n>0&&<text x={x(g.widthMM)+9} y={y(centre)+4} fontSize="12">{Math.round(centre)}</text>}</g>)}
  {line({xMM:g.widthMM/2,yMM:0},g.ridge,'#111827',3)}{g.hips.map(h=><g key={h.id}>{line(h.start,h.end,'#111827',3)}</g>)}{[...g.intermediateBars,...g.jackRafters].map(r=><g key={r.id}>{line(r.start,r.end,'#2563eb',3)}</g>)}
  {g.facets.map(f=><text key={f.id} x={x((f.start.xMM+f.end.xMM+g.ridge.xMM)/3)} y={y((f.start.yMM+f.end.yMM+g.ridge.yMM)/3)} textAnchor="middle" fontWeight="bold" fontSize="17">{f.pitchDeg.toFixed(1)}°</text>)}
- <text x={mid} y="50" textAnchor="middle" fontSize="15">HOUSE WALL</text>
+ {g.customFacetGeometry&&g.facets.map((f,n)=><text key={`length-${f.id}`} x={x((f.start.xMM+f.end.xMM)/2)+(n===0?-12:n===4?12:0)} y={y((f.start.yMM+f.end.yMM)/2)+(n===2?19:-8)} textAnchor="middle" fontSize="12">{Number(f.internalLengthMM.toFixed(1))} mm</text>)}
+ {g.customFacetGeometry&&g.internalOutline.slice(1,-1).map((p,n)=><text key={`angle-${n}`} x={x(p.xMM)+(n===0?-12:n===3?12:0)} y={y(p.yMM)+(n===0||n===3?16:34)} textAnchor="middle" fontSize="11">{g.cornerAnglesDeg[n].toFixed(3)}°</text>)}
  {dim(x(0),y(0)-20,x(g.widthMM),y(0)-20)}<text x={mid} y={y(0)-27} textAnchor="middle" fontSize="13">{Math.round(g.widthMM)} int</text>
  {dim(x(minX),bottom+25,x(minX+g.externalWidthMM),bottom+25)}<text x={mid} y={bottom+19} textAnchor="middle" fontSize="13">{Math.round(g.externalWidthMM)} ext</text>
  {dim(x(minX)-35,y(0),x(minX)-35,bottom)}<text transform={`translate(${x(minX)-42},${(y(0)+bottom)/2}) rotate(-90)`} textAnchor="middle" fontSize="13">{Math.round(g.externalProjectionMM)} ext</text>

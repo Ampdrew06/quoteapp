@@ -3,8 +3,11 @@ const nonNegative = (value) => Math.max(0, Number(value) || 0);
 // Facet dimensions are already measured on the sloping external face.
 export function externalFacetAreaM2(facets = []) {
   return facets.filter((facet) => facet.exists !== false).reduce((total, facet) => {
-    const face = facet.geometry?.tiling ?? facet.tilingGeometry;
+    const face = facet.geometry?.tiling ?? facet.tilingGeometry ?? (facet.outline ? facet : null);
     if (!face) return total;
+    if(Array.isArray(face.outline)&&face.outline.length>=3&&face.outline.every(p=>Number.isFinite(p.xMM)&&Number.isFinite(p.yMM))){
+      return total+Math.abs(face.outline.reduce((sum,a,i)=>{const b=face.outline[(i+1)%face.outline.length];return sum+a.xMM*b.yMM-b.xMM*a.yMM;},0))/2e6;
+    }
     return total + (nonNegative(face.baseWidthMM) + nonNegative(face.topWidthMM)) *
       nonNegative(face.heightMM) / 2_000_000;
   }, 0);

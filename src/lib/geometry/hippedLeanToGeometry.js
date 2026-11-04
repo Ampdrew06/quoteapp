@@ -1,3 +1,4 @@
+import {automaticSupportCentres} from './automaticSupportSpacing';
 import {applyHippedFrontRafterPositions,validateHippedRafterPositions} from './hippedRafterLayout';
 import {buildCentralBossDesign} from './centralBossDesign';
 import { alignChamferedLathEaves } from "./alignChamferedLathEaves";
@@ -973,7 +974,7 @@ const SIDE_RAFTER_SPACING_MM = 665;
 // Minimum clear gap required between the final side-jack slot
 // and the front hip-seat slot.
 // Temporary manufacturing rule — review after workshop testing.
-const SIDE_FINAL_JACK_MIN_CLEARANCE_MM = 400;
+
 
 const buildSideRingBeamLayout = ({
   exists,
@@ -1017,40 +1018,8 @@ const buildSideRingBeamLayout = ({
   // then 665 mm centres towards the front hip.
   const intermediateJackRafters = [];
 
-  for (
-    let centreMM = SIDE_FIRST_RAFTER_CENTRE_MM;
-    centreMM < lengthMM;
-    centreMM += SIDE_RAFTER_SPACING_MM
-  ) {
-    const leftMM = centreMM - halfSlotMM;
-const rightMM = centreMM + halfSlotMM;
-
-const hipSeatLeftMM = Math.max(
-  0,
-  lengthMM - slotWidthMM
-);
-
-const clearGapToHipSeatMM =
-  hipSeatLeftMM - rightMM;
-
-// Omit this jack—and all later positions—when the clear gap
-// between its slot and the hip-seat slot would be less than
-// the current manufacturing minimum.
-if (
-  clearGapToHipSeatMM <
-  SIDE_FINAL_JACK_MIN_CLEARANCE_MM
-) {
-  break;
-}
-
-intermediateJackRafters.push({
-  type: "side-jack",
-  centreMM,
-  leftMM,
-  rightMM,
-  clearGapToHipSeatMM,
-});
-  }
+  const automaticCentres=automaticSupportCentres({startMM:halfSlotMM,endMM:lengthMM-halfSlotMM,firstCentreMM:SIDE_FIRST_RAFTER_CENTRE_MM,spacingMM:SIDE_RAFTER_SPACING_MM});
+  for(const centreMM of automaticCentres.slice(1,-1))intermediateJackRafters.push({type:'side-jack',centreMM,leftMM:centreMM-halfSlotMM,rightMM:centreMM+halfSlotMM,clearGapToHipSeatMM:lengthMM-slotWidthMM-centreMM-halfSlotMM});
 
   const edited=hippedRafterPositionsMM?.[side];
   if(edited!=null){

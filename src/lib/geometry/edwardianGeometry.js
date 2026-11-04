@@ -1,3 +1,4 @@
+import {automaticSupportCentres} from './automaticSupportSpacing';
 import {resolveEdwardianRearTrusses,resolveEdwardianSideJacks} from './edwardianSideLayout';
 import {resolveEdwardianFrontRafters} from './edwardianFrontRafters';
 import {buildGableTrussLayout} from './gableGeometry';
@@ -48,20 +49,13 @@ export function buildEdwardianGeometry({inputs={},materials={},shortRidgeAdjustm
  // Supply an equivalent endpoint so its last centre is our terminal datum.
  const rearMin=inputs.trussMinimumSpacingMM==null||inputs.trussMinimumSpacingMM===''?400:Number(inputs.trussMinimumSpacingMM);
  if(!Number.isFinite(rearMin)||rearMin<100||rearMin>400)return invalid('Admin rear truss minimum must be between 100 and 400mm.');
- let layout=buildGableTrussLayout({externalProjectionMM:terminalTrussCentreMM+22.5,minSpacingMM:rearMin});
- // The fixed terminal truss is exempt from the ordinary minimum spacing.
- // Keep all ordinary gaps within the normal limits; never exceed 700mm.
- if(!layout.valid&&shortRidgeAdjustment){
-  const start=31.5,span=terminalTrussCentreMM-start;
-  if(span>45){
-   const count=Math.ceil(span/700),step=count>1?Math.min(665,(span-45)/(count-1)):span;
-   if(count===1||step>=rearMin){
-    const centresMM=[start];for(let n=1;n<count;n++)centresMM.push(start+n*step);centresMM.push(terminalTrussCentreMM);
-    const gapsMM=centresMM.slice(1).map((v,n)=>v-centresMM[n]);
-    layout={valid:true,errors:[],centresMM,gapsMM,trussCount:centresMM.length,rearCentreMM:start,frontCentreMM:terminalTrussCentreMM,secondCentreRetained:Math.abs((centresMM[1]??0)-696.5)<1e-7,minSpacingMM:rearMin,maxSpacingMM:700,targetSpacingMM:665,terminalMinimumExempt:true};
-   }
-  }
- }
+ // Retain the ordinary 665mm set-out from the wall truss. If the
+ // next full step would crowd the locked boss-truss slot, halve that
+ // remaining oversized bay instead of redistributing earlier centres.
+ const centresMM=automaticSupportCentres({startMM:31.5,endMM:terminalTrussCentreMM});
+ const gapsMM=centresMM.slice(1).map((v,n)=>v-centresMM[n]);
+ let layout={valid:gapsMM.every(g=>g>48),errors:[],centresMM,gapsMM,trussCount:centresMM.length,rearCentreMM:31.5,frontCentreMM:terminalTrussCentreMM,secondCentreRetained:Math.abs((centresMM[1]??0)-696.5)<1e-7,minSpacingMM:rearMin,maxSpacingMM:665,targetSpacingMM:665,terminalMinimumExempt:true};
+ if(!layout.valid)layout.errors=['Insufficient room between the wall and boss trusses.'];
  if(inputs.rearTrussPositionsMM!=null)layout=resolveEdwardianRearTrusses(inputs.rearTrussPositionsMM,terminalTrussCentreMM);
  if(!layout.valid)return invalid(layout.errors.join(' '));
  const none=inputs.sideSoffitMode==='none',restricted=inputs.sideSoffitMode==='specified';
@@ -104,7 +98,7 @@ export function buildEdwardianGeometry({inputs={},materials={},shortRidgeAdjustm
   notes:['Plan setting-out only: hip lines meet the internal front corners centrally. External hip feet and member profiles are separate cutting candidates for factory review.',
    'One terminal truss and one boss serve both hips and the front boss rafter. There is no physical ridge timber.',
    'Terminal truss centre is always 33mm behind the ridge point. Current rear truss setting-out retains 45mm joists and 9mm rear packers.',
-   `Rear trusses use 665mm target centres within ${rearMin}–700mm, with the fixed terminal truss exempt from the minimum${rearMin<400?' (admin closer-centre override)':''}. Front jack positions reuse the existing Hipped front layout.`,
+   `Rear trusses use 665mm centres, with a shorter final bay or a halved final bay where the next full step would crowd the boss truss. Front jack positions reuse the existing Hipped front layout.`,
    'Eaves reuse the shared Hipped soffit solver and chamfered-lath height alignment. External dimensions are manufacturing geometry candidates.',
    'Factory measurements are comparison evidence only. This audit does not alter quotation prices, Summary or manufacture books.']};
 }

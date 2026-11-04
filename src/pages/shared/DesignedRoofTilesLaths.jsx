@@ -1,3 +1,5 @@
+import {buildCombinationMaterialsModel} from '../../lib/Calculations/combinationMaterialsModel';
+import CombinationNavigation from '../combination/CombinationNavigation';
 import {buildVictorianLathAudit} from '../../lib/Calculations/victorianLathAudit';
 import {normalizeVictorianFiveDesignInputs} from '../../lib/geometry/victorianFiveDesignInputs';
 import React,{useState,useEffect} from 'react';
@@ -16,7 +18,7 @@ import EdwardianNavigation from '../edwardian/EdwardianNavigation';
 import VictorianNavigation from '../victorian/VictorianNavigation';
 import {RoofTilingTotals,LathScheduleTable} from '../../components/FacetTilingCalculator';
 import '../../components/AppPageLayout.css';
-const families={gable:{key:'gableDesignPreviewInputs',label:'Gable',geometry:buildGableGeometry,tiling:buildGableTilingAudit,Nav:GableNavigation},edwardian:{key:'edwardianInputs',label:'Edwardian',geometry:buildEdwardianGeometry,tiling:buildEdwardianTilingAudit,Nav:EdwardianNavigation},victorian:{key:'victorianPlanPreviewInputs',label:'3 Facet Victorian',geometry:buildVictorianGeometry,tiling:buildVictorianTilingAudit,Nav:VictorianNavigation},'victorian-five':{key:'victorianFiveInputs',label:'5 Facet Victorian',geometry:buildVictorianFiveGeometry,tiling:buildVictorianTilingAudit,Nav:VictorianNavigation}};
+const families={combination:{key:'combinationGeometryDraft',label:'Edwardian / Victorian',Nav:CombinationNavigation,geometry:args=>{const m=buildCombinationMaterialsModel(args);return m.valid?{...m.audits.geometry,combinationTileAudit:m.audits.tiles,combinationSupportM:m.audits.laths?.support?.quantities?.additionalLathM}:{valid:false,errors:m.errors};},tiling:({geometry:g})=>g.combinationTileAudit||{valid:false,errors:g.errors||['Enter valid roof dimensions.']}},gable:{key:'gableDesignPreviewInputs',label:'Gable',geometry:buildGableGeometry,tiling:buildGableTilingAudit,Nav:GableNavigation},edwardian:{key:'edwardianInputs',label:'Edwardian',geometry:buildEdwardianGeometry,tiling:buildEdwardianTilingAudit,Nav:EdwardianNavigation},victorian:{key:'victorianPlanPreviewInputs',label:'3 Facet Victorian',geometry:buildVictorianGeometry,tiling:buildVictorianTilingAudit,Nav:VictorianNavigation},'victorian-five':{key:'victorianFiveInputs',label:'5 Facet Victorian',geometry:buildVictorianFiveGeometry,tiling:buildVictorianTilingAudit,Nav:VictorianNavigation}};
 const mm=n=>Number(n).toFixed(1),metres=n=>Number(n).toFixed(3);
 export default function DesignedRoofTilesLaths({family}){return isAdminUser()?<DesignedRoofTilesLathsContent key={family} family={family}/>:<Navigate to="/quote" replace/>;}
 export function DesignedRoofTilesLathsContent({family}){
@@ -24,7 +26,7 @@ export function DesignedRoofTilesLathsContent({family}){
  const [inputs]=useState(()=>{try{const saved=JSON.parse(localStorage.getItem(config.key)||'{}');return family==='victorian-five'?normalizeVictorianFiveDesignInputs(saved):saved;}catch{return {};}}),[materials,setMaterials]=useState(getMaterials);
  useEffect(()=>{const refresh=()=>setMaterials(getMaterials());window.addEventListener('materials_updated',refresh);return()=>window.removeEventListener('materials_updated',refresh);},[]);
  const geometry=config.geometry({inputs,materials}),audit=config.tiling({geometry,materials,productId:inputs.tileProductId||'britmetShingle'});
- const support=family.startsWith('victorian')&&audit.valid?buildVictorianLathAudit({geometry,materials,productId:inputs.tileProductId||'britmetShingle'}).support?.quantities?.additionalLathM:audit.ridgeLathM??audit.support?.quantities?.additionalLathM;
+ const support=family==='combination'?geometry.combinationSupportM:family.startsWith('victorian')&&audit.valid?buildVictorianLathAudit({geometry,materials,productId:inputs.tileProductId||'britmetShingle'}).support?.quantities?.additionalLathM:audit.ridgeLathM??audit.support?.quantities?.additionalLathM;
  const result=audit.result,allowance=audit.sequence?.allowanceTiles??result?.orderAllowanceTiles??0;
  const totals=result?{...result,tileQuantityOrdered:audit.mainTiles,tileQuantityRounded:audit.mainTiles-allowance,orderAllowanceTiles:allowance}:null;
  return <><Nav five={family==='victorian-five'}/><main className="app-page-content dr-tiles"><h1>Tiles &amp; Laths — {config.label}</h1><p>Read-only results from the current Design/Options roof.</p>

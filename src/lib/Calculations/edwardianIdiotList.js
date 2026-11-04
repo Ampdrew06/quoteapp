@@ -1,15 +1,17 @@
+import {checklistExcludedKeys,filterChecklistSupplies} from './checklistSupplyExclusions';
 import {checklistLaths} from './checklistLaths';
 import {buildEdwardianInternalLathAudit} from './edwardianInternalLathAudit';
 import {buildSummaryIdiotList} from './summaryIdiotList';
 export function buildEdwardianIdiotList(model,materials={}){
  const list=buildSummaryIdiotList(model,materials);if(!model.valid)return list;
+ const excluded=checklistExcludedKeys(model);
  const members=model.audits.timber.memberAudit.members;
  list.sections.assemblies=[{key:'trusses',item:'Assembled trusses',qty:model.audits.geometry.layout.centresMM.length,units:'Ea'},{key:'ringbeams',item:'Ring-beams',qty:3,units:'Ea'},...['hip','boss-rafter','jack-rafter'].map(type=>({key:type,item:({'hip':'Hips','boss-rafter':'Boss rafter','jack-rafter':'Jack rafters'})[type],qty:members.filter(m=>type==='jack-rafter'?m.type.endsWith('-jack'):m.type===type).length,units:'Ea'}))].filter(r=>r.qty>0);
  const a=model.audits,g=a.geometry,runs=[];
  a.tiling.result.facets.forEach(f=>f.lathRows.forEach((r,n)=>runs.push({edgeId:f.facet.id+'-'+n,runM:r.widthMM/1000,widthMM:50})));
  if(a.tiling.steel)a.tiling.edges.forEach(e=>{for(const side of [1,2])runs.push({edgeId:e.id+'-'+side,runM:e.lengthMM/1000,widthMM:50});});
  const internalRuns=buildEdwardianInternalLathAudit({geometry:g,materials}).rows.map(r=>({edgeId:'internal-'+r.id,runM:r.lengthMM/1000,widthMM:50}));
- list.sections.laths=checklistLaths(runs,internalRuns,a.laths.stockM,model.quantityAdjustments?.edwardian_laths);
+ list.sections.laths=excluded.has('edwardian_laths')?[]:checklistLaths(runs,internalRuns,a.laths.stockM,model.quantityAdjustments?.edwardian_laths);
  list.sections.timber=(list.sections.timber||[]).filter(r=>r.key!=='edwardian_laths'||r.isAddedItem);
  const fitted=['boss_rafter_terminal','spar_hook','jack_rafter_hooks','jack_rafter_brackets'];
  list.sections.metal=(list.sections.metal||[]).flatMap(r=>{
@@ -30,5 +32,5 @@ export function buildEdwardianIdiotList(model,materials={}){
    if(row.key==='plasterboard_guide')row.item='Plasterboard 2400×1200mm — NOT SUPPLIED';
  }
  list.despatchOnly=true;
- return list;
+ return filterChecklistSupplies(list,model);
 }

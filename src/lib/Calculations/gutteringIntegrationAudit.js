@@ -1,4 +1,4 @@
-import { planPlasticsStock } from './plasticsIntegrationAudit';
+import {planJoinedLinearStock} from './joinedLinearStock';
 const positive = value => Math.max(0, Number(value) || 0);
 const price = (materials, keys) => {
   const key = keys.find(item => materials[item] != null);
@@ -20,7 +20,8 @@ export function buildHippedGutteringIntegrationAudit({ edgeModel, materials = {}
     return { edgeId:edge.id, side:edge.side, runM, lengths, unions, baseBrackets, brackets:baseBrackets };
   });
   if (!rows.length) errors.push('No active eaves runs found.');
-  const stockPlan = stockM ? planPlasticsStock(rows.map(row => ({ ...row, side: 'gutter', widthMM: 0 })), stockM) : { qty: 0, boards: [], runPieces: [], joints: 0 };
+  const stockPlan = stockM ? planJoinedLinearStock(rows.map(row => ({ ...row, side: 'gutter', widthMM: 0 })), stockM) : { qty: 0, boards: [], runPieces: [], joints: 0 };
+  rows.forEach(row=>{row.unions=Math.max(0,(stockPlan.runPieces.find(r=>r.edgeId===row.edgeId)?.lengthsM.length??0)-1);});
   const total = field => rows.reduce((sum,row)=>sum+row[field],0);
   const perimeterM = total('runM');
   const bracketCount = perimeterM && spacingMM ? Math.ceil(perimeterM * 1000 / spacingMM) + 1 : 0;
@@ -56,7 +57,7 @@ export function buildHippedGutteringIntegrationAudit({ edgeModel, materials = {}
     totalRunM:total('runM'), items, totalCost:items.some(item=>item.cost==null)?null:items.reduce((sum,item)=>sum+item.cost,0),
     legacyLines,
     assumptions:[
-      'Whole stock lengths are shared across straight runs using suitable offcuts. Each run retains its required unions; corners are separate fittings.',
+      'Whole stock lengths are shared across straight runs using suitable offcuts, splitting straight runs when needed to minimise stock. Unions follow the resulting splits; corners are separate fittings.',
       'Brackets use ceiling(total active eaves / spacing) + one, an approximate allowance along the continuous perimeter. Unions and corners require no additional brackets.',
       'Current hipped perimeter: two stop ends, one running outlet, one round downpipe, two offset bends, two clips and one shoe. Outlet position does not remove a stop end.',
       'Square and ogee gutters include one adaptor to round downpipe; round gutters need none. Manual Summary adjustments remain the way to remove the adaptor when square downpipe is requested.',

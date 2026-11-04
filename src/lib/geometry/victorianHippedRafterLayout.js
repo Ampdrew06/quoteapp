@@ -1,3 +1,4 @@
+import {automaticSupportCentres} from './automaticSupportSpacing';
 import {buildDefaultFrontRafterLayout} from '../Manufacturing/rafterLayoutBuilder';
 import {resolveLeanToRafterLayout} from './leanToRafterLayout';
 import {VICTORIAN_MAX_SPACING_MM} from './victorianSupportRules';
@@ -29,18 +30,12 @@ export function buildVictorianHippedRafterLayout({geometry:g,positionsByFacet={}
   let positions=[];
   if(manual)positions=positionsByFacet[f.id];
   else if(side){
-   // Same wall-led centres and final hip-seat clearance as Hipped Lean-To.
-   for(let p=first;p<f.internalLengthMM;p+=spacing){
-    if(f.internalLengthMM-48-(p+24)<400)break;
-    positions.push(p);
-   }
+   positions=automaticSupportCentres({startMM:24,endMM:f.internalLengthMM-24,firstCentreMM:first,spacingMM:spacing}).slice(1,-1);
   }else if(f.id==='F3'){
    const left=(g.bosses.find(b=>b.id==='BL')?.xMM??f.start.xMM)-f.start.xMM,right=(g.bosses.find(b=>b.id==='BR')?.xMM??f.end.xMM)-f.start.xMM;
    positions=buildDefaultFrontRafterLayout({widthMM:f.internalLengthMM,leftBossXMM:left,rightBossXMM:right,hasLeftHip:left>0&&left<f.internalLengthMM,hasRightHip:right>0&&right<f.internalLengthMM,spacingMM:spacing}).allRafters.map(r=>r.centreMM);
-  }else if(f.internalLengthMM>VICTORIAN_MAX_SPACING_MM+1e-7){
-   if(f.internalLengthMM<=2*VICTORIAN_MAX_SPACING_MM+1e-7)positions=[f.internalLengthMM/2];
-   else {const bays=Math.ceil((f.internalLengthMM-1e-7)/VICTORIAN_MAX_SPACING_MM);positions=Array.from({length:bays-1},(_,n)=>f.internalLengthMM*(n+1)/bays);}
-  }
+  }else positions=automaticSupportCentres({startMM:24,endMM:f.internalLengthMM-24,firstCentreMM:24+spacing,spacingMM:spacing}).slice(1,-1);
+
   if(!manual)positions=positions.filter(p=>p>72&&p<f.internalLengthMM-72);
   const resolved=resolveLeanToRafterLayout({widthMM:f.internalLengthMM,positions,boundaryStartMM:24,boundaryEndMM:f.internalLengthMM-24});
   if(!resolved.valid){errors.push(`${f.label}: ${resolved.errors.join(' ')}`);continue;}

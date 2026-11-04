@@ -1,3 +1,4 @@
+import CustomerPicker from './CustomerPicker';
 import SoffitRequirementControl from './SoffitRequirementControl';
 import {saveVictorianHippedDesign} from '../lib/victorianHippedQuotePersistence';
 import {readActiveDesignRecord,activateDesignRecord,restoreActiveDesignRecord,clearActiveDesignRecord} from '../lib/activeDesignRecord';
@@ -67,7 +68,7 @@ export default function VictorianHippedDesignForm({inputs,g,materials,Plan,tools
  {sideMode!=='automatic'&&<p>Both open sides use this requirement. Front/faceted soffits adjust to keep the fascia aligned.</p>}
  </div>{sideMode!=='automatic'&&g.valid&&<p>Front soffit automatically adjusted to {g.soffitMM.toFixed(1)}mm to keep the fascia heights aligned.</p>}</fieldset>
  <div className="vh-design-grid vh-contact-grid"><label>Delivery postcode<input aria-label="Delivery postcode" value={inputs.deliveryPostcode??''} onChange={e=>update('deliveryPostcode',e.target.value)}/></label><label>Customer Reference<input aria-label="Customer Reference" placeholder="e.g. SMITH" value={inputs.customerReference??''} onChange={e=>update('customerReference',e.target.value)}/></label></div>
- <label className="vh-customer">Customer <select aria-label="Customer" value={inputs.selectedCustomerId??'retail'} onChange={e=>{const c=customers.find(row=>String(row.id)===e.target.value);onChange(old=>({...old,selectedCustomerId:e.target.value,customerName:c?.name||'Retail'}));}}><option value="retail">Retail (No Discount)</option>{customers.filter(c=>c.id!=='retail').map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+ <label className="vh-customer">Customer <CustomerPicker customers={customers} value={inputs.selectedCustomerId??'retail'} onChange={e=>{const c=customers.find(row=>String(row.id)===e.target.value);onChange(old=>({...old,selectedCustomerId:e.target.value,customerName:c?.name||'Retail'}));}}/></label>
  <p className="vh-pricing-note">Quote calculates delivery from the postcode and displays your price below. Save Quote keeps the complete design, including measured facets and manual rafter positions.</p></div>
  <div className="vh-design-buttons"><button type="button" disabled={busy||!g.valid} onClick={quote}>{busy?'Calculating…':'Quote'}</button><button type="button" disabled={busy||!quotation.ready} onClick={()=>save(false)}>{currentRecord?'Update Quote':'Save Quote'}</button><button type="button" disabled={busy} onClick={reset}>Reset</button></div>
  {currentRecord&&<p><button type="button" disabled={busy||!quotation.ready} onClick={()=>save(true)}>Save as New Quote</button>{' '}<button type="button" disabled={busy} onClick={newQuote}>New Quote</button></p>}

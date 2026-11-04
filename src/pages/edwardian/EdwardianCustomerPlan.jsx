@@ -13,7 +13,6 @@ export default function EdwardianCustomerPlan({geometry:g}){
  {g.frontRafters.map(r=><g key={r.id}>{line(r.centreMM,g.projectionMM,r.centreMM,r.hipMeetingYMM,{stroke:'#2563eb',strokeWidth:3})}<text x={x(r.centreMM)} y={bottom+15} textAnchor="middle" fontSize="12">{Math.round(r.centreMM)}</text></g>)}
  {line(g.widthMM/2,0,g.widthMM/2,g.ridgeEndYMM,{stroke:'#111827',strokeWidth:3})}
  {g.hips.map(h=>line(h.start.xMM,h.start.yMM,h.end.xMM,h.end.yMM,{key:h.side,stroke:'#111827',strokeWidth:3}))}
- <text x={mid} y="50" textAnchor="middle" fontSize="15">HOUSE WALL</text>
  <text x={x(g.widthMM/4)} y={y(g.ridgeEndYMM/2)} textAnchor="middle" fontWeight="bold" fontSize="16">{g.pitchDeg.toFixed(1)}°</text><text x={x(g.widthMM*3/4)} y={y(g.ridgeEndYMM/2)} textAnchor="middle" fontWeight="bold" fontSize="16">{g.pitchDeg.toFixed(1)}°</text>
  <text x={mid} y={y((g.ridgeEndYMM+g.projectionMM)/2)} textAnchor="middle" fontWeight="bold" fontSize="16">{g.frontPitchDeg.toFixed(1)}°</text>
  {dim(x(0),y(0)-20,x(g.widthMM),y(0)-20)}<text x={mid} y={y(0)-27} textAnchor="middle" fontSize="13">{Math.round(g.widthMM)} int</text>

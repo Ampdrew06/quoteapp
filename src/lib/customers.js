@@ -1,3 +1,4 @@
+import {clearScheduleAdminSession} from './scheduleAdminSession';
 import {sortCustomerList} from './customerListOrder';
 import { customerFromRecord, customerToRecord } from "./customerRecords";
 import { supabase } from "./supabaseClient";
@@ -120,7 +121,8 @@ export async function findCustomerByLoginCode(code) {
       return null;
     }
 
-    return data ? customerFromRecord(data) : null;
+    const customer=data?customerFromRecord(data):null;
+    return customer?.active===false?null:customer;
   } catch (err) {
     console.error("LOGIN LOOKUP FAILED", err);
     return null;
@@ -181,6 +183,7 @@ export function setCurrentCustomer(customer) {
 }
 
 export function logoutCustomer() {
+  clearScheduleAdminSession();
   try {
     localStorage.removeItem(CURRENT_CUSTOMER_KEY);
 
@@ -195,4 +198,10 @@ export function logoutCustomer() {
     window.dispatchEvent(new Event("quoteapp_customer_updated"));
     window.dispatchEvent(new Event("quoteapp_user_role_updated"));
   } catch {}
+}
+// Administration must never mistake fallback/demo customers for a live directory.
+export async function getCustomersForAdministration(){
+ const {data,error}=await supabase.from('customers').select('*').order('name',{ascending:true});
+ if(error)throw new Error(error.message||'Customer database could not be loaded.');
+ return sortCustomerList((data||[]).map(customerFromRecord));
 }

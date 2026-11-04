@@ -5,7 +5,7 @@ export const designFamily=record=>{
  const style=record?.inputs_json?.roofStyle||record?.roof_style||'lean-to';
  return ['leanTo','hippedLeanTo','lean-to','hipped-lean-to'].includes(style)?'lean-to':style;
 };
-const inputKey=family=>family==='victorian-hipped'?'victorianHippedPreviewInputs':family==='victorian-five'?'victorianFiveInputs':family==='victorian'?'victorianPlanPreviewInputs':family==='gable'?'gableDesignPreviewInputs':family==='lean-to'?'leanToInputs':family+'Inputs';
+const inputKey=family=>family==='double-edwardian'?'doubleEdwardianGeometryDraft':family==='combination'?'combinationGeometryDraft':family==='victorian-hipped'?'victorianHippedPreviewInputs':family==='victorian-five'?'victorianFiveInputs':family==='victorian'?'victorianPlanPreviewInputs':family==='gable'?'gableDesignPreviewInputs':family==='lean-to'?'leanToInputs':family+'Inputs';
 export function readActiveDesignRecord(family,storage=globalThis.localStorage){
  try{const value=JSON.parse(storage.getItem(KEY)||'null');return value?.record?.id&&value.family===family?value.record:null;}catch{return null;}
 }
@@ -32,7 +32,7 @@ export function restoreActiveDesignRecord(family,storage=globalThis.localStorage
 }
 // Update design/pricing only: retain job status, number, dates and delivery details.
 export function designRecordPatch(record){
- const {status,job_number,requested_delivery_date,delivery_address_json,order_notes,id,created_at,...patch}=record;
+ const {status,job_number,schedule_included,requested_delivery_date,delivery_address_json,order_notes,id,created_at,...patch}=record;
  return patch;
 }
 

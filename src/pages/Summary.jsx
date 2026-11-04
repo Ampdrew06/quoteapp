@@ -1,3 +1,4 @@
+import {withRoofFrameMaterials} from '../lib/roofFrameThickness';
 import {computeRoofLabour,isSlateCovering,britmetBenchmarkInputs} from '../lib/Calculations/roofLabourPricing';
 import {summaryOrderQuantity} from '../lib/Calculations/summaryOrderQuantity';
 import {summaryInsulationAreaDisplay} from '../lib/Calculations/summaryInsulationAreaDisplay';
@@ -334,7 +335,7 @@ const updateDeliveryConfig = (patch) => {
     };
   }, []);
   // ⬇️ SINGLE source of truth for Materials inside Summary
-  const m0 = useMemo(() => getMaterials(), [materialsTick]);
+  const m0 = useMemo(() => withRoofFrameMaterials(loadInputs(),getMaterials()), [materialsTick]);
 
 // Force cradle to NOT be included in rafter/steico pricing (we price it separately in Misc)
 const m = useMemo(

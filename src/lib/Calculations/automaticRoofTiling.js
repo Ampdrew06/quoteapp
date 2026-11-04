@@ -1,3 +1,4 @@
+import {buildHippedRoofPlaneCovering} from './hippedRoofPlaneCovering';
 import { calculateLeanToGeometry } from "../geometry/leanToGeometry";
 import { calculateHippedLeanToGeometry } from "../geometry/hippedLeanToGeometry";
 import { calculateRoofTiling } from "./facetTilingCalc";
@@ -135,15 +136,18 @@ export function buildAutomaticRoofTiling({
     };
   }
 
+  const coveringGeometry=roofStyle==='hippedLeanTo'?buildHippedRoofPlaneCovering({geometry,tileOverhangMM:commonGeometryInputs.tileOverhangMM}):null;
+  if(coveringGeometry&&!coveringGeometry.valid)return {roofStyle,productId,geometry,result:null,coveringGeometry,errors:coveringGeometry.errors};
   const result = calculateRoofTiling({
     product: productId,
-    facets: geometry.facets,
+    facets: coveringGeometry?.facets??geometry.facets,
   });
 
   return {
     roofStyle,
     productId,
     geometry,
+    ...(coveringGeometry?{coveringGeometry}:{}),
     result,
     errors: result.errors || [],
   };

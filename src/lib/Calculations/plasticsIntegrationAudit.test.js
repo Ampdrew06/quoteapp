@@ -40,7 +40,7 @@ test("retains open verges separately and reports missing geometry", () => {
   expect(buildHippedPlasticsIntegrationAudit().valid).toBe(false);
 });
 
-test("pools side offcuts for symmetric front joints while keeping soffit widths separate", () => {
+test("pools side offcuts into front stock joins while keeping soffit widths separate", () => {
   const right = { ...geometry.facets[1], id: "right" };
   const result = run({ geometry: { facets: [...geometry.facets, right] }, edgeModel: {
     valid: true, edges: [...edgeModel.edges, { id: "right", kind: "eaves", side: "right", lengthMM: 3135, facetIds: ["right"] }] } });
@@ -48,7 +48,7 @@ test("pools side offcuts for symmetric front joints while keeping soffit widths 
   expect(result.totals.fasciaQty).toBe(3);
   expect(result.totals.straightJoints).toBe(2);
   expect(result.totals.frontHipCornerCount).toBe(2);
-  expect(result.fasciaPlan.runPieces[0].lengthsM).toEqual([1.178, 5, 1.178]);
+  expect(result.fasciaPlan.runPieces[0].lengthsM).toEqual([5, 1.178, 1.178]);
   expect(result.totals.soffitQty).toBe(3);
   expect(result.soffitPlan.order).toEqual([{ widthMM: 150, qty: 2 }, { widthMM: 200, qty: 1 }]);
   expect(result.soffitPlan.joints).toBe(1);
@@ -62,7 +62,7 @@ test("does not claim three boards when side offcuts cannot cover front ends", ()
     { ...edgeModel.edges[1], id: "right", side: "right", lengthMM: 4000 }
   ] } });
   expect(result.totals.fasciaQty).toBe(4);
-  expect(result.totals.straightJoints).toBe(2);
+  expect(result.totals.straightJoints).toBe(1);
 });
 
 const sideRuns = (width = 90, length = 3.135) => ["left", "right"].map(side =>

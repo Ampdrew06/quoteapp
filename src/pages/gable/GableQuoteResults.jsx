@@ -12,7 +12,6 @@ export function GableCustomerPlan({geometry:g}){
  <rect x={x(0)} y={y(0)} width={g.widthMM*scale} height={g.projectionMM*scale} fill="none" stroke="#111827"/>
  {g.layout.centresMM.map((centre,n)=><g key={n}><line x1={left} x2={right} y1={y(centre)} y2={y(centre)} stroke="#2563eb" strokeWidth="3"/>{n>0&&<text x={right+9} y={y(centre)+4} fontSize="12">{rounded(centre)}</text>}</g>)}
  <line x1={mid} x2={mid} y1={y(0)} y2={bottom} stroke="#111827" strokeWidth="3"/>
- <text x={mid} y="50" textAnchor="middle" fontSize="15">HOUSE WALL</text>
  <text x={x(g.widthMM/4)} y={y(g.projectionMM/2)-14} textAnchor="middle" fontWeight="bold" fontSize="17">{Number(g.pitchDeg).toFixed(1)}°</text><text x={x(g.widthMM*3/4)} y={y(g.projectionMM/2)-14} textAnchor="middle" fontWeight="bold" fontSize="17">{Number(g.pitchDeg).toFixed(1)}°</text>
  {dim(x(0),y(0)-20,x(g.widthMM),y(0)-20)}<text x={mid} y={y(0)-27} textAnchor="middle" fontSize="13">{rounded(g.widthMM)} int</text>
  {dim(left,bottom+25,right,bottom+25)}<text x={mid} y={bottom+19} textAnchor="middle" fontSize="13">{rounded(g.externalWidthMM)} ext</text>

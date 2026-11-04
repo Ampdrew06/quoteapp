@@ -1,10 +1,12 @@
+import {checklistExcludedKeys,filterChecklistSupplies} from './checklistSupplyExclusions';
 import {checklistLaths} from './checklistLaths';
 import {buildSummaryIdiotList} from './summaryIdiotList';
 import {planPlasticsStock} from './plasticsIntegrationAudit';
-// Physical supply: price exclusions do not remove goods required for delivery.
+// Pick only the supplies included by Summary.
 export function buildVictorianIdiotList(model,materials={}){
  const list=buildSummaryIdiotList(model,materials);
  if(!model?.valid)return {...list,valid:false,errors:model?.errors||['Valid Victorian model required.']};
+ const excluded=checklistExcludedKeys(model);
  const a=model.audits,c=a.timber.componentCounts,l=a.laths;
  list.sections.assemblies=[['trusses','Assembled trusses',c.trusses],['hips','Hips',c.hips],['intermediates','Intermediate rafters',c.intermediates],['jacks','Jack rafters',c.jacks||0],['ringbeams','Ring-beams',c.ringBeams]].filter(r=>r[2]>0).map(([key,item,qty])=>({key,item,qty,units:'Ea'}));
  const sourceRows=Object.values(model.sections).flatMap(s=>s.lines),row=key=>sourceRows.find(r=>r.key===key);
@@ -14,7 +16,7 @@ export function buildVictorianIdiotList(model,materials={}){
  l.internal.rows.forEach(r=>groups.internal.push(r.lengthMM/1000));
  const runs=[];
  for(const [key,lengths] of Object.entries(groups)){
-  let remaining=Math.max(0,Number(row(`laths_${key}`)?.qty)||0);
+  let remaining=excluded.has(`laths_${key}`)?0:Math.max(0,Number(row(`laths_${key}`)?.qty)||0);
   lengths.forEach((length,index)=>{const runM=Math.min(length,remaining);if(runM>1e-9)runs.push({edgeId:`${key}-${index}`,side:'loose-lath',widthMM:50,runM,group:key});remaining=Math.max(0,remaining-runM);});
   if(remaining>1e-8)runs.push({edgeId:`${key}-extra`,side:'loose-lath',widthMM:50,runM:remaining,group:key});
  }
@@ -28,7 +30,7 @@ export function buildVictorianIdiotList(model,materials={}){
  fitted.forEach(f=>{const r=row(f.key),extra=Math.max(0,(r?.qty??0)-f.base);if(extra>0)list.sections[f.key==='insulation_pir50'?'misc':'metal'].push({key:f.key,item:r.label+' — extra, supplied loose',qty:extra,units:f.units});});
  // Keep actual roll sizes visible when the stock mix contains both sizes.
  list.sections.misc=list.sections.misc.filter(r=>r.key!=='insulation_superQuilt');
- const mix=a.insulation.superQuilt;let n12=mix.rolls12,n15=mix.rolls15,target=Math.ceil(Math.max(0,row('insulation_superQuilt')?.qty??0));
+ const mix=a.insulation.superQuilt;let n12=mix.rolls12,n15=mix.rolls15,target=excluded.has('insulation_superQuilt')?0:Math.ceil(Math.max(0,row('insulation_superQuilt')?.qty??0));
  if(target>n12+n15){if(n15)n15+=target-n12-n15;else n12+=target-n12-n15;}
  while(n12+n15>target){if(n15)n15--;else n12--;}
  for(const [size,qty] of [[12,n12],[15,n15]])if(qty)list.sections.misc.push({key:`victorian_sq_${size}`,item:`SuperQuilt — ${size}m²`,qty,units:qty===1?'Roll':'Rolls'});
@@ -40,5 +42,5 @@ export function buildVictorianIdiotList(model,materials={}){
   if(r.key==='gutters_dp_len')r.units='Ea';
   if(r.key==='plastics_h_trim')r.units='mm';
  }
- return {...list,valid:true,errors:[],despatchOnly:true,weightProvisional:!model.weightComplete,looseLathStock:stock};
+ return filterChecklistSupplies({...list,valid:true,errors:[],despatchOnly:true,weightProvisional:!model.weightComplete,looseLathStock:stock},model);
 }

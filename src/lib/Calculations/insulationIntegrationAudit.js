@@ -1,3 +1,5 @@
+import {buildRoofPlaneCoveringGeometry} from './roofPlaneCoveringGeometry';
+import {buildRoofPlaneLathRows} from './roofPlaneLathRows';
 import {PIR_MEMBER_WIDTH_MM,pirBoardAllowance,frameLineRoofArea} from './pirInsulationRules';
 import {buildJackRafterManufactureAudit} from './jackRafterManufactureAudit';
 import { buildProvisionalHippedLeanToTimber } from "./provisionalHippedLeanToTimber";
@@ -141,6 +143,14 @@ export function buildHippedLeanToInsulationAudit({
     leftM2: slopeArea(leftPlanAreaM2, geometry.leftSidePitchDeg),
     rightM2: slopeArea(rightPlanAreaM2, geometry.rightSidePitchDeg),
   };
+  let internalPlaneSurface=null;
+  if(geometry.hasLeftHip&&geometry.hasRightHip&&Number(geometry.frontPitchDeg)>0){
+    const points=[{xMM:0,yMM:0},{xMM:0,yMM:projectionMM},{xMM:widthMM,yMM:projectionMM},{xMM:widthMM,yMM:0}],rise=projectionMM*Math.tan(degToRad(geometry.frontPitchDeg));
+    const facets=['left','front','right'].map((id,i)=>({id,start:points[i],end:points[i+1],internalLengthMM:i===1?widthMM:projectionMM,pitchDeg:i===1?geometry.frontPitchDeg:Math.atan2(rise,i===0?leftHipWidthMM:rightHipWidthMM)*180/Math.PI}));
+    internalPlaneSurface=buildRoofPlaneCoveringGeometry({internalOutline:points,facets,offsetsMM:[0,0,0,0]});
+    if(!internalPlaneSurface.valid)return {valid:false,errors:internalPlaneSurface.errors};
+    for(const f of internalPlaneSurface.facets)facetAreas[f.id+'M2']=f.areaM2;
+  }
   const grossInternalRoofAreaM2 =
     facetAreas.frontM2 + facetAreas.leftM2 + facetAreas.rightM2;
 
@@ -242,7 +252,7 @@ export function buildHippedLeanToInsulationAudit({
     0,
     widthMM - leftHipWidthMM - rightHipWidthMM
   );
-  const frontRows = rowsIncludingEnd(frontSlopeMM, centresMM).map(
+  let frontRows = rowsIncludingEnd(frontSlopeMM, centresMM).map(
     (positionMM) => ({
       positionMM,
       lengthMM:
@@ -263,8 +273,13 @@ export function buildHippedLeanToInsulationAudit({
           : 0,
     }));
   };
-  const leftRows = buildSideRows(leftHipWidthMM, geometry.leftSidePitchDeg);
-  const rightRows = buildSideRows(rightHipWidthMM, geometry.rightSidePitchDeg);
+  let leftRows = buildSideRows(leftHipWidthMM, geometry.leftSidePitchDeg);
+  let rightRows = buildSideRows(rightHipWidthMM, geometry.rightSidePitchDeg);
+  if(internalPlaneSurface){
+    const shared=buildRoofPlaneLathRows({facets:internalPlaneSurface.facets,maximumSpacingMM:centresMM});
+    if(!shared.valid)return {valid:false,errors:shared.errors};
+    frontRows=shared.rows.filter(r=>r.facetId==='front');leftRows=shared.rows.filter(r=>r.facetId==='left');rightRows=shared.rows.filter(r=>r.facetId==='right');
+  }
   const sumRowsM = (rows) =>
     rows.reduce((sum, row) => sum + nonNegative(row.lengthMM), 0) / 1000;
   const frontLathM = sumRowsM(frontRows);
@@ -327,6 +342,7 @@ export function buildHippedLeanToInsulationAudit({
       ...superQuiltMix,
     },
     internalLaths: {
+      ...(internalPlaneSurface?{method:'evenlySpacedRoofPlanes',maximumSpacingMM:centresMM}:{}),
       front: { rows: frontRows, rowCount: frontRows.length, metres: frontLathM },
       left: { rows: leftRows, rowCount: leftRows.length, metres: leftLathM },
       right: { rows: rightRows, rowCount: rightRows.length, metres: rightLathM },

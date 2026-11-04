@@ -1,4 +1,5 @@
-import {planPlasticsStock,planSoffitStock} from './plasticsIntegrationAudit';
+import {planJoinedLinearStock} from './joinedLinearStock';
+import {planSoffitStock} from './plasticsIntegrationAudit';
 import {calculateFasciaCutHeight} from '../Manufacturing/fasciaCutHeight';
 const rate=v=>v===null||v===undefined||v===''||!Number.isFinite(Number(v))||Number(v)<0?null:Number(v);
 const round=v=>Math.round((v+Number.EPSILON)*100)/100;
@@ -19,7 +20,7 @@ export function buildVictorianHippedPlasticsSummary({timber,inputs={},materials:
  });
  if(!fasciaWidth||runs.some(r=>!Number.isFinite(r.soffitGeometryMM)||r.soffitGeometryMM<0||!Number.isFinite(r.runM)||r.runM<=0))return fail(['Resolved fascia/soffit dimensions exceed supported stock or are invalid.']);
  const widths=m.soffit_board_widths_mm||[100,150,175,200];if(runs.some(r=>r.soffitGeometryMM>0&&!next(widths,r.soffitGeometryMM)))return fail(['Soffit depth exceeds the configured board widths.']);
- const fasciaPlan=planPlasticsStock(runs,stockM),soffitPlan=planSoffitStock(runs.filter(r=>r.soffitGeometryMM>0),soffitStockM,widths,kerf);
+ const fasciaPlan=planJoinedLinearStock(runs,stockM),soffitPlan=planSoffitStock(runs.filter(r=>r.soffitGeometryMM>0),soffitStockM,widths,kerf);
  // Offset the applied surveyed polygon: wall edges stay fixed.
  const offset=depthFor=>{const lines=g.internalOutline.map((a,i)=>{const b=g.internalOutline[(i+1)%g.internalOutline.length],L=Math.hypot(b.xMM-a.xMM,b.yMM-a.yMM),nx=-(b.yMM-a.yMM)/L,ny=(b.xMM-a.xMM)/L,f=g.facets.find(f=>Math.hypot(f.start.xMM-a.xMM,f.start.yMM-a.yMM)<1e-6&&Math.hypot(f.end.xMM-b.xMM,f.end.yMM-b.yMM)<1e-6);return {nx,ny,c:nx*a.xMM+ny*a.yMM+(f?depthFor(f):0)};});return lines.map((b,i)=>{const a=lines[(i+lines.length-1)%lines.length],det=a.nx*b.ny-b.nx*a.ny;return {xMM:(a.c*b.ny-b.c*a.ny)/det,yMM:(a.nx*b.c-b.nx*a.c)/det};});};
  const frame=offset(()=>g.frameMM),outer=offset(f=>g.frameMM+runs.find(r=>r.edgeId===f.id).soffitGeometryMM);

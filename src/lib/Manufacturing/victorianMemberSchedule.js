@@ -18,7 +18,7 @@ function hipToe(g,h){
 export function buildVictorianMemberSchedule({geometry:g,materials={}}={}){
  const fail=message=>({valid:false,errors:[message],members:[],groups:[]});
  if(!g?.valid)return fail('Valid Victorian plan required.');
- if(g.adjustedAngles)return fail('Adjusted-angle hip and rafter cutting profiles require a separate eaves/connection review.');
+ if(g.adjustedAngles&&!g.customFacetGeometry?.equalPitchValidated&&!g.variablePitchPricingValidated)return fail('Adjusted-angle hip and rafter cutting profiles require a separate eaves/connection review.');
  const trusses=buildVictorianTrussSchedule({geometry:g,materials});if(!trusses.valid)return fail(trusses.errors.join(' '));
  const allowance=Number(g.bossTopContinuationMM??160);
  if(!Number.isFinite(allowance)||allowance<0)return fail('Enter a non-negative sloping boss continuation allowance.');
@@ -34,7 +34,8 @@ export function buildVictorianMemberSchedule({geometry:g,materials={}}={}){
  };
  const members=g.hips.map(h=>{const toe=hipToe(g,h),c=Math.cos(rad(h.pitchDeg));return make(h.id,'Hip',h.pitchDeg,Math.hypot(h.planLengthMM,g.riseMM)+toe.horizontalFootCutMM/c,toe.horizontalFootCutMM,toe.firstTrimDistanceMM);});
  g.intermediateBars.forEach(r=>{const f=g.facets.find(f=>f.id===r.facetId),plan=Math.hypot(r.end.xMM-r.start.xMM,r.end.yMM-r.start.yMM),hfc=trusses.truss.members[0].hfcMM;
-  members.push(make(r.id,'Intermediate rafter',f.pitchDeg,(plan+hfc)/Math.cos(rad(f.pitchDeg)),hfc,null));});
+  if(g.customFacetGeometry){const pitch=Math.atan2(g.riseMM,plan)*180/Math.PI,toe=hipToe(g,{...r,planLengthMM:plan});members.push(make(r.id,'Intermediate rafter',pitch,(plan+toe.horizontalFootCutMM)/Math.cos(rad(pitch)),toe.horizontalFootCutMM,toe.firstTrimDistanceMM));}
+  else members.push(make(r.id,'Intermediate rafter',f.pitchDeg,(plan+hfc)/Math.cos(rad(f.pitchDeg)),hfc,null));});
  const jackErrors=[];
  g.jackRafters.forEach(r=>{
   const f=g.facets.find(f=>f.id===r.facetId),plan=Math.hypot(r.end.xMM-r.start.xMM,r.end.yMM-r.start.yMM),d={x:(r.start.xMM-r.end.xMM)/plan,y:(r.start.yMM-r.end.yMM)/plan};
@@ -43,7 +44,7 @@ export function buildVictorianMemberSchedule({geometry:g,materials={}}={}){
   const hv={x:hip.end.xMM-hip.start.xMM,y:hip.end.yMM-hip.start.yMM};
   const connection=calculateJackHipSetback({hipWidthRunMM:Math.abs(cross(d,hv)),hipProjectionRunMM:Math.abs(d.x*hv.x+d.y*hv.y),facet:'front'});
   if(!connection.valid){jackErrors.push(`${r.id}: invalid hip connection geometry.`);return;}
-  const hfc=trusses.truss.members[0].hfcMM,c=Math.cos(rad(f.pitchDeg)),v=220/c-hfc*Math.tan(rad(f.pitchDeg));
+  const hfc=g.facetEaves?.find(e=>e.id===f.id)?.timberHfcMM??trusses.truss.members[0].hfcMM,c=Math.cos(rad(f.pitchDeg)),v=220/c-hfc*Math.tan(rad(f.pitchDeg));
   const profile=calculateJackRafterManufactureGeometry({facetPitchDeg:f.pitchDeg,hipCentrelinePlanRunMM:plan,hipCentrelineSetbackMM:connection.hipCentrelineSetbackMM,horizontalFootCutMM:hfc,verticalFootCutMM:v});
   if(!profile.valid){jackErrors.push(`${r.id}: ${profile.reason}`);return;}
   const upperFoot={xMM:-hfc,yMM:v},upperEnd={xMM:-hfc+profile.externalSlopeLengthMM*c,yMM:v+profile.externalSlopeLengthMM*Math.sin(rad(f.pitchDeg))},lowerEnd={xMM:upperEnd.xMM,yMM:upperEnd.yMM-profile.topVerticalCutMM};

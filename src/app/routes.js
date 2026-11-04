@@ -1,3 +1,10 @@
+import Schedule from '../pages/Schedule';
+import DoubleEdwardianSummary from '../pages/double-edwardian/DoubleEdwardianSummary';
+import DoubleEdwardianDesign from '../pages/double-edwardian/DoubleEdwardianDesign';
+import CombinationManufacture from '../pages/combination/CombinationManufacture';
+import CombinationSummary from '../pages/combination/CombinationSummary';
+import CombinationTechnical from '../pages/combination/CombinationTechnical';
+import CombinationDesign from '../pages/combination/CombinationDesign';
 import VictorianHippedTilesLaths from '../pages/victorian-hipped/VictorianHippedTilesLaths';
 import VictorianHippedIdiotList from '../pages/victorian-hipped/VictorianHippedIdiotList';
 import VictorianHippedSummary from '../pages/victorian-hipped/VictorianHippedSummary';
@@ -58,7 +65,18 @@ export default function AppRoutes() {
 
         <Route path="/summary" element={<CentralBossIntegrationGate allowCentralCosting><Summary /></CentralBossIntegrationGate>} />
 
+        <Route path="/schedule" element={<Schedule />} />
         <Route path="/customers" element={<Customers />} />
+
+        <Route path="/quote/combination/idiot-list" element={<CombinationManufacture checklistOnly />} />
+        <Route path="/quote/combination/plan-manufacture" element={<CombinationManufacture />} />
+        <Route path="/quote/combination/summary" element={<CombinationSummary />} />
+        <Route path="/quote/combination/tiles-laths" element={<DesignedRoofTilesLaths family="combination" />} />
+        <Route path="/quote/combination/technical" element={<CombinationTechnical />} />
+        <Route path="/quote/combination" element={<CombinationDesign />} />
+
+        <Route path="/quote/double-edwardian/summary" element={<DoubleEdwardianSummary />} />
+        <Route path="/quote/double-edwardian" element={<DoubleEdwardianDesign />} />
 
         {/* Quote style grid */}
         <Route path="/quote" element={<QuoteWizard />} />

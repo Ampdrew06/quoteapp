@@ -1,3 +1,4 @@
+import {withRoofFrameMaterials} from '../../lib/roofFrameThickness';
 import {resolveLeanToRafterLayout} from '../../lib/geometry/leanToRafterLayout';
 import { buildLeanToBookRingBeam } from '../../lib/Manufacturing/leanToBookSchedule';
 import LeanToPlasticsGuide from '../../components/LeanToPlasticsGuide';
@@ -199,8 +200,8 @@ const saveJobDetails = async () => {
 };
 
   const jobInputs = activeJob?.inputs_json || {};
-  const m = useMemo(() => getMaterials(), []);
   const q = loadInputs();
+  const m = useMemo(() => withRoofFrameMaterials(q,getMaterials()), [q.frameThicknessMM,q.side_frame_thickness_mm]);
   useEffect(()=>{let alive=true;getCustomers().then(rows=>{if(alive)setCurrentCustomerName((rows||[]).find(c=>c.id===q.selectedCustomerId)?.name||(q.selectedCustomerId==='retail'?'Retail':''));}).catch(()=>{});return()=>{alive=false;};},[q.selectedCustomerId]);
 
   const planSummary = useMemo(() => {
@@ -313,7 +314,7 @@ const rightWall =
   const first = num(m.rafter_first_center_mm ?? 690);
   let centresCount = 0;
   for (let c = first; c <= iw; c += spacing) centresCount++;
-  const editedRafters=(q.roofStyle??'leanTo')==='leanTo'&&q.leanToRafterPositionsMM!=null?resolveLeanToRafterLayout({widthMM:iw,positions:q.leanToRafterPositionsMM}):null;
+  const editedRafters=(q.roofStyle??'leanTo')==='leanTo'?resolveLeanToRafterLayout({widthMM:iw,positions:q.leanToRafterPositionsMM,firstCentreMM:first,spacingMM:spacing}):null;
   const rafterCount=editedRafters?.valid?editedRafters.count:Math.max(2,centresCount+2);
 
   // Item numbering for simple lean-to

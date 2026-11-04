@@ -1,3 +1,4 @@
+import {resolveLeanToRafterLayout} from '../geometry/leanToRafterLayout';
 const finiteOrNull = (value) => {
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
@@ -249,16 +250,7 @@ export function buildRingBeamFinishingLathIntegrationAudit({
     };
   }
 
-  let centreCount = 0;
-  for (
-    let centreMM = firstCentreMM;
-    centreMM <= internalWidthMM;
-    centreMM += spacingMM
-  ) {
-    centreCount += 1;
-  }
-
-  const rafterCount = Math.max(2, centreCount + 2);
+  const rafterCount=resolveLeanToRafterLayout({widthMM:internalWidthMM,firstCentreMM,spacingMM}).count;
   const upstandCount = Math.max(0, rafterCount - 1);
   const summaryM = (upstandCount * bayWidthMM) / 1000;
   const differenceM = manufactureM - summaryM;

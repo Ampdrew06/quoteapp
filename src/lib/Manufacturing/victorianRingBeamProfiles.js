@@ -13,11 +13,11 @@ export function buildVictorianRingBeamProfiles(g) {
   const last=g.facets.length-1;
   const beams=g.facets.map((f,i)=>{
     const start=i===0?0:g.mitresDeg[i-1],end=i===last?0:g.mitresDeg[i];
-    const length=f.internalLengthMM;
+    const length=f.internalLengthMM,baseWidth=g.facetEaves?.[i]?.plyBaseWidthMM??g.plyBaseWidthMM;
     const slots=i===0||i===last?g.layout.centresMM.map(y=>{const x=i===0?y:length-y;return {left:x-24,right:x+24};}):[];
     if(i>0)slots.push({left:0,right:48});
     if(i<last)slots.push({left:length-48,right:length});
-    [...g.intermediateBars,...(g.jackRafters||[])].filter(r=>r.facetId===f.id).forEach(r=>slots.push({left:r.positionMM-24,right:r.positionMM+24}));
+    [...g.intermediateBars,...(g.jackRafters||[])].filter(r=>r.facetId===f.id).forEach(r=>{const dx=r.start.xMM-r.end.xMM,dy=r.start.yMM-r.end.yMM,run=Math.hypot(dx,dy),ex=(f.end.xMM-f.start.xMM)/length,ey=(f.end.yMM-f.start.yMM)/length;const half=g.customFacetGeometry?24/Math.abs((dx*ey-dy*ex)/run):24;slots.push({left:r.positionMM-half,right:r.positionMM+half});});
     slots.sort((a,b)=>a.left-b.left);
     const upstands=[];
     for(let n=1;n<slots.length;n++){
@@ -26,7 +26,7 @@ export function buildVictorianRingBeamProfiles(g) {
       if(widthMM>0)upstands.push({bay:n,widthMM,heightMM:g.upstandHeightMM??195,thicknessMM:9});
     }
     return {slots,upstands,reference:`RB${i+1}`,label:f.label,startMitreDeg:start,endMitreDeg:end,
-      layers:{pse30x90:make(f.internalLengthMM,0,95,start,end),ply9Base:make(f.internalLengthMM,0,g.plyBaseWidthMM,start,end),outerLath25x50:make(f.internalLengthMM,g.plyBaseWidthMM-50,50,start,end)}};
+      layers:{pse30x90:make(f.internalLengthMM,0,95,start,end),ply9Base:make(f.internalLengthMM,0,baseWidth,start,end),outerLath25x50:make(f.internalLengthMM,baseWidth-50,50,start,end)}};
   });
   if(beams.some(b=>b.slots.some((s,i)=>s.left<0||s.right> b.layers.pse30x90.internalEdgeLengthMM+1e-6||(i>0&&s.left<b.slots[i-1].right-1e-6))))return {valid:false,errors:['Member slots overlap or extend beyond a ring-beam. Review the support layout.'],beams:[]};
   return {valid:true,errors:[],beams};

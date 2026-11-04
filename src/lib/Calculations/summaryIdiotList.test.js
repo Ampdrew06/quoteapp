@@ -46,10 +46,11 @@ test('adjustments and added items are included once; zero supplies disappear',()
  expect(list.sections.gutters.filter(r=>r.isAddedItem).length).toBe(1);
  expect(list.sections.gutters.find(r=>r.isAddedItem).qty).toBe(2);
 });
-test('price exclusions retain required supplies and extra items as in Summary',()=>{
+test('Summary exclusions remove picking supplies while retaining installed weight',()=>{
  const base=buildSummaryIdiotList(build(),defaultMaterials);
  const excluded=buildSummaryIdiotList(build({exclusions:{g_union:true}}),defaultMaterials);
- expect(row(excluded,'gutters','g_union').qty).toBe(row(base,'gutters','g_union').qty);
+ expect(row(excluded,'gutters','g_union')).toBeUndefined();
+ expect(excluded.installedWeightKg).toBe(base.installedWeightKg);
 });
 test('stock adjustments use authoritative qty rather than stale order aliases',()=>{
  const list=buildSummaryIdiotList({quantityAdjustments:{laths_25x50_lengths:5},sections:{timber:{lines:[{key:'laths_25x50_lengths',label:'Laths',qty:14.6,order_qty:2,units:'m'}]}}},{lath_stock_length_m:4.8});

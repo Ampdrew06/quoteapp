@@ -1,3 +1,5 @@
+import {withRoofFrameMaterials} from '../../lib/roofFrameThickness';
+import {resolveLeanToRafterLayout} from '../../lib/geometry/leanToRafterLayout';
 import SteelTileCourseAudit from '../../components/SteelTileCourseAudit';
 import CentralBossTrussAudit from "../../components/CentralBossTrussAudit";
 import { buildHipPerimeterCutAudit } from "../../lib/Calculations/hipPerimeterCutAudit";
@@ -84,7 +86,7 @@ const td = {
 
 export default function LeanToTechnical() {
   const roofInputs = useMemo(loadInputs, []);
-  const materials = useMemo(() => getMaterials(), []);
+  const materials = useMemo(() => withRoofFrameMaterials(roofInputs,getMaterials()), [roofInputs]);
   const summaryExclusions = useMemo(
     () => loadObject("summary_exclusions"),
     []
@@ -294,17 +296,7 @@ export default function LeanToTechnical() {
     const internalRows =
       pitchDeg > 0 ? Math.ceil(frontRafterLengthMM / 400) : 0;
 
-    let centreCount = 0;
-    if (widthMM > 0 && spacingMM > 0 && firstCentreMM > 0) {
-      for (
-        let centreMM = firstCentreMM;
-        centreMM <= widthMM;
-        centreMM += spacingMM
-      ) {
-        centreCount += 1;
-      }
-    }
-    const rafterCount = Math.max(2, centreCount + 2);
+    const rafterCount=resolveLeanToRafterLayout({widthMM,positions:roofInputs.leanToRafterPositionsMM,firstCentreMM,spacingMM}).count;
     const cradleFaces = Math.max(0, 2 * rafterCount - 2);
     const pitchRadians = (pitchDeg * Math.PI) / 180;
     const cradleFaceLengthMM =
@@ -519,7 +511,7 @@ export default function LeanToTechnical() {
   const metalAudit = isHipped ? buildHippedMetalIntegrationAudit({ geometry, edgeResult, materials }) : null;
 
   const coveringRates = coveringWeightRates(materials);
-  const coveringExternalM2 = externalFacetAreaM2(geometry?.facets || []);
+  const coveringExternalM2 = externalFacetAreaM2(automatic?.coveringGeometry?.facets || geometry?.facets || []);
   const coveringInternalM2 = insulationIntegrationAudit?.valid
     ? insulationIntegrationAudit.superQuilt.geometricAreaM2
     : (Number(roofInputs.internalWidthMM ?? roofInputs.widthMM ?? 0) *
@@ -819,14 +811,15 @@ export default function LeanToTechnical() {
             Tile/lath integration audit
           </h3>
           {automatic?.result && <>
-            <p><b>Tile order:</b> {automatic.tileOrderIntegration?.applied ? <>{automatic.tileOrderIntegration.tilesUsed} from the staggered fitting sequence</> : <>{Number(automatic.result.tileQuantityRaw).toFixed(4)} raw → {automatic.result.tileQuantityRounded} rounded</>} + {automatic.result.orderAllowanceTiles} allowance = <b>{automatic.result.tileQuantityOrdered} ordered</b>. The allowance is included once for the whole roof.</p>
-            {automatic.tileOrderIntegration?.applied && <p>Summary, pricing and the Idiot List use this sequence quantity. The Home Tile Calcs tool retains its existing calculation.</p>}
+            <p><b>Tile order:</b> <>{Number(automatic.result.tileQuantityRaw).toFixed(4)} raw → {automatic.result.tileQuantityRounded} rounded</> + {automatic.result.orderAllowanceTiles} allowance = <b>{automatic.result.tileQuantityOrdered} ordered</b>. The allowance is included once for the whole roof.</p>
+            {automatic.tileOrderIntegration?.applied && <p>Summary, pricing and the Idiot List use this roof-wide quantity. Staggered courses remain a separate comparison.</p>}
             {automatic.tileOrderIntegration && !automatic.tileOrderIntegration.applied && <p style={{color:'#b91c1c'}}>Sequence ordering could not be integrated: {automatic.tileOrderIntegration.errors.join(' ')} The earlier quantity remains; review before ordering.</p>}
+            {automatic.coveringGeometry&&<p>{automatic.coveringGeometry.notes.join(' ')} Covering area: <b>{automatic.coveringGeometry.roofAreaM2.toFixed(6)} m²</b>. The developed outlines can contain extra corners; base/top/height alone do not reproduce their area.</p>}
             <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
-              <thead><tr>{["External tiling facet","Base width","Top width","Sloping height"].map(label=><th key={label} style={th}>{label}</th>)}</tr></thead>
-              <tbody>{(automatic.geometry?.facets || []).map(facet=>{
-                const tiling=facet.geometry?.tiling || {};
-                return <tr key={facet.id}><td style={td}>{facet.label}</td>{[tiling.baseWidthMM,tiling.topWidthMM,tiling.heightMM].map((value,index)=><td key={index} style={td}>{Number(value ?? 0).toFixed(1)}mm</td>)}</tr>;
+              <thead><tr>{["External tiling facet","Base width","Top width","Sloping height","Covering pitch","Area"].map(label=><th key={label} style={th}>{label}</th>)}</tr></thead>
+              <tbody>{(automatic.coveringGeometry?.facets || automatic.geometry?.facets || []).map(facet=>{
+                const tiling=facet.geometry?.tiling || facet;
+                return <tr key={facet.id}><td style={td}>{facet.label}</td>{[tiling.baseWidthMM,tiling.topWidthMM,tiling.heightMM].map((value,index)=><td key={index} style={td}>{Number(value ?? 0).toFixed(1)}mm</td>)}<td style={td}>{Number(facet.pitchDeg??facet.geometry?.pitchDeg??0).toFixed(4)}°</td><td style={td}>{externalFacetAreaM2([facet]).toFixed(6)} m²</td></tr>;
               })}</tbody>
             </table></div>
           </>}
@@ -1064,7 +1057,7 @@ export default function LeanToTechnical() {
                   <table style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead><tr><th style={th}>Facet</th><th style={th}>Rows</th><th style={th}>Calculated length</th><th style={th}>Rule</th></tr></thead>
                     <tbody>
-                      <tr><td style={td}>Front</td><td style={td}>{insulationIntegrationAudit.internalLaths.front.rowCount}</td><td style={td}>{round(insulationIntegrationAudit.internalLaths.front.metres, 3)} m</td><td style={td}>Trapezoid: ring-beam row, {insulationIntegrationAudit.assumptions.internalLathCentresMM} mm centres, final wallplate row</td></tr>
+                      <tr><td style={td}>Front</td><td style={td}>{insulationIntegrationAudit.internalLaths.front.rowCount}</td><td style={td}>{round(insulationIntegrationAudit.internalLaths.front.metres, 3)} m</td><td style={td}>Trapezoid: ring-beam row, {insulationIntegrationAudit.assumptions.internalLathCentresMM} mm maximum spacing, final wallplate row</td></tr>
                       <tr><td style={td}>Left side</td><td style={td}>{insulationIntegrationAudit.internalLaths.left.rowCount}</td><td style={td}>{round(insulationIntegrationAudit.internalLaths.left.metres, 3)} m</td><td style={td}>Triangle: rows narrow from wallbar to hip</td></tr>
                       <tr><td style={td}>Right side</td><td style={td}>{insulationIntegrationAudit.internalLaths.right.rowCount}</td><td style={td}>{round(insulationIntegrationAudit.internalLaths.right.metres, 3)} m</td><td style={td}>Triangle: rows narrow from wallbar to hip</td></tr>
                       <tr><td style={td}><b>Total</b></td><td style={td}><b>{insulationIntegrationAudit.internalLaths.front.rowCount + insulationIntegrationAudit.internalLaths.left.rowCount + insulationIntegrationAudit.internalLaths.right.rowCount}</b></td><td style={td}><b>{round(insulationIntegrationAudit.internalLaths.totalM, 3)} m</b></td><td style={td}>Previous Summary: {insulationIntegrationAudit.internalLaths.currentSummaryM == null ? "—" : `${round(insulationIntegrationAudit.internalLaths.currentSummaryM, 3)} m`}</td></tr>
@@ -1072,7 +1065,7 @@ export default function LeanToTechnical() {
                   </table>
                 </div>
                 <p style={{ marginBottom: 0, color: "#64748b", fontSize: 13 }}>
-                  Internal laths are measured from the internal facet boundaries; unlike external tiling laths, soffits and external tile overhangs are excluded.
+                  Double-hipped internal rows are distributed evenly at no more than the specified spacing, including boundary rows and excluding zero-width apex rows. Internal laths are measured from the internal facet boundaries; unlike external tiling laths, soffits and external tile overhangs are excluded.
                 </p>
               </section>
             )}

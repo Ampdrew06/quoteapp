@@ -1,346 +1,45 @@
+import React,{useEffect,useState} from 'react';
+import {Navigate} from 'react-router-dom';
+import {isAdminUser} from '../lib/userRole';
+import {getCustomersForAdministration,saveCustomerRecord} from '../lib/customers';
 import {sortCustomerList,isCustomerFavourite,toggleCustomerFavourite} from '../lib/customerListOrder';
-import React, { useEffect, useState } from "react";
-import { getCustomers, saveCustomerRecord, deleteCustomerRecord } from "../lib/customers";
-import NavTabs from "../components/NavTabs";
-import { supabase } from "../lib/supabaseClient";
-
-export default function Customers() {
-  const [customers, setCustomers] = useState([]);
-
-useEffect(() => {
-  let alive = true;
-
-  async function loadCustomers() {
-    const loadedCustomers = await getCustomers();
-
-    if (alive) {
-      setCustomers(Array.isArray(loadedCustomers) ? loadedCustomers : []);
-    }
-  }
-
-  loadCustomers();
-
-  return () => {
-    alive = false;
-  };
-}, []);
-
-  const [form, setForm] = useState({
-  id: "",
-  name: "",
-  loginCode: "",
-  role: "trade",
-  discountPct: 0,
-  defaultSpec: "top",
-
-  email: "",
-  phone: "",
-  address1: "",
-  address2: "",
-  town: "",
-  county: "",
-  postcode: "",
-
-  defaultDeliveryMilesOneWay: 0,
-});
-
-  const updateForm = (patch) => {
-    setForm((prev) => ({ ...prev, ...patch }));
-  };
-const testSupabase = async () => {
-  const { data, error } = await supabase
-    .from("customers")
-    .select("*");
-
-  console.log("SUPABASE TEST", { data, error });
-};
-  const saveCustomer = async () => {
-    const id =
-      form.id.trim() ||
-      form.name
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "_")
-        .replace(/^_+|_+$/g, "");
-
-    if (!id || !form.name.trim() || !form.loginCode.trim()) {
-      alert("Please enter customer name and login code.");
-      return;
-    }
-
-    const nextCustomer = {
-  id,
-  name: form.name.trim(),
-  username: customers.find(customer => customer.id === id)?.username || form.name.trim(),
-  loginCode: form.loginCode.trim(),
-  role: form.role,
-  discountPct: Number(form.discountPct || 0),
-  defaultSpec: form.defaultSpec,
-
-  email: form.email,
-  phone: form.phone,
-  address1: form.address1,
-  address2: form.address2,
-  town: form.town,
-  county: form.county,
-  postcode: form.postcode,
-
-  defaultDeliveryMilesOneWay: Number(form.defaultDeliveryMilesOneWay || 0),
-
-  defaultExclusions: {},
-};
-
-    const result = await saveCustomerRecord(nextCustomer);
-    if (result.error) {
-      alert(`Customer did not save: ${result.error}\nYour entered details have been retained.`);
-      return;
-    }
-    setCustomers(customers.filter(customer => customer.id !== id && customer.id !== result.customer.id).concat(result.customer));
-
-    setForm({
-      id: "",
-      name: "",
-      loginCode: "",
-      role: "trade",
-      discountPct: 0,
-      defaultSpec: "top",
-    });
-  };
-
-  const editCustomer = (customer) => {
-  setForm({
-    id: customer.id || "",
-    name: customer.name || "",
-    loginCode: customer.loginCode || "",
-    role: customer.role || "trade",
-    discountPct: Number(customer.discountPct || 0),
-    defaultSpec: customer.defaultSpec || "top",
-
-    email: customer.email || "",
-    phone: customer.phone || "",
-    address1: customer.address1 || "",
-    address2: customer.address2 || "",
-    town: customer.town || "",
-    county: customer.county || "",
-    postcode: customer.postcode || "",
-
-    defaultDeliveryMilesOneWay:
-      Number(customer.defaultDeliveryMilesOneWay || 0),
-  });
-};
-
-  const deleteCustomer = async (id) => {
-    if (!window.confirm("Delete this customer?")) return;
-
-    if (!(await deleteCustomerRecord(id))) {
-      alert("Customer could not be deleted. The list has not been changed.");
-      return;
-    }
-    setCustomers(await getCustomers());
-  };
-
-  return (
-    <div style={{ fontFamily: "Inter, system-ui, Arial" }}>
-      <NavTabs />
-
-      <div className="app-page-content" style={{ maxWidth: 1000, margin: "0 auto", padding: 16 }}>
-        <h1>Customers</h1>
-        <button onClick={testSupabase}>
-  Test Supabase
-</button>
-
-        <div
-          style={{
-            padding: 14,
-            border: "1px solid #d1d5db",
-            borderRadius: 8,
-            background: "#f9fafb",
-            marginBottom: 20,
-          }}
-        >
-          <h3 style={{ marginTop: 0 }}>Add / Edit Customer</h3>
-
-          <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr" }}>
-            <label>
-              Customer Name
-              <input
-                value={form.name || ""}
-                onChange={(e) => updateForm({ name: e.target.value })}
-                style={{ width: "100%", padding: 8 }}
-              />
-            </label>
-
-            <label>
-              Login Code
-              <input
-                value={form.loginCode || ""}
-                onChange={(e) => updateForm({ loginCode: e.target.value })}
-                style={{ width: "100%", padding: 8 }}
-              />
-            </label>
-
-            <label>
-              Role
-              <select
-                value={form.role || ""}
-                onChange={(e) => updateForm({ role: e.target.value })}
-                style={{ width: "100%", padding: 8 }}
-              >
-                <option value="public">Public</option>
-                <option value="trade">Trade</option>
-                <option value="admin">Admin</option>
-              </select>
-            </label>
-
-            <label>
-              Discount (%)
-              <input
-                type="number"
-                value={form.discountPct || ""}
-                onChange={(e) => updateForm({ discountPct: e.target.value })}
-                style={{ width: "100%", padding: 8 }}
-              />
-            </label>
-
-            <label>
-              Default Spec
-              <select
-                value={form.defaultSpec || ""}
-                onChange={(e) => updateForm({ defaultSpec: e.target.value })}
-                style={{ width: "100%", padding: 8 }}
-              >
-                <option value="top">Top Spec</option>
-                <option value="usual">Usual Spec</option>
-              </select>
-            </label>
-            <label>
-  Email
-  <input
-    value={form.email || ""}
-    onChange={(e) => updateForm({ email: e.target.value })}
-  />
-</label>
-
-<label>
-  Phone
-  <input
-    value={form.phone || ""}
-    onChange={(e) => updateForm({ phone: e.target.value })}
-  />
-</label>
-
-<label>
-  Address Line 1
-  <input
-    value={form.address1 || ""}
-    onChange={(e) => updateForm({ address1: e.target.value })}
-  />
-</label>
-
-<label>
-  Address Line 2
-  <input
-    value={form.address2 || ""}
-    onChange={(e) => updateForm({ address2: e.target.value })}
-  />
-</label>
-
-<label>
-  Town
-  <input
-    value={form.town || ""}
-    onChange={(e) => updateForm({ town: e.target.value })}
-  />
-</label>
-
-<label>
-  County
-  <input
-    value={form.county || ""}
-    onChange={(e) => updateForm({ county: e.target.value })}
-  />
-</label>
-
-<label>
-  Postcode
-  <input
-    value={form.postcode || ""}
-    onChange={(e) => updateForm({ postcode: e.target.value.toUpperCase() })}
-  />
-</label>
-
-<label>
-  Default Delivery Miles (one-way)
-  <input
-    type="number"
-    value={form.defaultDeliveryMilesOneWay || ""}
-    onChange={(e) =>
-      updateForm({ defaultDeliveryMilesOneWay: Number(e.target.value) })
-    }
-  />
-</label>
-          </div>
-
-          <button
-            onClick={saveCustomer}
-            style={{
-              marginTop: 12,
-              padding: "8px 14px",
-              borderRadius: 6,
-              border: "1px solid #2563eb",
-              background: "#2563eb",
-              color: "white",
-              cursor: "pointer",
-            }}
-          >
-            Save Customer
-          </button>
-        </div>
-
-        <h3>Saved Customers</h3><p style={{fontSize:12,color:'#64748b'}}>Star favourites to show them first in customer dropdowns. Favourites are saved on this browser.</p>
-
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-          <thead>
-            <tr>
-              <th style={th}>Favourite</th><th style={th}>Name</th>
-              <th style={th}>Login Code</th>
-              <th style={th}>Role</th>
-              <th style={th}>Discount</th>
-              <th style={th}>Spec</th>
-              <th style={th}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sortCustomerList(customers,{favouritesFirst:false}).map((c) => (
-              <tr key={c.id}>
-                <td style={td}><button type="button" aria-label={(isCustomerFavourite(c.id)?'Unfavourite ':'Favourite ')+c.name} aria-pressed={isCustomerFavourite(c.id)} title={isCustomerFavourite(c.id)?'Remove from favourites':'Show first in customer dropdowns'} onClick={()=>{toggleCustomerFavourite(c.id);setCustomers(old=>[...old]);}} style={{border:0,background:'transparent',fontSize:21,color:isCustomerFavourite(c.id)?'#d97706':'#64748b',cursor:'pointer'}}>{isCustomerFavourite(c.id)?'★':'☆'}</button></td><td style={td}>{c.name}</td>
-                <td style={td}>{c.loginCode || "—"}</td>
-                <td style={td}>{c.role}</td>
-                <td style={td}>{Number(c.discountPct || 0)}%</td>
-                <td style={td}>{c.defaultSpec || "top"}</td>
-                <td style={td}>
-                  <button onClick={() => editCustomer(c)}>Edit</button>{" "}
-                  {c.id !== "public" && (
-                    <button onClick={() => deleteCustomer(c.id)}>Delete</button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
+import {planCustomerImport,mergeImportedCustomer} from '../lib/customerImport';
+import NavTabs from '../components/NavTabs';
+const empty={id:'',name:'',customerCode:'',contactName:'',email:'',phone:'',mobile:'',address1:'',address2:'',town:'',county:'',postcode:'',deliveryAddress:'',paymentTerms:'',notes:'',loginCode:'',role:'trade',discountPct:0,defaultSpec:'top',defaultDeliveryReturnMiles:null,active:true};
+export default function Customers(){return isAdminUser()?<CustomerDirectory/>:<Navigate to="/quote" replace/>;}
+export function CustomerDirectory(){
+ const [customers,setCustomers]=useState([]),[form,setForm]=useState(empty),[search,setSearch]=useState(''),[message,setMessage]=useState(''),[loaded,setLoaded]=useState(false),[busy,setBusy]=useState(false),[source,setSource]=useState(null),[checked,setChecked]=useState({});
+ const load=async()=>{try{const rows=await getCustomersForAdministration();setCustomers(rows);setLoaded(true);return rows;}catch(e){setLoaded(false);setMessage('Customers could not be loaded: '+e.message);return null;}};
+ useEffect(()=>{load();},[]); // eslint-disable-line react-hooks/exhaustive-deps
+ const patch=value=>setForm(old=>({...old,...value}));
+ const open=c=>{setForm({...empty,...c,defaultDeliveryReturnMiles:c.defaultDeliveryReturnMiles??(c.defaultDeliveryMilesOneWay>0?c.defaultDeliveryMilesOneWay*2:null)});setMessage('');};
+ const save=async()=>{
+  if(!loaded||busy)return;
+  if(!form.name.trim()){setMessage('Enter a customer name.');return;}
+  const discount=Number(form.discountPct),distance=form.defaultDeliveryReturnMiles;
+  if(!Number.isFinite(discount)||discount<0||discount>100){setMessage('Discount must be between 0 and 100%.');return;}
+  if(distance!==null&&distance!==''&&(!Number.isFinite(Number(distance))||Number(distance)<0)){setMessage('Return-trip distance must be blank or non-negative.');return;}
+  if(form.customerCode&&customers.some(c=>c.id!==form.id&&String(c.customerCode||'').toLowerCase()===form.customerCode.trim().toLowerCase())){setMessage('That customer code is already in use.');return;}
+  if(form.loginCode&&customers.some(c=>c.id!==form.id&&c.loginCode===form.loginCode.trim())){setMessage('That login code is already in use.');return;}
+  setBusy(true);const blank=distance===null||distance==='';
+  const result=await saveCustomerRecord({...form,name:form.name.trim(),customerCode:form.customerCode.trim(),loginCode:form.loginCode.trim(),discountPct:discount,defaultDeliveryReturnMiles:blank?null:Number(distance),defaultDeliveryMilesOneWay:blank?0:Number(distance)/2});
+  setBusy(false);if(result.error){setMessage('Not saved: '+result.error+'. If details_json is missing, run the supplied customer-details migration in Supabase first. Your edits are retained.');return;}
+  setCustomers(old=>sortCustomerList([...old.filter(c=>c.id!==result.customer.id),result.customer]));open(result.customer);setMessage('Customer saved.');
+ };
+ const readImport=async e=>{const file=e.target.files?.[0];if(!file)return;try{const data=JSON.parse(await file.text());if(data.format!=='timberlite-customer-import-v1'||!Array.isArray(data.customers)||data.customers.length>5000)throw new Error('Choose the prepared Timberlite customer import JSON.');for(const row of data.customers){if(!row||typeof row.name!=='string'||typeof row.customerCode!=='string')throw new Error('Invalid customer import row.');if(row.returnDistanceMiles!=null&&(!Number.isFinite(Number(row.returnDistanceMiles))||Number(row.returnDistanceMiles)<0))throw new Error('Invalid return-trip distance.');}setSource(data);const plan=planCustomerImport(data.customers,customers);setChecked(Object.fromEntries(plan.map(r=>[r.index,r.action!=='review'])));setMessage('Review the proposed additions and updates below. Nothing has been imported yet.');}catch(error){setSource(null);setMessage(error.message);}e.target.value='';};
+ const plan=source?planCustomerImport(source.customers,customers):[];
+ const commit=async()=>{
+  if(!loaded||busy)return;setBusy(true);setMessage('Importing selected customers…');let count=0;
+  try{const live=await getCustomersForAdministration(),fresh=planCustomerImport(source.customers,live),working=[...live];
+   for(const row of fresh){if(!checked[row.index]||row.action==='review')continue;const preview=plan[row.index];if(preview.action!==row.action||preview.existing?.id!==row.existing?.id)throw new Error('The customer list changed. Reload and review the import again.');const result=await saveCustomerRecord(mergeImportedCustomer(row.row,row.existing));if(result.error)throw new Error(result.error);working.splice(0,working.length,...working.filter(c=>c.id!==result.customer.id),result.customer);count++;setCustomers(sortCustomerList([...working]));}
+   setChecked({});setMessage(`${count} customers imported. Existing IDs, discounts, roles and login codes were preserved. Review new customers’ discounts (initially 0%) before quoting.`);
+  }catch(error){setChecked({});setMessage(`${count} customers saved before stopping: ${error.message}. Saved rows are retained; refresh and review before retrying. Run the supplied migration first if details_json is missing.`);await load();}finally{setBusy(false);}
+ };
+ const field=(label,key,type='text')=><label key={key}>{label}<input aria-label={label} type={type} step={type==='number'?'any':undefined} value={form[key]??''} onChange={e=>patch({[key]:e.target.value})}/></label>;
+ const list=sortCustomerList(customers).filter(c=>[c.name,c.customerCode,c.contactName,c.email].some(v=>String(v||'').toLowerCase().includes(search.toLowerCase().trim())));
+ return <><NavTabs/><main className="customer-directory app-page-content"><header><div><h1>Customers</h1><p>Customer details, delivery defaults and trading terms.</p></div><button type="button" disabled={busy} onClick={()=>{setForm({...empty});setMessage('');}}>New customer</button></header>{message&&<p role="status" className="cd-message">{message}</p>}
+ <div className="cd-workspace"><aside><label>Find customer<input type="search" value={search} placeholder="Name, code, contact or email" onChange={e=>setSearch(e.target.value)}/></label><p>{list.length} customers · favourites first</p><button type="button" disabled={busy} onClick={load}>Refresh</button><div className="cd-list">{list.map(c=><div key={c.id} className={form.id===c.id?'cd-selected':''}><button className="cd-star" type="button" aria-label={'Favourite '+c.name} aria-pressed={isCustomerFavourite(c.id)} onClick={()=>{toggleCustomerFavourite(c.id);setCustomers(old=>sortCustomerList(old));}}>{isCustomerFavourite(c.id)?'★':'☆'}</button><button className="cd-customer" type="button" disabled={busy} onClick={()=>open(c)}><strong>{c.name}</strong><span>{c.customerCode||'No account code'} · {c.role} · {Number(c.discountPct||0)}% discount{c.active===false?' · Inactive':''}</span></button></div>)}</div></aside>
+ <section className="cd-editor"><h2>{form.id?form.name:'New customer'}</h2><fieldset disabled={busy||!loaded}><legend>Customer & contacts</legend><div className="cd-grid">{field('Customer / company name','name')}{field('Customer code','customerCode')}{field('Contact name','contactName')}{field('Email','email','email')}{field('Telephone','phone','tel')}{field('Mobile','mobile','tel')}</div></fieldset><fieldset disabled={busy||!loaded}><legend>Main / invoice address</legend><div className="cd-grid">{field('Address line 1','address1')}{field('Address line 2','address2')}{field('Town / city','town')}{field('County / address line 4','county')}{field('Postcode','postcode')}</div></fieldset><fieldset disabled={busy||!loaded}><legend>Delivery defaults</legend><label>Default delivery address (optional)<textarea rows="3" value={form.deliveryAddress||''} onChange={e=>patch({deliveryAddress:e.target.value})}/></label><button type="button" onClick={()=>patch({deliveryAddress:[form.name,form.address1,form.address2,form.town,form.county,form.postcode].filter(Boolean).join('\n')})}>Copy main address</button><div className="cd-grid">{field('Fallback return-trip miles — admin quotes only','defaultDeliveryReturnMiles','number')}</div><p>Blank means unknown. Return miles are divided by two for the app’s one-way delivery calculation. Customer quoting still requires a delivery postcode.</p></fieldset><fieldset disabled={busy||!loaded}><legend>Trading defaults</legend><div className="cd-grid">{field('Trade discount (%)','discountPct','number')}{field('Payment terms','paymentTerms')}<label>Default specification<select value={form.defaultSpec||'top'} onChange={e=>patch({defaultSpec:e.target.value})}><option value="top">Top Spec</option><option value="standard">Standard</option>{!['top','standard'].includes(form.defaultSpec)&&<option value={form.defaultSpec}>{form.defaultSpec}</option>}</select></label></div></fieldset><fieldset disabled={busy||!loaded}><legend>Notes</legend><textarea aria-label="Customer notes" rows="4" value={form.notes||''} onChange={e=>patch({notes:e.target.value})}/></fieldset><details><summary>Account access & status — admin</summary><fieldset disabled={busy||!loaded}><div className="cd-grid">{field('Login code (leave blank until access is required)','loginCode')}<label>Role<select value={form.role} onChange={e=>patch({role:e.target.value})}>{['trade','public','admin'].map(role=><option key={role}>{role}</option>)}</select></label></div><label><input type="checkbox" checked={form.active!==false} onChange={e=>patch({active:e.target.checked})}/> Active customer</label><p>Inactive customers remain linked to historical quotes and jobs and are hidden from new customer searches.</p></fieldset></details><button type="button" className="cd-primary" disabled={busy||!loaded} onClick={save}>{busy?'Saving…':'Save customer'}</button></section></div>
+ <details className="cd-import"><summary>Import customer list</summary><p>Run the supplied SQL migration once, then choose the prepared customer JSON. Files are read in your browser. Existing discounts, login codes and roles are retained; duplicate or inactive source rows require manual review. No existing customer is deleted.</p><input type="file" accept="application/json,.json" disabled={!loaded||busy} onChange={readImport}/>{source&&<><p>{plan.filter(r=>r.action==='create').length} additions · {plan.filter(r=>r.action==='update').length} updates · {plan.filter(r=>r.action==='review').length} requiring review. Blank imported fields do not clear existing details.</p><div style={{overflowX:'auto'}}><table><thead><tr><th>Import</th><th>Code / name</th><th>Action / existing match</th><th>Return miles</th><th>Review</th></tr></thead><tbody>{plan.map(r=><tr key={r.index}><td><input type="checkbox" aria-label={'Import '+r.row.name} disabled={busy||r.action==='review'} checked={!!checked[r.index]} onChange={e=>setChecked(old=>({...old,[r.index]:e.target.checked}))}/></td><td>{r.row.customerCode} · {r.row.name}</td><td>{r.action}{r.existing?' · '+r.existing.name:''}</td><td>{r.row.returnDistanceMiles??'Unknown'}</td><td>{r.issues.join('; ')}<details><summary>View imported details</summary><dl>{Object.entries(mergeImportedCustomer(r.row,r.existing)).filter(([key,value])=>!['details_json','legacyImport','loginCode','username','id'].includes(key)&&value!=null&&value!=='').map(([key,value])=><React.Fragment key={key}><dt>{key}</dt><dd>{typeof value==='object'?JSON.stringify(value):String(value)}</dd></React.Fragment>)}</dl></details></td></tr>)}</tbody></table></div><button className="cd-primary" type="button" disabled={busy||!plan.some(r=>checked[r.index]&&r.action!=='review')} onClick={commit}>Import selected customers</button></>}</details>
+ <style>{`.customer-directory{font:14px Inter,system-ui,Arial;color:#172b35;max-width:1280px;margin:auto;padding:20px}.customer-directory header{display:flex;justify-content:space-between;align-items:center;gap:15px}.customer-directory h1{font-size:26px;margin:0}.customer-directory h2{font-size:20px;margin:0 0 16px}.customer-directory button{font:inherit;padding:8px 12px;border:1px solid #cbd5e1;border-radius:7px;background:white;cursor:pointer}.customer-directory button:disabled{opacity:.5;cursor:default}.customer-directory input:not([type=checkbox]),.customer-directory select,.customer-directory textarea{display:block;width:100%;box-sizing:border-box;margin-top:5px;border:1px solid #cbd5e1;border-radius:6px;padding:8px;font:inherit;background:white}.cd-workspace{display:grid;grid-template-columns:320px minmax(0,1fr);gap:20px;margin-top:18px}.cd-workspace aside,.cd-editor,.cd-import{border:1px solid #dce1e8;border-radius:10px;padding:16px;background:#fff}.cd-list{max-height:760px;overflow:auto;margin-top:12px}.cd-list>div{display:flex;border-bottom:1px solid #edf1f4}.cd-list button{border:0;background:transparent;border-radius:0}.cd-list .cd-customer{text-align:left;flex:1;min-width:0}.cd-list span{display:block;font-size:12px;color:#52616c;margin-top:5px;overflow-wrap:anywhere}.cd-selected{background:#e7f4f1}.cd-star{color:#b97700;padding:8px!important}.cd-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.customer-directory fieldset{border:1px solid #dce1e8;border-radius:8px;padding:14px;margin:0 0 16px}.customer-directory legend{font-weight:700;padding:0 7px}.customer-directory label{display:block;font-size:13px}.customer-directory fieldset p{font-size:12px;line-height:1.5;color:#52616c}.customer-directory .cd-primary{background:#0f766e;color:white;border-color:#0f766e;margin-top:12px}.cd-message{padding:12px;background:#f1f5f9;border-radius:8px}.cd-import{margin-top:20px}.cd-import summary,.cd-editor summary{font-weight:700;cursor:pointer}.customer-directory table{border-collapse:collapse;width:100%;margin-top:14px}.customer-directory th,.customer-directory td{border:1px solid #dce1e8;padding:7px;text-align:left;font-size:12px}@media(max-width:800px){.cd-workspace{grid-template-columns:1fr}.cd-list{max-height:280px}}@media(max-width:480px){.cd-grid{grid-template-columns:1fr}}`}</style></main></>;
 }
-
-const th = {
-  textAlign: "left",
-  padding: 8,
-  borderBottom: "1px solid #d1d5db",
-  background: "#f3f4f6",
-};
-
-const td = {
-  padding: 8,
-  borderBottom: "1px solid #e5e7eb",
-};

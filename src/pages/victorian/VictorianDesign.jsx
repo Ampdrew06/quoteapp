@@ -1,3 +1,6 @@
+import CustomerPicker from '../../components/CustomerPicker';
+import FrameThicknessEditor from '../../components/FrameThicknessEditor';
+import VictorianFacetGeometryEditor from '../../components/VictorianFacetGeometryEditor';
 import VictorianRafterPositionEditor from '../../components/VictorianRafterPositionEditor';
 import {buildVictorianFiveGeometry} from '../../lib/geometry/victorianFiveGeometry';
 import {VICTORIAN_FIVE_DESIGN_KEY,normalizeVictorianFiveDesignInputs,updateVictorianFiveDesignInputs} from '../../lib/geometry/victorianFiveDesignInputs';
@@ -81,20 +84,22 @@ export function VictorianDesignContent({five=false}={}){
  {inputs.sideSoffitMode==='specified'||inputs.sideSoffitMode==='none'?<label>Soffit to Front (mm)<input style={fieldStyle} disabled value={g.valid?g.soffitMM:''}/></label>:field('Soffit to Front (mm)','soffitMM')}
  {select('Gutter profile','gutterProfile',[['square','Square'],['ogee','Ogee'],['round','Round']])}{select('Gutter colour','gutterColour',['White','Black','Anthracite','Brown'])}
  {field('Pitch (degrees)','pitchDeg')}{field('Max Finished Height (mm)','maxFinishedHeightMM','number','Optional')}
- <section className="vd-specific"><h2>Victorian Configuration</h2><div className="vd-grid">{field('Frame thickness (mm)','frameThicknessMM')}
+ <section className="vd-specific"><h2>Victorian Configuration</h2><div className="vd-grid">
  {select('Soffit requirement','sideSoffitMode',[['automatic','Automatic'],['specified','Soffit restriction to side'],['none','No soffit']])}
  {inputs.sideSoffitMode==='specified'&&field('Required side soffit (mm)','specifiedSideSoffitMM','number','e.g. 80')}
  {inputs.sideSoffitMode==='automatic'&&inputs.soffitMode==='specified'&&<p style={{fontSize:12}}>Saved/custom soffit: specified site envelope.</p>}</div>
  {admin&&<p><label style={{display:'flex',alignItems:'center',gap:8}}><input type="checkbox" disabled style={{display:'inline',width:'auto'}}/> Adjust front pitch (admin) · pending</label></p>}
- <p style={{fontSize:12,color:'#555'}}>{five?'5-facet Victorian · standard150° corners. Six hips at the boss; additional front supports are jack rafters. Both side soffits use the same requirement;':'3-facet Victorian · standard135° corners. Both side soffits use the same requirement;'} standard corners use equal facet pitches. Front-pitch adjustment remains pending.</p></section>
+ <p style={{fontSize:12,color:'#555'}}>{five?'5-facet Victorian · standard150° corners. Six hips at the boss; additional front supports are jack rafters. Both side soffits use the same requirement;':(g.customFacetGeometry?'3-facet Victorian · custom facet geometry applied. Both side soffits use the same requirement;':'3-facet Victorian · standard135° corners. Both side soffits use the same requirement;')} standard corners use equal facet pitches. Front-pitch adjustment remains pending.</p></section>
  {field('Delivery postcode','deliveryPostcode','text')}{field('Customer reference','customerReference','text','e.g. SMITH')}
  </div><div style={{marginTop:12}}>
 
- {admin&&<label>Customer<select aria-label="Customer" value={inputs.selectedCustomerId} style={fieldStyle} onChange={e=>{const selected=customers.find(c=>c.id===e.target.value);setInputs(old=>({...old,selectedCustomerId:e.target.value,customerName:selected?.name||'Retail'}));}}><option value="retail">Retail (No Discount)</option>{inputs.selectedCustomerId!=='retail'&&!customers.some(c=>c.id===inputs.selectedCustomerId)&&<option value={inputs.selectedCustomerId}>Selected customer (loading)</option>}{customers.filter(c=>c.id!=='retail').map(c=><option key={c.id} value={c.id}>{c.name} ({Number(c.discountPct??c.discount_pct??0)}%)</option>)}</select></label>}
+ {admin&&<label>Customer<CustomerPicker customers={customers} value={inputs.selectedCustomerId} onChange={e=>{const selected=customers.find(c=>c.id===e.target.value);setInputs(old=>({...old,selectedCustomerId:e.target.value,customerName:selected?.name||'Retail'}));}}/></label>}
  </div>
  </div><div className="vd-actions"><button type="button" disabled={busy} onClick={quote}>Quote</button><button type="button" disabled={busy||!q.ready} onClick={save}>{readActiveDesignRecord(family)?'Update Quote':'Save Quote'}</button><button type="button" disabled={busy} onClick={reset}>Reset</button></div>{readActiveDesignRecord(family)&&<button type="button" disabled={busy||!q.ready} onClick={()=>save(true)} style={{marginTop:10,padding:'10px 18px',border:'1px solid #0f766e',borderRadius:6,color:'#0f766e',background:'white'}} title="Create a new quote number and keep the original quotation">Save as New Quote</button>}{message&&<p role="status">{message}</p>}<div hidden={collapsed}><details style={{marginTop:12}}><summary>Delivery and quote tools</summary><button type="button" disabled={busy||!String(inputs.deliveryPostcode||'').trim()} onClick={lookup}>Calculate delivery distance</button><button type="button" disabled={busy} onClick={newQuote}>New Quote</button>
  {admin&&String(inputs.deliveryPostcode||'').trim()&&<label>One-way delivery miles (admin override)<input aria-label="One-way delivery miles (admin override)" type="number" min="0" step="0.1" value={q.distanceReady?inputs.deliveryDistanceMiles??'':''} onChange={e=>{request.current++;setBusy(false);setMessage('');setInputs(old=>({...old,deliveryDistanceMiles:e.target.value,deliveryDistancePostcode:old.deliveryPostcode}));}} style={{...fieldStyle,maxWidth:180,display:'block'}}/></label>}
  <p>Reset restores the opened quote; New Quote starts a separate design.{admin&&' Advanced geometry controls are on Technical.'}</p></details></div></fieldset></section>
+ <FrameThicknessEditor admin={admin} value={inputs.frameThicknessMM??70} onApply={value=>setInputs(old=>({...old,frameThicknessMM:value}))}/>
+ {admin&&!five&&<VictorianFacetGeometryEditor key={JSON.stringify([inputs.widthMM,inputs.projMM,inputs.victorianFacetGeometry])} inputs={inputs} materials={materials} onChange={patch=>setInputs(old=>({...old,...patch}))}/>}
  {admin&&<VictorianRafterPositionEditor five={five} inputs={inputs} materials={materials} admin={admin} onChange={patch=>setInputs(old=>({...old,...patch}))}/>}
  {g.valid&&g.soffitNote&&<p role="status">{g.soffitNote}</p>}
  {inputs.quoteDisplayed&&<div ref={result}>{g.valid?<GableQuoteResults inputs={inputs} geometry={g} materials={materials} customers={customer?[customer]:[]} quotationBuilder={quotationBuilder} Plan={VictorianCustomerPlan} outletText="one outlet"/>:<p role="alert">{g.errors.join(' ')}</p>}</div>}
