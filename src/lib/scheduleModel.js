@@ -1,6 +1,6 @@
 import {quoteStyleLabel} from './quoteStyleLabel';
 export const scheduleStatuses=['Not Started','In Production','Complete','Scheduled','Delivered','On Hold','Cancelled'];
-export const blankScheduleEntry={customerId:'',customerName:'',reference:'',jobNumber:'',areaM2:'',style:'',tiles:'',delivered:false,status:'Not Started',deliveryDate:'',netCost:'',netSell:'',grossSell:'',deposit:'',otherPaid:'',invoiced:false,dueDate:'',bookDone:false,vent:'',aFrame:'',labour:'',regs:'',notes:'',archived:false};
+export const blankScheduleEntry={customerId:'',customerName:'',reference:'',jobNumber:'',areaM2:'',style:'',tiles:'',delivered:false,status:'Not Started',deliveryDate:'',netCost:'',netSell:'',grossSell:'',deposit:'',otherPaid:'',invoiced:false,dueDate:'',bookDone:false,vent:'',aFrame:'',labour:'',materialsCost:'',deliveryCost:'',regs:'',notes:'',archived:false};
 export const moneyNumber=v=>v===''||v==null||!Number.isFinite(Number(v))?null:Number(v);
 const round=v=>Math.round((v+Number.EPSILON)*100)/100;
 export function localDate(date=new Date()){return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;}
@@ -9,7 +9,7 @@ export function jobScheduleEntry(job){
  const p=job.pricing_json||{},s=p.summary||{},i=job.inputs_json||{};
  const materials=moneyNumber(p.materialsCost),labour=moneyNumber(p.labourCost),delivery=moneyNumber(p.delivery);
  const base=moneyNumber(p.baseCost),net=moneyNumber(p.net??s.net),gross=moneyNumber(p.gross??s.gross);
- return {...blankScheduleEntry,customerId:job.customer_id||'',customerName:job.customer_name||'',reference:job.manual_reference||i.customerReference||'',jobNumber:String(job.job_number||''),style:quoteStyleLabel(job),tiles:[i.tileProductId||i.tileSystem,i.tileColour||i.tileColor].filter(Boolean).join(' / '),deliveryDate:validDate(job.requested_delivery_date)?job.requested_delivery_date:'',netSell:net??'',grossSell:gross??'',netCost:base!==null&&delivery!==null?round(base+delivery):materials!==null&&labour!==null&&delivery!==null?round(materials+labour+delivery):'',labour:labour??''};
+ return {...blankScheduleEntry,customerId:job.customer_id||'',customerName:job.customer_name||'',reference:job.manual_reference||i.customerReference||'',jobNumber:String(job.job_number||''),style:quoteStyleLabel(job),tiles:[i.tileProductId||i.tileSystem,i.tileColour||i.tileColor].filter(Boolean).join(' / '),deliveryDate:validDate(job.requested_delivery_date)?job.requested_delivery_date:'',netSell:net??'',grossSell:gross??'',netCost:base!==null&&delivery!==null?round(base+delivery):materials!==null&&labour!==null&&delivery!==null?round(materials+labour+delivery):'',labour:labour??'',materialsCost:materials??'',deliveryCost:delivery??''};
 }
 export function combineSchedule(jobs,records){
  const saved=new Map(records.filter(r=>r.quote_id).map(r=>[r.quote_id,r]));
@@ -33,6 +33,11 @@ export function paymentState(e,today=localDate()){
  if(!validDate(e.dueDate))return 'needs-date';
  return e.dueDate<today?'overdue':'delivered-not-due';
 }
+// The List always identifies an undelivered order, even before prices are entered.
+export function scheduleListPaymentState(entry,today=localDate()){
+ const state=paymentState(entry,today);
+ return state==='unknown'&&!entry.delivered?'not-due':state;
+}
 export function inScheduleMonth(row,month){return month==='unscheduled'?!validDate(row.data.deliveryDate):validDate(row.data.deliveryDate)&&row.data.deliveryDate.slice(0,7)===month;}
 export function scheduleTotals(rows){
  const t={count:0,net:0,contribution:0,gross:0,deposits:0,outstanding:0,overdue:0,missingPrice:0,missingCost:0,contributionSales:0,pricedNetCount:0};
@@ -43,7 +48,7 @@ export function validateScheduleEntry(e){
  if(!String(e.customerName||'').trim())return 'Choose or enter a customer.';
  if(!scheduleStatuses.includes(e.status))return 'Choose a valid production status.';
  for(const key of ['deliveryDate','dueDate'])if(e[key]&&!validDate(e[key]))return 'Enter valid delivery and due dates.';
- for(const key of ['areaM2','netCost','netSell','grossSell','deposit','otherPaid','labour'])if(e[key]!==''&&e[key]!=null&&(moneyNumber(e[key])===null||Number(e[key])<0))return 'Amounts and area must be blank or non-negative numbers.';
+ for(const key of ['areaM2','netCost','netSell','grossSell','deposit','otherPaid','labour','materialsCost','deliveryCost'])if(e[key]!==''&&e[key]!=null&&(moneyNumber(e[key])===null||Number(e[key])<0))return 'Amounts and area must be blank or non-negative numbers.';
  if(e.delivered&&e.status!=='Delivered')return 'Delivered Yes requires production status Delivered.';
  if(!e.delivered&&e.status==='Delivered')return 'Status Delivered requires Delivered Yes.';
  return '';
