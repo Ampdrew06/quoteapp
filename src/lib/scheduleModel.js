@@ -1,6 +1,6 @@
 import {quoteStyleLabel} from './quoteStyleLabel';
 export const scheduleStatuses=['Not Started','In Production','Complete','Scheduled','Delivered','On Hold','Cancelled'];
-export const blankScheduleEntry={customerId:'',customerName:'',reference:'',jobNumber:'',areaM2:'',style:'',tiles:'',delivered:false,status:'Not Started',deliveryDate:'',netCost:'',netSell:'',grossSell:'',deposit:'',otherPaid:'',invoiced:false,dueDate:'',bookDone:false,vent:'',aFrame:'',labour:'',materialsCost:'',deliveryCost:'',regs:'',notes:'',archived:false};
+export const blankScheduleEntry={customerId:'',customerName:'',reference:'',jobNumber:'',areaM2:'',style:'',tiles:'',provisional:false,delivered:false,status:'Not Started',deliveryDate:'',netCost:'',netSell:'',grossSell:'',deposit:'',otherPaid:'',invoiced:false,dueDate:'',bookDone:false,vent:'',aFrame:'',labour:'',materialsCost:'',deliveryCost:'',regs:'',notes:'',archived:false};
 export const moneyNumber=v=>v===''||v==null||!Number.isFinite(Number(v))?null:Number(v);
 const round=v=>Math.round((v+Number.EPSILON)*100)/100;
 export function localDate(date=new Date()){return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;}

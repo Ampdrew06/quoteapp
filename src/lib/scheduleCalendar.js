@@ -4,7 +4,7 @@ import {localDate,moneyNumber,scheduleTotals} from './scheduleModel';
 const holidayDates={
  '2026-01-01':"New Year's Day",'2026-04-03':'Good Friday','2026-04-06':'Easter Monday','2026-05-04':'Early May bank holiday','2026-05-25':'Spring bank holiday','2026-08-31':'Summer bank holiday','2026-12-25':'Christmas Day','2026-12-28':'Boxing Day (substitute)',
  '2027-01-01':"New Year's Day",'2027-03-26':'Good Friday','2027-03-29':'Easter Monday','2027-05-03':'Early May bank holiday','2027-05-31':'Spring bank holiday','2027-08-30':'Summer bank holiday','2027-12-27':'Christmas Day (substitute)','2027-12-28':'Boxing Day (substitute)'};
-export const calendarColours={auto:'Automatic',green:'Green',red:'Pale red',yellow:'Yellow',blue:'Pale blue',grey:'Grey',white:'White'};
+export const calendarColours={auto:'Automatic',green:'Green',red:'Pale red',yellow:'Yellow',blue:'Pale blue',orange:'Orange',purple:'Purple',grey:'Grey',white:'White'};
 export function monthCalendar(month){
  if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(month||''))return [];
  const [y,m]=month.split('-').map(Number),first=new Date(y,m-1,1,12),offset=(first.getDay()+6)%7,count=new Date(y,m,0).getDate(),cells=Math.ceil((offset+count)/7)*7;
@@ -24,4 +24,23 @@ export function scheduleYearSales(rows,year){
   for(const [key,apply,missing] of [['materialsCost',v=>materials+=v,()=>missingMaterials++],['labour',v=>labour+=v,()=>missingLabour++],['deliveryCost',v=>delivery+=v,()=>missingDelivery++]]){const value=moneyNumber(e[key]);if(value===null)missing();else apply(value);}
  }
  return {...t,vat,missingVat,materials,labour,delivery,missingMaterials,missingLabour,missingDelivery,totalCost,missingNetCost,missingNet,missingGross};
+}
+export const calendarStaff=['CB','RS'];
+export function annualLeaveBalances(days,year,today=localDate()){
+ const result=Object.fromEntries(calendarStaff.map(staff=>[staff,{allowance:25,taken:0,booked:0,used:0,remaining:25}]));
+ for(const [date,record] of Object.entries(days)){
+  if(date.slice(0,4)!==String(year))continue;
+  const details=record.details_json||record,weekday=new Date(date+'T12:00:00').getDay();
+  if(weekday===0||weekday===6||calendarDay(date,[],details,today).holiday)continue;
+  for(const staff of calendarStaff){const amount=Number(details.staffLeave?.[staff]||0);if(![0,.5,1].includes(amount))continue;result[staff][date<=today?'taken':'booked']+=amount;result[staff].used+=amount;result[staff].remaining-=amount;}
+ }
+ return result;
+}
+export function adminCalendarStatus(entry,today=localDate()){
+ if(entry.provisional||(!entry.jobNumber&&!entry.reference&&!entry.style))return {colour:'grey',label:'Provisional'};
+ const gross=moneyNumber(entry.grossSell),paid=(moneyNumber(entry.deposit)||0)+(moneyNumber(entry.otherPaid)||0);
+ if(gross!==null&&gross-paid<=.001&&(gross>0||entry.invoiced))return {colour:'green',label:'Paid'};
+ if(!entry.invoiced)return {colour:'orange',label:'Not invoiced'};
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(entry.dueDate||''))return {colour:'amber',label:'Invoiced · due date needed'};
+ return entry.dueDate<today?{colour:'red',label:'Invoice overdue'}:{colour:'purple',label:'Invoiced · not due'};
 }

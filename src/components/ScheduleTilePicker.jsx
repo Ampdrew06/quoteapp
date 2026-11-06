@@ -1,0 +1,6 @@
+import React from 'react';
+import {parseScheduleTile,scheduleTileSystems,scheduleTileText} from '../lib/scheduleEntryOptions';
+export default function ScheduleTilePicker({value,onChange}){
+ const tile=parseScheduleTile(value),colours=scheduleTileSystems[tile.system]||[],values=tile.colour&&!colours.includes(tile.colour)?[tile.colour,...colours]:colours;
+ return <><label>Tile system<select aria-label="Schedule tile system" value={tile.system} onChange={e=>{const system=e.target.value;if(system==='custom'){onChange('Other / '+(value||''));return;}onChange(scheduleTileText(system,(scheduleTileSystems[system]||[]).includes(tile.colour)?tile.colour:''));}}><option value="">Select tile system…</option>{Object.keys(scheduleTileSystems).map(system=><option key={system}>{system}</option>)}<option value="custom">Other / saved description</option></select></label>{tile.system==='custom'?<label>Saved tile description<input aria-label="Saved tile description" value={value} onChange={e=>onChange(e.target.value)}/></label>:<label>Tile colour<select aria-label="Schedule tile colour" value={tile.colour} disabled={!tile.system} onChange={e=>onChange(scheduleTileText(tile.system,e.target.value))}><option value="">Select colour…</option>{values.map(colour=><option key={colour}>{colour}</option>)}</select></label>}</>;
+}

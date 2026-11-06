@@ -6,6 +6,8 @@ import {isAdminUser} from '../lib/userRole';
 import {getCustomersForAdministration} from '../lib/customers';
 import {getScheduleJobs,getScheduleRecords,saveScheduleRecord,setJobScheduleIncluded} from '../lib/schedule';
 import {blankScheduleEntry,combineSchedule,jobScheduleEntry,inScheduleMonth,localDate,moneyNumber,paymentState,scheduleListPaymentState,scheduleAmounts,scheduleStatuses,scheduleTotals,validateScheduleEntry} from '../lib/scheduleModel';
+import ScheduleTilePicker from '../components/ScheduleTilePicker';
+import {scheduleGrossFromNet,scheduleVatRate} from '../lib/scheduleEntryOptions';
 import ScheduleCalendar from '../components/ScheduleCalendar';
 import ScheduleSales from '../components/ScheduleSales';
 import './Schedule.css';
@@ -14,7 +16,7 @@ const num=n=>n==null?'—':new Intl.NumberFormat('en-GB',{maximumFractionDigits:
 const date=v=>v?v.split('-').reverse().join('/'):'—';
 const paymentLabels={paid:'Paid',overdue:'Overdue','not-due':'Not Delivered/Not Due','delivered-not-due':'Delivered — Not Due','needs-date':'Due date needed',unknown:'Details needed',cancelled:'Cancelled / archived'};
 export function exportScheduleCSV(rows){
- const headers=['Customer','Reference','Job','Area m²','Style','Tiles','Delivered','Status','Delivery date','Net cost','Net sell','Gross sell','Contribution','Margin %','Invoiced','Due date','Book done','Vent','A-frame','Net £/m²','Labour','REGS','Deposit paid incl VAT','Other payments incl VAT','Outstanding incl VAT','Payment status','Notes'];
+ const headers=['Customer','Reference','Job','Area m²','Style','Tiles','Delivered','Status','Delivery date','Net cost','Net sell','Gross sell','Contribution','Margin %','Invoiced','Due date','Book done','Glazing requirements','A-frame','Net £/m²','Labour','REGS','Deposit paid incl VAT','Other payments incl VAT','Outstanding incl VAT','Payment status','Notes'];
  // Prevent spreadsheet applications treating customer-entered text as formulas.
  const cell=v=>'"'+String(v??'').replace(/^[=+@\-\t\r]/,"'$&").replace(/"/g,'""')+'"';
  const lines=rows.map(({data:e})=>{const a=scheduleAmounts(e);return [e.customerName,e.reference,e.jobNumber,e.areaM2,e.style,e.tiles,e.delivered?'Yes':'No',e.status,e.deliveryDate,e.netCost,e.netSell,e.grossSell,a.contribution,a.margin,e.invoiced?'Yes':'No',e.dueDate,e.bookDone?'Yes':'No',e.vent,e.aFrame,Number(e.areaM2)>0&&a.net!==null?a.net/Number(e.areaM2):'',e.labour,e.regs,e.deposit,e.otherPaid,a.outstanding,paymentLabels[paymentState(e)],e.notes];});
@@ -46,7 +48,7 @@ export function ScheduleContent(){
  const jobNumbers=rows.map(r=>String(r.data.jobNumber||'').trim().toLowerCase()).filter(Boolean),duplicateNumbers=[...new Set(jobNumbers.filter((n,i)=>jobNumbers.indexOf(n)!==i))];
  const monthly=scheduleTotals(monthRows);
  const open=row=>{if(!discard())return;setEditor({...row,data:{...row.data}});setDirty(false);setNotice('');setError('');};
- const patch=p=>{setEditor(old=>({...old,data:{...old.data,...p}}));setDirty(true);};
+ const patch=p=>{setEditor(old=>{const next={...p};if(Object.prototype.hasOwnProperty.call(p,'netSell')&&!Object.prototype.hasOwnProperty.call(p,'grossSell')){const rate=scheduleVatRate(old.data,old.job);next.grossSell=scheduleGrossFromNet(p.netSell,rate);next.vatRate=rate;}return {...old,data:{...old.data,...next}};});setDirty(true);};
  const add=()=>{if(!discard())return;setCalendarDirty(false);setDirty(false);setTab('list');setEditor({id:null,quoteId:null,version:null,job:null,data:{...blankScheduleEntry,deliveryDate:''}});setNotice('');setError('');};
  const save=async e=>{
   e.preventDefault();const validation=validateScheduleEntry(editor.data);if(validation){setError(validation);return;}
@@ -93,7 +95,7 @@ export function ScheduleContent(){
    {showListUtilities&&<div className="schedule-toolbar"><input className="schedule-search" aria-label="Search this month" placeholder="Search customer, reference, job or style…" value={search} onChange={e=>setSearch(e.target.value)}/><label><input type="checkbox" checked={showArchived} onChange={e=>setShowArchived(e.target.checked)}/> Show cancelled / archived</label><span>{visible.length} shown · {monthly.count} active orders</span><button onClick={download}>Export visible rows (CSV)</button></div>}
 
   </>}
-  {loaded&&tab==='calendar'&&<ScheduleCalendar key={calendarRevision} month={month} rows={rows} today={today} onDirty={setCalendarDirty} onBusy={setCalendarBusy}/>}
+  {loaded&&tab==='calendar'&&<ScheduleCalendar key={calendarRevision} month={month} rows={rows} today={today} onDirty={setCalendarDirty} onBusy={setCalendarBusy} onEditOrder={row=>{setCalendarDirty(false);setEditor({...row,data:{...row.data}});setDirty(false);setTab('list');setError('');setNotice('');}}/>}
   {loaded&&tab==='sales'&&<ScheduleSales rows={rows} year={year} onYear={setYear}/>}
   {loaded&&tab==='order'&&<section className="schedule-placeholder"><h2>To Order</h2><p>This tab is ready for the purchasing reminders. We will add the order requirements and supplier tracking next.</p></section>}
   {editor&&<form id="schedule-order-editor" tabIndex={-1} className="schedule-editor" noValidate aria-describedby={error?'schedule-save-error':undefined} onSubmit={save}><h2>{editor.quoteId?'Edit app job':'Manual order'} {editor.data.jobNumber}{dirty?' · unsaved':''}</h2>
@@ -102,14 +104,15 @@ export function ScheduleContent(){
    <fieldset disabled={busy||calendarBusy} style={{border:0,padding:0,margin:0}}><div className="schedule-fields">
     <div><span>Customer directory</span><CustomerPicker customers={customers} value={editor.data.customerId||'retail'} onChange={e=>{const c=customers.find(x=>x.id===e.target.value);patch({customerId:c?.id||'',customerName:c?.name||''});}}/></div>
     <label>Customer name<input required value={editor.data.customerName} onChange={e=>patch({customerName:e.target.value,customerId:''})}/></label>
-    {[['reference','Customer reference'],['jobNumber','Job number'],['style','Roof style'],['tiles','Tiles / colour']].map(([key,label])=><label key={key}>{label}<input value={editor.data[key]} onChange={e=>patch({[key]:e.target.value})}/></label>)}
+    {[['reference','Customer reference'],['jobNumber','Job number'],['style','Roof style']].map(([key,label])=><label key={key}>{label}<input value={editor.data[key]} onChange={e=>patch({[key]:e.target.value})}/></label>)}
+    <ScheduleTilePicker value={editor.data.tiles} onChange={value=>patch({tiles:value})}/>
     <label>Production status<select value={editor.data.status} onChange={e=>patch({status:e.target.value,delivered:e.target.value==='Delivered'?true:false})}>{scheduleStatuses.map(s=><option key={s}>{s}</option>)}</select></label>
     <label>Delivered<select value={editor.data.delivered?'yes':'no'} onChange={e=>patch({delivered:e.target.value==='yes',status:e.target.value==='yes'?'Delivered':editor.data.status==='Delivered'?'Scheduled':editor.data.status})}><option value="no">No</option><option value="yes">Yes</option></select></label>
     {[['deliveryDate','Delivery date'],['dueDate','Payment due date']].map(([key,label])=><label key={key}>{label}<input type="date" value={editor.data[key]} onChange={e=>patch({[key]:e.target.value})}/></label>)}
-    {financialFields.map(([key,label])=><label key={key}>{label}<input type="number" min="0" step="0.01" value={editor.data[key]} onChange={e=>patch({[key]:e.target.value})}/></label>)}
-    <div><button type="button" disabled={['materialsCost','labour','deliveryCost'].some(k=>moneyNumber(editor.data[k])===null)} onClick={()=>patch({netCost:(Number(editor.data.materialsCost)+Number(editor.data.labour)+Number(editor.data.deliveryCost)).toFixed(2)})}>Set net cost from materials + labour + delivery</button><p className="schedule-help">Enter the actual VAT-inclusive order total. For a standard VAT rate you can fill it from net sell:</p><button type="button" disabled={moneyNumber(editor.data.netSell)===null} onClick={()=>patch({grossSell:(Number(editor.data.netSell)*1.2).toFixed(2)})}>Set total using 20% VAT</button><button type="button" disabled={financial.gross===null} onClick={()=>patch({otherPaid:Math.max(0,financial.gross-financial.deposit).toFixed(2)})}>Record balance paid in full</button></div>
-    {[['invoiced','Invoiced'],['bookDone','Manufacture book done'],['archived','Archive entry']].map(([key,label])=><label key={key}>{label}<select value={editor.data[key]?'yes':'no'} onChange={e=>patch({[key]:e.target.value==='yes'})}><option value="no">No</option><option value="yes">Yes</option></select></label>)}
-    {[['vent','Vent · requirements / ordered'],['aFrame','A-frame · requirements / ordered'],['regs','REGS']].map(([key,label])=><label key={key}>{label}<input value={editor.data[key]} onChange={e=>patch({[key]:e.target.value})}/></label>)}
+    {financialFields.map(([key,label])=><label key={key}>{label}<input type="number" min="0" step="0.01" value={editor.data[key]} readOnly={key==='grossSell'} title={key==='grossSell'?'Calculated automatically when net sell changes; stored totals are preserved when opening an order.':undefined} onChange={e=>patch({[key]:e.target.value})}/></label>)}
+    <div><button type="button" disabled={financial.gross===null} onClick={()=>patch({otherPaid:Math.max(0,financial.gross-financial.deposit).toFixed(2)})}>Record balance paid in full</button></div>
+    {[['provisional','Provisional booking'],['invoiced','Invoiced'],['bookDone','Manufacture book done'],['archived','Archive entry']].map(([key,label])=><label key={key}>{label}<select value={editor.data[key]?'yes':'no'} onChange={e=>patch({[key]:e.target.value==='yes'})}><option value="no">No</option><option value="yes">Yes</option></select></label>)}
+    {[['vent','Glazing requirements'],['aFrame','A-frame · requirements / ordered'],['regs','REGS']].map(([key,label])=><label key={key}>{label}<input value={editor.data[key]} onChange={e=>patch({[key]:e.target.value})}/></label>)}
     <label className="wide">Order notes<textarea value={editor.data.notes} onChange={e=>patch({notes:e.target.value})}/></label>
    </div></fieldset><p>Contribution: <b>{money(financial.contribution)}</b> · Margin: <b>{financial.margin==null?'—':num(financial.margin)+'%'}</b> · Outstanding incl VAT: <b>{money(financial.outstanding)}</b>{financial.credit>0&&<> · Credit / overpayment: <b>{money(financial.credit)}</b></>}</p>
    {error&&<p id="schedule-save-error" tabIndex={-1} className="schedule-message" role="alert"><b>Entry not saved.</b> {error}</p>}
