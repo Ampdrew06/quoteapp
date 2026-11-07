@@ -1,3 +1,5 @@
+import {resolveVictorianFiveSurvey} from './victorianFiveSurveyGeometry';
+import {combinationFacetEaves} from './combinationFacetEaves';
 import {automaticSupportCentres} from './automaticSupportSpacing';
 import {resolveVictorianFacetGeometry} from './victorianFacetGeometry';
 import {solveFacetEavesGeometry} from './facetEavesGeometry';
@@ -18,8 +20,7 @@ export function buildVictorianPlanGeometry({inputs={},materials={}}={},frontFace
   if(![3,5].includes(frontFacetCount))return fail("Choose a three- or five-facet Victorian front.");
   const count=frontFacetCount+1,outlineCount=frontFacetCount+3,standardAngle=180-180/count;
   const custom=inputs.victorianFacetGeometry?.mode&&inputs.victorianFacetGeometry.mode!=='template';
-  if(custom&&frontFacetCount!==3)return fail('Measured facet geometry is currently available on the 3-facet Victorian only.');
-  const fitted=custom?resolveVictorianFacetGeometry({widthMM:w,projectionMM:p,specification:inputs.victorianFacetGeometry}):null;
+  const fitted=custom?(frontFacetCount===5?resolveVictorianFiveSurvey:resolveVictorianFacetGeometry)({widthMM:w,projectionMM:p,specification:inputs.victorianFacetGeometry}):null;
   if(fitted&&!fitted.valid)return fail(fitted.errors.join(' '));
   const angles=fitted?.cornerAnglesDeg??inputs.cornerAnglesDeg??Array(count).fill(standardAngle);
   if(!Array.isArray(angles)||angles.length!==count||angles.some(a=>!Number.isFinite(Number(a))||Number(a)<=90||Number(a)>=180))return fail(`${count} corner angles between 90° and 180° are required.`);
@@ -67,10 +68,15 @@ export function buildVictorianPlanGeometry({inputs={},materials={}}={},frontFace
   if(!Number.isFinite(bossTopContinuationMM)||bossTopContinuationMM<0)return fail('Enter a non-negative sloping boss continuation allowance.');
   const ridge=inherited.ridge;
   const internalOutline=[{xMM:0,yMM:0},...corners,{xMM:w,yMM:0}];
+  const survey=!!fitted?.requiresManufactureReview;
+  if(survey&&controlled)return fail('Best-fit survey currently requires Automatic side soffit.');
+  const preliminary=internalOutline.slice(0,-1).map((a,i)=>{const b=internalOutline[i+1],l=length(a,b),run=Math.abs((b.xMM-a.xMM)*(ridge.yMM-a.yMM)-(b.yMM-a.yMM)*(ridge.xMM-a.xMM))/l;return {id:`facet-${i+1}`,pitchDeg:Math.atan2(inherited.riseMM,run)*180/Math.PI};});
+  const surveyEaves=survey?combinationFacetEaves({facets:preliminary,reference:{...inherited,plyBaseWidthMM},inputs,materials}):null;
+  if(surveyEaves&&!surveyEaves.valid)return fail(surveyEaves.errors.join(' '));
   const names=['Left side',...(frontFacetCount===3?['Front left','Front centre','Front right']:Array.from({length:5},(_,n)=>`Front ${n+1}`)),'Right side','House wall'];
   const offset=(a,b,i)=>{
     const dx=b.xMM-a.xMM,dy=b.yMM-a.yMM,l=Math.hypot(dx,dy),nx=-dy/l,ny=dx/l;
-    const d=i===outlineCount-1?0:plyBaseWidthMM;
+    const d=i===outlineCount-1?0:survey?surveyEaves.rows[i].plyBaseWidthMM:plyBaseWidthMM;
     return {nx,ny,c:nx*a.xMM+ny*a.yMM+d};
   };
   const lines=internalOutline.map((a,i)=>offset(a,internalOutline[(i+1)%outlineCount],i));
@@ -121,7 +127,11 @@ export function buildVictorianPlanGeometry({inputs={},materials={}}={},frontFace
   });
   const minimumY=Math.min(corners[0].yMM,corners[frontFacetCount].yMM);
   if(ridge.yMM>=minimumY)return fail('The ridge must sit behind the two side-to-front corners. Review the angles or projection.');
-  const geometry={...(fitted?{customFacetGeometry:fitted,facetGeometrySpec:inputs.victorianFacetGeometry}:{}),...(controlled?{eaves,soffitRequirement:sideMode,requestedSideSoffitMM:sideMode==='none'?0:requested,soffitProjectionMM:plyBaseWidthMM-frameMM,soffitNote:sideMode==='none'?`No soffit boards; compulsory fascia lip projects ${Number((plyBaseWidthMM-frameMM).toFixed(1))}mm beyond the frame.`:`Both sides: ${requested}mm overall fascia envelope. All facets share this setting at the standard equal pitches.`}:{}),valid:true,errors:[],adjustedAngles:angles.some(a=>Math.abs(Number(a)-standardAngle)>1e-8),frontFacetCount,maxSupportSpacingMM:maxSpacing,style:`Victorian ${frontFacetCount}-facet`,finishedHeightMM:inherited.finishedHeightMM,heightSafetyBufferMM:inherited.heightSafetyBufferMM,requestedPitchDeg:inherited.requestedPitchDeg,widthMM:w,projectionMM:p,pitchDeg:pitch,frameMM:inherited.frameMM,soffitMM,soffitMode,plyBaseWidthMM,fasciaThicknessMM,fittingToleranceMM,stripTrimAllowanceMM,soffitStripWidthMM,upstandArrangement,upstandHeightMM,bossTopContinuationMM,
+  // Frame perimeter uses the same plan offset with frame thickness alone.
+  const frameLines=internalOutline.map((a,i)=>{const l=offset(a,internalOutline[(i+1)%outlineCount],i);return {...l,c:l.nx*a.xMM+l.ny*a.yMM+(i===outlineCount-1?0:frameMM)};});
+  const framePoints=frameLines.map((b,i)=>{const a=frameLines[(i+outlineCount-1)%outlineCount],d=a.nx*b.ny-b.nx*a.ny;return {xMM:(a.c*b.ny-b.c*a.ny)/d,yMM:(a.nx*b.c-b.nx*a.c)/d};});
+  const framePerimeterMM=framePoints.slice(0,-1).reduce((n,a,i)=>n+length(a,framePoints[i+1]),0);
+  const geometry={...(survey?{facetEaves:surveyEaves.rows,framePerimeterMM,variablePitchPricingValidated:true,requiresManufactureReview:true}:{}),...(fitted?{customFacetGeometry:fitted,facetGeometrySpec:inputs.victorianFacetGeometry}:{}),...(controlled?{eaves,soffitRequirement:sideMode,requestedSideSoffitMM:sideMode==='none'?0:requested,soffitProjectionMM:plyBaseWidthMM-frameMM,soffitNote:sideMode==='none'?`No soffit boards; compulsory fascia lip projects ${Number((plyBaseWidthMM-frameMM).toFixed(1))}mm beyond the frame.`:`Both sides: ${requested}mm overall fascia envelope. All facets share this setting at the standard equal pitches.`}:{}),valid:true,errors:[],adjustedAngles:angles.some(a=>Math.abs(Number(a)-standardAngle)>1e-8),frontFacetCount,maxSupportSpacingMM:maxSpacing,style:`Victorian ${frontFacetCount}-facet`,finishedHeightMM:inherited.finishedHeightMM,heightSafetyBufferMM:inherited.heightSafetyBufferMM,requestedPitchDeg:inherited.requestedPitchDeg,widthMM:w,projectionMM:p,pitchDeg:pitch,frameMM:inherited.frameMM,soffitMM,soffitMode,plyBaseWidthMM,fasciaThicknessMM,fittingToleranceMM,stripTrimAllowanceMM,soffitStripWidthMM,upstandArrangement,upstandHeightMM,bossTopContinuationMM,
     cornerAnglesDeg:angles.map(Number),mitresDeg:turns.map(a=>a/2),frontLengthMM:fitted?.frontMM??frontLengthMM,internalOutline,externalOutline,facets,hips,intermediateBars,jackRafters,
     ridge,ridgeEndYMM:ridge.yMM,terminalTrussCentreMM:inherited.terminalTrussCentreMM,layout,riseMM:inherited.riseMM,
     externalWidthMM:Math.max(...externalOutline.map(a=>a.xMM))-Math.min(...externalOutline.map(a=>a.xMM)),externalProjectionMM:Math.max(...externalOutline.map(a=>a.yMM)),

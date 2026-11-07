@@ -171,7 +171,7 @@ const slabSequence =
     ? Math.min(1160, Math.max(700, roofHeightMM * (744 / roofWidthMM) + 354))
     : 620;
   const fonts = largePrint
-    ? { member: 20, position: 22, spacing: 19, marker: 20, hipPitch: 22, pitch: 24, dimension: 22 }
+    ? { member: 20, position: 22, spacing: 22, marker: 20, hipPitch: 22, pitch: 24, dimension: 22 }
     : { member: 12, position: 14, spacing: 11, marker: 13, hipPitch: 14, pitch: 16, dimension: 15 };
 
   const marginLeft = largePrint ? 128 : 120;
@@ -768,7 +768,7 @@ case "ring-beam":
         dominantBaseline="middle"
         fontSize={fonts.spacing}
         fontWeight={largePrint ? "700" : "400"}
-        fill="#475569"
+        fill={largePrint ? "#111827" : "#6b7280"}
       >
         {roundMM(dimension.valueMM)}
       </text>
@@ -793,7 +793,7 @@ case "ring-beam":
       textAnchor="middle"
       fontSize={fonts.spacing}
       fontWeight={largePrint ? "700" : "400"}
-      fill="#475569"
+      fill={largePrint ? "#111827" : "#6b7280"}
     >
       {roundMM(dimension.valueMM)}
     </text>

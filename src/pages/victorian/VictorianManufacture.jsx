@@ -1,3 +1,4 @@
+import VictorianCustomerPlan from './VictorianCustomerPlan';
 import VictorianNavigation from './VictorianNavigation';
 import {normalizeVictorianFiveDesignInputs} from '../../lib/geometry/victorianFiveDesignInputs';
 import {buildVictorianFiveGeometry} from '../../lib/geometry/victorianFiveGeometry';
@@ -34,6 +35,7 @@ const [details,setDetails]=useState(()=>readVictorianBookDraft(inputs)||{deliver
  if(!isAdminUser())return <Navigate to="/quote" replace/>;
  const g=geometryBuilder({inputs,materials}),s=buildVictorianTrussSchedule({geometry:g,materials}),r=buildVictorianRingBeamProfiles(g);
  if(!g.valid||!s.valid||!r.valid)return <main><Link to={"/quote/"+family}>← Design/Options</Link><p role="alert">{[...new Set([...(g.errors||[]),...(s.errors||[]),...(r.errors||[])])].join(' ')}</p></main>;
+ if(g.requiresManufactureReview)return <main><VictorianNavigation five={five}/><p role="alert">Best-fit survey: quotation geometry and material allowances are available. Variable-pitch workshop cutting details are pending verification; do not use standard cutting pages for this design.</p><VictorianCustomerPlan geometry={g}/></main>;
  const model=modelBuilder({inputs,materials}),checklist=buildVictorianIdiotList(model,materials);
  const beams=five?victorianBookBeams(r.beams.map(b=>({...b,upstandArrangement:g.upstandArrangement}))).map(b=>({...b,cuts:{...b.cuts,upstandHeightMM:g.upstandHeightMM}})):r.beams.map(b=>({manufactureRef:b.reference,cuts:{continuous:b.layers,upstandHeightMM:g.upstandHeightMM,upstandArrangement:g.upstandArrangement},bays:b.upstands}));
  const roof={customerName:details.customerName||inputs.customerName||readActiveDesignRecord(family)?.customer_name,reference:details.reference||inputs.customerReference,style:g.style,pitch:`${g.pitchDeg}°`,frame:`${g.frameMM}mm`,dimensions:`${g.widthMM} × ${g.projectionMM}mm`,soffit:g.soffitRequirement==='none'?`No soffit · ${g.soffitProjectionMM}mm compulsory fascia lip`:g.soffitRequirement==='specified'?`${g.requestedSideSoffitMM}mm required envelope · both sides`:`${g.soffitMM}mm · ${g.soffitMode==='standard'?'standard board':'site envelope'}`,tileType:details.tileType||({britmetShingle:'Britmet',metrotileShingle:'Metrotile',liteSlate:'LiteSlate',tapcoSlate:'TapcoSlate'}[inputs.tileProductId]||''),tileColour:details.tileColour||inputs.tileColour,fasciaColour:details.fasciaColour||inputs.fasciaColour,gutters:details.gutters||[inputs.gutterProfile,inputs.gutterColour].filter(Boolean).join(' / '),downpipes:details.downpipes};

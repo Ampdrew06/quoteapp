@@ -1,3 +1,4 @@
+import {solveCombinationSurvey} from './combinationSurveyGeometry';
 // Three-facet Victorian front, tangent to one equal-pitch roof.
 // The rear corners stay square. Width, projection and measured front are held;
 // side/chamfer rounding is fitted only inside the explicitly supplied tolerance.
@@ -6,6 +7,11 @@ export function resolveVictorianFacetGeometry({widthMM,projectionMM,specificatio
  const fail=message=>({valid:false,errors:[message]});
  const number=v=>v!==''&&v!=null&&Number.isFinite(Number(v));
  if(![w,p].every(Number.isFinite)||!(w>0&&p>0))return fail('Enter positive width and projection first.');
+ if(s.mode==='survey'){
+  const fit=solveCombinationSurvey({widthMM:w,projectionMM:p,leftSide:'victorian',rightSide:'victorian',specification:{...s,mode:'survey',lengthsMM:[s.leftSideMM,s.leftChamferMM,s.frontMM,s.rightChamferMM,s.rightSideMM]}});
+  if(!fit.valid)return fit;
+  return {...fit,frontMM:fit.lengthsMM[2],left:{sideMM:fit.lengthsMM[0]},right:{sideMM:fit.lengthsMM[4]}};
+ }
  if(!['lengths','angles'].includes(s.mode))return fail('Choose measured facet lengths or corner angles.');
  const at=x=>{const depth=2*r*(r-x)/(2*r-x);return {widthRunMM:x,depthMM:depth,sideMM:p-depth,chamferMM:Math.hypot(x,depth),cornerDeg:90+Math.atan2(depth,x)*180/Math.PI};};
  let left,right,toleranceMM=0;

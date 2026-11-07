@@ -1,0 +1,36 @@
+const fs=require('fs'),path=require('path'),vm=require('vm'),assert=require('assert/strict');
+const {babelTransform}=require('/opt/codex/runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/lib/transform/babelBundle.js');
+const root=path.resolve('project/src'),cache=new Map(),data={quoteapp_user_role:'admin',quoteapp_current_customer_v1:JSON.stringify({id:'admin-id',loginCode:'test-admin',role:'admin'})};
+const storage={getItem:k=>data[k]??null,setItem:(k,v)=>data[k]=v,removeItem:k=>delete data[k]};
+let bank=[],idx=0,effects=[],rpcImpl=()=>{throw Error('Unexpected RPC')},fromImpl=()=>{throw Error('Unexpected query')};
+const jsx=(type,props)=>({type,props}),react={useState:v=>{const i=idx++;if(!(i in bank))bank[i]=typeof v==='function'?v():v;return[bank[i],v=>bank[i]=typeof v==='function'?v(bank[i]):v]},useEffect:f=>effects.push(f),useMemo:f=>f(),useRef:v=>({current:v}),useId:()=> 'test',Fragment:'fragment'};
+function load(file){if(cache.has(file))return cache.get(file).exports;const m={exports:{}};cache.set(file,m);const requireLocal=n=>{if(n==='react')return react;if(n==='react/jsx-runtime')return{jsx,jsxs:jsx,Fragment:'fragment'};if(n==='react-router-dom')return{Link:'Link',Navigate:'Navigate',NavLink:'NavLink',useLocation:()=>({pathname:'/schedule'}),useNavigate:()=>()=>{}};if(n.endsWith('supabaseClient'))return{supabase:{rpc:(...args)=>{const result=rpcImpl(...args);return {then:(ok,bad)=>Promise.resolve(result).then(ok,bad),range:async()=>result};},from:(...args)=>fromImpl(...args)}};if(n.endsWith('.css')||n.endsWith('.jpg'))return{};if(!n.startsWith('.'))return{};let f=path.resolve(path.dirname(file),n);if(!path.extname(f))f+=fs.existsSync(f+'.js')?'.js':'.jsx';return load(f);};vm.runInNewContext(babelTransform(fs.readFileSync(file,'utf8'),file,false,[],[]).code,{require:requireLocal,exports:m.exports,console,localStorage:storage,window:{dispatchEvent:()=>{},confirm:()=>true,addEventListener:()=>{},removeEventListener:()=>{}},Event:function(){},setInterval:()=>0,clearInterval:()=>{}},{filename:file});return m.exports;}
+
+
+const materials=load(root+'/lib/materials.js').getMaterials();
+const build=load(root+'/lib/geometry/victorianFiveGeometry.js').buildVictorianFiveGeometry;
+const modelBuild=load(root+'/lib/Calculations/victorianFiveQuotation.js').buildVictorianFiveSummaryMaterialsModel;
+const baseInputs={widthMM:4470,projMM:4500,pitchDeg:25,soffitMM:150,tileProductId:'britmetShingle'};
+const standard=build({inputs:baseInputs,materials});assert.equal(standard.valid,true,JSON.stringify(standard.errors));
+const lengths=standard.facets.map(f=>f.internalLengthMM);
+let inputs={...baseInputs,victorianFacetGeometry:{mode:'survey',lengthsMM:lengths,toleranceMM:2}};
+let g=build({inputs,materials});assert.equal(g.valid,true,JSON.stringify(g.errors));assert.ok(g.customFacetGeometry.differencesMM.every(v=>Math.abs(v)<.001));
+const measured=lengths.map((v,i)=>v+[0,12,-8,7,5,-10,4][i]);inputs={...inputs,victorianFacetGeometry:{mode:'survey',lengthsMM:measured,toleranceMM:2}};
+g=build({inputs,materials});assert.equal(g.valid,true,JSON.stringify(g.errors));assert.equal(g.facets.length,7);assert.equal(g.hips.length,6);assert.equal(g.widthMM,4470);assert.equal(g.projectionMM,4500);console.log('differences',g.customFacetGeometry.differencesMM,'angles',g.cornerAnglesDeg,'pitches',g.facets.map(f=>f.pitchDeg));
+for(const tileProductId of ['britmetShingle','liteSlate']){const model=modelBuild({inputs:{...inputs,tileProductId},materials});assert.equal(model.valid,true,JSON.stringify(model.errors));assert.ok(Number.isFinite(model.materialsCostForPricing));assert.ok(model.materialsCostForPricing>0);console.log(tileProductId,model.materialsCostForPricing);}
+load(root+'/components/VictorianFacetGeometryEditor.jsx');load(root+'/pages/victorian/VictorianDesign.jsx');load(root+'/pages/victorian/VictorianCustomerPlan.jsx');load(root+'/pages/victorian/VictorianManufacture.jsx');
+const normal=load(root+'/lib/geometry/victorianFiveDesignInputs.js').normalizeVictorianFiveDesignInputs(inputs);assert.equal(JSON.stringify(normal.victorianFacetGeometry),JSON.stringify(inputs.victorianFacetGeometry));
+assert.equal(build({inputs:{...inputs,victorianFacetGeometry:{mode:'survey',lengthsMM:['',1,1,1,1,1,1]}},materials}).valid,false);
+console.log('v286 five-facet geometry, materials, persistence and JSX checks passed');
+
+const mirrored=build({inputs:{...inputs,victorianFacetGeometry:{...inputs.victorianFacetGeometry,lengthsMM:[...measured].reverse()}},materials});assert.equal(mirrored.valid,true);for(let i=0;i<7;i++)assert.ok(Math.abs(g.facets[i].pitchDeg-mirrored.facets[6-i].pitchDeg)<.001);
+function find(n,p){if(!n||typeof n!=='object')return null;if(Array.isArray(n)){for(const c of n){const f=find(c,p);if(f)return f;}return null;}return p(n)?n:find(n.props?.children,p);}
+const Editor=load(root+'/components/VictorianFacetGeometryEditor.jsx').default;bank=[];idx=0;let patch=null;const tree=Editor({five:true,inputs,materials,onChange:v=>patch=v});assert.ok(find(tree,n=>n.props?.['aria-label']==='Facet 7 (mm)'));find(tree,n=>n.type==='button'&&n.props.children==='Apply facet geometry').props.onClick();assert.ok(patch);assert.equal(patch.victorianFacetGeometry.mode,'survey');assert.equal(patch.victorianFacetGeometry.lengthsMM.length,7);
+const impossible=build({inputs:{...inputs,victorianFacetGeometry:{mode:'survey',lengthsMM:[2600,10,10,10,10,10,2600],toleranceMM:2}},materials});assert.ok(!impossible.valid||impossible.customFacetGeometry.outsideTolerance);
+console.log('v286 mirror, editor apply and inconsistent survey checks passed');
+
+const pricedMaterials={...materials,boss_rafter_terminal_price_each:2.2,jack_rafter_bracket_price_each:1,truss_closure_45x45_price_per_m:1,gutter_square_corner_135_ext_price:3.82,expanding_foam_roll_price_each:13,concrete_screws_price_per_box:1.97,d4_glue_price_per_tub:6.49,screws_1_5x10_price_per_box:3.2,screws_1_5x10_units_per_box:200,spar_hook_rivets_price_per_box:16,spar_hook_rivets_units_per_box:500};
+
+const api=load(root+'/lib/Calculations/victorianFiveQuotation.js');
+for(const tileProductId of ['britmetShingle','liteSlate']){const qi={...inputs,gutterProfile:'square',tileProductId,selectedCustomerId:'retail',customerReference:'SURVEY-FIVE'};const q=api.buildVictorianFiveQuotation({inputs:qi,materials:pricedMaterials,requirePostcode:false});if(tileProductId==='liteSlate'){assert.equal(q.valid,true);assert.equal(q.ready,false);assert.ok(q.model.supplyReviews.some(v=>v.includes('junction')));continue;}assert.equal(q.ready,true,JSON.stringify({errors:q.errors,missing:q.model.missingPrices,reviews:q.model.supplyReviews}));const record=api.buildVictorianFiveQuoteRecord({inputs:qi,materials:pricedMaterials,quotation:q,quoteNumber:'TEST'});assert.equal(JSON.stringify(record.inputs_json.victorianFacetGeometry),JSON.stringify(qi.victorianFacetGeometry));const restored=api.buildVictorianFiveSummaryMaterialsModel({inputs:JSON.parse(JSON.stringify(record.inputs_json)),materials:pricedMaterials});assert.equal(restored.materialsCostForPricing,q.model.materialsCostForPricing);}
+console.log('v286 Britmet quotation/record roundtrip and existing LiteSlate product-review checks passed');

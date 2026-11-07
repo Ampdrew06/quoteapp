@@ -655,10 +655,10 @@ export default function LeanToTechnical() {
             {metalAudit.errors.map(error => <p key={error} style={{ color: "#b91c1c" }}>{error}</p>)}
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead><tr>{["Item", "Used / count", "Order quantity", "Basis", "Weight", "Cost"].map(label => <th key={label} style={th}>{label}</th>)}</tr></thead>
-              <tbody>{metalAudit.rows.map(row => <tr key={row.key}><td style={td}>{row.label}</td><td style={td}>{row.qty} {row.units}</td><td style={td}>{row.orderQty}</td><td style={td}>{row.basis}</td><td style={td}>{row.weightKg.toFixed(2)} kg</td><td style={td}>{row.cost == null ? "Unconfigured" : `£${row.cost.toFixed(2)}`}</td></tr>)}</tbody>
+              <tbody>{metalAudit.rows.map(row => <tr key={row.key}><td style={td}>{row.label}</td><td style={td}>{row.qty} {row.units}</td><td style={td}>{row.orderQty}</td><td style={td}>{row.basis}</td><td style={td}>{technicalMetalWeight(row.weightKg)}</td><td style={td}>{row.cost == null ? "Unconfigured" : `£${row.cost.toFixed(2)}`}</td></tr>)}</tbody>
             </table>
             <p>Jack count breakdown: {metalAudit.jackBreakdown.map(row => `${row.key}: ${row.qty}`).join("; ")}</p>
-            <p>Watercourse wallbars: {metalAudit.watercourse.runs.map(run => `${run.side}: ${run.lengthMM.toFixed(0)} mm → ${run.orderQty} length(s)`).join("; ") || "None"}. Displayed metal subtotal: {metalAudit.totalWeightKg.toFixed(2)} kg; {metalAudit.totalCost == null ? "Pricing incomplete" : `£${metalAudit.totalCost.toFixed(2)}`}.</p>
+            <p>Watercourse wallbars: {metalAudit.watercourse.runs.map(run => `${run.side}: ${run.lengthMM.toFixed(0)} mm → ${run.orderQty} length(s)`).join("; ") || "None"}. Known metal weight subtotal: {technicalMetalWeight(metalAudit.totalWeightKg)}{metalAudit.rows.some(row=>row.qty>0&&(row.weightKg==null||!Number.isFinite(row.weightKg)))?' (partial — some item weights are not configured)':''}; {metalAudit.totalCost == null ? "Pricing incomplete" : `£${metalAudit.totalCost.toFixed(2)}`}.</p>
             <ul>{metalAudit.assumptions.map(item => <li key={item}>{item}</li>)}</ul>
           </section>
         )}
@@ -1439,3 +1439,5 @@ export default function LeanToTechnical() {
     </div>
   );
 }
+
+export function technicalMetalWeight(value){return typeof value==='number'&&Number.isFinite(value)?`${value.toFixed(2)} kg`:'Weight not configured';}
