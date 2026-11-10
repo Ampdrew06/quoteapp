@@ -12,6 +12,7 @@ import ScheduleTilePicker from '../components/ScheduleTilePicker';
 import {scheduleGrossFromNet,scheduleVatRate} from '../lib/scheduleEntryOptions';
 import ScheduleCalendar from '../components/ScheduleCalendar';
 import ScheduleSales from '../components/ScheduleSales';
+import {salesYearForDate} from '../lib/scheduleCalendar';
 import './Schedule.css';
 const money=n=>n==null?'—':new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP'}).format(n);
 const num=n=>n==null?'—':new Intl.NumberFormat('en-GB',{maximumFractionDigits:2}).format(n);
@@ -26,8 +27,9 @@ export function exportScheduleCSV(rows){
 }
 export default function Schedule(){return isAdminUser()?<ScheduleContent/>:<Navigate to="/quote" replace/>;}
 export function ScheduleContent(){
- const [rows,setRows]=useState([]),[customers,setCustomers]=useState([]),[month,setMonth]=useState(()=>localDate().slice(0,7)),[year,setYear]=useState(()=>localDate().slice(0,4)),[search,setSearch]=useState(''),[error,setError]=useState(''),[notice,setNotice]=useState(''),[loaded,setLoaded]=useState(false),[busy,setBusy]=useState(false),[editor,setEditor]=useState(null),[dirty,setDirty]=useState(false),[showArchived,setShowArchived]=useState(false),[today,setToday]=useState(localDate());
+ const [rows,setRows]=useState([]),[customers,setCustomers]=useState([]),[month,setMonth]=useState(()=>localDate().slice(0,7)),[salesMonth,setSalesMonth]=useState(()=>localDate().slice(0,7)),[search,setSearch]=useState(''),[error,setError]=useState(''),[notice,setNotice]=useState(''),[loaded,setLoaded]=useState(false),[busy,setBusy]=useState(false),[editor,setEditor]=useState(null),[dirty,setDirty]=useState(false),[showArchived,setShowArchived]=useState(false),[today,setToday]=useState(localDate());
  const [tab,setTab]=useState('list'),[calendarDirty,setCalendarDirty]=useState(false),[calendarBusy,setCalendarBusy]=useState(false),[calendarRevision,setCalendarRevision]=useState(0);
+ const [salesBasis,setSalesBasis]=useState('calendar');
  const load=async()=>{
   setBusy(true);setError('');
   try{const [jobs,records,cs]=await Promise.all([getScheduleJobs(),getScheduleRecords(),getCustomersForAdministration()]);setRows(combineSchedule(jobs,records));setCalendarRevision(n=>n+1);setCustomers(cs);setLoaded(true);setToday(localDate());}
@@ -41,7 +43,7 @@ export function ScheduleContent(){
  useEffect(()=>{if(editor){const el=document.getElementById('schedule-order-editor');el?.scrollIntoView({block:'start',behavior:'smooth'});el?.focus({preventScroll:true});}},[editor?.id,editor?.quoteId,!!editor]); // eslint-disable-line react-hooks/exhaustive-deps
  useEffect(()=>{if(error&&editor){const el=document.getElementById('schedule-save-error');el?.scrollIntoView({block:'nearest',behavior:'smooth'});el?.focus({preventScroll:true});}},[error,!!editor]); // eslint-disable-line react-hooks/exhaustive-deps
  const discard=()=>!(dirty||calendarDirty)||window.confirm('Discard the unsaved Schedule edits?');
- const switchMonth=m=>{if(!discard())return;setEditor(null);setDirty(false);setCalendarDirty(false);setMonth(m);if(m==='unscheduled')setTab('list');if(m!=='unscheduled')setYear(m.slice(0,4));setNotice('');};
+ const switchMonth=m=>{if(!discard())return;setEditor(null);setDirty(false);setCalendarDirty(false);setMonth(m);if(m==='unscheduled')setTab('list');if(m!=='unscheduled')setSalesMonth(m);setNotice('');};
  const switchTab=value=>{if(value===tab||calendarBusy)return;if(!discard())return;setEditor(null);setDirty(false);setCalendarDirty(false);setTab(value);if(value==='calendar'&&month==='unscheduled')setMonth(localDate().slice(0,7));};
  const stepMonth=delta=>{const base=month==='unscheduled'?localDate().slice(0,7):month;const [y,m]=base.split('-').map(Number),d=new Date(y,m-1+delta,1);switchMonth(localDate(d).slice(0,7));};
  const showListUtilities=false; // Retained for possible reinstatement; not shown in the simplified List.
@@ -58,7 +60,7 @@ export function ScheduleContent(){
   if(jobKey&&rows.some(r=>(editor.id?r.id!==editor.id:r!==editor&&!(editor.quoteId&&r.quoteId===editor.quoteId))&&String(r.data.jobNumber||'').trim().toLowerCase()===jobKey)){setError('That job number already exists on the Schedule. Edit the existing entry to avoid counting an order twice.');return;}
   setBusy(true);setError('');try{const saved=await saveScheduleRecord(editor,{...editor.data,customerName:editor.data.customerName.trim(),jobNumber:String(editor.data.jobNumber||'').trim()});
    const updated={...editor,pendingLink:false,id:saved.id,quoteId:saved.quote_id,version:saved.version,data:{...blankScheduleEntry,...saved.entry_json}};
-   setRows(old=>[...old.filter(r=>!(editor.id?r.id===editor.id:editor.quoteId&&r.quoteId===editor.quoteId)),updated]);setEditor(null);setDirty(false);setMonth(updated.data.deliveryDate?updated.data.deliveryDate.slice(0,7):'unscheduled');if(updated.data.deliveryDate)setYear(updated.data.deliveryDate.slice(0,4));setNotice('Schedule entry saved.');
+   setRows(old=>[...old.filter(r=>!(editor.id?r.id===editor.id:editor.quoteId&&r.quoteId===editor.quoteId)),updated]);setEditor(null);setDirty(false);setMonth(updated.data.deliveryDate?updated.data.deliveryDate.slice(0,7):'unscheduled');if(updated.data.deliveryDate)setSalesMonth(updated.data.deliveryDate.slice(0,7));setNotice('Schedule entry saved.');
   }catch(err){setError(err.message+' Your entered details are retained in this form.');}finally{setBusy(false);}
  };
  const changeSchedulePresence=async(row,restore=false)=>{
@@ -98,13 +100,13 @@ export function ScheduleContent(){
 
   </>}
   {loaded&&tab==='calendar'&&<ScheduleCalendar key={calendarRevision} month={month} rows={rows} today={today} onDirty={setCalendarDirty} onBusy={setCalendarBusy} onEditOrder={row=>{setCalendarDirty(false);setEditor({...row,data:{...row.data}});setDirty(false);setTab('list');setError('');setNotice('');}}/>}
-  {loaded&&tab==='sales'&&<ScheduleSales rows={rows} year={year} onYear={setYear}/>}
-  {loaded&&tab==='order'&&<ScheduleToOrder rows={monthRows} onDirty={setCalendarDirty} onBusy={setCalendarBusy} onSaved={updated=>{setRows(old=>old.map(r=>(updated.id&&r.id===updated.id)||(updated.quoteId&&r.quoteId===updated.quoteId)?updated:r));setNotice('Materials checklist saved.');}}/>}
+  {loaded&&tab==='sales'&&<ScheduleSales rows={rows} year={salesYearForDate(salesMonth,salesBasis)} basis={salesBasis} onBasis={setSalesBasis} onYear={y=>setSalesMonth(y+(salesBasis==='financial'?'-03':'-01'))}/>}
+  {loaded&&tab==='order'&&<ScheduleToOrder rows={monthRows} month={month} onDirty={setCalendarDirty} onBusy={setCalendarBusy} onSaved={updated=>{setRows(old=>old.map(r=>(updated.id&&r.id===updated.id)||(updated.quoteId&&r.quoteId===updated.quoteId)?updated:r));setNotice('Materials checklist saved.');}}/>}
   {editor&&<form id="schedule-order-editor" tabIndex={-1} className="schedule-editor" noValidate aria-describedby={error?'schedule-save-error':undefined} onSubmit={save}><h2>{editor.quoteId?'Edit app job':'Manual order'} {editor.data.jobNumber}{dirty?' · unsaved':''}</h2>
    <p className="schedule-help">{editor.quoteId?'Schedule values are kept separately from the saved roof design. Changes here do not alter the quote or manufacture book.':'Use this for orders designed outside the app. This does not create a roof design or reserve an app job number.'}</p>
    {editor.job&&<button type="button" disabled={busy||calendarBusy} onClick={()=>{if(window.confirm('Refresh customer, reference, roof specification, delivery address, price, cost, labour and delivery date from the saved job? Schedule payments and status will be retained.')){const j=jobScheduleEntry(editor.job);patch(Object.fromEntries(['widthMM','projectionMM','fasciaColour','soffitColour','gutterDescription','deliveryAddress','deliveryContact','customerId','customerName','reference','jobNumber','style','tiles','deliveryDate','netCost','netSell','grossSell','labour','materialsCost','deliveryCost'].map(k=>[k,j[k]])));}}}>Refresh details from saved job</button>}
    <fieldset disabled={busy||calendarBusy} style={{border:0,padding:0,margin:0}}><div className="schedule-fields">
-    <div><span>Customer directory</span><CustomerPicker customers={customers} value={editor.data.customerId||'retail'} onChange={e=>{const c=customers.find(x=>x.id===e.target.value);patch({customerId:c?.id||'',customerName:c?.name||''});}}/></div>
+    <div><span>Customer directory</span><CustomerPicker directoryOnly customers={customers} value={editor.data.customerId==='retail'?'':editor.data.customerId||''} onChange={e=>{const c=customers.find(x=>x.id===e.target.value);patch(c?{customerId:c.id,customerName:c.name}:{customerId:''});}}/></div>
     <label>Customer name<input required value={editor.data.customerName} onChange={e=>patch({customerName:e.target.value,customerId:''})}/></label>
     {[['reference','Customer reference'],['jobNumber','Job number'],['style','Roof style']].map(([key,label])=><label key={key}>{label}<input value={editor.data[key]} onChange={e=>patch({[key]:e.target.value})}/></label>)}
     <ScheduleTilePicker value={editor.data.tiles} onChange={value=>patch({tiles:value})}/>

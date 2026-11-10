@@ -29,7 +29,7 @@ const mm=value=>Number(value).toFixed(1);
 const auditNote=note=>/read-only|This is a geometry preview/i.test(note)?'This source audit is read-only. Gable Summary and quotation pricing consume its requirements; the manufacture book and Idiot List use the same integrated model.':note;
 export default function GableDesignPreview({mode='preview',fresh=false}={}) {
  const [inputs,setInputs]=useState(()=>{if(fresh)clearActiveDesignRecord();return fresh?{...initial,selectedCustomerId:getCurrentCustomer()?.id||'retail'}:restore();}),admin=isAdminUser();
- const [customers,setCustomers]=useState([]),[showQuote,setShowQuote]=useState(false);
+ const [customers,setCustomers]=useState([]),[showQuote,setShowQuote]=useState(()=>!fresh&&inputs.quoteDisplayed===true);
  useEffect(()=>{
   let alive=true;
   const load=async()=>{const rows=await getCustomers();if(alive)setCustomers(Array.isArray(rows)?rows:[]);};
@@ -38,8 +38,8 @@ export default function GableDesignPreview({mode='preview',fresh=false}={}) {
   return ()=>{alive=false;window.removeEventListener('quoteapp_customers_updated',load);};
  },[]);
  const technical=mode==='technical',design=mode==='design';
- useEffect(()=>{localStorage.setItem(KEY,JSON.stringify(inputs));},[inputs]);
- const resolved={...inputs,rightSoffitMM:admin&&inputs.separateSideSoffits?inputs.rightSoffitMM:inputs.leftSoffitMM};
+ useEffect(()=>{localStorage.setItem(KEY,JSON.stringify({...inputs,quoteDisplayed:showQuote}));},[inputs,showQuote]);
+ const resolved={...inputs,quoteDisplayed:showQuote,rightSoffitMM:admin&&inputs.separateSideSoffits?inputs.rightSoffitMM:inputs.leftSoffitMM};
  const materials=getMaterials();
  const geometry=buildGableGeometry({inputs:resolved,materials});
  const update=(key,value)=>setInputs(old=>({...old,[key]:value,...(key==='pitchDeg'?{maxFinishedHeightMM:''}:{}),...(key==='fasciaColour'?{plasticsColour:value==='White'?'white':'foiled'}:{}),...(key==='tileProductId'?{tileColour:value==='liteSlate'?'Slate':'Titanium'}:{})}));

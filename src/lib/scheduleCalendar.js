@@ -1,4 +1,4 @@
-import {localDate,moneyNumber,scheduleTotals} from './scheduleModel';
+import {localDate,moneyNumber,scheduleTotals,validDate} from './scheduleModel';
 // England and Wales dates checked against GOV.UK, 5 November 2026.
 // Other years may be marked manually; no recurring rules are guessed.
 const holidayDates={
@@ -17,13 +17,32 @@ export function calendarDay(date,rows,stored={},today=localDate()){
  const colour=stored.colour&&stored.colour!=='auto'?stored.colour:holiday?'yellow':jobs.length?(date<today?'green':'red'):'white';
  return {jobs,holiday,colour,note:stored.note||''};
 }
-export function scheduleYearSales(rows,year){
- const entries=rows.filter(r=>!r.data.archived&&r.data.status!=='Cancelled'&&r.data.deliveryDate?.slice(0,4)===String(year));
+export function salesYearForDate(date,basis){
+ const year=Number(date.slice(0,4)),month=Number(date.slice(5,7));
+ return String(year-(basis==='financial'&&month<3?1:0));
+}
+export function salesYearRange(year,basis){
+ if(basis!=='financial')return {start:`${year}-01-01`,end:`${year}-12-31`};
+ const next=Number(year)+1;
+ const lastDay=next%4===0&&(next%100!==0||next%400===0)?29:28;
+ return {start:`${year}-03-01`,end:`${next}-02-${lastDay}`};
+}
+export function scheduleYearSales(rows,year,basis='calendar'){
+ const {start,end}=salesYearRange(year,basis);
+ const entries=rows.filter(({data:e})=>!e.archived&&e.status!=='Cancelled'&&validDate(e.deliveryDate)&&e.deliveryDate>=start&&e.deliveryDate<=end);
+ const missingOrders={};
+ const missing=(key,row)=>(missingOrders[key]||=[]).push(row);
  const t=scheduleTotals(entries);let vat=0,missingVat=0,materials=0,labour=0,delivery=0,missingMaterials=0,missingLabour=0,missingDelivery=0,totalCost=0,missingNetCost=0,missingNet=0,missingGross=0;
- for(const {data:e} of entries){const c=moneyNumber(e.netCost);if(c===null)missingNetCost++;else totalCost+=c;const n=moneyNumber(e.netSell),g=moneyNumber(e.grossSell);if(n===null)missingNet++;if(g===null)missingGross++;if(n===null||g===null)missingVat++;else vat+=g-n;
-  for(const [key,apply,missing] of [['materialsCost',v=>materials+=v,()=>missingMaterials++],['labour',v=>labour+=v,()=>missingLabour++],['deliveryCost',v=>delivery+=v,()=>missingDelivery++]]){const value=moneyNumber(e[key]);if(value===null)missing();else apply(value);}
+ for(const row of entries){const e=row.data,c=moneyNumber(e.netCost);
+  if(c===null){missingNetCost++;missing('missingNetCost',row);}else totalCost+=c;
+  const n=moneyNumber(e.netSell),g=moneyNumber(e.grossSell);
+  if(n===null){missingNet++;missing('missingNet',row);}
+  if(g===null){missingGross++;missing('missingGross',row);}
+  if(n===null||g===null){missingVat++;missing('missingVat',row);}else vat+=g-n;
+  if(n===null||c===null)missing('missingCost',row);
+  for(const [key,apply,increment,metric] of [['materialsCost',v=>materials+=v,()=>missingMaterials++,'missingMaterials'],['labour',v=>labour+=v,()=>missingLabour++,'missingLabour'],['deliveryCost',v=>delivery+=v,()=>missingDelivery++,'missingDelivery']]){const value=moneyNumber(e[key]);if(value===null){increment();missing(metric,row);}else apply(value);}
  }
- return {...t,vat,missingVat,materials,labour,delivery,missingMaterials,missingLabour,missingDelivery,totalCost,missingNetCost,missingNet,missingGross};
+ return {...t,missingOrders,vat,missingVat,materials,labour,delivery,missingMaterials,missingLabour,missingDelivery,totalCost,missingNetCost,missingNet,missingGross};
 }
 export const calendarStaff=['CB','RS'];
 export function annualLeaveBalances(days,year,today=localDate()){

@@ -26,3 +26,7 @@
 .purchase-group-check{float:right;font-size:13px;font-weight:500;display:inline-flex;align-items:center;gap:7px}.purchase-group-check input,.purchase-item-check input{width:auto}.purchase-line{grid-template-columns:2fr 2fr .7fr 1fr auto 1fr auto}@media(max-width:850px){.purchase-line{grid-template-columns:1fr 1fr}}
 
 .purchase-roof-complete{background:#d7efdd}.purchase-roof-needed{background:#fff0f0}
+
+.schedule-stock-requirements{margin-top:24px}.schedule-stock-table{overflow-x:auto;max-width:620px}.schedule-stock-table table{border-collapse:collapse;width:100%}.schedule-stock-table th,.schedule-stock-table td{text-align:left;padding:7px 12px;border-bottom:1px solid #c7d8dd}.schedule-stock-table th:last-child,.schedule-stock-table td:last-child{text-align:right}.schedule-stock-table thead{background:#f0f7fa}.schedule-stock-table tbody th{font-weight:500}.schedule-stock-requirements>details{margin-top:10px}
+
+.schedule-stock-table td:nth-last-child(2),.schedule-stock-table th:nth-last-child(2){text-align:right}.schedule-stock-table tbody th:nth-last-child(2){text-align:left}

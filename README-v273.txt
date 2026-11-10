@@ -1,9 +1,0 @@
-Merge the entire src folder into quoteapp-v2/src, replacing matching files, and restart your usual launcher. Cumulative update: includes v272 and previous changes.
-
-Every implemented roof Design/Options page now has a collapsed Edit frame thickness - admin tool next to geometry/rafter tools. Enter a positive thickness, Apply, then save/update the quotation. Restore 70mm default is provided. This is per roof, not a Materials-global edit. Existing internal dimensions, facet geometry and manual rafter positions are retained. Review the new preview before saving.
-
-Covers Lean-To, Hipped Lean-To, Gable, Edwardian, 3/5 Facet Victorian, Victorian Hipped Lean-To, half Edwardian/Victorian and the provisional Double Hipped Edwardian. Existing customer-facing frame fields have moved into the admin tool where applicable.
-
-Lean-To/Hipped now retain the frame in draft and quote inputs and apply it throughout Summary, totals, technical and manufacture material/geometry inputs. Framed side supports follow the chosen thickness; separately specified wall support depths are retained. The independent front frame depth is synchronized with the chosen frame thickness. Half/half and Double Hipped Edwardian no longer force 70mm in their geometry/material paths. Existing saved settings retain their values; absent settings use the established default.
-
-Checks: nine roof variants exercised at 70mm and 110mm; Hipped external sizes, Double Edwardian frame/tiling areas, half/half endpoint calculations, legacy setting precedence, per-roof Materials isolation, admin visibility, invalid input rejection, default restoration and saved frame/manual positions passed. Changed pages parsed; v271 materials/pricing, v272 save/update and v269 member-layout checks passed. Full CRA build, live browser and real database testing unavailable here. Double Hipped Edwardian remains paused at its provisional v272 stage apart from this requested shared control.

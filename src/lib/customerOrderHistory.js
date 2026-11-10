@@ -1,7 +1,9 @@
+import {isRetailName,retailCustomer} from './retailCustomer';
 import {moneyNumber,scheduleTotals} from './scheduleModel';
 const name=v=>String(v||'').trim().replace(/\s+/g,' ').toLocaleLowerCase('en-GB');
 export function scheduleCustomerMatch(entry,customers){
- if(entry.customerId){const exact=customers.find(c=>c.id===entry.customerId);return {id:exact?.id||null,method:exact?'id':'unmatched'};}
+ if(entry.customerId&&entry.customerId!=='retail'){const exact=customers.find(c=>c.id===entry.customerId);return {id:exact?.id||null,method:exact?'id':'unmatched'};}
+ if(entry.customerId==='retail'||isRetailName(entry.customerName)){const retail=retailCustomer(customers);if(retail)return {id:retail.id,method:'retail'};}
  const key=name(entry.customerName);if(!key)return {id:null,method:'unmatched'};
  const matches=customers.filter(c=>[c.name,c.customerCode].filter(Boolean).some(v=>name(v)===key));
  return matches.length===1?{id:matches[0].id,method:'name'}:{id:null,method:'unmatched'};

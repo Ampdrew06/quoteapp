@@ -1,7 +1,0 @@
-Merge the entire src folder into quoteapp-v2/src, replacing matching files. Cumulative update including v273 and earlier changes. Refresh/restart if the app does not reload automatically.
-
-Summary Exclude now means: remove the price AND omit that supply from the Idiot List/picking list. Installed geometry, installed roof weight and manufacture cutting information are retained. Excluded extras are also omitted. Unticking Exclude restores the supply. Existing saved quote exclusions follow this new picking rule when reopened. Save/Update Quote to retain newly changed exclusions.
-
-Shared picking-list adapters and renderer updated for Lean-To, Hipped Lean-To, Gable, Edwardian, 3/5 Facet Victorian, half Edwardian/Victorian and Victorian Hipped Lean-To. Derived loose-lath and quilt-roll entries respect their original Summary exclusions so rebuilt quantities do not reappear. Positive fitted extras are filtered too. Existing clearly marked NOT SUPPLIED plasterboard information remains informational, without a picking checkbox.
-
-Checks: breather membrane omission, unticking restoration and unchanged installed weight passed on all eight checklist styles. Derived quilt/lath entries, excluded added items, serialized saved exclusions and supplied checklist filtering checked. Existing 36 roof material/pricing cases and quote save/update checks still pass. Test expectations for the former price-only behaviour have been updated. Full CRA build/live browser/real database checks unavailable in this source-only workspace.

@@ -1,4 +1,0 @@
-Merge the included src folder into your existing quoteapp-v2 src folder, replacing matching files. This cumulative update includes v267 and earlier changes.
-Double Hipped Edwardian is now an admin-only geometry preview on Home. Enter internal width/projection, pitch and open-side soffit. The valley plate uses the existing Lean-To 63mm specification, within IP. Ridge follows the longer dimension; a square roof has a point apex. External dimensions shown are outside ringbeams, not the waterproofed valley.
-This first stage has no pricing, saved quote conversion, rafter layout or manufacture output for this new style. Draft inputs persist locally while navigating. Those integrations follow geometry approval.
-Verification: both 5000x3000 and 3000x5000 examples give a 2000mm ridge; square case, plate datum, external dimensions, hip symmetry and changed-source parsing checked. Full CRA build and browser verification were unavailable in this source-only workspace.
