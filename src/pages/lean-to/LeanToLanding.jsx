@@ -1390,10 +1390,17 @@ const missingPostcode = !isAdmin && !String(deliveryPostcode || "").trim();
 
 const hasDeliveryPostcode = !missingPostcode;
 
-const tradeDesignErrors = validateTradeHippedDesign({isAdmin,roofStyle,widthMM,projMM,bossArrangement,leftHip,rightHip,leftHipWidthMM,rightHipWidthMM});
+const hippedDesignErrors = validateTradeHippedDesign({
+  roofStyle,widthMM,projMM,bossArrangement,leftHip,rightHip,leftHipWidthMM,rightHipWidthMM,
+  requestedLeftSidePitchDeg,requestedRightSidePitchDeg,
+  resolvedLeftHipWidthMM:hippedGeom?.leftPitchDerivedHipWidthMM,
+  resolvedRightHipWidthMM:hippedGeom?.rightPitchDerivedHipWidthMM,
+});
+const showDesignError = hippedDesignErrors.length > 0 && (showQuote || quoteError || (widthMM !== "" && projMM !== ""));
+const collapseQuoteInputs = showQuote && !quoteInputsExpanded && hippedDesignErrors.length === 0;
 
 const canQuote =
-  tradeDesignErrors.length === 0 &&
+  hippedDesignErrors.length === 0 &&
   centralPricingReady &&
   summaryMaterials.leanToRafterLayout?.valid!==false&&hippedGeom?.manualRafterLayout?.valid!==false &&
   !missingWidth &&
@@ -1451,7 +1458,7 @@ return miles;
 };
 
   const onGetQuote = async () => {
-  if (tradeDesignErrors.length) { setQuoteError(tradeDesignErrors.join(" "));setQuoteInputsExpanded(true);setShowQuote(false);return; }
+  if (hippedDesignErrors.length) { setQuoteError(missingWidth || missingProjection ? hippedDesignErrors.join(" ") : "");setQuoteInputsExpanded(true);setShowQuote(false);return; }
   if (isCentralBoss && !centralPricingReady) { setQuoteError(summaryMaterials.centralTrussCosts?.errors?.join(" ") || "Complete the central-boss design and its material rates before quoting."); return; }
   setQuoteError("");
 
@@ -1556,7 +1563,7 @@ setQuoteInputsExpanded(false);
   const handleSaveQuote = async (asNew = false) => {
   if(summaryMaterials.leanToRafterLayout?.valid===false||summaryMaterials.manufactureGeometry?.manualRafterLayout?.valid===false){alert((summaryMaterials.leanToRafterLayout?.errors??summaryMaterials.manufactureGeometry?.manualRafterLayout?.errors??[]).join(' '));return;}
   asNew = asNew === true;
-  if (tradeDesignErrors.length) { setQuoteInputsExpanded(true);alert(tradeDesignErrors.join(" "));return; }
+  if (hippedDesignErrors.length) { setQuoteInputsExpanded(true);alert(hippedDesignErrors.join(" "));return; }
   if (isCentralBoss && !centralPricingReady) { alert(summaryMaterials.centralTrussCosts?.errors?.join(" ") || "Complete the central-boss design and its material rates before saving."); return; }
   const manualReference = (quoteRef || "").trim();
 if (!isAdmin && !manualReference) {
@@ -1763,15 +1770,15 @@ const displayExtProjectionMM =
 
         {/* Inputs card */}
         <div style={card}>
-          {showQuote && <button
+          {showQuote && hippedDesignErrors.length === 0 && <button
             id="quote-edit-toggle"
             type="button"
-            aria-expanded={quoteInputsExpanded}
+            aria-expanded={!collapseQuoteInputs}
             aria-controls="quote-input-fields"
             onClick={() => setQuoteInputsExpanded(open => !open)}
             style={{ ...primaryBtn, width: "100%", background: "#0f766e", borderColor: "#0f766e", marginBottom: quoteInputsExpanded ? 14 : 0 }}
           >Edit {quoteInputsExpanded ? '▴' : '▾'}</button>}
-          <div id="quote-input-fields" hidden={showQuote && !quoteInputsExpanded}>
+          <div id="quote-input-fields" hidden={collapseQuoteInputs}>
           <div style={grid2Responsive}>
             <label>Width (internal, mm)
               <input
@@ -2334,7 +2341,7 @@ onKeyDown={(e) => {
         >
               Quote
             </button>
-            {quoteError && (
+            {quoteError && !showDesignError && (
             <div style={{ color: "#b91c1c", fontSize: 13, marginTop: 6 }}>
     {quoteError}
   </div>
@@ -2379,8 +2386,8 @@ title={
         {summaryMaterials.leanToRafterLayout?.valid===false&&<p role="alert" style={{color:'#b91c1c'}}>{(summaryMaterials.leanToRafterLayout?.errors??summaryMaterials.manufactureGeometry?.manualRafterLayout?.errors??[]).join(' ')}</p>}
         {/* Results */}
         {isCentralBoss && !centralPricingReady && <p role="status">{summaryMaterials.centralTrussCosts?.errors?.join(' ') || 'Complete the central-boss design before quoting.'}</p>}
-        {tradeDesignErrors.length > 0 && <p role="alert" style={{color:"#b91c1c"}}>{tradeDesignErrors.join(" ")}</p>}
-        {showQuote && summaryMaterials.leanToRafterLayout?.valid!==false&&hippedGeom?.manualRafterLayout?.valid!==false && tradeDesignErrors.length === 0 && (!isCentralBoss || centralPricingReady) && (
+        {showDesignError && <p role="alert" style={{color:"#b91c1c"}}>{hippedDesignErrors.join(" ")}</p>}
+        {showQuote && summaryMaterials.leanToRafterLayout?.valid!==false&&hippedGeom?.manualRafterLayout?.valid!==false && hippedDesignErrors.length === 0 && (!isCentralBoss || centralPricingReady) && (
           <div id="quote-result" style={{ marginTop: 16, display: "grid", gap: 14 }}>
             {/* Plan preview */}
             <div style={card}>
