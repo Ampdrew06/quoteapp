@@ -1,3 +1,4 @@
+import {gableStabilityBarIncluded,gableStabilityBarKey} from '../geometry/gableAFrame';
 import {buildGableGeometry} from '../geometry/gableGeometry';
 import {buildGableTimberAudit} from './gableTimberAudit';
 import {buildGableInsulationAudit} from './gableInsulationAudit';
@@ -33,6 +34,15 @@ export function buildGableSummaryMaterialsModel({inputs={},materials:m={},exclus
  // Source timber audit already includes configured waste. PIR and all laths are pooled below.
  for(const row of timber.lines.filter(r=>!['outerLaths','finishingLaths','upstandPir'].includes(r.key)))
   add('timber','gable_'+row.key,row.label,row.quantity,row.unit,row.cost,row.installedWeightKg,{used_qty:row.quantity,wastePercent:row.wastePercent,supplyToSite:false});
+ // The allowance is for a single folded bar. Offcuts are discarded.
+ const barKey=gableStabilityBarKey;
+ const barCutMM=geometry.widthMM+2*90+2*25;
+ const barExcluded=!gableStabilityBarIncluded(inputs,geometry.widthMM,exclusions);
+ const barStockPrice=rate(m.gable_stability_bar_price_each??51.50),barEngineering=rate(m.gable_stability_bar_engineering_each??25);
+ add('metal',barKey,`Gable lateral stability bar — 6 × 70 mm · ${barCutMM.toFixed(1).replace(/\.0$/,'')} mm cut`,1,'Bar',
+  barStockPrice===null||barEngineering===null?null:barStockPrice+barEngineering,
+  barExcluded?0:barCutMM/1000*3.297,{fixedQuantity:true,stock_length_m:6.1,used_m:barCutMM/1000,
+   requirement_basis:'One full 6.1 m stock bar plus engineering; cut length includes both 25 mm folds.'});
  const lathPrice=first(m.lath25x50?.price_per_m,m.chamferLath?.price_per_m);
  add('timber','gable_laths','25×50 laths — all uses, pooled stock',laths.knownStockLengths,'Lengths',lathPrice==null?null:laths.knownStockLengths*laths.stockM*lathPrice,
   rate(m.chamferLath?.weight_kg_per_m)==null?null:laths.knownLathM*Number(m.chamferLath.weight_kg_per_m),{used_m:laths.knownLathM,stock_length_m:laths.stockM,requirement_basis:'Purchased stock cost; installed metres for weight. No second waste uplift.'});
@@ -100,8 +110,8 @@ export function buildGableSummaryMaterialsModel({inputs={},materials:m={},exclus
  for(const section of Object.values(sections)){
   section.lines=section.lines.map(row=>{
    if(row.isAddedItem)return {...row,excluded:!!row.extraExcluded};
-   const delta=Number(adjustments[row.key]);const qty=Math.max(0,row.qty+(Number.isFinite(delta)?delta:0));
-   return {...row,qty,order_qty:qty,line:round(qty*row.unitPrice),total:round(qty*row.unitPrice),cost:round(qty*row.unitPrice),totalCost:round(qty*row.unitPrice),excluded:!!exclusions[row.key]};
+   const delta=Number(adjustments[row.key]);const qty=row.fixedQuantity?row.qty:Math.max(0,row.qty+(Number.isFinite(delta)?delta:0));
+   return {...row,qty,order_qty:qty,line:round(qty*row.unitPrice),total:round(qty*row.unitPrice),cost:round(qty*row.unitPrice),totalCost:round(qty*row.unitPrice),excluded:row.key===barKey?barExcluded:!!exclusions[row.key]};
   });
   // Supply extras and +/- changes do not change the roof's installed geometry or weight.
   const cost=round(section.lines.reduce((s,r)=>s+(r.excluded?0:r.line),0));
@@ -111,6 +121,7 @@ export function buildGableSummaryMaterialsModel({inputs={},materials:m={},exclus
  const materialsCostForPricing=round(Object.values(pricingSections).reduce((s,v)=>s+v,0));
  const missingPrices=Object.values(sections).flatMap(s=>s.lines).filter(r=>r.qty>0&&!r.excluded&&r.price_unconfigured);
  const supplyReviews=[];
+ if(!barExcluded&&barCutMM>6100)supplyReviews.push('The Gable stability bar exceeds one 6.1 m stock length. Confirm a suitable bar before quoting.');
  const membraneLine=sections.misc.lines.find(r=>r.key==='gable_membrane');
  if((membraneLine?.qty??0)*50+1e-9<area)supplyReviews.push('Membrane area exceeds supplied roll coverage. Increase the roll quantity in Summary.');
  const missingWeights=Object.values(sections).flatMap(s=>s.lines).filter(r=>r.weight_unconfigured&&!r.isAddedItem);

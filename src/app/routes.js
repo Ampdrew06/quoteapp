@@ -23,6 +23,7 @@ import EdwardianSummary from '../pages/edwardian/EdwardianSummary';
 import EdwardianIdiotList from '../pages/edwardian/EdwardianIdiotList';
 import EdwardianGeometryAudit from '../pages/edwardian/EdwardianGeometryAudit';
 import GableManufacture from '../pages/gable/GableManufacture';
+import GableAFrame from '../pages/gable/GableAFrame';
 import GablePage from '../pages/gable/GablePage';
 import GableDesignPreview from '../pages/gable/GableDesignPreview';
 import CentralBossIntegrationGate from '../components/CentralBossIntegrationGate';
@@ -109,6 +110,7 @@ export default function AppRoutes() {
         <Route path="/quote/edwardian/idiot-list" element={<EdwardianIdiotList />} />
         <Route path="/quote/edwardian" element={<EdwardianDesign />} />
         <Route path="/quote/gable" element={<GablePage />} />
+        <Route path="/quote/gable/a-frame" element={<GableAFrame />} />
         <Route path="/quote/gable/idiot-list" element={<GablePage idiotList />} />
         <Route path="/quote/gable/summary" element={<GablePage summary />} />
         <Route path="/quote/gable/plan-manufacture" element={<GableManufacture />} />

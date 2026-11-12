@@ -32,6 +32,7 @@ export function buildSummaryItemCatalog(m = {}) {
       for(const size of Object.keys(sizes).sort((a,b)=>Number(a)-Number(b)))
         field('plastics',`${kind}_${band}_${size}`,`${label} ${size}mm × 5m — ${band}`,'Length',`${kind}_price_per_length_${band}_mm.${size}`);
     }
+    field('plastics',`d_mould_25_${band}`,`25mm D-mould — ${band}`,'Length',`d_mould_25_${band}_price`);
     for(const [id,label,key] of [
       ['j','Soffit starter / J-trim — 5m','fascia_j_section'],['h','H-trim — full 5m length','fascia_h_section'],
       ['corner90','90° external fascia corner (300mm)','fascia_corner_90_ext_300'],['double90','90° double external fascia corner (500mm)','fascia_corner_90_double_ext_500'],['cornerint','Internal fascia corner (500mm)','fascia_corner_int_500'],['joint300','Fascia joint (300mm)','fascia_joint_300'],['joint500','Fascia joint (500mm)','fascia_joint_500'],['corner135','135° fascia corner (300mm)','fascia_corner_135_300'],['ventdisc','Vent disc','fascia_vent_disc'],['bead','Plaster bead','plaster_bead'],

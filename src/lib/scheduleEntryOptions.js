@@ -11,3 +11,13 @@ export function parseScheduleTile(value){
 export const scheduleTileText=(system,colour)=>[system,colour].filter(Boolean).join(' / ');
 export function scheduleGrossFromNet(value,rate=.2){const n=moneyNumber(value);return n===null||n<0?'':(Math.round((n*(1+rate)+Number.EPSILON)*100)/100).toFixed(2);}
 export function scheduleVatRate(entry={},job=null){const rate=moneyNumber(entry.vatRate??job?.pricing_json?.vatRate);return rate!==null&&rate>=0&&rate<=1?rate:.2;}
+
+// Suggest a gross price in the editor only; opening the order does not save it.
+export function scheduleOrderDraft(row){
+ const data={...row.data};
+ if(data.historicalImport&&moneyNumber(data.grossSell)===null){
+  const rate=scheduleVatRate(data,row.job),gross=scheduleGrossFromNet(data.netSell,rate);
+  if(gross!=='')return {...row,data:{...data,grossSell:gross,vatRate:rate},suggestedVatRate:rate};
+ }
+ return {...row,data};
+}

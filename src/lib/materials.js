@@ -334,6 +334,8 @@ fascia_corner_135_300_foiled_price: 0,
 fascia_vent_disc_white_price: 0,
 fascia_vent_disc_foiled_price: 0,
 
+gable_stability_bar_price_each: 51.50,
+gable_stability_bar_engineering_each: 25,
 plaster_bead_white_price: 0,
 plaster_bead_foiled_price: 0,
 
@@ -1346,6 +1348,10 @@ pir50_cradle_weight_multiplier: true,
       fascia_vent_disc_white_price: true,
       fascia_vent_disc_foiled_price: true,
 
+      gable_stability_bar_price_each: true,
+      gable_stability_bar_engineering_each: true,
+      d_mould_25_white_price: true,
+      d_mould_25_foiled_price: true,
       plaster_bead_white_price: true,
       plaster_bead_foiled_price: true,
 

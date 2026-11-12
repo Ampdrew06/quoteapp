@@ -1,4 +1,4 @@
-import {localDate,moneyNumber,scheduleTotals,validDate} from './scheduleModel';
+import {countsAsScheduleSale,historicalOrderNeedsReview,localDate,moneyNumber,scheduleTotals,validDate} from './scheduleModel';
 // England and Wales dates checked against GOV.UK, 5 November 2026.
 // Other years may be marked manually; no recurring rules are guessed.
 const holidayDates={
@@ -29,7 +29,7 @@ export function salesYearRange(year,basis){
 }
 export function scheduleYearSales(rows,year,basis='calendar'){
  const {start,end}=salesYearRange(year,basis);
- const entries=rows.filter(({data:e})=>!e.archived&&e.status!=='Cancelled'&&validDate(e.deliveryDate)&&e.deliveryDate>=start&&e.deliveryDate<=end);
+ const entries=rows.filter(({data:e})=>countsAsScheduleSale(e)&&validDate(e.deliveryDate)&&e.deliveryDate>=start&&e.deliveryDate<=end);
  const missingOrders={};
  const missing=(key,row)=>(missingOrders[key]||=[]).push(row);
  const t=scheduleTotals(entries);let vat=0,missingVat=0,materials=0,labour=0,delivery=0,missingMaterials=0,missingLabour=0,missingDelivery=0,totalCost=0,missingNetCost=0,missingNet=0,missingGross=0;
@@ -56,6 +56,8 @@ export function annualLeaveBalances(days,year,today=localDate()){
  return result;
 }
 export function adminCalendarStatus(entry,today=localDate()){
+ if(historicalOrderNeedsReview(entry))return {colour:'amber',label:'To Review'};
+ if(entry.historicalImport&&moneyNumber(entry.grossSell)===null)return {colour:'grey',label:'Payment details unknown'};
  if(entry.provisional||(!entry.jobNumber&&!entry.reference&&!entry.style))return {colour:'grey',label:'Provisional'};
  const gross=moneyNumber(entry.grossSell),paid=(moneyNumber(entry.deposit)||0)+(moneyNumber(entry.otherPaid)||0);
  if(gross!==null&&gross-paid<=.001&&(gross>0||entry.invoiced))return {colour:'green',label:'Paid'};

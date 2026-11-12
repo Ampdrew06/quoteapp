@@ -1,0 +1,2 @@
+Copy src and public over the corresponding folders in your Timberlite project. No SQL update is needed.
+Open a Gable design and select A-Frame beside Design/Options. The default 595 mm top flat can be edited and saved with the design. This changes the order sheet only. Match Gable design uses the current bar decision, including the Summary override. Choose With or Without to print an alternative. Print / Save PDF prints the selected version.

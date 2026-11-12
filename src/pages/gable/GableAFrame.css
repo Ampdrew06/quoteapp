@@ -1,0 +1,33 @@
+.af-page{max-width:1050px;margin:0 auto;padding:18px;font:14px/1.5 Inter,system-ui,Arial;color:#18333f}
+.af-controls{display:flex;flex-wrap:wrap;gap:16px;align-items:end;margin-bottom:16px}
+.af-controls label{display:grid;gap:4px;font-weight:600}
+.af-controls input,.af-controls select,.af-controls button{font:inherit;border:1px solid #bacbd1;border-radius:7px;padding:7px 10px;background:white;color:inherit}
+.af-controls input{width:110px}
+.af-controls button{background:#0f766e;color:white;cursor:pointer;border-color:#0f766e}
+.af-controls button:disabled{opacity:.5;cursor:default}
+.af-controls a{color:#0f766e;padding:7px 0}
+.af-sheet{padding:26px;border:1px solid #d4e1e4;border-radius:10px;background:white}
+.af-sheet header{border-bottom:3px solid #0f766e;padding-bottom:10px}
+.af-sheet header p{color:#0f766e;font-weight:700;letter-spacing:.12em;margin:0}
+.af-sheet h1{font-size:28px;margin:2px 0}
+.af-details{display:flex;flex-wrap:wrap;gap:12px 28px}
+.af-details div{min-width:125px;overflow-wrap:anywhere}
+.af-details dt{color:#526977;font-size:12px}
+.af-details dd{margin:0;font-weight:600}
+.af-sheet h2{font-size:17px;margin:18px 0 0}
+.af-sheet h2 span{float:right;font-size:13px;color:#0f766e}
+.af-drawing{display:block;width:100%;max-height:350px}
+.af-outline{stroke:#18333f;stroke-width:2;fill:#edf5f5}
+.af-extension path,.af-dim line{stroke:#526977;stroke-width:1;fill:none}
+.af-centre{stroke:#8499a4;stroke-dasharray:6 5}
+.af-dim text{fill:#18333f;font-size:14px;text-anchor:middle;stroke:none}
+.af-sheet table{width:100%;border-collapse:collapse}
+.af-sheet th,.af-sheet td{padding:6px;border:1px solid #d4e1e4;text-align:left}
+.af-sheet th{background:#eff5f6;font-size:12px}
+.af-note{color:#526977;font-size:12px}
+@media print{
+ @page af-order{size:A4 portrait;margin:13mm}
+ .af-controls,body:has(.af-page) .nav-strip{display:none!important}
+ .af-page{page:af-order;padding:0;margin:0;max-width:none}
+ .af-sheet{border:0;padding:0;break-inside:avoid}
+}

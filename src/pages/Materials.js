@@ -1583,6 +1583,12 @@ setHasUnsavedChanges(false);
               whiteKey: "plaster_bead_white_price",
               foiledKey: "plaster_bead_foiled_price",
             },
+            {
+              label: "25mm D-mould (per length)",
+              whiteKey: "d_mould_25_white_price",
+              foiledKey: "d_mould_25_foiled_price",
+              optionalPrice: true,
+            },
           ].map((item) => (
             <tr key={item.label}>
               <td
@@ -1604,9 +1610,9 @@ setHasUnsavedChanges(false);
                   type="number"
                   step="0.01"
                   className="border rounded px-2 py-1 w-full"
-                  value={m[item.whiteKey] ?? 0}
+                  value={m[item.whiteKey] ?? (item.optionalPrice ? "" : 0)}
                   onChange={(e) =>
-                    setField(item.whiteKey, num(e.target.value))
+                    setField(item.whiteKey, item.optionalPrice && e.target.value === "" ? null : num(e.target.value))
                   }
                 />
               </td>
@@ -1621,9 +1627,9 @@ setHasUnsavedChanges(false);
                   type="number"
                   step="0.01"
                   className="border rounded px-2 py-1 w-full"
-                  value={m[item.foiledKey] ?? 0}
+                  value={m[item.foiledKey] ?? (item.optionalPrice ? "" : 0)}
                   onChange={(e) =>
-                    setField(item.foiledKey, num(e.target.value))
+                    setField(item.foiledKey, item.optionalPrice && e.target.value === "" ? null : num(e.target.value))
                   }
                 />
               </td>
@@ -1914,6 +1920,12 @@ setHasUnsavedChanges(false);
       marginTop: 6,
     }}
   >
+    <fieldset style={{ border: "1px solid #ddd", padding: 10, borderRadius: 6 }}>
+      <legend>Gable lateral stability bar</legend>
+      {[["gable_stability_bar_price_each", "6.1 m stock bar (£ each)", 51.50],["gable_stability_bar_engineering_each", "Engineering (£ per bar)", 25]].map(([key,label,fallback])=>
+        <label key={key} style={{display:"block"}}>{label}<input type="number" min="0" step="0.01" className="border rounded px-2 py-1 w-full" value={m[key] ?? fallback} onChange={e=>setTop(key,num(e.target.value))}/></label>
+      )}
+    </fieldset>
     {/* Tile Starter */}
     <fieldset style={{ border: "1px solid #ddd", padding: 10, borderRadius: 6 }}>
       <legend style={{ padding: "0 6px" }}>Tile Starter</legend>

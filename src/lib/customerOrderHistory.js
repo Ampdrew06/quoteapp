@@ -1,5 +1,5 @@
 import {isRetailName,retailCustomer} from './retailCustomer';
-import {moneyNumber,scheduleTotals} from './scheduleModel';
+import {countsAsScheduleSale,moneyNumber,scheduleTotals} from './scheduleModel';
 const name=v=>String(v||'').trim().replace(/\s+/g,' ').toLocaleLowerCase('en-GB');
 export function scheduleCustomerMatch(entry,customers){
  if(entry.customerId&&entry.customerId!=='retail'){const exact=customers.find(c=>c.id===entry.customerId);return {id:exact?.id||null,method:exact?'id':'unmatched'};}
@@ -11,6 +11,6 @@ export function scheduleCustomerMatch(entry,customers){
 export function customerOrderHistory(rows,customers,customerId,year='all'){
  const active=rows.filter(r=>!r.data.archived&&r.data.status!=='Cancelled'),matched=active.map(r=>({...r,customerMatch:scheduleCustomerMatch(r.data,customers)})),own=matched.filter(r=>r.customerMatch.id===customerId);
  const selected=own.filter(r=>year==='all'||r.data.deliveryDate?.slice(0,4)===String(year)).sort((a,b)=>String(b.data.deliveryDate||'').localeCompare(String(a.data.deliveryDate||''))||String(b.data.jobNumber||'').localeCompare(String(a.data.jobNumber||''),undefined,{numeric:true}));
- let vat=0,missingNet=0,missingGross=0;for(const r of selected){const n=moneyNumber(r.data.netSell),g=moneyNumber(r.data.grossSell);if(n===null)missingNet++;if(g===null)missingGross++;if(n!==null&&g!==null)vat+=g-n;}
+ let vat=0,missingNet=0,missingGross=0;for(const r of selected){if(!countsAsScheduleSale(r.data))continue;const n=moneyNumber(r.data.netSell),g=moneyNumber(r.data.grossSell);if(n===null)missingNet++;if(g===null)missingGross++;if(n!==null&&g!==null)vat+=g-n;}
  return {rows:selected,totals:{...scheduleTotals(selected),vat,missingNet,missingGross},years:[...new Set(own.map(r=>r.data.deliveryDate?.slice(0,4)).filter(Boolean))].sort().reverse(),nameMatched:selected.filter(r=>r.customerMatch.method==='name').length,unassigned:matched.filter(r=>!r.customerMatch.id)};
 }

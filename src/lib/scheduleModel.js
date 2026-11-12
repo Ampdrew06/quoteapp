@@ -40,9 +40,11 @@ export function scheduleListPaymentState(entry,today=localDate()){
  return state==='unknown'&&!entry.delivered?'not-due':state;
 }
 export function inScheduleMonth(row,month){return month==='unscheduled'?!validDate(row.data.deliveryDate):validDate(row.data.deliveryDate)&&row.data.deliveryDate.slice(0,7)===month;}
+export const historicalOrderNeedsReview=entry=>!!entry.historicalImport&&entry.status==='On Hold';
+export const countsAsScheduleSale=entry=>!entry.archived&&entry.status!=='Cancelled'&&!historicalOrderNeedsReview(entry);
 export function scheduleTotals(rows){
  const t={count:0,net:0,contribution:0,gross:0,deposits:0,outstanding:0,overdue:0,missingPrice:0,missingCost:0,contributionSales:0,pricedNetCount:0};
- for(const {data:e} of rows){if(e.archived||e.status==='Cancelled')continue;const a=scheduleAmounts(e);t.count++;if(a.net===null||a.gross===null)t.missingPrice++;if(a.net!==null)t.pricedNetCount++;t.net+=a.net||0;t.gross+=a.gross||0;t.deposits+=a.deposit;t.outstanding+=a.outstanding||0;if(a.contribution===null)t.missingCost++;else{t.contribution+=a.contribution;t.contributionSales+=a.net;}if(paymentState(e)==='overdue')t.overdue+=a.outstanding;}
+ for(const {data:e} of rows){if(!countsAsScheduleSale(e))continue;const a=scheduleAmounts(e);t.count++;if(a.net===null||a.gross===null)t.missingPrice++;if(a.net!==null)t.pricedNetCount++;t.net+=a.net||0;t.gross+=a.gross||0;t.deposits+=a.deposit;t.outstanding+=a.outstanding||0;if(a.contribution===null)t.missingCost++;else{t.contribution+=a.contribution;t.contributionSales+=a.net;}if(paymentState(e)==='overdue')t.overdue+=a.outstanding;}
  return {...t,average:t.pricedNetCount>0?t.net/t.pricedNetCount:0,margin:t.contributionSales>0?t.contribution/t.contributionSales*100:null};
 }
 export function validateScheduleEntry(e){
