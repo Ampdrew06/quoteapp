@@ -1,3 +1,4 @@
+import DoubleEdwardianValleyReview from './DoubleEdwardianValleyReview';
 import CustomerPicker from '../../components/CustomerPicker';
 import FrameThicknessEditor from '../../components/FrameThicknessEditor';
 import DoubleEdwardianNavigation from './DoubleEdwardianNavigation';
@@ -29,7 +30,7 @@ export function DoubleEdwardianPlan({geometry:g}){
  {dim(x(0),48,x(g.widthMM),48,`${mm(g.widthMM)} int`)}{dim(x(-g.extensionMM),600,x(g.widthMM+g.extensionMM),600,`${mm(g.externalWidthMM)} ext`)}
  {dim(x(g.widthMM+g.extensionMM)+80,y(0),x(g.widthMM+g.extensionMM)+80,y(g.projectionMM),`${mm(g.projectionMM)} int`,true)}
  {dim(x(-g.extensionMM)-45,y(0),x(-g.extensionMM)-45,y(g.externalProjectionMM),`${mm(g.externalProjectionMM)} ext`,true)}
- <text x="470" y="638" textAnchor="middle" fontSize="12">External dimensions: outside ringbeams. Waterproofed valley excluded.</text></svg>;
+ <text x="470" y="638" textAnchor="middle" fontSize="12">External dimensions: outside ringbeams, excluding the waterproofed valley.</text></svg>;
 }
 export default function DoubleEdwardianDesign(){
  const location=useLocation();
@@ -50,5 +51,5 @@ export default function DoubleEdwardianDesign(){
  {g.layout.groups.map(f=><p key={f.id}><strong>{f.name}</strong> — {f.origin}. Centres: {f.centresMM.map(mm).join(' · ')} mm. Gaps including end boundaries: {f.gapsMM.map(mm).join(' · ')} mm.</p>)}
  <div style={{overflowX:'auto'}}><table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}><thead><tr>{['Member','Type','Facet','Position (mm)','Rear fitting'].map(h=><th key={h} style={{border:'1px solid #cbd5e1',padding:5,textAlign:'left'}}>{h}</th>)}</tr></thead><tbody>{g.layout.members.map(r=><tr key={r.id}>{[r.id,r.kind,r.facet||'Corner',r.positionMM==null?'—':mm(r.positionMM),r.rearSupport||'—'].map((v,i)=><td key={i} style={{border:'1px solid #cbd5e1',padding:5}}>{v}</td>)}</tr>)}</tbody></table></div>
  <p>Matched opposing truss legs: {g.layout.trusses.map(t=>`${t.id}: ${t.legs.join(' / ')}`).join(' · ')||'None'}.</p><p>{g.layout.ridge?`${g.layout.ridge.id}: Ridge. `:''}{g.layout.ringbeams.map(r=>`${r.id}: ${r.kind}`).join(' · ')}.</p></details>
- </section>:<p role="status">{g.error||(g.valid?'The member layout has not loaded. Replace all files from the latest update, then restart the app.':'Enter valid roof dimensions.')}</p>}{layoutReady&&<DoubleEdwardianPricing inputs={inputs} materials={materials} customers={customers} onChange={patch=>setInputs(v=>({...v,...patch}))}/>}</main></>;
+ </section>:<p role="status">{g.error||(g.valid?'The member layout has not loaded. Replace all files from the latest update, then restart the app.':'Enter valid roof dimensions.')}</p>}{layoutReady&&<DoubleEdwardianValleyReview geometry={g} inputs={inputs} onChange={patch=>setInputs(v=>({...v,...patch}))}/>} {layoutReady&&<DoubleEdwardianPricing inputs={inputs} materials={materials} customers={customers} onChange={patch=>setInputs(v=>({...v,...patch}))}/>}</main></>;
 }

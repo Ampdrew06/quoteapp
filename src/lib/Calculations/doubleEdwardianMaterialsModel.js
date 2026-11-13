@@ -1,3 +1,4 @@
+import {buildDoubleEdwardianValleyOrder} from './doubleEdwardianValleyOrder';
 import {buildSummaryAddedItemLines} from './summaryAddedItems';
 import {buildDoubleEdwardianGeometry} from '../geometry/doubleEdwardianGeometry';
 import {doubleEdwardianSurface,developedDoubleEdwardianFacets,internalDoubleEdwardianLaths} from '../geometry/doubleEdwardianSurfaces';
@@ -48,6 +49,20 @@ export function buildDoubleEdwardianMaterialsModel({inputs={},materials:m={}}={}
  const support=buildHipRidgeLathIntegrationAudit({edgeModel:{valid:true,edges},tileSystem:product,materials:m});
  const sections=Object.fromEntries(['timber','tiles','plastics','metal','gutters','misc'].map(key=>[key,{lines:[]}])) , reviews=[];
  const add=(section,key,label,qty,units,price,weight,extra={})=>{const p=rate(price),kg=rate(weight);sections[section].lines.push({key,label,qty,order_qty:qty,units,unit:p??0,line:qty===0?0:p==null?0:round(qty*p),weight_kg:kg??0,price_unconfigured:qty>0&&p==null,weight_unconfigured:qty>0&&kg==null,...extra});};
+ const valley=buildDoubleEdwardianValleyOrder(g,inputs);
+ const positivePrice=value=>rate(value)>0?rate(value):null;
+ if(valley){
+  add('timber','double_valley_osb','18mm OSB — rear valley boards',valley.sheets,'Sheets',positivePrice(m.osb18_sheet_price),null);
+  if(valley.error)reviews.push(valley.error);
+  for(const {length,qty} of valley.epdm){
+   const price=positivePrice(m.epdm_rubber_price_per_m2);
+   add('misc','double_valley_epdm_'+length,`EPDM — 1 m × ${length/1000} m rear valley strip`,qty,'Strips',price==null?null:price*length/1000,null);
+  }
+  if(valley.epdm.length){
+   add('misc','double_valley_deck_adhesive','Deck adhesive (2.5 L) — rear valley',1,'Tub',positivePrice(m.deck_adhesive_2_5l_price_each),rate(m.deck_adhesive_2_5l_weight_kg_each));
+   add('misc','double_valley_bond_adhesive','Bond adhesive (can) — rear valley',1,'Can',positivePrice(m.bond_adhesive_can_price_each),rate(m.bond_adhesive_can_weight_kg_each));
+  }
+ }
  const timber=(key,label,qty,config,unit,price=config?.price_per_m2??config?.price_per_m,kg=config?.weight_kg_per_m2??config?.weight_kg_per_m)=>{const waste=rate(config?.waste_percent??config?.waste_pct??m.global_waste_percent??10);add('timber',key,label,qty,unit,price==null||waste==null?null:Number(price)*(1+waste/100),rate(kg)==null?null:qty*Number(kg),{used_qty:qty,wastePercent:waste,supplyToSite:false});};
  const paired=new Set(g.layout.trusses.flatMap(t=>t.legs));
  const memberLengths=g.layout.members.map(r=>{const run=Math.hypot(r.end.x-r.start.x,r.end.y-r.start.y),isHip=r.kind==='Hip',angle=isHip?hipPitch:g.pitchDeg*Math.PI/180,extension=r.rearSupport?0:isHip?base*Math.SQRT2:raw.manufacturedHorizontalFootCutMM;return {...r,internalSlopeMM:run/Math.cos(angle),lengthMM:(run+extension)/Math.cos(angle)};});
@@ -115,6 +130,6 @@ export function buildDoubleEdwardianMaterialsModel({inputs={},materials:m={}}={}
  const pricingState=inputs.summaryPricingState||{};
  for(const section of Object.values(sections)){section.lines=section.lines.map(r=>{const delta=r.isAddedItem?0:Number(pricingState.adjustments?.[r.key]??0),qty=Math.max(0,r.qty+(Number.isFinite(delta)?delta:0));return {...r,qty,order_qty:qty,line:round(qty*r.unit),excluded:r.isAddedItem?Boolean(r.extraExcluded):Boolean(pricingState.exclusions?.[r.key]),price_unconfigured:qty>0&&r.price_unconfigured};});section.totals={cost:round(section.lines.reduce((n,r)=>n+(r.excluded?0:r.line),0)),weight:round(section.lines.reduce((n,r)=>n+r.weight_kg,0))};}
  const all=Object.values(sections).flatMap(s=>s.lines),materialsCost=round(Object.values(sections).reduce((n,s)=>n+s.totals.cost,0)),materialsWeightKg=round(Object.values(sections).reduce((n,s)=>n+s.totals.weight,0)),plasterboardWeightKg=round(ceiling.areaM2*8.5),missingPrices=all.filter(r=>!r.excluded&&r.qty>0&&r.price_unconfigured),missingWeights=all.filter(r=>r.qty>0&&r.weight_unconfigured);
- return {valid:true,errors:[],sections,audits:{geometry:g,eaves,ring,plastics,tiles:{result,edges,surface:tileSurface},ceiling,frameSurface,memberLengths,internalLaths:internal,lathPlan},materialsCost,materialsBaseCost:materialsCost,materialsCostForPricing:materialsCost,plasterboard:{sheets:Math.ceil(ceiling.areaM2/2.88),installedAreaM2:ceiling.areaM2},materialsWeightKg,plasterboardWeightKg,installedWeightKg:round(materialsWeightKg+plasterboardWeightKg),missingPrices,missingWeights,weightComplete:missingWeights.length===0,supplyReviews:reviews,pricingReady:missingPrices.length===0&&reviews.length===0,pricingSections:Object.fromEntries(Object.entries(sections).map(([k,s])=>[k,s.totals.cost])),notes:['Roof-package estimate only: external OSB valley boards, EPDM/adhesives, valley starter and rear hip weathering are excluded until the waterproofing stage.','Open-eaves materials use the shared manufacturing ply-base projection, including its 5mm ply allowance beyond the frame/soffit outline shown on the preview. Rear projection is not extended.',
+ return {valid:true,errors:[],sections,audits:{geometry:g,valley,eaves,ring,plastics,tiles:{result,edges,surface:tileSurface},ceiling,frameSurface,memberLengths,internalLaths:internal,lathPlan},materialsCost,materialsBaseCost:materialsCost,materialsCostForPricing:materialsCost,plasterboard:{sheets:Math.ceil(ceiling.areaM2/2.88),installedAreaM2:ceiling.areaM2},materialsWeightKg,plasterboardWeightKg,installedWeightKg:round(materialsWeightKg+plasterboardWeightKg),missingPrices,missingWeights,weightComplete:missingWeights.length===0,supplyReviews:reviews,pricingReady:missingPrices.length===0&&reviews.length===0,pricingSections:Object.fromEntries(Object.entries(sections).map(([k,s])=>[k,s.totals.cost])),notes:['Provisional estimate: the rear valley includes OSB when the adjoining surface is selected, and rubber and adhesives when EPDM is selected. GRP materials, valley starter and rear hip weathering are excluded.','Open-eaves materials use the shared manufacturing ply-base projection, including its 5mm ply allowance beyond the frame/soffit outline shown on the preview. Rear projection is not extended.',
  'No physical ridge timber, rear fascia/soffit/gutter or sloping house-wall watercourse is included. The valley plate is counted once.','Joist quantities use full resolved plan-to-slope member envelopes pending cutting integration; factory connection deductions are not yet applied.','PIR uses outside-frame surface excluding soffits. Quilt and plasterboard use the finished four-slope ceiling and clipped 595mm flat.','Lath screw counts and cradle areas remain explicit estimating allowances pending manufacture reconciliation. Ordered surplus affects cost, not installed weight.']};
 }
