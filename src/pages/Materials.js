@@ -1944,6 +1944,19 @@ setHasUnsavedChanges(false);
       
     </fieldset>
 
+    <fieldset style={{ border: "1px solid #ddd", padding: 10, borderRadius: 6 }}>
+      <legend>Valley Tile Starter — 3000 × 150mm</legend>
+      {[["valley_tile_starter_price_each", "£ per length", 5.80], ["valley_tile_starter_weight_kg_each", "kg per length", 1.50]].map(([key, label, fallback]) =>
+        <label key={key} style={{display:"block"}}>{label}<input type="number" min="0" step="0.01" className="border rounded px-2 py-1 w-full" value={m[key] ?? fallback} onChange={e=>setTop(key,num(e.target.value))}/></label>
+      )}
+    </fieldset>
+    <fieldset style={{ border: "1px solid #ddd", padding: 10, borderRadius: 6 }}>
+      <legend>6mm polycarbonate — valley ventilation</legend>
+      {[["valley_vent_poly_price_per_strip", "£ per 3m strip (0 for surplus stock)", 0], ["valley_vent_poly_weight_kg_per_strip", "kg per 3m strip", ""]].map(([key, label, fallback]) =>
+        <label key={key} style={{display:"block"}}>{label}<input type="number" min="0" step="0.01" className="border rounded px-2 py-1 w-full" value={m[key] ?? fallback} onChange={e=>setTop(key,e.target.value===""?null:num(e.target.value))}/></label>
+      )}
+    </fieldset>
+
     {/* Watercourse */}
     <fieldset style={{ border: "1px solid #ddd", padding: 10, borderRadius: 6 }}>
       <legend style={{ padding: "0 6px" }}>Watercourse</legend>

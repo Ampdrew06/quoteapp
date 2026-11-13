@@ -1,0 +1,1 @@
+Double Hipped Edwardian: four hip end caps and two valley outlets by default. Change Valley outlets in the rear valley review. Check the Stop end outlet price for the gutter profile in Materials. Tile and hip/ridge quantity formulas unchanged. Merge src and public as usual. No SQL required.

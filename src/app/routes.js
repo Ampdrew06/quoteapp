@@ -1,3 +1,5 @@
+import DoubleEdwardianWorkshop from '../pages/double-edwardian/DoubleEdwardianWorkshop';
+import {workshopTabs} from '../pages/double-edwardian/workshopTabs';
 import Schedule from '../pages/Schedule';
 import DoubleEdwardianSummary from '../pages/double-edwardian/DoubleEdwardianSummary';
 import DoubleEdwardianDesign from '../pages/double-edwardian/DoubleEdwardianDesign';
@@ -76,6 +78,7 @@ export default function AppRoutes() {
         <Route path="/quote/combination/technical" element={<CombinationTechnical />} />
         <Route path="/quote/combination" element={<CombinationDesign />} />
 
+        {workshopTabs.map(([page])=><Route key={page} path={`/quote/double-edwardian/${page}`} element={<DoubleEdwardianWorkshop page={page}/>}/>)}
         <Route path="/quote/double-edwardian/summary" element={<DoubleEdwardianSummary />} />
         <Route path="/quote/double-edwardian" element={<DoubleEdwardianDesign />} />
 

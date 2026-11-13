@@ -1,0 +1,1 @@
+Timberlite v308: verifies the Double Hipped Edwardian quote workflow and clarifies the provisional banner. Includes the v307 valley course deduction. Merge src and public as usual. No Supabase SQL required.

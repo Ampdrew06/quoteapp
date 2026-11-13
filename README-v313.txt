@@ -1,0 +1,1 @@
+Double Hipped Edwardian: familiar Design/Options field layout, tile/fascia/gutter colours, valley controls and prominent pricing. Printable Manufacture Book has specification, plan, provisional member schedule and despatch checklist. Merge src and public as usual. No SQL required.

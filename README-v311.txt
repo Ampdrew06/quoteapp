@@ -1,0 +1,1 @@
+Double Hipped Edwardian: two running outlets and two plain stop ends by default. Stop-end outlets remain available through Summary Add item for special requests. Merge src and public as usual. No SQL required.

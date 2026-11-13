@@ -1,0 +1,1 @@
+Timberlite v307: Double Hipped Edwardian omits the lowest course on the rear valley facet from the main tile estimate. For LiteSlate the first remaining course retains the doubled starter allowance. Other facets, lath set-out and valley material allowances are unchanged. This is a quoting rule, not a manufacture dimension. Merge src and public as usual. No Supabase SQL required.

@@ -1,0 +1,1 @@
+Double Hipped Edwardian: Manufacture Book (review only), Technical, Tiles/Laths and Idiot List tabs. The picking list follows Summary quantities and exclusions. The manufacture review is not a cutting sheet. Merge src and public as usual. No SQL required.

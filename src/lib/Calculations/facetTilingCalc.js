@@ -474,6 +474,7 @@ export function normalizeFacetTilingInput(
 
     // Manual calculations supply this explicitly. Automatic roof geometry
     // supplies it when the roof topology is known (for example, a Gable ridge).
+    omitLowestCourse: facet?.omitLowestCourse === true,
     topEdgeType:
       tilingGeometry?.topEdgeType ??
       facet?.geometry?.topEdgeType ??
@@ -617,7 +618,7 @@ function calculateSteelShingleFacet(facet, product, warnings) {
  // A tile course occupies the area between its fixing position and the next
 // fixing position. Using the average course width avoids overcounting tapered
 // facets by measuring every course only at its wider lower edge.
-const courses = lathPositionsMM.map((startYMM, index) => {
+const allCourses = lathPositionsMM.map((startYMM, index) => {
   const endYMM =
     index < lathPositionsMM.length - 1
       ? lathPositionsMM[index + 1]
@@ -644,6 +645,9 @@ const courses = lathPositionsMM.map((startYMM, index) => {
   };
 });
 
+  const courses = facet.omitLowestCourse ? allCourses.slice(1) : allCourses;
+  const omittedCourse = facet.omitLowestCourse ? allCourses[0] : null;
+  const untiledAreaM2 = omittedCourse ? omittedCourse.widthMM * (omittedCourse.endYMM - omittedCourse.startYMM) / 1e6 : 0;
   const lathLengthMM = lathRows.reduce(
   (total, row) => total + row.widthMM,
   0
@@ -679,6 +683,7 @@ const tileQuantityOrdered =
 
   return {
     courses,
+    untiledAreaM2,
     lathRows,
     lathLengthMM: round(lathLengthMM, 3),
     grossTileQuantityRaw: round(
@@ -781,7 +786,7 @@ function calculateSyntheticSlateFacet(facet, product, warnings) {
     (yMM) => yMM !== product.perimeterLathPositionMM
   );
 
-  const courses = coursePositionsMM.map((yMM, index) => {
+  const allCourses = coursePositionsMM.map((yMM, index) => {
     /*
      * The first course begins at the eaves. Subsequent courses begin at their
      * own lath position. The final course extends to the finished top edge.
@@ -820,6 +825,9 @@ function calculateSyntheticSlateFacet(facet, product, warnings) {
     };
   });
 
+  const courses = facet.omitLowestCourse ? allCourses.slice(1) : allCourses;
+  const omittedCourse = facet.omitLowestCourse ? allCourses[0] : null;
+  const untiledAreaM2 = omittedCourse ? meanCourseWidth(facet, omittedCourse.startYMM, omittedCourse.endYMM) * (omittedCourse.endYMM - omittedCourse.startYMM) / 1e6 : 0;
   const standardSlateQuantity = courses.reduce(
   (total, course) =>
     total + course.slateQuantity,
@@ -828,7 +836,7 @@ function calculateSyntheticSlateFacet(facet, product, warnings) {
 
 // Timberlite installs the first slate row twice.
 const starterSlateQuantity = Math.ceil(
-  facet.baseWidthMM /
+  (facet.omitLowestCourse ? courses[0]?.requiredWidthMM ?? 0 : facet.baseWidthMM) /
     product.effectiveSlateWidthMM
 );
 
@@ -879,6 +887,7 @@ const slateQuantityOrdered =
   return {
     pitchRule,
     courses,
+    untiledAreaM2,
     lathRows,
     lathLengthMM: round(lathLengthMM, 3),
 

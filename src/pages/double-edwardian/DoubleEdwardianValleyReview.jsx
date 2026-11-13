@@ -3,7 +3,7 @@ import {buildDoubleEdwardianValleyOrder,epdmDefaultAllowanceMM,valleySurfaces} f
 
 const mm=n=>Number(n.toFixed(1)).toLocaleString('en-GB');
 
-export default function DoubleEdwardianValleyReview({geometry:g,inputs={},onChange}){
+export default function DoubleEdwardianValleyReview({geometry:g,inputs={},onChange,controlsOnly=false}){
  if(!g?.valid)return null;
  const {valleySurface, valleyFinish}=inputs;
  const order=buildDoubleEdwardianValleyOrder(g,inputs);
@@ -13,7 +13,7 @@ export default function DoubleEdwardianValleyReview({geometry:g,inputs={},onChan
  const rear=g.facets[0],plateLeft=x(-g.extensionMM),plateRight=x(g.widthMM+g.extensionMM);
  return <details style={{border:'1px solid #d4e1e4',borderRadius:10,marginTop:16,padding:12}}>
   <summary style={{cursor:'pointer',fontWeight:650}}>Rear valley waterproofing review</summary>
-  <p>The valley runs along the house-facing width, whichever way the ridge runs. The external waterproofed valley is outside the quoted projection.</p>
+  {!controlsOnly&&<>  <p>The valley runs along the house-facing width, whichever way the ridge runs. The external waterproofed valley is outside the quoted projection.</p>
   <svg viewBox="0 0 720 290" role="img" aria-label="Plan showing the rear valley beside the house and the rear roof facet" style={{display:'block',width:'100%',maxWidth:720}}>
    <text x="360" y="25" textAnchor="middle" fill="#18333f" fontSize="14">{valleySurfaces[valleySurface]||'Existing building'}</text>
    <polygon points={points(g.corners)} fill="#f1f5f9" stroke="#64748b"/>
@@ -28,13 +28,14 @@ export default function DoubleEdwardianValleyReview({geometry:g,inputs={},onChan
   <ul>
    <li>R1 valley plate / external roof width: <strong>{mm(g.externalWidthMM)} mm</strong>.</li>
   </ul>
+  </>}
   <label>Valley meets <select value={valleySurface||''} onChange={e=>onChange({valleySurface:e.target.value})}>
    <option value="">To confirm</option>{Object.entries(valleySurfaces).map(([key,label])=><option key={key} value={key}>{label}</option>)}
   </select></label>{' '}
   <label>Waterproofing planned <select value={valleyFinish||''} onChange={e=>onChange({valleyFinish:e.target.value})}>
    <option value="">To confirm</option><option value="epdm">EPDM — rubber and adhesives</option><option value="grp">GRP — no rubber or adhesives supplied</option>
   </select></label>
-  {!order?<p>Select what the valley meets to include materials in the estimate.</p>:<>
+  {!controlsOnly&&<>  {!order?<p>Select what the valley meets to include materials in the estimate.</p>:<>
    <p><strong>{order.sheets} × 18 mm OSB sheet{order.sheets===1?'':'s'}</strong> (2,400 × 1,200 mm). Estimated from nominal 280 mm strips: {mm(order.runsMM[0])} mm Timberlite side{order.runsMM.length>1?` and ${mm(order.runsMM[1])} mm bungalow side (including 500 mm total extra)`:' only'}.</p>
    {valleyFinish==='epdm'&&<>
     <details><summary>EPDM stock allowances</summary>
@@ -47,5 +48,6 @@ export default function DoubleEdwardianValleyReview({geometry:g,inputs={},onChan
    {!valleyFinish&&<p>OSB is included. Choose the waterproofing to complete this part of the estimate.</p>}
   </>}
   <p>Material allowance only. Confirm the board cuts, liner joints, end returns, falls and outlets for the job.</p>
+  </>}
  </details>;
 }

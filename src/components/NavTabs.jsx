@@ -1,5 +1,6 @@
 import "./AppPageLayout.css";
 import {useRememberRoofNavigation,readRoofNavigation,roofFamilyFromPath} from '../lib/roofNavigation';
+import DoubleEdwardianNavigation from '../pages/double-edwardian/DoubleEdwardianNavigation';
 import GableNavigation from '../pages/gable/GableNavigation';
 import EdwardianNavigation from '../pages/edwardian/EdwardianNavigation';
 import VictorianNavigation from '../pages/victorian/VictorianNavigation';
@@ -35,8 +36,9 @@ export default function NavTabs() {
   const routeFamily=roofFamilyFromPath(pathname);
   useRememberRoofNavigation(routeFamily);
   // Shared administration pages return to the roof being worked on.
-  const shared=['/quotes','/jobs','/customers','/materials','/my-quotes'].some(p=>pathname===p||pathname.startsWith(p+'/'));
+  const shared=['/quotes','/jobs','/schedule','/customers','/materials','/my-quotes'].some(p=>pathname===p||pathname.startsWith(p+'/'));
   const family=shared?readRoofNavigation():routeFamily;
+  if(family==='double-edwardian'&&isAdminUser())return <DoubleEdwardianNavigation showScope={!shared}/>;
   if(family==='gable')return <GableNavigation/>;
   if(family==='edwardian')return <EdwardianNavigation/>;
   if(family==='victorian-hipped')return <VictorianHippedNavigation/>;

@@ -47,7 +47,7 @@ export function VictorianSummaryContent({five=false,configuration=null}={}){
  const timberOrderDisplay={};
  const customer=customers.find(c=>c.id===inputs.selectedCustomerId)||null;
  const quotation=quotationBuilder({inputs,materials,customer,labourConfig,deliveryConfig,markupConfig});
- return <><Navigation five={five}/><main className="vs" style={{fontFamily:'Inter,system-ui,Arial',fontSize:14,maxWidth:1100,margin:'0 auto',padding:16}}>
+ return <><Navigation five={five}/><main className={family==='double-edwardian'?'vs double-edwardian-summary':'vs'} style={{fontFamily:'Inter,system-ui,Arial',fontSize:14,maxWidth:1100,margin:'0 auto',padding:16}}>
  <SummaryHeader inputs={inputs} family={family} customer={customer}/>
  {!model.valid?<p role="status">{model.errors.join(' ')} <Link to={"/quote/"+family}>Return to Design/Options</Link></p>:<>
  {Object.entries(model.sections).map(([section,data])=>{
@@ -66,5 +66,16 @@ export function VictorianSummaryContent({five=false,configuration=null}={}){
  </SummaryPricingOverview>
  </>}
  {Footer&&<Footer inputs={inputs} materials={materials} customers={customers} onChange={patch}/>}
- <style>{`.vs>h1{font-size:24px;margin:12px 0 8px}.vs>details{margin:12px 0}.vs>details>summary{cursor:pointer}`}</style></main></>;
+ <style>{`.vs>h1{font-size:24px;margin:12px 0 8px}.vs>details{margin:12px 0}.vs>details>summary{cursor:pointer}
+ @media print {
+  body:has(.double-edwardian-summary) .nav-strip {display:none!important}
+  .double-edwardian-summary {max-width:none!important;padding:0!important}
+  .double-edwardian-summary section > div {overflow:visible!important}
+  .double-edwardian-summary thead {display:table-header-group}
+  .double-edwardian-summary tr {break-inside:avoid}
+  .double-edwardian-summary tr:has(select[aria-label^="Add item to "]) {display:none}
+  .double-edwardian-summary .double-edwardian-actions,
+  .double-edwardian-summary button,
+  .double-edwardian-summary input[aria-label^="Adjustment "] {display:none!important}
+ }`}</style></main></>;
 }

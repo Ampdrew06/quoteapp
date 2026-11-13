@@ -1,0 +1,1 @@
+Timberlite v305 includes v304 rear valley materials and fixes the Timber Elements Chargeable Cost footer for Double Hipped Edwardian. Quote pricing already used the correct subtotal and is unchanged. Merge src and public into your project as usual. No Supabase SQL required.

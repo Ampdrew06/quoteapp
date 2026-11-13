@@ -1,3 +1,4 @@
+export const valleyOutletCount = inputs => inputs?.valleyOutlets==='none'?0: ['left','right'].includes(inputs?.valleyOutlets)?1:2;
 // Stock allowances for estimating only. They are not lap or outlet dimensions.
 export const valleySurfaces={bungalow:'Bungalow roof',wall:'Sheer wall',flat:'Flat roof'};
 export const epdmStockMM=[3050,3600,4570,6100];
