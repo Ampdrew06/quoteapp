@@ -22,11 +22,11 @@ export function buildVictorianMetalFixingsAudit({geometry:g,materials:m={},produ
  metalRows[metalRows.length-1].usage='site';metalRows[metalRows.length-1].supplyToSite=true;
  const siteUnits=Number(m.rafterEavesScrews?.units_per_box??200),tileUnits=Number(m.tileFixings?.units_per_box??200),concreteUnits=Number(m.concrete_screws_units_per_box??100),lathUnits=250;
  if(![siteUnits,tileUnits,concreteUnits].every(v=>Number.isInteger(v)&&v>0))return fail(['Fixing pack quantities must be positive whole numbers.']);
- const tileRate=Number(tiles.steel?m.tileFixings?.per_tile_britmet??3:m.tileFixings?.per_tile_liteslate??2);
+ const tileRate=Number(tiles.steel?m.tileFixings?.per_tile_britmet??3:productId==='tapcoSlate'?m.tileFixings?.per_tile_tapco??2:m.tileFixings?.per_tile_liteslate??2);
  if(!Number.isFinite(tileRate)||tileRate<0)return fail(['Tile screw rate must be non-negative.']);
- const junctionScrews=g.combination?(productId==='britmetShingle'?5:productId==='liteSlate'?0:null):g.frontFacetCount===5?5:10;
- const liteSupply=g.combination&&productId==='liteSlate'?tileFixingSupply({mainQty:tiles.mainTiles,hipQty:tiles.ridgeTiles+tiles.hipTiles+2,capQty:g.hips.length,steel:false,materials:m}):null;
- const siteScrews=counts.memberFeet*2,tileScrews=g.combination&&productId==='liteSlate'?(liteSupply?.totalScrews??null):tiles.steel&&tiles.ridgeTiles!=null&&tiles.hipTiles!=null&&junctionScrews!=null?tiles.mainTiles*tileRate+(tiles.ridgeTiles+tiles.hipTiles)*4+g.hips.length*2+junctionScrews:null;
+ const junctionScrews=g.combination?(productId==='britmetShingle'?5:tiles.junctionExtraTiles?0:null):g.frontFacetCount===5?5:10;
+ const slateSupply=tiles.junctionExtraTiles&&tiles.ridgeTiles!=null&&tiles.hipTiles!=null?tileFixingSupply({mainQty:tiles.mainTiles,hipQty:tiles.ridgeTiles+tiles.hipTiles+tiles.junctionExtraTiles,capQty:g.hips.length,steel:false,materials:{...m,tileFixings:{...m.tileFixings,per_tile_liteslate:tileRate}}}):null;
+ const siteScrews=counts.memberFeet*2,tileScrews=tiles.junctionExtraTiles?(slateSupply?.totalScrews??null):tiles.steel&&tiles.ridgeTiles!=null&&tiles.hipTiles!=null&&junctionScrews!=null?tiles.mainTiles*tileRate+(tiles.ridgeTiles+tiles.hipTiles)*4+g.hips.length*2+junctionScrews:null;
  const memberCandidates=facetIndex=>{
   const facetId=g.facets[facetIndex].id;
   const rows=facetIndex===0||facetIndex===g.facets.length-1?Array(counts.trusses-1).fill({top:timber.truss.members[0].externalSlopeMM,bottom:timber.truss.members[0].internalSlopeMM}):[];
@@ -44,7 +44,7 @@ export function buildVictorianMetalFixingsAudit({geometry:g,materials:m={},produ
  const lathPrice=m.screws_2x8_price_per_box??m.lathFixings?.price_per_box;
  add(siteRows,'screws_lath_internal','2-inch ×8 internal lath screws',Math.ceil(internalScrews/lathUnits),'boxes',lathPrice,`${internalScrews} conservative fixing intersections; ${lathUnits}/box.`);
  add(siteRows,'screws_lath_external','2-inch ×8 external lath screws',Math.ceil(externalScrews/lathUnits),'boxes',lathPrice,`${externalFieldScrews} field + ${supportScrews} hip/ridge support screws; ${lathUnits}/box. Ring-beam assembly excluded.`);
- add(siteRows,'screws_tile_fixings','Main, hip/ridge and cap tile screws',tileScrews==null?null:Math.ceil(tileScrews/tileUnits),'boxes',m.screws_1x8_price_per_box??m.tileFixings?.price_per_box,tileScrews==null?'Junction/edge fixing requirement awaits product confirmation.':`${tiles.mainTiles} main ×${tileRate} + ${tiles.ridgeTiles+tiles.hipTiles+(g.combination&&productId==='liteSlate'?2:0)} hip/ridge (including fabricated junction tiles) ×4 + ${g.hips.length} caps ×2 + junction ×${junctionScrews} = ${tileScrews}; ${tileUnits}/box.`);
+ add(siteRows,'screws_tile_fixings','Main, hip/ridge and cap tile screws',tileScrews==null?null:Math.ceil(tileScrews/tileUnits),'boxes',m.screws_1x8_price_per_box??m.tileFixings?.price_per_box,tileScrews==null?'Junction/edge fixing requirement awaits product confirmation.':`${tiles.mainTiles} main ×${tileRate} + ${tiles.ridgeTiles+tiles.hipTiles+(tiles.junctionExtraTiles??0)} hip/ridge (including fabricated junction tiles) ×4 + ${g.hips.length} caps ×2 + junction ×${junctionScrews} = ${tileScrews}; ${tileUnits}/box.`);
  const consumed=(qty,priceKey,unitsKey)=>{const price=rate(m[priceKey]),units=Number(m[unitsKey]);return price==null||!Number.isInteger(units)||units<=0?null:qty*price/units;};
  add(factoryRows,'d4_glue','D4 glue',1,'tub allowance',m.d4_glue_price_per_tub,'One tub per roof; includes assembled offcut closures.');
  const factoryScrews=sparPairs*14+jacks*10+6,rivets=sparPairs*4;

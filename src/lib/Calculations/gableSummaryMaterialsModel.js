@@ -1,3 +1,4 @@
+import {metrotileCarriageLine} from './metrotileCarriage';
 import {gableStabilityBarIncluded,gableStabilityBarKey} from '../geometry/gableAFrame';
 import {buildGableGeometry} from '../geometry/gableGeometry';
 import {buildGableTimberAudit} from './gableTimberAudit';
@@ -16,6 +17,7 @@ export function buildGableSummaryMaterialsModel({inputs={},materials:m={},exclus
  const geometry=buildGableGeometry({inputs:resolved,materials:m});
  const timber=buildGableTimberAudit({geometry,materials:m});
  const insulation=buildGableInsulationAudit({geometry,timberAudit:timber,materials:m});
+ const prefix=(inputs.tileProductId==='metrotileShingle'?'metrotile':'britmet');
  const tiling=buildGableTilingAudit({geometry,materials:m,productId:inputs.tileProductId||'britmetShingle'});
  const plastics=buildGablePlasticsGutteringAudit({geometry,materials:m,plasticsColour:inputs.plasticsColour||'white',gutterProfile:inputs.gutterProfile||'square'});
  const laths=buildGableLathMembraneAudit({geometry,timberAudit:timber,insulationAudit:insulation,tilingAudit:tiling,materials:m});
@@ -51,8 +53,8 @@ export function buildGableSummaryMaterialsModel({inputs={},materials:m={},exclus
   const qty=row.quantity;
   let weight=null;
   if(row.key==='main'){
-   const kg=tiling.steel?first(m.tile_britmet_weight_kg,m.britmetShingle?.weight_kg_per_tile):first(m.liteslate_tile_weight_kg_each,m.liteslate_tile_weight_kg);
-   const perM2=tiling.steel?first(m.tile_britmet_tiles_per_m2,3.2):(geometry.pitchDeg<25?22:geometry.pitchDeg<27.5?20:geometry.pitchDeg<30?19:18);
+   const kg=tiling.steel?first(m[`tile_${prefix}_weight_kg`],m[`${prefix}Shingle`]?.weight_kg_per_tile):first(m.liteslate_tile_weight_kg_each,m.liteslate_tile_weight_kg);
+   const perM2=tiling.steel?first(m[`tile_${prefix}_tiles_per_m2`],3.2):(geometry.pitchDeg<25?22:geometry.pitchDeg<27.5?20:geometry.pitchDeg<30?19:18);
    weight=kg==null?null:area*perM2*kg;
   }else if(row.key==='ridge'){
    const kg=tiling.steel?first(m.britmet_ridge_tile_weight_kg,m.ridge_tile_britmet_weight_kg):first(m.liteslate_ridge_tile_weight_kg,m.ridge_tile_liteslate_weight_kg);
@@ -72,7 +74,7 @@ export function buildGableSummaryMaterialsModel({inputs={},materials:m={},exclus
   add(row.key==='starter'?'metal':'tiles','gable_tile_'+row.key,row.label,qty,row.unit,row.cost,weight,{used_m:row.key==='starter'?2*tiling.ridgeMM/1000:undefined});
  }
  if(tiling.steel){
-  const price=first(m.touchup_kit_britmet_price_each,m.touchUpKitBritmet?.price_each);
+  const price=(prefix==='metrotile'?rate(m.metrotile_touchup_kit_price_each):first(m.touchup_kit_britmet_price_each,m.touchUpKitBritmet?.price_each));
   add('tiles','gable_touchup','Steel tile touch-up kit',1,'Kit',price,0,{weight_unconfigured:false,requirement_basis:'Loose site kit; excluded from installed roof weight.'});
  }
  const band=plastics.band,fasciaKg=rate(m['fascia_weight_kg_per_m_'+band]),soffitKg=rate(m['soffit_weight_kg_per_m_'+band]);
@@ -105,6 +107,7 @@ export function buildGableSummaryMaterialsModel({inputs={},materials:m={},exclus
  [12,15].forEach((size,n)=>{const qty=n?sq.rolls15:sq.rolls12;if(qty>0){const p=first(m['superquilt_'+size+'m_price_each'],(m.superquilt_options||[]).find(o=>Number(o.coverage_m2)===size)?.price_per_roll);add('misc','gable_sq_'+size,'SuperQuilt — '+size+'m² roll',qty,'Rolls',p==null?null:qty*p,weights[n],{used_m2:sq.installedAreaM2*covers[n]/sq.coverageM2});}});
  add('misc','gable_membrane','Breather membrane — 50m² roll',insulation.membrane.rolls,'Rolls',insulation.membrane.cost,insulation.membrane.installedWeightKg,{used_m2:area});
  for(const row of [...misc.siteRows,...misc.factoryRows])add('misc',row.key,row.label,row.qty,row.unit,row.cost,row.installedWeightKg,{usage:row.usage,supplyToSite:row.usage!=='factory',requirement_basis:row.basis});
+ const carriage=metrotileCarriageLine(inputs);if(carriage)sections.tiles.lines.push({...carriage,fixedQuantity:true});
  const extras=buildSummaryAddedItemLines(addedItems,m);
  for(const row of extras)sections[row.section].lines.push({...row,weight_unconfigured:false});
  for(const section of Object.values(sections)){

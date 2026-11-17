@@ -8,6 +8,7 @@ export function buildEdwardianTilingAudit({geometry:g,materials:m={},productId='
  const fail=message=>({valid:false,readOnly:true,errors:[message],lines:[],facets:[]});
  if(!g?.valid)return fail('Valid Edwardian geometry is required.');
  if(!['britmetShingle','metrotileShingle','liteSlate'].includes(productId))return fail('Select Britmet, Metrotile or LiteSlate.');
+ const prefix=productId==='metrotileShingle'?'metrotile':'britmet';
  const steel=productId!=='liteSlate',c=p=>Math.cos(p*Math.PI/180),half=g.widthMM/2;
  const facets=[
   {id:'facet-left-side',label:'Left roof facet',baseWidthMM:g.externalProjectionMM+50,topWidthMM:g.ridgeEndYMM,heightMM:(half+g.externalLeftMM+50)/c(g.pitchDeg),pitchDeg:g.pitchDeg,topEdgeType:steel?'ridge':'gableRidgeWithoutExtraCourse'},
@@ -32,12 +33,12 @@ export function buildEdwardianTilingAudit({geometry:g,materials:m={},productId='
  const chamferM=result.facets.reduce((n,f)=>n+f.lathRows.filter(r=>Math.abs(r.yMM??r.positionMM??r.y??-1)<1e-7).reduce((s,r)=>s+r.widthMM/1000,0),0);
  const externalLathM=fieldLathM+support.quantities.additionalLathM,eavesM=(2*g.externalProjectionMM+g.externalWidthMM)/1000;
  const lines=[],add=(key,label,quantity,unit,price)=>{const p=rate(price);lines.push({key,label,quantity,unit,unitPrice:p,cost:p==null?null:quantity*p});};
- add('main','Main tiles — roof estimate including allowance',mainTiles,'tiles',steel?m.tile_britmet_price_each:m.liteslate_tile_price_each);
- add('ridge','Ridge tiles — house wall to ridge point',ridgeTiles,'tiles',steel?m.britmet_ridge_tile_price_each:m.liteslate_ridge_tile_price_each);
- add('hips','Hip tiles — full ridge-point-to-eaves lengths',hipTiles,'tiles',steel?m.britmet_ridge_tile_price_each:m.liteslate_ridge_tile_price_each);
- add('yAdaptor','Three-way Y adaptor',1,'each',steel?m.britmet_y_adaptor_price_each:m.liteslate_three_way_adaptor_price??m.liteslate_ridge_hip_adaptor_price_each);
- add('hipEndCaps','90° hip end caps',2,'each',steel?m.britmet_hip_end_cap_90_price_each:m.liteslate_hip_end_cap_90_price??m.liteslate_hip_end_cap_90_price_each);
- if(steel){add('vents','500mm ridge ventilation strips',Math.ceil(2*ridgeMM/500),'strips',m.britmet_vent_strip_price_each);add('tape','Expanding foam tape — hips only',support.quantities.tapeRollQty,'5.6m rolls',m.expanding_foam_roll_price_each);}
+ add('main','Main tiles — roof estimate including allowance',mainTiles,'tiles',steel?m[`tile_${prefix}_price_each`]:m.liteslate_tile_price_each);
+ add('ridge','Ridge tiles — house wall to ridge point',ridgeTiles,'tiles',steel?m[`${prefix}_ridge_tile_price_each`]:m.liteslate_ridge_tile_price_each);
+ add('hips','Hip tiles — full ridge-point-to-eaves lengths',hipTiles,'tiles',steel?m[`${prefix}_ridge_tile_price_each`]:m.liteslate_ridge_tile_price_each);
+ add('yAdaptor','Three-way Y adaptor',1,'each',steel?m[`${prefix}_y_adaptor_price_each`]:m.liteslate_three_way_adaptor_price??m.liteslate_ridge_hip_adaptor_price_each);
+ add('hipEndCaps','90° hip end caps',2,'each',steel?m[`${prefix}_hip_end_cap_90_price_each`]:m.liteslate_hip_end_cap_90_price??m.liteslate_hip_end_cap_90_price_each);
+ if(steel){add('vents','500mm ridge ventilation strips',Math.ceil(2*ridgeMM/500),'strips',m[`${prefix}_vent_strip_price_each`]);add('tape','Expanding foam tape — hips only',support.quantities.tapeRollQty,'5.6m rolls',m.expanding_foam_roll_price_each);}
  else lines.push({key:'polycarbonate',label:'Factory 6mm twinwall strips, 50mm wide — ridge',quantity:Math.ceil(2*ridgeMM/3000),unit:'3m strips',unitPrice:0,cost:0});
  add('fieldLaths','25×50 external field laths — includes perimeter rows',fieldLathM,'m',m.lath25x50?.price_per_m);
  add('supportLaths','25×50 hip and ridge support laths',support.quantities.additionalLathM,'m',m.chamferLath?.price_per_m);

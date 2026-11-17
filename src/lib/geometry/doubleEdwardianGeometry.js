@@ -1,12 +1,14 @@
 import {buildDoubleEdwardianMembers} from './doubleEdwardianMembers';
 import {computeLeanToManufactureGeometry} from '../leanToManufactureGeometry';
 export const doubleEdwardianDefaults={widthMM:'',projMM:'',pitchDeg:25,soffitMM:150,frameThicknessMM:70};
+const minimumInternalDimensionMM=1000;
 // Plan datums: y=0 is the house-facing edge of the valley plate.
 // The plate occupies the first 63mm (existing Lean-To specification) within IP.
 export function buildDoubleEdwardianGeometry(inputs={}){
  const frame=Number(inputs.frameThicknessMM??70);
  const w=Number(inputs.widthMM),p=Number(inputs.projMM),pitch=Number(inputs.pitchDeg),soffit=Number(inputs.soffitMM);
  if(!(w>0&&p>0&&pitch>0&&pitch<75&&soffit>=0)||!(frame>0)||![w,p,pitch,soffit,frame].every(Number.isFinite))return {valid:false,error:'Enter positive width and projection, a pitch between 0° and 75°, and a non-negative soffit.'};
+ if(Math.min(w,p)<minimumInternalDimensionMM)return {valid:false,error:`Internal width and projection must each be at least ${minimumInternalDimensionMM} mm.`};
  const lean=computeLeanToManufactureGeometry({internalProjectionMM:p,pitchDeg:pitch,soffitDepthMM:soffit,frameThicknessMM:frame});
  const plate=lean.wallplateThicknessMM;
  if(Math.min(w,p)<=plate*2)return {valid:false,error:'Dimensions are too small for the valley plate and roof.'};

@@ -21,6 +21,7 @@ const pooledStockQuantity = (requiredLengthMM, stockLengthMM) => {
 export function buildRoofEdgeStockQuantities({
   accessoryRequirements = null,
   materials = {},
+  productId = null,
 } = {}) {
   if (!accessoryRequirements?.valid) {
     return {
@@ -49,9 +50,10 @@ export function buildRoofEdgeStockQuantities({
   const hipCoveringRequirement = requirements.hipCovering || {};
   const synthetic=accessoryRequirements.productFamily==='syntheticSlate';
   const hipOverallLengthMM=synthetic?Math.max(0,finite(materials.hip_ridge_overall_length_mm,1250)):1330;
-  const hipEffectiveCoverMM=synthetic?Math.max(0,finite(materials.hip_ridge_effective_cover_mm,1150)):1230;
+  const tapcoUnitsPerM = Number(materials.tapco_ridge_units_per_m);
+  const hipEffectiveCoverMM=productId==='tapcoSlate' && tapcoUnitsPerM > 0 ? 1000/tapcoUnitsPerM : synthetic?Math.max(0,finite(materials.hip_ridge_effective_cover_mm,1150)):1230;
   const hipRuns=accessoryRequirements.productFamily==='syntheticSlate'
-    ?(hipCoveringRequirement.edges||[]).map(edge=>({...edge,tileQty:pooledStockQuantity(edge.lengthMM,finite(materials.hip_ridge_effective_cover_mm,1150))}))
+    ?(hipCoveringRequirement.edges||[]).map(edge=>({...edge,tileQty:pooledStockQuantity(edge.lengthMM,hipEffectiveCoverMM)}))
     :orderSteelHipRidgeRuns(hipCoveringRequirement.edges||[]);
   const hipCoveringQty=hipRuns.reduce((sum,edge)=>sum+edge.tileQty,0);
   const hipEndCaps = requirements.hipEndCaps || {};

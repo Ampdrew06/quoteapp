@@ -1,6 +1,7 @@
+import MetrotileCarriageField from '../../components/MetrotileCarriageField';
 import CustomerPicker from '../../components/CustomerPicker';
 import SoffitRequirementControl from '../../components/SoffitRequirementControl';
-import {LITESLATE_COLOURS} from '../../lib/tileColours';
+import {tileColoursFor} from '../../lib/tileColours';
 import React,{useState} from 'react';
 import GablePricingPanel from '../gable/GablePricingPanel';
 import {buildEdwardianQuotation,buildEdwardianQuoteRecord} from '../../lib/Calculations/edwardianQuotation';
@@ -15,8 +16,9 @@ export default function EdwardianDesignForm({inputs,update,materials,customers,a
  return <div className="gd-card">{showQuote&&validDesign&&(hasPostcode||admin)&&<button id="edwardian-quote-edit-toggle" type="button" aria-expanded={quoteInputsExpanded} aria-controls="edwardian-quote-input-fields" onClick={()=>setQuoteInputsExpanded(open=>!open)} style={{width:'100%',background:'#0f766e',border:'1px solid #0f766e',borderRadius:10,color:'#fff',padding:'10px 14px',fontWeight:600,cursor:'pointer',marginBottom:quoteInputsExpanded?14:0}}>Edit {quoteInputsExpanded?'▴':'▾'}</button>}
  <div id="edwardian-quote-input-fields" hidden={collapsed}><div className="gd-grid">
  {field('Width (internal, mm)','widthMM','e.g. 3800')}{field('Projection (internal, mm)','projMM','e.g. 4200')}
- {select('Tile system','tileProductId',[['britmetShingle','Britmet'],['metrotileShingle','Metrotile'],['liteSlate','LiteSlate']])}
- {select('Tile colour','tileColour',inputs.tileProductId==='liteSlate'?LITESLATE_COLOURS:['Titanium','Raven','Bramble Brown','Rustic Brown','Rustic Terracotta','Smoked Oak','Rustic Red','Tartan Green'])}
+ {select('Tile system','tileProductId',[['britmetShingle','Britmet'],['metrotileShingle','Metrotile'],['liteSlate','LiteSlate']].filter(([id])=>admin||!['metrotileShingle','tapcoSlate'].includes(id)||id===inputs.tileProductId))}
+ {select('Tile colour','tileColour',tileColoursFor(inputs.tileProductId,inputs.tileColour))}
+ <MetrotileCarriageField admin={admin} inputs={inputs} update={update}/>
  {select('Fascia / Soffit colour','fasciaColour',['White','Rosewood','Black','Anthracite','Light Oak','Cream','Foiled (unspecified)'])}
  {['specified','none'].includes(inputs.sideSoffitMode)?<label>Soffit to Front (mm)<input style={inputStyle} disabled value={inputs.resolvedFrontSoffitMM??''}/></label>:field('Soffit to Front (mm)','soffitMM')}
  {select('Gutter profile','gutterProfile',[['square','Square'],['ogee','Ogee'],['round','Round']])}{select('Gutter colour','gutterColour',['White','Black','Anthracite','Brown'])}

@@ -1,3 +1,4 @@
+import {tileColoursFor} from '../tileColours';
 // Form adapter: retain saved geometry, but offer pitch controls rather than manual ridge coordinates.
 export const EDWARDIAN_DESIGN_KEY='edwardianInputs';
 export const edwardianDesignDefaults={widthMM:'',projMM:'',pitchDeg:25,frameThicknessMM:70,soffitMM:150,maxFinishedHeightMM:'',ridgeMode:'automatic',frontPitchDeg:25,sideSoffitMode:'automatic',specifiedSideSoffitMM:100,tileProductId:'britmetShingle',tileColour:'Titanium',plasticsColour:'white',fasciaColour:'White',gutterProfile:'square',gutterColour:'Black',customerReference:'',deliveryPostcode:'',selectedCustomerId:'retail'};
@@ -9,7 +10,7 @@ export function normalizeEdwardianDesignInputs(saved={},customerId='retail'){
  }
  inputs.fasciaColour=saved.fasciaColour||(saved.plasticsColour==='white'?'White':saved.plasticsColour==='foiled'?'Foiled (unspecified)':saved.plasticsColour||'White');
  if(inputs.fasciaColour==='white')inputs.fasciaColour='White';
- inputs.tileColour=saved.tileColour||(inputs.tileProductId==='liteSlate'?'Slate':'Titanium');
+ inputs.tileColour=saved.tileColour||(tileColoursFor(inputs.tileProductId)[0]);
  return inputs;
 }
 export function updateEdwardianDesignInputs(old,key,value,admin=false){
@@ -19,7 +20,7 @@ export function updateEdwardianDesignInputs(old,key,value,admin=false){
  if(key==='allowCloserRearTrusses'){if(value)next.trussMinimumSpacingMM=350;else delete next.trussMinimumSpacingMM;delete next.allowCloserRearTrusses;}
  if(key==='pitchDeg'){next.maxFinishedHeightMM='';if(!admin)next.ridgeMode='automatic';}
  if(key==='fasciaColour')next.plasticsColour=value==='White'?'white':'foiled';
- if(key==='tileProductId')next.tileColour=value==='liteSlate'?'Slate':'Titanium';
+ if(key==='tileProductId')next.tileColour=tileColoursFor(value)[0];
  if(key==='adjustFrontPitch'){next.ridgeMode=admin&&value?'frontPitch':'automatic';if(value&&old.ridgeMode!=='frontPitch')next.frontPitchDeg=old.pitchDeg;delete next.adjustFrontPitch;}
  return next;
 }

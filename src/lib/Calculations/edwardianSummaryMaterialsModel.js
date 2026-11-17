@@ -1,3 +1,4 @@
+import {metrotileCarriageLine} from './metrotileCarriage';
 import {buildEdwardianMaterialsReconciliation} from './edwardianMaterialsReconciliation';
 import {buildSummaryAddedItemLines} from './summaryAddedItems';
 const round=n=>Number(Number(n).toFixed(2));
@@ -14,6 +15,7 @@ export function buildEdwardianSummaryMaterialsModel({inputs={},materials={},excl
   const priceMissing=qty>0&&(r.qty?r.price_unconfigured:!hasEmptyPrice);
   return {...r,_k:r.key,qty,order_qty:qty,price_unconfigured:priceMissing,unit:unitPrice,unitPrice,line,total:line,cost:line,totalCost:line,totalWeightKg:r.weight_kg,total_weight_kg:r.weight_kg,excluded:!!exclusions[r.key]};
  })}]));
+ const carriage=metrotileCarriageLine(inputs);if(carriage)sections.tiles.lines.push({...carriage,fixedQuantity:true});
  for(const row of buildSummaryAddedItemLines(addedItems,materials))sections[row.section].lines.push({...row,excluded:!!row.extraExcluded,weight_unconfigured:false});
  for(const s of Object.values(sections))s.totals={cost:round(s.lines.reduce((n,r)=>n+(r.excluded?0:r.line),0)),chargeableCost:round(s.lines.reduce((n,r)=>n+(r.excluded?0:r.line),0)),weight:round(s.lines.reduce((n,r)=>n+(r.isAddedItem?0:r.weight_kg),0))};
  const pricingSections=Object.fromEntries(Object.entries(sections).map(([k,s])=>[k,s.totals.cost])),materialsCostForPricing=round(Object.values(pricingSections).reduce((n,v)=>n+v,0));

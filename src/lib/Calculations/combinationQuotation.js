@@ -12,7 +12,7 @@ export function buildCombinationSummaryMaterialsModel(args={}){
 }
 export function buildCombinationQuotation(args={}){
  const q=buildGableQuotation({...args,roofFamily:'combination',modelBuilder:buildCombinationSummaryMaterialsModel});
- if(q.valid&&['metrotileShingle','tapcoSlate'].includes(args.inputs?.tileProductId))return {...q,ready:false,model:{...q.model,pricingReady:false,supplyReviews:[...q.model.supplyReviews,'This tile system is not offered on the half/half roof. Choose Britmet or LiteSlate.']}};
+ if(q.valid&&args.inputs?.tileProductId==='metrotileShingle')return {...q,ready:false,model:{...q.model,pricingReady:false,supplyReviews:[...q.model.supplyReviews,'This tile system is not offered on the half/half roof. Choose Britmet, LiteSlate or Tapco for a mixed roof.']}};
  return q;
 }
 export function buildCombinationQuoteRecord(args){

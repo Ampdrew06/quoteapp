@@ -1,3 +1,4 @@
+import {metrotileCarriageAmount} from './metrotileCarriage';
 import {installedMainTileWeight,installedHipTileWeight} from './roofCoveringWeightRules';
 import {getFixedProductWeightKg} from '../utils/weights';
 const rate=v=>v===null||v===undefined||v===''||!Number.isFinite(Number(v))||Number(v)<0?null:Number(v);
@@ -23,6 +24,10 @@ export function buildVictorianHippedTileSummary({timber,inputs={},materials:m={}
   add(`vh_tiles_cap${angle}`,`${angle}° hip end caps`,qty,m[`${prefix}_hip_end_cap_${angle}_price_each`]??m[`${prefix}_hip_end_cap_${angle}_price`],qty===0?0:unit===null?null:qty*unit,'One cap per hip toe, using 90° or 135° stock for the selected end family; minor survey-angle differences do not create custom cap products.');
  }
  if(steel)add('vh_tiles_touchup','Steel tile touch-up kit',1,m[`${prefix}_touchup_kit_price_each`]??m[`touchup_kit_${prefix}_price_each`]??(id==='britmetShingle'?m.touchUpKitBritmet?.price_each:null),0,'Loose kit; no installed roof weight.');
+ if(id==='metrotileShingle'){
+  add('vh_metrotile_carriage','Metrotile supplier carriage',1,metrotileCarriageAmount(inputs),0,'Supplier cost per order.');
+  rows[rows.length-1].supplyToSite=false;
+ }
  const totals={cost:round(rows.reduce((n,r)=>n+r.chargeableCost,0)),chargeableCost:round(rows.reduce((n,r)=>n+r.chargeableCost,0)),weight:round(rows.reduce((n,r)=>n+(r.weightKg??0),0))};
  return {valid:true,errors:[],rows,totals,missingPrices:rows.filter(r=>r.priceMissing&&!r.excluded),partial:true,pricingReady:false,notes:['The app geometry is accepted provisionally for integration, pending measured build comparisons.','Hip tops finish under lead flashing, with no top caps/adaptors. Bottom end caps remain in this table. There is no horizontal ridge or ridge ventilation strip.','Foam tape is allocated to Miscellaneous and tile starters to Metal, without duplicate charges.','Slate selling-price contribution matching uses the Britmet benchmark in the quotation calculation.']};
 }

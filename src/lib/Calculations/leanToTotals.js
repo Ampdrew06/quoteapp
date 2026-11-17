@@ -177,7 +177,7 @@ const leftSideExposed = !leftWall;
 const rightSideExposed = !rightWall;
 
 // ---- calculators ----
-const isLiteSlate = String(tileSystem || "").toLowerCase() === "liteslate";
+const isLiteSlate = ["liteslate","tapco"].includes(String(tileSystem || "").toLowerCase());
 const tilesBom =
   isLiteSlate
     ? computeLiteSlateLeanTo(
@@ -200,7 +200,7 @@ const tilesBom =
           eaves_overhang_mm: 50,
           leftSide: leftSideExposed ? "exposed" : "wall",
           rightSide: rightSideExposed ? "exposed" : "wall",
-          waste_pct: tileSystem === "liteslate" ? LITESLATE_WASTE : BRITMET_WASTE,
+          waste_pct: isLiteSlate ? LITESLATE_WASTE : BRITMET_WASTE,
           gauge_mm: m.tile_britmet_gauge_mm ?? 250,
           cover_width_mm: m.tile_britmet_cover_w_mm ?? 1231,
         },

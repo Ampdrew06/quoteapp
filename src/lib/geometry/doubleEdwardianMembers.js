@@ -1,29 +1,39 @@
-import {automaticSupportCentres} from './automaticSupportSpacing';
 const EPS=1e-6;
+const RIDGE_END_OFFSET_MM=33;
+const TRUSS_SPACING_MM=665;
 const unique=values=>[...new Set(values.map(n=>Math.round(n*1e6)/1e6))].sort((a,b)=>a-b);
 const gaps=values=>values.slice(1).map((v,i)=>v-values[i]);
 // Distances are plan centres on the internal outline, not manufacturing cuts.
 export function buildDoubleEdwardianMembers(g,overrides={}){
  const w=g.widthMM,p=g.projectionMM,d=Math.min(w,p)/2;
+ // Use the same division on both sides of every hip so opposing jacks
+ // meet at the same station. Include the offset to the nearest truss
+ // when checking the longest remaining bay.
+ const trussOffset=Math.min(RIDGE_END_OFFSET_MM,g.ridgeLengthMM/2);
+ const jackBays=Math.ceil(d/(TRUSS_SPACING_MM-trussOffset));
+ const endCentres=Array.from({length:jackBays-1},(_,i)=>d*(i+1)/jackBays);
  const specs=[{id:'left',name:'Left facet',length:p,origin:'rear towards front',point:t=>({x:0,y:t}),end:(t,h)=>({x:h,y:t})},{id:'front',name:'Front facet',length:w,origin:'left towards right',point:t=>({x:t,y:p}),end:(t,h)=>({x:t,y:p-h})},{id:'right',name:'Right facet',length:p,origin:'rear towards front',point:t=>({x:w,y:t}),end:(t,h)=>({x:w-h,y:t})},{id:'rear',name:'Rear / valley facet',length:w,origin:'left towards right',point:t=>({x:t,y:0}),end:(t,h)=>({x:t,y:h})}];
  const errors=[],members=[],groups=[];
  for(const f of specs){
-  const fixed=unique([0,d,f.length-d,f.length]);
-  const endCentres=automaticSupportCentres({startMM:0,endMM:d});
-  const middle=f.length>2*d+EPS?automaticSupportCentres({startMM:d,endMM:f.length-d}):[d];
-  const automatic=unique([...endCentres,...middle,...endCentres.map(t=>f.length-t)]).filter(t=>t>EPS&&t<f.length-EPS);
+  const ridgeSpan=f.length-2*d;
+  const hasTrussRun=ridgeSpan>EPS;
+  const first=d+RIDGE_END_OFFSET_MM,last=f.length-first;
+  // A short ridge cannot fit two distinct offset centres.
+  const locked=unique(hasTrussRun&&last-first>EPS?[first,last]:[f.length/2]);
+  const bays=locked.length===2?Math.ceil((last-first-EPS)/TRUSS_SPACING_MM):0;
+  const middle=bays>0?Array.from({length:bays+1},(_,i)=>first+(last-first)*i/bays):locked;
+  const automatic=unique([...endCentres,...middle,...endCentres.map(t=>f.length-t)]);
   const manual=Object.prototype.hasOwnProperty.call(overrides,f.id)&&overrides[f.id]!=null;
   let centres=manual?overrides[f.id]:automatic;
   if(!Array.isArray(centres)||centres.some(t=>typeof t!=='number'||!Number.isFinite(t)||t<=0||t>=f.length)||new Set(centres).size!==centres.length){errors.push(`${f.name}: centres must be unique numbers between 0 and ${f.length} mm.`);continue;}
   // Ridge-end supports stay fixed; only intermediate members are editable.
-  const locked=fixed.filter(t=>t>EPS&&t<f.length-EPS);
   centres=unique([...centres,...locked]);
   const rows=[];
   for(const t of centres){
    const depth=Math.min(t,f.length-t,d),eave=f.point(t),tip=f.end(t,depth);
    if(f.id==='rear'&&tip.y<=g.plateThicknessMM+EPS){errors.push('A rear member is too close to the corner to reach beyond the valley plate.');continue;}
    const start=f.id==='rear'?{x:eave.x,y:g.plateThicknessMM}:eave;
-   const kind=depth>=d-EPS?(f.length<=2*d+EPS?'Boss rafter':'Rafter / truss leg'):'Jack rafter';
+   const kind=depth>=d-EPS?(hasTrussRun?'Rafter / truss leg':'Boss rafter'):'Jack rafter';
    const row={facet:f.id,positionMM:t,eave,start,end:tip,kind,rearSupport:f.id==='rear'?'Variable Joist Hanger':null};
    rows.push(row);members.push(row);
   }
@@ -43,7 +53,7 @@ export function buildDoubleEdwardianMembers(g,overrides={}){
   const b=members.find(r=>r.facet===opposite&&Math.hypot(r.end.x-a.end.x,r.end.y-a.end.y)<EPS);
   if(b)trusses.push({id:`T${trusses.length+1}`,legs:[a.id,b.id]});
  }
- const warnings=groups.filter(f=>f.manual&&Math.max(...f.gapsMM)>665+EPS).map(f=>`${f.name}: manual spacing exceeds 665 mm.`);
+ const warnings=groups.filter(f=>f.manual&&Math.max(...f.gapsMM)>TRUSS_SPACING_MM+EPS).map(f=>`${f.name}: manual spacing exceeds ${TRUSS_SPACING_MM} mm.`);
  if(members.some(r=>r.kind==='Rafter / truss leg'&&!trusses.some(t=>t.legs.includes(r.id))))warnings.push('Some ridge rafters no longer align with an opposite truss leg. Review the opposite facet positions.');
  return {valid:errors.length===0,errors,groups,members:ordered,ridge,ringbeams,trusses,valleyPlate:{id:'R1',kind:'Valley plate'},hangers:{variable:members.filter(r=>r.rearSupport).length,hip:hips.filter(r=>r.rearSupport).length},warnings};
 }

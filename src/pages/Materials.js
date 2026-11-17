@@ -1171,6 +1171,36 @@ setHasUnsavedChanges(false);
         </div>
       ))}
     </div>
+    {[
+      ["Metrotile", [
+        ["Tile price (£ each)", "tile_metrotile_price_each"], ["Tile weight (kg each)", "tile_metrotile_weight_kg"],
+        ["Ridge / hip tile (£ each)", "metrotile_ridge_tile_price_each"], ["Three-way adaptor (£ each)", "metrotile_y_adaptor_price_each"],
+        ["90° hip end cap (£ each)", "metrotile_hip_end_cap_90_price_each"], ["Vent strip (£ each)", "metrotile_vent_strip_price_each"],
+        ["Half/Half universal ridge / hip adaptor (£ each)", "metrotile_universal_ridge_adaptor_price_each"],
+        ["Half/Half left-hand ridge / hip adaptor (£ each)", "metrotile_half_half_left_adaptor_price_each"],
+        ["Half/Half right-hand ridge / hip adaptor (£ each)", "metrotile_half_half_right_adaptor_price_each"],
+        ["Touch-up kit (£ each)", "metrotile_touchup_kit_price_each"],
+        ["Gable end cap (£ each)", "metrotile_gable_end_cap_price_each"], ["Two-part verge (£ each)", "metrotile_verge_trim_price_each"],
+        ["135° hip end cap (£ each)", "metrotile_hip_end_cap_135_price_each"],
+      ]],
+      ["Tapco", [
+        ["Dry verge (£ each)", "tapco_dry_verge_price_each"], ["Tile price (£ each)", "tapco_tile_price_each"], ["Tile weight (kg each)", "tapco_tile_weight_kg_each"],
+        ["Ridge / hip coverage (tiles per metre)", "tapco_ridge_units_per_m"], ["Ridge / hip tile (£ each)", "tapco_ridge_tile_price_each"],
+        ["Ridge / hip tile weight (kg each)", "tapco_ridge_tile_weight_kg"], ["Three-way adaptor (£ each)", "tapco_three_way_adaptor_price"],
+        ["90° hip end cap (£ each)", "tapco_hip_end_cap_90_price_each"], ["Hip end cap weight (kg each)", "tapco_hip_end_cap_weight_kg_each"],
+        ["135° hip end cap (£ each)", "tapco_hip_end_cap_135_price_each"], ["Five-way adaptor (£ each)", "tapco_5way_adaptor_price_each"], ["Seven-way adaptor (£ each)", "tapco_7way_adaptor_price_each"],
+      ]],
+    ].map(([system, fields]) => (
+      <div key={system}>
+        <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>{system}</div>
+        {fields.map(([label, key]) => (
+          <label key={key} style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8,marginBottom:6}}>
+            {label}
+            <input type="number" min="0" step="any" value={m[key] ?? ""} onChange={e=>set(key,e.target.value===''?'':Number(e.target.value))} style={{width:90}}/>
+          </label>
+        ))}
+      </div>
+    ))}
   </div>
 </div>
 {/* Tiles & Accessories END */}
@@ -2038,6 +2068,7 @@ setHasUnsavedChanges(false);
         priceKey: "superquilt_15m_price_each",
         priceLabel: "£ / roll",
       },
+      {label: "Slate Bonding Sealant", priceKey: "slate_bonding_sealant_price_each", priceLabel: "£ / tube"},
       // Membranes / tapes / foam
       {
         label: "Breather Membrane",

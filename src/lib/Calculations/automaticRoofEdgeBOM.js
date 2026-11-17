@@ -46,6 +46,7 @@ export function buildAutomaticRoofEdgeBOM({
   const stock = buildRoofEdgeStockQuantities({
     accessoryRequirements,
     materials,
+    productId: edgeModel.roofStyle === "hippedLeanTo" || (roofInputs.roofStyle ?? roofInputs.roof_style) === "hippedLeanTo" ? tiling.productId : null,
   });
   const bom = buildRoofEdgeBOM({ stockResult: stock, materials });
   const errors = [

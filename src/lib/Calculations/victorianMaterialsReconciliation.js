@@ -14,7 +14,7 @@ export function buildVictorianMaterialsReconciliation({geometry,materials={},pro
  const add=(section,source,r,qty=r.qty??r.quantity,unit=r.unit,extra={})=>sections[section].lines.push({key:`${source}_${r.key}`,source,sourceKey:r.key,label:r.label,qty,unit,cost:r.cost==null?null:pennies(r.cost),installedWeightKg:r.installedWeightKg??null,supplyToSite:true,...extra});
  audits.timber.lines.forEach(r=>add('timber','timber',r,r.quantity,r.unit,{supplyToSite:false}));
  audits.laths.lines.forEach(r=>add('timber','laths',r,r.lengthM,'m',{supplyToSite:true}));
- audits.tiles.lines.forEach(r=>add(r.key==='starter'?'metal':r.key==='hipTape'?'misc':'tiles','tiles',r,r.quantity,r.unit));
+ audits.tiles.lines.forEach(r=>add(r.key==='starter'?'metal':['hipTape','slateBondingSealant'].includes(r.key)?'misc':'tiles','tiles',r,r.quantity,r.unit));
  audits.plastics.plasticLines.forEach(r=>add(r.key==='polytop_pins'?'misc':'plastics','plastics',r,r.qty,r.unit,{supplyToSite:r.key!=='factory_venting',usage:r.key==='factory_venting'?'factory':'site'}));
  audits.plastics.gutterLines.forEach(r=>add('gutters','gutters',r));
  audits.metal.metalRows.forEach(r=>add('metal','metal',r,r.qty,r.unit,{supplyToSite:r.supplyToSite,usage:r.usage}));

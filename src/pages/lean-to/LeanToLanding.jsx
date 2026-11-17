@@ -1,3 +1,5 @@
+import MetrotileCarriageField from "../../components/MetrotileCarriageField";
+import { tileColoursFor } from "../../lib/tileColours";
 import CustomerPicker from '../../components/CustomerPicker';
 import FrameThicknessEditor from '../../components/FrameThicknessEditor';
 import {withRoofFrameMaterials} from '../../lib/roofFrameThickness';
@@ -486,10 +488,19 @@ const [summaryAdjustmentTick, setSummaryAdjustmentTick] = useState(0);
 
   // Tiles & plastics (cosmetic choices here)
   // ✅ Persist selected tile system across pages (init from localStorage)
-  const [tileSystem, setTileSystem] = useState(() => {
-    return localStorage.getItem("tl_tile_system") ?? "britmet";
+  const [storedTileSystem, setTileSystem] = useState(() => {
+    const remembered = localStorage.getItem("tl_tile_system") ?? "britmet";
+    return !isAdminUser() && ['metrotile','tapco'].includes(remembered) ? 'britmet' : remembered;
   });
-  const minTilePitchDeg = tileSystem === "liteslate" ? 12 : 15;
+  const advancedTile = ['metrotile','tapco'].includes(storedTileSystem);
+  const tileSystem = advancedTile && roofStyle !== 'hippedLeanTo' ? 'britmet' : storedTileSystem;
+  const tileProductId = {metrotile:'metrotileShingle',tapco:'tapcoSlate'}[tileSystem] ?? tileSystem;
+  const tileLabel = {britmet:'Britmet',liteslate:'LiteSlate',metrotile:'Metrotile',tapco:'Tapco'}[tileSystem];
+  const [metrotileCarriageGBP, setMetrotileCarriageGBP] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('leanToInputs'))?.metrotileCarriageGBP ?? ''; }
+    catch { return ''; }
+  });
+  const minTilePitchDeg = isSlateCovering(tileSystem) ? 12 : 15;
   const maximumHeightIsActive =
   maximumFinishedHeightMM !== "";
 
@@ -624,7 +635,10 @@ const rightHipPitchTooLow =
   rightSidePitchDeg > 0 &&
   rightSidePitchDeg < minTilePitchDeg;
 
-  const [tileColor, setTileColor]   = useState("Titanium");
+  const [tileColor, setTileColor] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('leanToInputs'))?.tile_color ?? 'Titanium'; }
+    catch { return 'Titanium'; }
+  });
   const [plasticsColor, setPlasticsColor] = useState("White");
 
   // Exposed sides (persisted via leanToInputs; also synced with wall checkboxes)
@@ -693,32 +707,9 @@ const selectedCustomer =
     const discountPct = selectedCustomer
   ? Number(selectedCustomer.discountPct || 0)
   : 0;
-  // ---- tile colour lists (per system) ----
-  const britmetColours = [
-    "Titanium",
-    "Raven",
-    "Bramble Brown",
-    "Rustic Brown",
-    "Rustic Terracotta",
-    "Smoked Oak",
-    "Rustic Red",
-    "Tartan Green",
-  ];
-  const liteslateColours = [
-    "Slate",
-    "Ash",
-    "Charcoal",
-    "Oak",
-    "Amethyst",
-    "Sunset",
-    "Sunshine",
-  ];
-
-  // If the user switches system and the current colour isn't valid, snap to first
+  const tileColours = tileColoursFor(tileProductId, tileSystem === 'britmet' && tileColor === 'Smoked Oak' ? tileColor : undefined);
   useEffect(() => {
-    const list = tileSystem === "liteslate" ? liteslateColours : britmetColours;
-    if (!list.includes(tileColor)) setTileColor(list[0]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (!tileColours.includes(tileColor)) setTileColor(tileColours[0]);
   }, [tileSystem, tileColor]);
 
   // ✅ Save tile system whenever it changes
@@ -850,6 +841,7 @@ requestedRightSidePitchDeg:
     // cosmetic choices
 tile_system: tileSystem,
 tile_color: tileColor,
+metrotileCarriageGBP,
 plastics_color: plasticsColor,
 
 // delivery
@@ -920,8 +912,9 @@ if (q.gutter_outlet) setGutterOutlet(String(q.gutter_outlet));
 if (q.gutter_color) setGutterColor(String(q.gutter_color));
 
 // cosmetics
-if (q.tile_system) setTileSystem(String(q.tile_system));
-if (q.tile_color) setTileColor(String(q.tile_color));
+if (q.tile_system ?? q.tileSystem) setTileSystem(String(q.tile_system ?? q.tileSystem));
+setMetrotileCarriageGBP(q.metrotileCarriageGBP ?? '');
+if (q.tile_color ?? q.tileColor) setTileColor(String(q.tile_color ?? q.tileColor));
 if (q.plastics_color) setPlasticsColor(String(q.plastics_color));
 
 // customer
@@ -1005,6 +998,8 @@ const totalsInput = useMemo(
     rightOverhangMM: num(rightOverhangMM, 0),
 
     tileSystem,
+    tile_system: tileSystem,
+    metrotileCarriageGBP,
     plasticsColor,
     gutterProfile,
     gutterOutlet,
@@ -1036,6 +1031,7 @@ const totalsInput = useMemo(
     leftOverhangMM,
     rightOverhangMM,
     tileSystem,
+    metrotileCarriageGBP,
     plasticsColor,
     gutterProfile,
     gutterOutlet,
@@ -1058,6 +1054,7 @@ const summaryMaterials = buildSummaryMaterialsModel({
   adjustments: summaryQuantityAdjustments, addedItems: readSummaryAddedItems(),
 });
 const centralPricingReady = !isCentralBoss || (Boolean(summaryMaterials.centralTrussCosts?.pricingReady) && Boolean(centralDesign?.valid) && Boolean(summaryMaterials.tileOrderIntegration?.applied || !['britmet','metrotile'].includes(tileSystem)));
+const coveringPricingError = summaryMaterials.coveringPricingErrors?.join(" ");
 const universalMaterialsCostForPricing = summaryMaterials.materialsCostForPricing;
 
 const pricing = useMemo(() => {
@@ -1401,7 +1398,7 @@ const collapseQuoteInputs = showQuote && !quoteInputsExpanded && hippedDesignErr
 
 const canQuote =
   hippedDesignErrors.length === 0 &&
-  centralPricingReady &&
+  centralPricingReady && !coveringPricingError &&
   summaryMaterials.leanToRafterLayout?.valid!==false&&hippedGeom?.manualRafterLayout?.valid!==false &&
   !missingWidth &&
   !missingProjection &&
@@ -1459,6 +1456,7 @@ return miles;
 
   const onGetQuote = async () => {
   if (hippedDesignErrors.length) { setQuoteError(missingWidth || missingProjection ? hippedDesignErrors.join(" ") : "");setQuoteInputsExpanded(true);setShowQuote(false);return; }
+  if (coveringPricingError) { setQuoteError(coveringPricingError); return; }
   if (isCentralBoss && !centralPricingReady) { setQuoteError(summaryMaterials.centralTrussCosts?.errors?.join(" ") || "Complete the central-boss design and its material rates before quoting."); return; }
   setQuoteError("");
 
@@ -1541,6 +1539,7 @@ setQuoteInputsExpanded(false);
 
     // tiles/plastics
     setTileSystem("britmet");
+    setMetrotileCarriageGBP("");
     setTileColor("charcoal");
     setPlasticsColor("white");
 
@@ -1564,6 +1563,7 @@ setQuoteInputsExpanded(false);
   if(summaryMaterials.leanToRafterLayout?.valid===false||summaryMaterials.manufactureGeometry?.manualRafterLayout?.valid===false){alert((summaryMaterials.leanToRafterLayout?.errors??summaryMaterials.manufactureGeometry?.manualRafterLayout?.errors??[]).join(' '));return;}
   asNew = asNew === true;
   if (hippedDesignErrors.length) { setQuoteInputsExpanded(true);alert(hippedDesignErrors.join(" "));return; }
+  if (coveringPricingError) { alert(coveringPricingError); return; }
   if (isCentralBoss && !centralPricingReady) { alert(summaryMaterials.centralTrussCosts?.errors?.join(" ") || "Complete the central-boss design and its material rates before saving."); return; }
   const manualReference = (quoteRef || "").trim();
 if (!isAdmin && !manualReference) {
@@ -1629,6 +1629,7 @@ if (!isAdmin && !manualReference) {
 
   tileSystem,
   tileColor,
+  metrotileCarriageGBP,
 
   plasticsColor,
 
@@ -1815,13 +1816,19 @@ const displayExtProjectionMM =
             <label>Tile system
               <select
                 value={tileSystem}
-                onChange={(e) => {setTileSystem(e.target.value);
-  persist({ projectionMM: e.target.value });
-}}
+                onChange={(e) => {
+                  const system = e.target.value;
+                  const colour = tileColoursFor({metrotile:'metrotileShingle',tapco:'tapcoSlate'}[system] ?? system)[0];
+                  setTileSystem(system);
+                  setTileColor(colour);
+                  persist({tileSystem:system,tile_system:system,tile_color:colour});
+                }}
                 style={inputStyle}
               >
                 <option value="britmet">Britmet</option>
                 <option value="liteslate">LiteSlate</option>
+                {roofStyle === 'hippedLeanTo' && (isAdmin || tileSystem === 'metrotile') && <option disabled={!isAdmin} value="metrotile">Metrotile</option>}
+                {roofStyle === 'hippedLeanTo' && (isAdmin || tileSystem === 'tapco') && <option disabled={!isAdmin} value="tapco">Tapco</option>}
               </select>
             </label>
 
@@ -1829,15 +1836,17 @@ const displayExtProjectionMM =
               <select
                 value={tileColor}
                 onChange={(e) => {setTileColor(e.target.value);
-  persist({ projectionMM: e.target.value });
+  persist({tile_color:e.target.value});
 }}
                 style={inputStyle}
               >
-                {(tileSystem === "liteslate" ? liteslateColours : britmetColours).map((c) => (
+                {tileColours.map((c) => (
                   <option key={c} value={c}>{c}</option>
                 ))}
               </select>
             </label>
+            <MetrotileCarriageField admin={isAdmin} inputs={{tileProductId,metrotileCarriageGBP}}
+              update={(key,value)=>{setMetrotileCarriageGBP(value);persist({[key]:value});}}/>
             {/* Fascia/Soffit colour (cosmetic) */}
             <label>Fascia / Soffit colour
               <select
@@ -1951,9 +1960,7 @@ onChange={(e) => {
     }}
   >
     Recommended minimum for{" "}
-    {tileSystem === "liteslate"
-      ? "LiteSlate"
-      : "Britmet"}{" "}
+    {tileLabel}{" "}
     is {minTilePitchDeg}°. Please confirm suitability
     if you go lower.
   </div>
@@ -2385,9 +2392,10 @@ title={
         {isAdmin&&roofStyle==='leanTo'&&<RafterPositionEditor widthMM={num(widthMM)} positions={leanToRafterPositionsMM} materials={m} admin={isAdmin} onApply={positions=>{setLeanToRafterPositionsMM(positions);persist({leanToRafterPositionsMM:positions});}}/>}
         {summaryMaterials.leanToRafterLayout?.valid===false&&<p role="alert" style={{color:'#b91c1c'}}>{(summaryMaterials.leanToRafterLayout?.errors??summaryMaterials.manufactureGeometry?.manualRafterLayout?.errors??[]).join(' ')}</p>}
         {/* Results */}
+        {coveringPricingError && <p role="status">{coveringPricingError}</p>}
         {isCentralBoss && !centralPricingReady && <p role="status">{summaryMaterials.centralTrussCosts?.errors?.join(' ') || 'Complete the central-boss design before quoting.'}</p>}
         {showDesignError && <p role="alert" style={{color:"#b91c1c"}}>{hippedDesignErrors.join(" ")}</p>}
-        {showQuote && summaryMaterials.leanToRafterLayout?.valid!==false&&hippedGeom?.manualRafterLayout?.valid!==false && hippedDesignErrors.length === 0 && (!isCentralBoss || centralPricingReady) && (
+        {showQuote && !coveringPricingError && summaryMaterials.leanToRafterLayout?.valid!==false&&hippedGeom?.manualRafterLayout?.valid!==false && hippedDesignErrors.length === 0 && (!isCentralBoss || centralPricingReady) && (
           <div id="quote-result" style={{ marginTop: 16, display: "grid", gap: 14 }}>
             {/* Plan preview */}
             <div style={card}>
@@ -2934,7 +2942,7 @@ frontRafterLayout={
 </>
 )}
                 <div>
-                  <b>Tile</b>: {tileSystem === "britmet" ? "Britmet" : "LiteSlate"} — <b>{tileColor}</b>
+                  <b>Tile</b>: {tileLabel} — <b>{tileColor}</b>
                 </div>
                 <div>
                   <b>Fascia/Soffit</b>: <b>{plasticsColor}</b> · <b>Gutter</b>: {gutterProfile} / {gutterColor}, outlet {gutterOutlet}

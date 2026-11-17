@@ -1,3 +1,4 @@
+import { metrotileCarriageLine } from "./metrotileCarriage";
 import {withRoofFrameMaterials} from '../roofFrameThickness';
 import {installedMainTileWeight,installedHipTileWeight,fixedInstalledWeight} from './roofCoveringWeightRules';
 import {PIR_MEMBER_WIDTH_MM,pir50InstalledWeight} from './pirInsulationRules';
@@ -1891,13 +1892,14 @@ const timberLines = [
 ].map(patchUnitPricesFromMaterials);
 
 
-const isLiteSlateSystem = tileSystem === "liteslate";
+const extraCovering = isHippedLeanToEarly && ['metrotile','tapco'].includes(tileSystem) ? tileSystem : null;
+const isLiteSlateSystem = tileSystem === "liteslate" || extraCovering === 'tapco';
 let tilesLines = baseLines
   .filter((r) => {
     const key = String(r._k || "").toLowerCase();
 
     // Touch-up kit is NOT used with LiteSlate
-    if (tileSystem === "liteslate" && key.includes("touch")) {
+    if (isLiteSlateSystem && key.includes("touch")) {
       return false;
     }
 
@@ -1986,11 +1988,51 @@ if(isHippedLeanToEarly&&automaticRoofTilingAudit?.result&&!automaticRoofTilingAu
  const mainWeight=installedMainTileWeight({productId:automatic.productId,facets,materials:m});let mainApplied=false;
  tilesLines=tilesLines.map(row=>{
   if(!mainApplied&&isMainRoofTileLine(row)){mainApplied=true;return fixedInstalledWeight(row,mainWeight);}
-  if(row.key==='hip_ridge')return fixedInstalledWeight(row,installedHipTileWeight({steel,edges:row.perEdgeQuantities??[{qty:asQty(row)}],kgEach:steel?getFixedProductWeightKg('hip_ridge'):m.liteslate_ridge_tile_weight_kg??m.ridge_tile_liteslate_weight_kg}));
-  if(['hip_end_cap_90','hip_end_cap_135'].includes(row.key)){const prefix=automatic.productId==='tapcoSlate'?'tapco':'liteslate',kg=steel?getFixedProductWeightKg(row.key):m[`${prefix}_${row.key}_weight_kg`];return fixedInstalledWeight(row,kg==null||!Number.isFinite(Number(kg))?null:asQty(row)*Number(kg));}
+  if(row.key==='hip_ridge')return fixedInstalledWeight(row,installedHipTileWeight({steel,edges:row.perEdgeQuantities??[{qty:asQty(row)}],kgEach:extraCovering==='tapco'?m.tapco_ridge_tile_weight_kg:steel?getFixedProductWeightKg('hip_ridge'):m.liteslate_ridge_tile_weight_kg??m.ridge_tile_liteslate_weight_kg}));
+  if(['hip_end_cap_90','hip_end_cap_135'].includes(row.key)){const prefix=automatic.productId==='tapcoSlate'?'tapco':'liteslate',kg=steel?getFixedProductWeightKg(row.key):m[`${prefix}_${row.key}_weight_kg`]??(prefix==='tapco'?m.tapco_hip_end_cap_weight_kg_each:null);return fixedInstalledWeight(row,kg==null||!Number.isFinite(Number(kg))?null:asQty(row)*Number(kg));}
   if(/touch/i.test(row.key+' '+row.label))return fixedInstalledWeight(row,0);
   return row;
  });
+}
+
+const coveringPricingErrors = [];
+let carriageLine;
+if (extraCovering) {
+  const metro = extraCovering === 'metrotile';
+  const brand = metro ? 'Metrotile' : 'Tapco';
+  const productId = metro ? 'metrotileShingle' : 'tapcoSlate';
+  const tileResult = automaticRoofTilingAudit.result;
+  if (iw > 0 && ip > 0 && (!tileResult || automaticRoofTilingAudit.errors?.length || !summaryHipBOM.valid ||
+      (metro && !automaticRoofTilingAudit.tileOrderIntegration?.applied))) {
+    coveringPricingErrors.push(`Complete the ${brand} tile and hip layout before quoting.`);
+  }
+  if (!metro && automaticRoofEdgeResult.accessoryRequirements?.requirements?.hipCovering?.edgeCount &&
+      !(Number(m.tapco_ridge_units_per_m) > 0)) {
+    coveringPricingErrors.push('Set Tapco ridge / hip coverage in Materials before quoting.');
+  }
+  tilesLines = tilesLines.map(row => {
+    const main = isMainRoofTileLine(row);
+    const key = row.key;
+    const rateKey = main ? (metro ? 'tile_metrotile_price_each' : 'tapco_tile_price_each')
+      : key === 'hip_ridge' ? `${extraCovering}_ridge_tile_price_each`
+      : ['hip_end_cap_90','hip_end_cap_135'].includes(key) ? `${extraCovering}_${key}_price_each`
+      : key === 'verge' ? (metro ? 'metrotile_verge_trim_price_each' : 'tapco_dry_verge_price_each')
+      : key === 'touchup' && metro ? 'metrotile_touchup_kit_price_each' : null;
+    if (!rateKey) return row;
+    const rawPrice = m[rateKey];
+    const price = rawPrice != null && String(rawPrice).trim() !== '' && Number.isFinite(Number(rawPrice)) && Number(rawPrice) >= 0
+      ? Number(rawPrice) : null;
+    const qty = main && !metro && tileResult ? tileResult.tileQuantityOrdered : asQty(row);
+    const item = main ? 'tiles' : key === 'hip_ridge' ? 'hip / ridge tiles' :
+      key === 'verge' ? (metro ? 'two-part verge' : 'dry verge') :
+      key === 'touchup' ? 'touch-up kit' : row.label;
+    const label = `${brand} ${item}`;
+    const cost = Number((qty * (price ?? 0)).toFixed(2));
+    return {...row,label,name:label,qty,qtyDisplay:qty,order_qty:qty,orderQty:qty,
+      unit:price,unitPrice:price,unit_price:price,supplyUnitPrice:price,price_unconfigured:price===null,
+      line:cost,total:cost,cost,totalCost:cost,total_cost:cost};
+  });
+  carriageLine = metrotileCarriageLine({...inputs, tileProductId:productId});
 }
 
 // Raw metal rows (from calculators + manual)
@@ -2368,7 +2410,16 @@ const miscLinesIntegrated = integrateFactoryAllowances(factoryStapleAudit,
   return { cost, weight, chargeableCost };
 };
 const timberLinesAdjusted = withAddedItems(applyAdjustmentsToLines(timberLines, adjustments), "timber");
-const tilesLinesAdjusted = withAddedItems(applyAdjustmentsToLines(tilesLines, adjustments), "tiles");
+const tilesLinesAdjusted = withAddedItems([
+  ...applyAdjustmentsToLines(tilesLines, adjustments),
+  ...(carriageLine ? [carriageLine] : []),
+], "tiles");
+if (extraCovering) {
+  for (const row of tilesLinesAdjusted) {
+    if (row.price_unconfigured && asQty(row) > 0 && !isExcluded(row.key))
+      coveringPricingErrors.push(row === carriageLine ? 'Enter a valid Metrotile carriage amount.' : `Set the price for ${row.label} in Materials.`);
+  }
+}
 const timberTotals   = sectionTotals(timberLinesAdjusted, true);
 const tilesTotals    = sectionTotals(tilesLinesAdjusted, false);
   // ------------------------------
@@ -2921,7 +2972,7 @@ const miscTotals = sectionTotals(miscLinesForSectionAdjusted, false);
   return {
     sections, supplyExclusions:exclusions, pricingSections, materialsCostForPricing, materialsBaseCost,leanToRafterLayout,
     lathUseBreakdown:{internalM:Math.max(0,internalLathsM),externalM:Math.max(0,summaryExternalFixingLathM)+hipRidgeSummaryContribution.additionalLathM,fittedM:Math.max(0,ringBeamOuterLathsM)+Math.max(0,ringBeamUpstandLathsM)},
-    centralTrussCosts,
+    centralTrussCosts, coveringPricingErrors,
     wallplateIntegrationAudit,
     tileOrderIntegration: automaticRoofTilingAudit.tileOrderIntegration || null,
     quantityAdjustments: adjustments,

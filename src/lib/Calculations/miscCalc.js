@@ -522,9 +522,9 @@ console.log("DBG miscCalc expanding_foam item:", items.find(x => x.key === "expa
 
   // System-specific overrides (if present), with sensible defaults:
   const perTile =
-    sys === "liteslate"
-      ? Math.max(0, num(m.tileFixings?.per_tile_liteslate, 2)) // LiteSlate = 2 per tile
-      : Math.max(0, num(m.tileFixings?.per_tile_britmet, 3));  // Britmet   = 3 per tile
+    sys === "liteslate" || sys === "tapco"
+      ? Math.max(0, num(m.tileFixings?.[`per_tile_${sys}`], 2))
+      : Math.max(0, num(m.tileFixings?.[`per_tile_${sys}`], 3));
 
   // Lean-to has no ridge/hip caps; tiles only
   const needUnits = tiles_total_est * perTile;

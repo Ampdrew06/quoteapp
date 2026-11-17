@@ -1,3 +1,4 @@
+import MetrotileCarriageField from '../../components/MetrotileCarriageField';
 import CustomerPicker from '../../components/CustomerPicker';
 import FrameThicknessEditor from '../../components/FrameThicknessEditor';
 import VictorianFacetGeometryEditor from '../../components/VictorianFacetGeometryEditor';
@@ -17,7 +18,7 @@ import {getLabourPricingConfig,getDeliveryPricingConfig,getMarkupPricingConfig} 
 import {buildVictorianGeometry} from '../../lib/geometry/victorianGeometry';
 import {VICTORIAN_DESIGN_KEY as KEY,normalizeVictorianDesignInputs,updateVictorianDesignInputs} from '../../lib/geometry/victorianDesignInputs';
 import {buildVictorianQuotation,buildVictorianQuoteRecord} from '../../lib/Calculations/victorianQuotation';
-import {LITESLATE_COLOURS} from '../../lib/tileColours';
+import {tileColoursFor} from '../../lib/tileColours';
 import GableQuoteResults from '../gable/GableQuoteResults';
 import VictorianCustomerPlan from './VictorianCustomerPlan';
 import VictorianNavigation from './VictorianNavigation';
@@ -78,8 +79,9 @@ export function VictorianDesignContent({five=false}={}){
  <section className="vd-card"><fieldset disabled={busy} style={{border:0,padding:0,margin:0,minWidth:0}}>{inputs.quoteDisplayed&&g.valid&&q.valid&&(admin||!!String(inputs.deliveryPostcode||'').trim())&&<button id="victorian-quote-edit-toggle" type="button" aria-expanded={quoteInputsExpanded} aria-controls="victorian-quote-input-fields" onClick={()=>setQuoteInputsExpanded(open=>!open)} style={{width:'100%',background:'#0f766e',border:'1px solid #0f766e',borderRadius:10,color:'#fff',padding:'10px 14px',fontWeight:600,cursor:'pointer',marginBottom:quoteInputsExpanded?14:0}}>Edit {quoteInputsExpanded?'▴':'▾'}</button>}
  <div id="victorian-quote-input-fields" hidden={collapsed}><div className="vd-grid">
  {field('Width (internal, mm)','widthMM','number','e.g. 3800')}{field('Projection (internal, mm)','projMM','number','e.g. 4200')}
- {select('Tile system','tileProductId',[['britmetShingle','Britmet'],['metrotileShingle','Metrotile'],['liteSlate','LiteSlate'],['tapcoSlate','TapcoSlate']])}
- {inputs.tileProductId==='tapcoSlate'?field('Tile colour','tileColour','text'):select('Tile colour','tileColour',inputs.tileProductId==='liteSlate'?LITESLATE_COLOURS:['Titanium','Raven','Bramble Brown','Rustic Brown','Rustic Terracotta','Smoked Oak','Rustic Red','Tartan Green'])}
+ {select('Tile system','tileProductId',[['britmetShingle','Britmet'],['metrotileShingle','Metrotile'],['liteSlate','LiteSlate'],['tapcoSlate','TapcoSlate']].filter(([id])=>admin||!['metrotileShingle','tapcoSlate'].includes(id)||id===inputs.tileProductId))}
+ {select('Tile colour','tileColour',tileColoursFor(inputs.tileProductId,inputs.tileColour))}
+ <MetrotileCarriageField admin={admin} inputs={inputs} update={update}/>
  {select('Fascia / Soffit colour','fasciaColour',['White','Rosewood','Black','Anthracite','Light Oak','Cream','Foiled (unspecified)'])}
  {inputs.sideSoffitMode==='specified'||inputs.sideSoffitMode==='none'?<label>Soffit to Front (mm)<input style={fieldStyle} disabled value={g.valid?g.soffitMM:''}/></label>:field('Soffit to Front (mm)','soffitMM')}
  {select('Gutter profile','gutterProfile',[['square','Square'],['ogee','Ogee'],['round','Round']])}{select('Gutter colour','gutterColour',['White','Black','Anthracite','Brown'])}

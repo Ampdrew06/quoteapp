@@ -1,6 +1,6 @@
 import FrameThicknessEditor from '../../components/FrameThicknessEditor';
 import GableTrussPositionEditor from '../../components/GableTrussPositionEditor';
-import {LITESLATE_COLOURS} from '../../lib/tileColours';
+import {tileColoursFor} from '../../lib/tileColours';
 import {clearActiveDesignRecord,readActiveDesignRecord,restoreActiveDesignRecord} from '../../lib/activeDesignRecord';
 import GableQuoteResults from './GableQuoteResults';
 import GableDesignForm from './GableDesignForm';
@@ -23,7 +23,7 @@ const restore=()=>{try{
  const saved=JSON.parse(localStorage.getItem(KEY)||'{}');
  return {...initial,selectedCustomerId:getCurrentCustomer()?.id||'retail',...saved,
   fasciaColour:saved.fasciaColour||(saved.plasticsColour==='foiled'?'Foiled (unspecified)':'White'),
-  tileColour:saved.tileColour||(saved.tileProductId==='liteSlate'?'Slate':'Titanium')};
+  tileColour:saved.tileColour||(tileColoursFor(saved.tileProductId)[0])};
 }catch{return initial;}};
 const mm=value=>Number(value).toFixed(1);
 const auditNote=note=>/read-only|This is a geometry preview/i.test(note)?'This source audit is read-only. Gable Summary and quotation pricing consume its requirements; the manufacture book and Idiot List use the same integrated model.':note;
@@ -42,7 +42,7 @@ export default function GableDesignPreview({mode='preview',fresh=false}={}) {
  const resolved={...inputs,quoteDisplayed:showQuote,rightSoffitMM:admin&&inputs.separateSideSoffits?inputs.rightSoffitMM:inputs.leftSoffitMM};
  const materials=getMaterials();
  const geometry=buildGableGeometry({inputs:resolved,materials});
- const update=(key,value)=>setInputs(old=>({...old,[key]:value,...(key==='pitchDeg'?{maxFinishedHeightMM:''}:{}),...(key==='fasciaColour'?{plasticsColour:value==='White'?'white':'foiled'}:{}),...(key==='tileProductId'?{tileColour:value==='liteSlate'?'Slate':'Titanium'}:{})}));
+ const update=(key,value)=>setInputs(old=>({...old,[key]:value,...(key==='pitchDeg'?{maxFinishedHeightMM:''}:{}),...(key==='fasciaColour'?{plasticsColour:value==='White'?'white':'foiled'}:{}),...(key==='tileProductId'?{tileColour:tileColoursFor(value)[0]}:{})}));
  const field=(label,key)=><label style={{display:'grid',gap:5}}>{label}<input type="number" min="0" step="0.1" value={inputs[key]} onChange={e=>update(key,e.target.value)} style={{padding:8,width:'100%',boxSizing:'border-box'}} /></label>;
  const g=geometry;
  const audit=buildGableTimberAudit({geometry:g,materials});
@@ -77,7 +77,7 @@ export default function GableDesignPreview({mode='preview',fresh=false}={}) {
  <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:16}}>
  <label>Roof covering<select style={{display:'block',padding:8,width:'100%'}} value={inputs.tileProductId} onChange={e=>update('tileProductId',e.target.value)}><option value="britmetShingle">Britmet Shingle</option><option value="metrotileShingle">Metrotile Shingle</option><option value="liteSlate">LiteSlate</option></select></label>
  {[
- ['tileColour','Tile colour',inputs.tileProductId==='liteSlate'?LITESLATE_COLOURS:['Titanium','Raven','Bramble Brown','Rustic Brown','Rustic Terracotta','Smoked Oak','Rustic Red','Tartan Green']],
+ ['tileColour','Tile colour',tileColoursFor(inputs.tileProductId,inputs.tileColour)],
  ['fasciaColour','Fascia/soffit colour',['White','Rosewood','Black','Anthracite','Light Oak','Cream','Foiled (unspecified)']],
  ['gutterColour','Gutter colour',['White','Black','Anthracite','Brown']],
  ].map(([key,label,options])=><label key={key}>{label}<select style={{display:'block',padding:8,width:'100%'}} value={inputs[key]} onChange={e=>update(key,e.target.value)}>{options.map(option=><option key={option} value={option}>{option}</option>)}</select></label>)}

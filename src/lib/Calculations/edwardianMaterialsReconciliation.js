@@ -12,6 +12,7 @@ const rate=v=>v==null||v===''||!Number.isFinite(Number(v))||Number(v)<0?null:Num
 const first=(...v)=>v.map(rate).find(n=>n!==null)??null;
 export function buildEdwardianMaterialsReconciliation({inputs={},materials:m={}}={}){
  const geometry=buildEdwardianGeometry({inputs,materials:m}),productId=inputs.tileProductId??'britmetShingle';
+ const prefix=(productId==='metrotileShingle'?'metrotile':'britmet');
  const timber=buildEdwardianTimberAudit({geometry,materials:m}),insulation=buildEdwardianInsulationAudit({geometry,materials:m}),tiling=buildEdwardianTilingAudit({geometry,materials:m,productId}),plastics=buildEdwardianPlasticsGutteringAudit({geometry,materials:m,plasticsColour:inputs.plasticsColour??'white',gutterProfile:inputs.gutterProfile??'square'}),metalMisc=buildEdwardianMetalMiscAudit({geometry,materials:m,productId}),laths=buildEdwardianLathReconciliation({geometry,materials:m,productId});
  const audits={geometry,timber,insulation,tiling,plastics,metalMisc,laths},errors=Object.values(audits).flatMap(a=>a.valid?[]:a.errors);
  if(errors.length)return {valid:false,readOnly:true,errors,sections:{},audits};
@@ -27,8 +28,8 @@ export function buildEdwardianMaterialsReconciliation({inputs={},materials:m={}}
  tiling.lines.filter(r=>!['starter','fieldLaths','supportLaths'].includes(r.key)).forEach(r=>{
   let weight=null;
   if(r.key==='main'){
-   const kg=tiling.steel?first(m.tile_britmet_weight_kg,m.britmetShingle?.weight_kg_per_tile):first(m.liteslate_tile_weight_kg_each,m.liteslate_tile_weight_kg);
-   const density=tiling.steel?first(m.tile_britmet_tiles_per_m2,3.2):null;
+   const kg=tiling.steel?first(m[`tile_${prefix}_weight_kg`],m[`${prefix}Shingle`]?.weight_kg_per_tile):first(m.liteslate_tile_weight_kg_each,m.liteslate_tile_weight_kg);
+   const density=tiling.steel?first(m[`tile_${prefix}_tiles_per_m2`],3.2):null;
    // Different front pitch may place slate facets in different density bands.
    const slateAreaTiles=insulation.membrane.surface.facets.reduce((n,f)=>n+f.areaM2*(f.pitchDeg<25?22:f.pitchDeg<27.5?20:f.pitchDeg<30?19:18),0);
    weight=kg==null?null:kg*(tiling.steel?area*density:slateAreaTiles);
@@ -36,12 +37,12 @@ export function buildEdwardianMaterialsReconciliation({inputs={},materials:m={}}
    const kg=tiling.steel?getFixedProductWeightKg('hip_ridge'):first(m.liteslate_ridge_tile_weight_kg,m.ridge_tile_liteslate_weight_kg);weight=kg==null?null:r.quantity*kg;
   }else if(r.key==='hipEndCaps'){
    const kg=tiling.steel?getFixedProductWeightKg('hip_end_cap_90'):first(m.liteslate_hip_end_cap_weight_kg_each,m.liteslate_hip_end_cap_weight_kg);weight=kg==null?null:r.quantity*kg;
-  }else if(r.key==='yAdaptor'){const kg=(tiling.steel?rate(m.britmet_y_adaptor_weight_kg):rate(m.liteslate_ridge_hip_adaptor_weight_kg));weight=kg==null?null:r.quantity*kg;}
+  }else if(r.key==='yAdaptor'){const kg=(tiling.steel?rate(m[`${prefix}_y_adaptor_weight_kg`]):rate(m.liteslate_ridge_hip_adaptor_weight_kg));weight=kg==null?null:r.quantity*kg;}
   else if(r.key==='vents'){const kg=first(m.vent_strip_weight_kg,m.tile_vent_strip_weight_kg);weight=kg==null?null:r.quantity*kg;}
   else if(r.key==='tape')weight=tiling.support.tapeInstalledWeightKg;
   add(r.key==='tape'?'misc':'tiles',`edwardian_tile_${r.key}`,r.label,r.quantity,r.unit,r.cost,weight);
  });
- if(tiling.steel)add('tiles','edwardian_touchup','Steel tile touch-up kit',1,'Kit',first(m.touchup_kit_britmet_price_each,m.touchUpKitBritmet?.price_each),0,{requirement_basis:'Loose site kit, excluded from installed roof weight.'});
+ if(tiling.steel)add('tiles','edwardian_touchup','Steel tile touch-up kit',1,'Kit',(prefix==='metrotile'?rate(m.metrotile_touchup_kit_price_each):first(m.touchup_kit_britmet_price_each,m.touchUpKitBritmet?.price_each)),0,{requirement_basis:'Loose site kit, excluded from installed roof weight.'});
  const band=plastics.band,pa=plastics.plastics;
  plastics.plasticLines.forEach(r=>{
   if(r.key==='polytop_pins'){add('misc','polytop_pins',r.label,1,'50-pin allowance',r.cost,null);return;}

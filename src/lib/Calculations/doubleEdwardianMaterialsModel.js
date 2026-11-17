@@ -18,17 +18,24 @@ import {coveringWeightRates,apportionInstalledWeight} from './installedCoveringW
 import {getSlatePitchRule} from './tileProductConfig';
 import {getFixedProductWeightKg} from '../utils/weights';
 import {buildFactoryStapleAllowance} from './factoryStapleAllowance';
+import {DEFAULT_METROTILE_CARRIAGE_GBP} from '../doubleEdwardianTileOptions';
 const rate=v=>v==null||v===''||!Number.isFinite(Number(v))||Number(v)<0?null:Number(v);
 const first=(...values)=>values.map(rate).find(v=>v!=null)??null;
 const round=n=>Number(n.toFixed(2));
 export function buildDoubleEdwardianMaterialsModel({inputs={},materials:m={}}={}){
  const g=buildDoubleEdwardianGeometry(inputs),fail=error=>({valid:false,errors:[error],sections:{},pricingReady:false,missingPrices:[],supplyReviews:[]});
  if(!g.valid)return fail(g.error);
- const product=inputs.tileProductId||'britmetShingle',steel=product==='britmetShingle';if(!['britmetShingle','liteSlate'].includes(product))return fail('Choose Britmet or LiteSlate.');
+ const product=inputs.tileProductId||'britmetShingle';
+ const prefix={britmetShingle:'britmet',metrotileShingle:'metrotile',liteSlate:'liteslate',tapcoSlate:'tapco'}[product];
+ if(!prefix)return fail('Choose a supported tile system.');
+ const steel=prefix==='britmet'||prefix==='metrotile';
+ const carriageInput=inputs.metrotileCarriageGBP;
+ const metrotileCarriage=carriageInput==null||carriageInput===''?DEFAULT_METROTILE_CARRIAGE_GBP:rate(carriageInput);
+ if(prefix==='metrotile'&&metrotileCarriage==null)return fail('Enter a non-negative Metrotile supplier carriage amount.');
  const eaves=alignChamferedLathEaves(solveFacetEavesGeometry({requestedReferenceSoffitMM:g.soffitMM,referencePitchDeg:g.pitchDeg,leftPitchDeg:g.pitchDeg,rightPitchDeg:g.pitchDeg,hasLeftFacet:true,hasRightFacet:true,materials:{...m,side_frame_thickness_mm:g.frameMM},minimumSoffitMM:25,manufacturingRoundIncrementMM:5,fasciaThicknessMM:Number(m.fascia_thickness_mm??10),plyProjectionAllowanceMM:Number(m.ply_projection_allowance_mm??5),fasciaLipMM:Number(m.fascia_lip_mm??25)}));
  if(!eaves.solutionValid)return fail('The shared eaves solver could not resolve this roof.');
  const base=eaves.referenceBaseWidthMM,raw=eaves.referenceGeometry.raw,cos=Math.cos(g.pitchDeg*Math.PI/180),tan=Math.tan(g.pitchDeg*Math.PI/180);
- // Existing rectangular layer cuts; both rear side ends are square at the plate.
+ // Side runs use the full projection to the house wall and seat the valley plate.
  const definitions=['left','front','right'].map(side=>{
   const group=g.layout.groups.find(f=>f.id===side),length=group.length;
   const slots=[{leftMM:0,rightMM:48},...group.centresMM.map(t=>({leftMM:t-24,rightMM:t+24})),{leftMM:length-48,rightMM:length}];
@@ -45,10 +52,13 @@ export function buildDoubleEdwardianMaterialsModel({inputs={},materials:m={}}={}
  const facets=developedDoubleEdwardianFacets(g,tileSurface).map(f=>({...f,omitLowestCourse:f.id==='rear',...(!steel&&f.topEdgeType==='ridge'?{topEdgeType:'gableRidgeWithoutExtraCourse'}:{})})),result=calculateRoofTiling({facets,product});if(result.errors.length)return fail(result.errors.join(' '));
  const hipPitch=Math.atan(tan/Math.SQRT2),edgeRuns=g.hips.map(([a,b],i)=>{const rear=a.y===0,exit=rear?0:base*Math.SQRT2;return {id:`hip-${i+1}`,kind:'hip',lengthMM:(Math.hypot(a.x-b.x,a.y-b.y)+exit)/Math.cos(hipPitch)};});
  if(g.ridgeLengthMM>0)edgeRuns.unshift({id:'ridge',kind:'ridge',lengthMM:g.ridgeLengthMM});
- const edges=steel?orderSteelHipRidgeRuns(edgeRuns):edgeRuns.map(e=>({...e,tileQty:Math.ceil(e.lengthMM/1000*5.5)}));
+ const slateEdgeDensity=prefix==='liteslate'?5.5:rate(m.tapco_ridge_units_per_m);
+ const edges=steel?orderSteelHipRidgeRuns(edgeRuns):edgeRuns.map(e=>({...e,tileQty:slateEdgeDensity>0?Math.ceil(e.lengthMM/1000*slateEdgeDensity):null}));
  const support=buildHipRidgeLathIntegrationAudit({edgeModel:{valid:true,edges},tileSystem:product,materials:m});
  const sections=Object.fromEntries(['timber','tiles','plastics','metal','gutters','misc'].map(key=>[key,{lines:[]}])) , reviews=[];
+ if(!steel&&!(slateEdgeDensity>0))reviews.push('Configure Tapco ridge and hip coverage before pricing.');
  const add=(section,key,label,qty,units,price,weight,extra={})=>{const p=rate(price),kg=rate(weight);sections[section].lines.push({key,label,qty,order_qty:qty,units,unit:p??0,line:qty===0?0:p==null?0:round(qty*p),weight_kg:kg??0,price_unconfigured:qty>0&&p==null,weight_unconfigured:qty>0&&kg==null,...extra});};
+ if(prefix==='metrotile')add('tiles','double_metrotile_carriage','Metrotile supplier carriage',1,'Order',round(metrotileCarriage),0,{supplyToSite:false});
  const valley=buildDoubleEdwardianValleyOrder(g,inputs);
  const positivePrice=value=>rate(value)>0?rate(value):null;
  if(valley){
@@ -83,14 +93,14 @@ export function buildDoubleEdwardianMaterialsModel({inputs={},materials:m={}}={}
  ringFacets.forEach(f=>{runs.push({edgeId:f.id+'-outer',runM:f.ringBeam.layerProfiles.outerLath25x50.externalEdgeLengthMM/1000,widthMM:50});f.ringBeam.bayWidthsMM.forEach((length,i)=>runs.push({edgeId:f.id+'-finish-'+i,runM:length/1000,widthMM:50}));});
  const stock=Number(m.lath_stock_length_m??4.8);if(!(stock>0))return fail('Lath stock length must be positive.');const lathPlan=planPlasticsStock(runs,stock),lathM=runs.reduce((n,r)=>n+r.runM,0);
  add('timber','double_laths','25×50 laths — pooled internal, external, ringbeam and supports',lathPlan.qty,'Lengths',rate(m.lath25x50?.price_per_m)==null?null:stock*Number(m.lath25x50.price_per_m),rate(m.chamferLath?.weight_kg_per_m)==null?null:lathM*Number(m.chamferLath.weight_kg_per_m),{used_m:lathM,supplyToSite:false});
- const prefix=steel?'britmet':'liteslate',tileKg=first(m.tile_britmet_weight_kg,m.britmetShingle?.weight_kg_per_tile),slateKg=first(m.liteslate_tile_weight_kg_each,m.liteslate_tile_weight_kg),density=steel?Number(m.tile_britmet_tiles_per_m2??3.2):getSlatePitchRule(product,g.pitchDeg).slatesPerM2;
- add('tiles','double_tiles','Main tiles — roof-wide allowance once',result.tileQuantityOrdered,'Tiles',steel?m.tile_britmet_price_each:m.liteslate_tile_price_each,(steel?tileKg:slateKg)==null?null:(tileSurface.areaM2-result.facets.reduce((sum,f)=>sum+(f.untiledAreaM2??0),0))*density*(steel?tileKg:slateKg));
- const edgeQty=edges.reduce((n,e)=>n+e.tileQty,0),ridgeKg=steel?getFixedProductWeightKg('hip_ridge'):first(m.liteslate_ridge_tile_weight_kg,m.ridge_tile_liteslate_weight_kg);
- add('tiles','double_edge_tiles','Hip and ridge tiles — four hips and ridge',edgeQty,'Tiles',m[`${prefix}_ridge_tile_price_each`],ridgeKg==null?null:edgeQty*ridgeKg);
+ const tileKg=steel?first(m[`tile_${prefix}_weight_kg`],m[product]?.weight_kg_per_tile):first(m[`${prefix}_tile_weight_kg_each`],m[`${prefix}_tile_weight_kg`],m[product]?.weight_kg_per_tile),density=steel?Number(m[`tile_${prefix}_tiles_per_m2`]??3.2):getSlatePitchRule(product,g.pitchDeg).slatesPerM2;
+ add('tiles','double_tiles','Main tiles — roof-wide allowance once',result.tileQuantityOrdered,'Tiles',first(m[steel?`tile_${prefix}_price_each`:`${prefix}_tile_price_each`],m[product]?.price_each),tileKg==null?null:(tileSurface.areaM2-result.facets.reduce((sum,f)=>sum+(f.untiledAreaM2??0),0))*density*tileKg);
+ const edgeQty=edges.reduce((n,e)=>n+(e.tileQty??0),0),ridgeKg=steel?getFixedProductWeightKg('hip_ridge'):first(m[`${prefix}_ridge_tile_weight_kg`],m[`ridge_tile_${prefix}_weight_kg`]);
+ add('tiles','double_edge_tiles','Hip and ridge tiles — four hips and ridge',edges.some(e=>e.tileQty==null)?null:edgeQty,'Tiles',m[`${prefix}_ridge_tile_price_each`],ridgeKg==null?null:edgeQty*ridgeKg);
  const junctionQty=g.ridgeLengthMM>0?2:1;
- add('tiles','double_junction',g.ridgeLengthMM>0?'Three-way ridge/hip adaptors — both ridge ends':'Four-way apex cover — confirm product',junctionQty,'Each',g.ridgeLengthMM>0?steel?m.britmet_y_adaptor_price_each:first(m.liteslate_three_way_adaptor_price,m.liteslate_ridge_hip_adaptor_price_each):m.double_edwardian_apex_cover_price_each,g.ridgeLengthMM>0?rate(m[`${prefix}_y_adaptor_weight_kg`])==null?null:junctionQty*Number(m[`${prefix}_y_adaptor_weight_kg`]):rate(m.double_edwardian_apex_cover_weight_kg));
- add('tiles','double_caps','90° hip end caps — one per hip',4,'Each',first(m[`${prefix}_hip_end_cap_90_price_each`],m[`${prefix}_hip_end_cap_90_price`]),steel?4*getFixedProductWeightKg('hip_end_cap_90'):rate(m.liteslate_hip_end_cap_weight_kg_each)==null?null:4*Number(m.liteslate_hip_end_cap_weight_kg_each));
- if(steel){const vents=Math.ceil(2*g.ridgeLengthMM/500);add('tiles','double_vents','500mm ridge ventilation strips',vents,'Strips',m.britmet_vent_strip_price_each,rate(m.vent_strip_weight_kg)==null?null:vents*Number(m.vent_strip_weight_kg));add('misc','double_hip_tape','Expanding foam tape — hip laths only',support.quantities.tapeRollQty,'Rolls',m.expanding_foam_roll_price_each,support.tapeInstalledWeightKg);add('tiles','double_touchup','Steel tile touch-up kit',1,'Kit',first(m.touchup_kit_britmet_price_each,m.touchUpKitBritmet?.price_each),0);}else add('tiles','double_ridge_poly','Surplus 6mm twinwall — ridge ventilation',Math.ceil(2*g.ridgeLengthMM/3000),'3m strips',0,rate(m.polycarbonate_6mm_weight_kg_per_m2)==null?null:2*g.ridgeLengthMM/1000*0.05*Number(m.polycarbonate_6mm_weight_kg_per_m2));
+ add('tiles','double_junction',g.ridgeLengthMM>0?'Three-way ridge/hip adaptors — both ridge ends':'Four-way apex cover — confirm product',junctionQty,'Each',g.ridgeLengthMM>0?steel?m[`${prefix}_y_adaptor_price_each`]:first(m[`${prefix}_three_way_adaptor_price`],m[`${prefix}_ridge_hip_adaptor_price_each`]):m.double_edwardian_apex_cover_price_each,g.ridgeLengthMM>0?rate(m[`${prefix}_y_adaptor_weight_kg`])==null?null:junctionQty*Number(m[`${prefix}_y_adaptor_weight_kg`]):rate(m.double_edwardian_apex_cover_weight_kg));
+ add('tiles','double_caps','90° hip end caps — one per hip',4,'Each',first(m[`${prefix}_hip_end_cap_90_price_each`],m[`${prefix}_hip_end_cap_90_price`]),steel?4*getFixedProductWeightKg('hip_end_cap_90'):rate(m[`${prefix}_hip_end_cap_weight_kg_each`])==null?null:4*Number(m[`${prefix}_hip_end_cap_weight_kg_each`]));
+ if(steel){const vents=Math.ceil(2*g.ridgeLengthMM/500);add('tiles','double_vents','500mm ridge ventilation strips',vents,'Strips',m[`${prefix}_vent_strip_price_each`],rate(m.vent_strip_weight_kg)==null?null:vents*Number(m.vent_strip_weight_kg));add('misc','double_hip_tape','Expanding foam tape — hip laths only',support.quantities.tapeRollQty,'Rolls',m.expanding_foam_roll_price_each,support.tapeInstalledWeightKg);add('tiles','double_touchup','Steel tile touch-up kit',1,'Kit',prefix==='britmet'?first(m.touchup_kit_britmet_price_each,m.touchUpKitBritmet?.price_each):first(m.metrotile_touchup_kit_price_each,m.touchup_kit_metrotile_price_each),0);}else add('tiles','double_ridge_poly','Surplus 6mm twinwall — ridge ventilation',Math.ceil(2*g.ridgeLengthMM/3000),'3m strips',0,rate(m.polycarbonate_6mm_weight_kg_per_m2)==null?null:2*g.ridgeLengthMM/1000*0.05*Number(m.polycarbonate_6mm_weight_kg_per_m2));
  const openEavesM=(2*(g.projectionMM+base)+g.widthMM+2*base)/1000,starterQty=Math.ceil(openEavesM/3);
  add('metal','double_starter','Standard tile starter — three open eaves only',starterQty,'3m lengths',first(m.tile_starter_price_each,m.eaves_guard_price_each,m.metal?.tile_starter?.price_each),rate(m.eaves_guard_weight_kg)==null?null:openEavesM/3*Number(m.eaves_guard_weight_kg));
  // The rear valley is present regardless of the selected liner or adjoining surface.
@@ -122,7 +132,7 @@ export function buildDoubleEdwardianMaterialsModel({inputs={},materials:m={}}={}
  add('misc','double_membrane','Breather membrane — 50m² rolls',Math.ceil(tileSurface.areaM2/50),'Rolls',first(m.breather_roll_price_each,m.breatherMembrane?.price_per_roll),tileSurface.areaM2*weights.membraneKgPerM2);
  const box=(qty,size,price)=>Number.isInteger(Number(size))&&Number(size)>0?{qty:Math.ceil(qty/Number(size)),price}:null;
  const fix=(key,label,units,size,price)=>{const b=box(units,size,price);if(!b)reviews.push('Invalid pack size for '+label);else add('misc',key,label,b.qty,'Boxes',price,null,{requiredUnits:units});};
- const tileUnits=result.tileQuantityOrdered*Number(steel?m.tileFixings?.per_tile_britmet??3:m.tileFixings?.per_tile_liteslate??2)+edgeQty*4+8+junctionQty*6;
+ const tileUnits=result.tileQuantityOrdered*Number(m.tileFixings?.[`per_tile_${prefix}`]??(steel?3:2))+edgeQty*4+8+junctionQty*6;
  fix('double_tile_screws','Tile, hip/ridge, cap and junction screws',tileUnits,m.tileFixings?.units_per_box??200,first(m.screws_1x8_price_per_box,m.tileFixings?.price_per_box));
  fix('double_eaves_screws','5×80 member foot screws',g.layout.members.length*2,m.rafterEavesScrews?.units_per_box??200,first(m.screws_3x10_price_per_box,m.rafterEavesScrews?.price_per_box));
  const externalFixings=result.facets.reduce((n,f)=>n+f.lathRows.reduce((s,r)=>s+(r.widthMM>0?Math.ceil(r.widthMM/665)+1:0),0),0)+support.rows.reduce((n,r)=>n+r.lathQty*(Math.ceil(r.edgeLengthM*2)+1),0),internalFixings=internal.reduce((n,r)=>n+Math.ceil(r.lengthMM/665)+1,0);

@@ -1,3 +1,4 @@
+import {metrotileCarriageLine} from './metrotileCarriage';
 import {buildVictorianGeometry} from '../geometry/victorianGeometry';
 import {buildVictorianMaterialsReconciliation} from './victorianMaterialsReconciliation';
 import {buildSummaryAddedItemLines} from './summaryAddedItems';
@@ -15,6 +16,7 @@ export function buildVictorianSummaryMaterialsModel({inputs={},materials={},adju
   const source=base.audits.insulation[r.sourceKey],used_m2=r.source==='insulation'?(source?.netAreaM2??source?.installedAreaM2):undefined;
   return {...r,_k:r.key,qty,order_qty:qty,units:r.unit,unit:unitPrice,unitPrice,line,total:line,cost:line,totalCost:line,price_unconfigured:qty!==0&&(qty==null||unitPrice==null),weight_kg:r.installedWeightKg??0,weight_unconfigured:r.installedWeightKg==null&&r.qty!==0,totalWeightKg:r.installedWeightKg??0,excluded:!!exclusions[r.key],used_m2};
  })}]));
+ const carriage=metrotileCarriageLine(inputs);if(carriage)sections.tiles.lines.push({...carriage,fixedQuantity:true});
  for(const row of buildSummaryAddedItemLines(addedItems,materials))sections[row.section].lines.push({...row,excluded:!!row.extraExcluded,weight_unconfigured:false});
  Object.values(sections).forEach(s=>{s.totals={cost:round(s.lines.reduce((n,r)=>n+(r.excluded?0:r.line),0)),chargeableCost:round(s.lines.reduce((n,r)=>n+(r.excluded?0:r.line),0)),weight:round(s.lines.reduce((n,r)=>n+(r.isAddedItem?0:r.weight_kg),0))};});
  const all=Object.values(sections).flatMap(s=>s.lines),pricingSections=Object.fromEntries(Object.entries(sections).map(([k,s])=>[k,s.totals.cost])),materialsCostForPricing=round(Object.values(pricingSections).reduce((n,v)=>n+v,0)),missingPrices=all.filter(r=>!r.excluded&&r.price_unconfigured),membrane=all.find(r=>r.key==='insulation_membrane');

@@ -1,3 +1,4 @@
+import {tileColoursFor} from '../tileColours';
 export const VICTORIAN_DESIGN_KEY='victorianPlanPreviewInputs';
 export const victorianDesignDefaults={widthMM:'',projMM:'',pitchDeg:25,frameThicknessMM:70,soffitMM:150,soffitMode:'standard',maxFinishedHeightMM:'',sideSoffitMode:'automatic',ridgeMode:'automatic',cornerAnglesDeg:[135,135,135,135],bossTopContinuationMM:160,tileProductId:'britmetShingle',tileColour:'Titanium',fasciaColour:'White',plasticsColour:'white',gutterProfile:'square',gutterColour:'Black',deliveryPostcode:'',customerReference:'',selectedCustomerId:'retail',quoteDisplayed:false};
 export function normalizeVictorianDesignInputs(saved={},customerId='retail'){
@@ -14,7 +15,7 @@ export function updateVictorianDesignInputs(old,key,value){
  if(['widthMM','projMM'].includes(key)&&old.victorianFacetGeometry){next.victorianFacetGeometry=null;next.cornerAnglesDeg=[135,135,135,135];next.victorianRearTrussPositionsMM=null;next.victorianSideJackPositionsMM=null;next.victorianFacetPositionsMM=null;}
  if(key==='deliveryPostcode'){next.deliveryDistanceMiles='';next.deliveryDistancePostcode='';}
  if(key==='fasciaColour')next.plasticsColour=value==='White'?'white':'foiled';
- if(key==='tileProductId')next.tileColour=value==='liteSlate'||value==='tapcoSlate'?'Slate':'Titanium';
+ if(key==='tileProductId')next.tileColour=tileColoursFor(value)[0];
  if(key==='pitchDeg')next.maxFinishedHeightMM='';
  if(key==='soffitMM')next.soffitMode=Number(value)===150?'standard':'specified';
  if(key==='soffitMode'&&value==='standard')next.soffitMM=150;

@@ -243,6 +243,7 @@ chamferLath: {
   },
 
   // ---------- Top-level (flat) defaults for direct editing ----------
+  slate_bonding_sealant_price_each: 11.75,
   tile_britmet_price_each: 6.12,
   tile_britmet_weight_kg: 2.19,
   tile_britmet_cover_w_mm: 1231,

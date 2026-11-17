@@ -1,7 +1,8 @@
+import MetrotileCarriageField from '../../components/MetrotileCarriageField';
 import CustomerPicker from '../../components/CustomerPicker';
 import SoffitRequirementControl from '../../components/SoffitRequirementControl';
 import {resolveGableSoffitInputs} from '../../lib/geometry/gableSoffitInputs';
-import {LITESLATE_COLOURS} from '../../lib/tileColours';
+import {tileColoursFor} from '../../lib/tileColours';
 import React,{useState} from 'react';
 import GablePricingPanel from './GablePricingPanel';
 const inputStyle={width:'100%',height:34,padding:'5px 8px',fontSize:13,border:'1px solid #d1d5db',borderRadius:8,boxSizing:'border-box'};
@@ -16,8 +17,9 @@ export default function GableDesignForm({inputs,update,materials,customers,admin
  return <div className="gd-card">{showQuote&&validDesign&&(hasPostcode||admin)&&<button id="gable-quote-edit-toggle" type="button" aria-expanded={quoteInputsExpanded} aria-controls="gable-quote-input-fields" onClick={()=>setQuoteInputsExpanded(open=>!open)} style={{width:'100%',background:'#0f766e',border:'1px solid #0f766e',borderRadius:10,color:'#fff',padding:'10px 14px',fontWeight:600,cursor:'pointer',marginBottom:quoteInputsExpanded?14:0}}>Edit {quoteInputsExpanded?'▴':'▾'}</button>}
  <div id="gable-quote-input-fields" hidden={collapsed}><div className="gd-grid">
  {field('Width (internal, mm)','widthMM','e.g. 3500')}{field('Projection (internal, mm)','projMM','e.g. 2500')}
- {select('Tile system','tileProductId',[['britmetShingle','Britmet'],['metrotileShingle','Metrotile'],['liteSlate','LiteSlate']])}
- {select('Tile colour','tileColour',inputs.tileProductId==='liteSlate'?LITESLATE_COLOURS:['Titanium','Raven','Bramble Brown','Rustic Brown','Rustic Terracotta','Smoked Oak','Rustic Red','Tartan Green'])}
+ {select('Tile system','tileProductId',[['britmetShingle','Britmet'],['metrotileShingle','Metrotile'],['liteSlate','LiteSlate']].filter(([id])=>admin||!['metrotileShingle','tapcoSlate'].includes(id)||id===inputs.tileProductId))}
+ {select('Tile colour','tileColour',tileColoursFor(inputs.tileProductId,inputs.tileColour))}
+ <MetrotileCarriageField admin={admin} inputs={inputs} update={update}/>
  {select('Fascia / Soffit colour','fasciaColour',['White','Rosewood','Black','Anthracite','Light Oak','Cream','Foiled (unspecified)'])}
  {field(!controlled&&admin&&inputs.separateSideSoffits?'Soffit to Left (mm)':'Soffit to Sides (mm)','leftSoffitMM')}
  {select('Gutter profile','gutterProfile',[['square','Square'],['ogee','Ogee'],['round','Round']])}{select('Gutter colour','gutterColour',['White','Black','Anthracite','Brown'])}

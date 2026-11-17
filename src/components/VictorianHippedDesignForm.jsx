@@ -1,3 +1,4 @@
+import MetrotileCarriageField from './MetrotileCarriageField';
 import CustomerPicker from './CustomerPicker';
 import SoffitRequirementControl from './SoffitRequirementControl';
 import {saveVictorianHippedDesign} from '../lib/victorianHippedQuotePersistence';
@@ -9,9 +10,8 @@ import GableQuoteResults from '../pages/gable/GableQuoteResults';
 import {buildVictorianHippedQuotation} from '../lib/Calculations/victorianHippedQuotation';
 import {getCustomers} from '../lib/customers';
 import {sortCustomerList} from '../lib/customerListOrder';
-import {LITESLATE_COLOURS} from '../lib/tileColours';
+import {tileColoursFor} from '../lib/tileColours';
 import {victorianHippedDesignDefaults as victorianHippedDefaults} from '../lib/geometry/victorianHippedGeometry';
-const steelColours=['Titanium','Raven','Bramble Brown','Rustic Brown','Rustic Terracotta','Smoked Oak','Rustic Red','Tartan Green'];
 export default function VictorianHippedDesignForm({inputs,g,materials,Plan,tools,onChange}){
  const [customers,setCustomers]=useState([]),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
  const [expanded,setExpanded]=useState(false);
@@ -52,13 +52,14 @@ export default function VictorianHippedDesignForm({inputs,g,materials,Plan,tools
  const update=(key,value)=>{if(key==='deliveryPostcode'){request.current++;setBusy(false);setMessage('');}onChange(old=>({...old,[key]:value,...(key==='pitchDeg'?{maxFinishedHeightMM:''}:{}),...(key==='bossInsetMM'?{requestedSidePitchDeg:null}:{}),...(key==='deliveryPostcode'?{deliveryDistanceMiles:'',deliveryDistancePostcode:''}:{})}));};
  const number=(label,key,aria=label)=> <label>{label}<input aria-label={aria} type="number" min="0" step="0.1" placeholder={key==='specifiedSideSoffitMM'?'e.g. 80':key==='maxFinishedHeightMM'?'Optional':key==='widthMM'?'e.g. 4000':key==='projMM'?'e.g. 3000':undefined} disabled={key==='soffitMM'&&sideMode!=='automatic'} value={key==='pitchDeg'&&inputs.maxFinishedHeightMM&&g.valid?Number(g.pitchDeg.toFixed(4)):key==='soffitMM'&&sideMode!=='automatic'&&g.valid?Number(g.soffitMM.toFixed(1)):inputs[key]??''} onChange={e=>update(key,e.target.value)}/></label>;
  const select=(label,key,options,fallback)=> <label>{label}<select aria-label={label} value={inputs[key]??fallback??options[0]} onChange={e=>update(key,e.target.value)}>{options.map(v=><option key={v}>{v}</option>)}</select></label>;
- const slate=inputs.tileProductId==='liteSlate';
+
  return <><section className="vh-design-card">
  {inputs.quoteDisplayed&&g.valid&&<button className="vh-edit-bar" type="button" disabled={busy} aria-expanded={!collapsed} aria-controls="vh-design-fields" onClick={()=>setExpanded(open=>!open)}>Edit {collapsed?'▾':'▴'}</button>}
  <fieldset disabled={busy} style={{border:0,padding:0,margin:0,minWidth:0}}><div id="vh-design-fields" hidden={collapsed}><div className="vh-design-grid">
  {number('Width (internal, mm)','widthMM','Internal width (mm)')}{number('Projection (internal, mm)','projMM','Internal projection (mm)')}
- <label>Tile system<select aria-label="Tile system" value={inputs.tileProductId??'britmetShingle'} onChange={e=>onChange(old=>({...old,tileProductId:e.target.value,tileColour:e.target.value==='liteSlate'?'Slate':'Titanium'}))}><option value="britmetShingle">Britmet</option><option value="liteSlate">LiteSlate</option></select></label>
- {select('Tile colour','tileColour',slate?LITESLATE_COLOURS:steelColours,slate?'Slate':'Titanium')}{select('Fascia / Soffit colour','fasciaColour',['White','Black','Anthracite','Rosewood','Golden Oak'])}
+ <label>Tile system<select aria-label="Tile system" value={inputs.tileProductId??'britmetShingle'} onChange={e=>onChange(old=>({...old,tileProductId:e.target.value,tileColour:tileColoursFor(e.target.value)[0]}))}><option value="britmetShingle">Britmet</option><option value="liteSlate">LiteSlate</option><option value="metrotileShingle">Metrotile</option><option value="tapcoSlate">Tapco</option></select></label>
+ <MetrotileCarriageField admin inputs={inputs} update={(key,value)=>onChange(old=>({...old,[key]:value}))}/>
+ {select('Tile colour','tileColour',tileColoursFor(inputs.tileProductId,inputs.tileColour),tileColoursFor(inputs.tileProductId)[0])}{select('Fascia / Soffit colour','fasciaColour',['White','Black','Anthracite','Rosewood','Golden Oak'])}
  {number('Soffit to Front (mm)','soffitMM','Soffit (mm)')}{select('Gutter profile','gutterProfile',['Square','Round','Ogee'])}{select('Gutter colour','gutterColour',['Black','White','Brown','Anthracite'])}{number('Pitch (degrees)','pitchDeg','Front pitch (°)')}{number('Max Finished Height (mm)','maxFinishedHeightMM')}
  </div><fieldset className="vh-hip-config"><legend>Side Configuration</legend><div className="vh-design-grid vh-hip-grid">
  {['left','right'].map(side=><label key={side}>{side==='left'?'Left Side':'Right Side'}<select aria-label={side==='left'?'Left Side':'Right Side'} value={inputs[side+'EndType']??'victorian'} onChange={e=>{const value=e.target.value;onChange(old=>{const next={...old,[side+'EndType']:value,victorianHippedFacetPositionsMM:undefined};if(next.leftEndType==='wall'&&next.rightEndType==='wall'&&next.sideSoffitMode==='specified')next.sideSoffitMode='automatic';else if(value==='wall'&&(old.sideSoffitControlSide||'left')===side)next.sideSoffitControlSide=side==='left'?'right':'left';return next;});}}><option value="victorian">Victorian — faceted side (135° template)</option><option value="edwardian">Edwardian — 90° corner</option><option value="wall">Against a wall</option></select></label>)}

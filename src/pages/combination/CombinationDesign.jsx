@@ -7,7 +7,7 @@ import {getCustomers} from '../../lib/customers';
 import {getLabourPricingConfig,getDeliveryPricingConfig,getMarkupPricingConfig} from '../../lib/pricing';
 import {clearActiveDesignRecord,readActiveDesignRecord} from '../../lib/activeDesignRecord';
 import {combinationDesignDefaults as defaults,normalizeCombinationInputs} from '../../lib/geometry/combinationDesignInputs';
-import {LITESLATE_COLOURS} from '../../lib/tileColours';
+import {tileColoursFor} from '../../lib/tileColours';
 import CombinationNavigation from './CombinationNavigation';
 import CombinationRafterEditor from './CombinationRafterEditor';
 import React,{useState,useEffect} from 'react';
@@ -46,7 +46,7 @@ export default function CombinationDesign(){
  useEffect(()=>{localStorage.setItem(COMBINATION_DRAFT_KEY,JSON.stringify(inputs));},[inputs]);
  useEffect(()=>{const refresh=()=>setMaterials(getMaterials());window.addEventListener('materials_updated',refresh);return()=>window.removeEventListener('materials_updated',refresh);},[]);
  if(!isAdminUser())return <main style={{padding:20}}><NavLink to="/quote">Home</NavLink><p>This design preview is available to admin while it is being completed.</p></main>;
- const g=buildCombinationGeometry({inputs,materials}),update=(key,value)=>setInputs(old=>({...old,[key]:value,...(['widthMM','projMM','leftSide','rightSide'].includes(key)?{combinationFacetGeometry:undefined}:{}),...(key==='fasciaColour'?{plasticsColour:value==='White'?'white':'foiled'}:{}),...(key==='tileProductId'?{tileColour:value==='liteSlate'?'Slate':'Titanium'}:{}),...(key==='selectedCustomerId'?{customerName:customers.find(c=>c.id===value)?.name||'Retail'}:{}),...(['widthMM','projMM','pitchDeg','soffitMM','maxFinishedHeightMM','leftSide','rightSide'].includes(key)?{combinationRafterPositionsMM:undefined,combinationRearTrussPositionsMM:undefined,combinationSpacingOverride:undefined}:{})}));
+ const g=buildCombinationGeometry({inputs,materials}),update=(key,value)=>setInputs(old=>({...old,[key]:value,...(['widthMM','projMM','leftSide','rightSide'].includes(key)?{combinationFacetGeometry:undefined}:{}),...(['leftSide','rightSide'].includes(key)&&old.tileProductId==='tapcoSlate'&&value===old[key==='leftSide'?'rightSide':'leftSide']?{tileProductId:'liteSlate',tileColour:tileColoursFor('liteSlate')[0]}:{}),...(key==='fasciaColour'?{plasticsColour:value==='White'?'white':'foiled'}:{}),...(key==='tileProductId'?{tileColour:tileColoursFor(value)[0]}:{}),...(key==='selectedCustomerId'?{customerName:customers.find(c=>c.id===value)?.name||'Retail'}:{}),...(['widthMM','projMM','pitchDeg','soffitMM','maxFinishedHeightMM','leftSide','rightSide'].includes(key)?{combinationRafterPositionsMM:undefined,combinationRearTrussPositionsMM:undefined,combinationSpacingOverride:undefined}:{})}));
  const patch=value=>setInputs(old=>({...old,...value})),customer=customers.find(c=>c.id===inputs.selectedCustomerId)||null;
  const q=inputs.quoteDisplayed?buildCombinationQuotation({inputs,materials,customer,labourConfig:getLabourPricingConfig(),deliveryConfig:getDeliveryPricingConfig(),markupConfig:getMarkupPricingConfig()}):null;
  const reset=()=>{const record=readActiveDesignRecord('combination');if(record)setInputs(normalizeCombinationInputs(record.inputs_json));else{clearActiveDesignRecord();setInputs({...defaults});}setExpanded(false);};
@@ -58,8 +58,8 @@ export default function CombinationDesign(){
  <section className="gd-card" aria-label="Roof dimensions">{inputs.quoteDisplayed&&g.valid&&<button id="combination-edit-toggle" type="button" style={{width:'100%',background:'#0f766e',border:'1px solid #0f766e',borderRadius:10,color:'#fff',padding:'10px 14px',fontWeight:600,cursor:'pointer',marginBottom:expanded?14:0}} aria-expanded={expanded} aria-controls="combination-input-fields" onClick={()=>setExpanded(v=>!v)}>Edit {expanded?'▴':'▾'}</button>}<div id="combination-input-fields" hidden={inputs.quoteDisplayed&&g.valid&&!expanded}>
  <div className="gd-grid">
  {numberField('Width (internal, mm)','widthMM','e.g. 4000')}{numberField('Projection (internal, mm)','projMM','e.g. 3000')}
- {selectField('Tile system','tileProductId',[['britmetShingle','Britmet'],['liteSlate','LiteSlate']])}
- {selectField('Tile colour','tileColour',(inputs.tileProductId==='liteSlate'?LITESLATE_COLOURS:['Titanium','Raven','Bramble Brown','Rustic Brown','Rustic Terracotta','Smoked Oak','Rustic Red','Tartan Green']).map(v=>[v,v]))}
+ {selectField('Tile system','tileProductId',[['britmetShingle','Britmet'],['liteSlate','LiteSlate'],...(inputs.leftSide!==inputs.rightSide?[['tapcoSlate','Tapco']]:[])])}
+ {selectField('Tile colour','tileColour',(tileColoursFor(inputs.tileProductId,inputs.tileColour)).map(v=>[v,v]))}
  {selectField('Fascia / Soffit colour','fasciaColour',['White','Rosewood','Black','Anthracite','Light Oak','Cream','Foiled (unspecified)'].map(v=>[v,v]))}
  {numberField('Soffit to Front (mm)','soffitMM')}
  {selectField('Gutter profile','gutterProfile',[['square','Square'],['ogee','Ogee'],['round','Round']])}

@@ -7,6 +7,7 @@ export function buildGableTilingAudit({geometry:g,materials:m={},productId='brit
  const fail=message=>({valid:false,readOnly:true,errors:[message],lines:[],facets:[]});
  if(!g?.valid)return fail('Valid Gable geometry is required.');
  if(!['britmetShingle','metrotileShingle','liteSlate'].includes(productId))return fail('Select Britmet, Metrotile or LiteSlate.');
+ const prefix=productId==='metrotileShingle'?'metrotile':'britmet';
  const steel=productId!=='liteSlate',cos=Math.cos(g.pitchDeg*Math.PI/180);
  const facets=g.feet.map(f=>({id:`gable-${f.side}`,label:`${f.side} roof face`,baseWidthMM:(g.manufacturingProjectionMM??g.externalProjectionMM),topWidthMM:(g.manufacturingProjectionMM??g.externalProjectionMM),heightMM:f.externalSlopeMM+50/cos,pitchDeg:g.pitchDeg,topEdgeType:steel?'ridge':'gableRidgeWithoutExtraCourse'}));
  const result=calculateRoofTiling({facets,product:productId});
@@ -25,12 +26,12 @@ export function buildGableTilingAudit({geometry:g,materials:m={},productId='brit
  const vergeQty=Math.ceil(vergeParts.reduce((s,l)=>s+l.qty,0));
  const lines=[];
  const add=(key,label,quantity,unit,price)=>{const p=rate(price);lines.push({key,label,quantity,unit,unitPrice:p,cost:p==null?null:quantity*p});};
- add('main','Main tiles — roof estimate including allowance',mainTiles,'tiles',steel?m.tile_britmet_price_each:m.liteslate_tile_price_each);
- add('ridge','Ridge tiles',ridgeTiles,'tiles',steel?m.britmet_ridge_tile_price_each:m.liteslate_ridge_tile_price_each);
+ add('main','Main tiles — roof estimate including allowance',mainTiles,'tiles',steel?m[`tile_${prefix}_price_each`]:m.liteslate_tile_price_each);
+ add('ridge','Ridge tiles',ridgeTiles,'tiles',steel?m[`${prefix}_ridge_tile_price_each`]:m.liteslate_ridge_tile_price_each);
  add('ridgeLaths','25×50 ridge support laths',ridgeLathM,'m',m.chamferLath?.price_per_m);
- if(steel){add('vents','500mm ridge ventilation strips',Math.ceil(2*ridgeMM/500),'strips',m.britmet_vent_strip_price_each);add('endCap','Front ridge end cap',1,'cap',m.britmet_gable_end_cap_price_each);}
+ if(steel){add('vents','500mm ridge ventilation strips',Math.ceil(2*ridgeMM/500),'strips',m[`${prefix}_vent_strip_price_each`]);add('endCap','Front ridge end cap',1,'cap',m[`${prefix}_gable_end_cap_price_each`]);}
  else lines.push({key:'polycarbonate',label:'Factory 6mm twinwall strips, 50mm wide',quantity:Math.ceil(2*ridgeMM/3000),unit:'3m strips',unitPrice:0,cost:0});
- add('verge',steel?'Two-part front barges':'Front dry verge',vergeQty,'pieces',steel?m.verge_trim_price_each:m.liteslate_dry_verge_2m_price??m.liteslate_dry_verge_price_each);
+ add('verge',steel?'Two-part front barges':'Front dry verge',vergeQty,'pieces',steel?(prefix==='metrotile'?m.metrotile_verge_trim_price_each:m.verge_trim_price_each):m.liteslate_dry_verge_2m_price??m.liteslate_dry_verge_price_each);
  add('starter','3m tile starter — two eaves',Math.ceil(2*ridgeMM/3000),'lengths',m.eaves_guard_price_each);
  return {valid:true,readOnly:true,errors:[],productId,steel,facets,result,sequence,mainTiles,ridgeMM,ridgeTiles,ridgeLathM,fieldLathM,chamferM,lathM,lathStockLengths:Math.ceil(lathM/stockM),stockM,lines,knownCost:lines.reduce((s,l)=>s+(l.cost??0),0),notes:[
  'Main steel tile orders use shared Home calculator roof-wide rounding plus two allowance tiles. Course simulations remain provisional Technical comparisons.',

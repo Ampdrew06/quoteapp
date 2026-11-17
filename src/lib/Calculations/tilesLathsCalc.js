@@ -80,7 +80,7 @@ export function computeTilesLathsBOM(inputs = {}, materials = {}) {
   "britmet",
   } = inputs;
 
-  const isLiteSlate = String(tileSystem).toLowerCase() === "liteslate";
+  const isLiteSlate = ["liteslate","tapco"].includes(String(tileSystem).toLowerCase());
   if (typeof window !== "undefined") {
   console.log("✅ tilesLathsCalc computeTilesLathsBOM called:", { tileSystem, isLiteSlate });
 }
