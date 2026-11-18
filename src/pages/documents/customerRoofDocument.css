@@ -1,0 +1,102 @@
+.rd-screen {background:#f3f5f8;min-height:100vh;color:#111}
+.rd-tools {max-width:1080px;margin:0 auto;padding:1rem}
+.rd-tools h1 {margin:0;font-size:1.4rem}
+.rd-actions {display:flex;align-items:center;flex-wrap:wrap;gap:.75rem;margin-top:.75rem}
+.rd-actions button,.rd-actions a {color:#fff;background:#006d95;border:0;border-radius:5px;padding:.5rem .75rem;text-decoration:none;cursor:pointer;font:inherit}
+.rd-sheet {background:white;margin:0 auto 20px;box-sizing:border-box;color:#000}
+.rd-quotation {display:grid;grid-template-columns:minmax(0,2.5fr) minmax(0,1fr);gap:1.5mm;width:min(297mm,100%);min-height:207mm;padding:2mm;border:1px solid #888;border-radius:8px;font:9pt Arial,sans-serif}
+.rd-q-main {display:flex;min-width:0;flex-direction:column;gap:1.3mm}
+.rd-q-main h1 {background:#000;color:white;text-align:center;margin:0;padding:1.9mm 1mm;font-size:21pt;border-radius:6px}
+.rd-plan {height:130mm;min-width:0;display:flex;justify-content:center;align-items:center;border:1px solid #aaa;border-radius:6px}
+.rd-plan svg {height:100% !important;width:100% !important;border:0 !important;object-fit:contain}
+.rd-dimensions {align-self:center;border:1px solid #aaa;border-radius:6px;padding:1.2mm 2mm;font-weight:bold}
+.rd-accept {border:1px solid #aaa;border-radius:6px;padding:1.6mm;flex:1}
+.rd-accept p {margin:0 0 2.2mm}
+.rd-accept small {display:block;line-height:1.22}
+.rd-sign {display:flex;gap:2mm;justify-content:space-between;flex-wrap:wrap;margin:3mm 0 5mm}
+.rd-company {text-align:center;border:1px solid #bbb;border-radius:6px;font:bold 11pt 'Times New Roman',serif;margin:0 0 3mm;padding:2mm}
+.rd-company strong {display:block;background:#1300ed;color:white;font-size:13pt}
+.rd-company p {margin:2mm 0 1mm}
+.rd-q-side h2,.rd-q-side h3 {font-size:11pt;margin:0 0 1mm}
+.rd-q-side h3 {margin-top:9mm}
+.rd-details {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.08fr);gap:.3mm 2mm;margin:0 0 4mm;line-height:1.16}
+.rd-details dd {margin:0;overflow-wrap:anywhere;white-space:pre-line}
+.rd-price {border:1px solid #aaa;border-radius:6px;padding:2mm}
+.rd-price dl {margin:0}
+.rd-order {width:min(210mm,100%);min-height:293mm;padding:14mm 9mm;font:11pt/1.25 'Times New Roman',serif}
+.rd-order-heading {display:grid;grid-template-columns:36% 1fr;align-items:center;text-align:center;border:2px solid}
+.rd-order-heading img {width:100%;height:23mm;box-sizing:border-box;object-fit:contain;border-right:1px solid;padding:3mm}
+.rd-order-heading h1 {margin:0;font:bold 17pt Arial,sans-serif}
+.rd-contact {text-align:center}
+.rd-order-columns,.rd-delivery {display:grid;grid-template-columns:1fr 1fr;gap:4mm}
+.rd-order .rd-details {grid-template-columns:minmax(0,.9fr) minmax(0,1.5fr)}
+.rd-order dt,.rd-delivery label {font-weight:bold}
+.rd-order dd {border-bottom:1px solid #bbb;min-height:4mm}
+.rd-order h2 {font-size:12pt;margin:3mm 0 2mm;border-bottom:1px solid #888}
+.rd-delivery textarea,.rd-delivery input {display:block;width:100%;box-sizing:border-box;font:inherit;font-weight:normal;margin-top:1mm}
+.rd-print-value {display:none}
+.rd-blank {height:8mm;border-bottom:1px solid #888}
+@media(max-width:650px){.rd-quotation{grid-template-columns:1fr}.rd-plan{height:65vw}.rd-q-main h1{font-size:14pt}.rd-order{padding:5mm}.rd-sign{justify-content:flex-start}}
+@media print{
+ html,body,#root,.rd-screen {margin:0!important;padding:0!important;min-height:0!important;background:white!important}
+ .rd-screen .nav-strip,.rd-tools,.rd-delivery textarea,.rd-delivery input {display:none!important}
+ .rd-sheet {margin:0!important;max-width:none;break-inside:avoid;print-color-adjust:exact;-webkit-print-color-adjust:exact}
+ .rd-quotation {width:293mm;margin:2mm!important;min-height:205mm;grid-template-columns:minmax(0,2.5fr) minmax(0,1fr)}
+ .rd-order {width:210mm}
+ .rd-print-value {display:block;white-space:pre-wrap;overflow-wrap:anywhere;border-bottom:1px solid #444;min-height:6mm;font-weight:normal;padding:1mm 0}
+ .rd-delivery label:first-child .rd-print-value {min-height:16mm}
+}
+
+/* Notes stay with the quotation price; long lists continue naturally without clipping. */
+.rd-q-side {display:flex;flex-direction:column;min-width:0}
+.rd-notes {border:1px solid #aaa;border-radius:6px;padding:2mm;margin-top:3mm;overflow-wrap:anywhere;white-space:pre-line}
+.rd-q-side .rd-notes {flex:1}
+.rd-notes h3 {margin:0 0 1.5mm;font:bold 10pt Arial,sans-serif}
+.rd-notes ul {margin:0;padding-left:3.5mm;line-height:1.25}
+.rd-notes li {margin-bottom:1.5mm;break-inside:avoid}
+.rd-notes-space {min-height:20mm}
+.rd-order .rd-notes {min-height:15mm}
+
+/* Leave handwriting space above the acceptance lines and anchor terms below. */
+.rd-accept {display:flex;flex-direction:column;min-height:45mm;box-sizing:border-box}
+.rd-accept .rd-sign {
+  margin:8mm 0 7mm;
+  flex-wrap:nowrap;
+  justify-content:flex-start;
+  gap:0;
+}
+
+.rd-accept .rd-sign span:nth-child(2) {
+  margin-left:8mm; /* Space before Print name */
+}
+
+.rd-accept .rd-sign span:nth-child(3) {
+  margin-left:8mm; /* Space before Date */
+}
+.rd-accept .rd-sign span {white-space:nowrap}
+.rd-accept-smallprint {margin-top:auto;padding-top:5mm}
+@media(max-width:650px){
+ .rd-accept .rd-sign {flex-wrap:wrap;row-gap:9mm}
+}
+@media print{
+ .rd-accept .rd-sign {flex-wrap:nowrap;row-gap:0}
+}
+@page timberlite-quotation {
+  size:A4 landscape;
+  margin:0;
+}
+
+@page timberlite-order {
+  size:A4 portrait;
+  margin:0;
+}
+
+@media print {
+  .rd-landscape {
+    page:timberlite-quotation;
+  }
+
+  .rd-portrait {
+    page:timberlite-order;
+  }
+}

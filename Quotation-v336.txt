@@ -1,0 +1,18 @@
+function Quotation({data:d,drawing,preview}){
+ return <article className="rd-sheet rd-quotation">
+  <section className="rd-q-main"><h1>TIMBERLITE ROOF CONFIRMATION</h1>
+   <div className="rd-plan">{drawing}</div>
+   <div className="rd-dimensions">Dimensions are in millimetres. The plan identifies internal and external sizes.</div>
+   <DocumentNotes data={d} order/>
+   <footer className="rd-drawing-footer"><p>Please review this drawing together with the accompanying order form. Acceptance is completed on the order form.</p>{validity}<small>The support structure must provide the necessary lateral and axial stability. Guidance should be sought from your frame supplier where required.</small></footer>
+  </section>
+  <aside className="rd-q-side">
+   <header className="rd-company"><img className="rd-quotation-logo" src={logo} alt="Timberlite"/><strong>Timberlite Ltd.</strong><p>Unit 2, The Sidings Business Park<br/>Freightliner Road<br/>Hull<br/>HU3 4XA<br/>Tel: 01482 609310<br/>andrew@timberlite.biz<br/>www.timberlite.biz</p></header>
+   <h2>ORDER DETAILS</h2>
+   <Details rows={[[ 'Quote No',d.quote],...(d.job?[['Job No',d.job]]:[]),['Processed Date',d.processed],['Customer',d.name],['Reference',d.reference]]}/>
+   <Details rows={[[d.tilesNotIncluded?'Tiles':`${d.product} Colour`,d.colour],['Fascia/Soffit Colour',d.fascia],[d.gutter==='Not Included'?'Gutters':'Gutter Colour',d.gutter],['Roof internal sizes',`${d.width} × ${d.projection}`],['Top of frame to top of ridge',d.height],['Main Pitch',d.pitch!=null?`${Number(d.pitch).toFixed(1)}°`:'—'],['Roof internal cover',d.cover],...d.notIncluded.filter(item=>!['tiles','gutters'].includes(item.section)).map(item=>[item.label,'Not Included'])]}/>
+   <h3>Roof Price:</h3><div className="rd-price"><Prices data={d}/></div>
+   {preview}
+  </aside>
+ </article>;
+}

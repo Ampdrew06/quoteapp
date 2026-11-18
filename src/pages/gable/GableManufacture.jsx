@@ -1,3 +1,4 @@
+import {getQuoteSaveError} from '../../lib/quotes';
 import ManufacturingGableTrussPage,{WorkshopShape} from '../../components/ManufacturingGableTrussPage';
 import ManufacturingRingBeamDrawing from '../../components/ManufacturingRingBeamDrawing';
 import ManufacturePlanPage from '../../components/ManufacturePlanPage';
@@ -52,7 +53,7 @@ export default function GableManufacture(){
  if(!s.valid)return <main><p>{s.errors.join(' ')}</p><Link to="/quote/gable">Return to Design/Options</Link></main>;
  const g=s.geometry,i=s.insulation,plastics=model.audits.plastics;
  const page=(title,content)=><section key={title} className={title==='Manufacture Book'?'gm-page gm-front-page':title==='Roof plan'?'gm-page gm-plan-page':title==='Despatch checklist'?'gm-page gm-checklist-page':'gm-page'}><h2>{title}</h2><div className="gm-ref">{customerName||'—'} · {inputs.customerReference||'Gable'} · {inputs.widthMM} × {inputs.projMM}mm · {mm(g.pitchDeg)}° · {inputs.fasciaColour||'White'} fascia · {inputs.gutterColour||'White'} gutter · {mm(model.installedWeightKg)}kg</div>{content}</section>;
- const save=async()=>{if(!job){localStorage.setItem('gableBookDetails',JSON.stringify({draftId:draftDesignIdentity(),reference:inputs.customerReference,widthMM:inputs.widthMM,projMM:inputs.projMM,details}));setMessage('Draft book details saved on this device.');return;}try{const result=await updateQuote(job.id,details);if(result){setJob(result);rememberActiveDesignRecord({...readActiveDesignRecord('gable'),...result});}setMessage(result?'Job details saved.':'Job details could not be saved.');}catch{setMessage('Job details could not be saved.');}};
+ const save=async()=>{if(!job){localStorage.setItem('gableBookDetails',JSON.stringify({draftId:draftDesignIdentity(),reference:inputs.customerReference,widthMM:inputs.widthMM,projMM:inputs.projMM,details}));setMessage('Draft book details saved on this device.');return;}try{const result=await updateQuote(job.id,details);if(result){setJob(result);rememberActiveDesignRecord({...readActiveDesignRecord('gable'),...result});}setMessage(result?'Job details saved.':'Job details could not be saved. '+(getQuoteSaveError()||'Check the connection and try again.'));}catch{setMessage('Job details could not be saved. '+(getQuoteSaveError()||'Check the connection and try again.'));}};
  return <main className="gm-book"><GableNavigation/>
  {page('Manufacture Book',<GableJobFront inputs={inputs} geometry={g} model={model} job={job} details={details} customerName={customerName} onChange={setDetails} onSave={save} message={message}/>)}
  <ManufacturePlanPage

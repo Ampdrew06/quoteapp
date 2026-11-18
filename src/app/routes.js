@@ -1,3 +1,4 @@
+import CustomerRoofDocument from '../pages/documents/CustomerRoofDocument';
 import DoubleEdwardianWorkshop from '../pages/double-edwardian/DoubleEdwardianWorkshop';
 import {workshopTabs} from '../pages/double-edwardian/workshopTabs';
 import Schedule from '../pages/Schedule';
@@ -68,6 +69,8 @@ export default function AppRoutes() {
 
         <Route path="/summary" element={<CentralBossIntegrationGate allowCentralCosting><Summary /></CentralBossIntegrationGate>} />
 
+        <Route path="/quote/:family/quotation" element={<CustomerRoofDocument />} />
+        <Route path="/quote/:family/order-form" element={<CustomerRoofDocument order />} />
         <Route path="/schedule" element={<Schedule />} />
         <Route path="/customers" element={<Customers />} />
 

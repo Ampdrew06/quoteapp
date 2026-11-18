@@ -181,6 +181,7 @@ const saveJobDetails = async () => {
     jobDetails.requested_delivery_date || null,
 
   delivery_address_json: {
+      ...activeJob.delivery_address_json,
       deliveryType: jobDetails.deliveryType,
       deliveryAddress: jobDetails.deliveryAddress,
       contactName: jobDetails.contactName,

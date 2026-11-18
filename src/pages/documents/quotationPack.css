@@ -1,0 +1,87 @@
+/* New document layout; scoped to preserve the standalone order form. */
+.rd-quotation .rd-company .rd-quotation-logo {display:block;width:75%;height:13mm;object-fit:contain;margin:0 auto 1mm}
+.rd-quotation .rd-company strong {background:white;color:#111;font:700 10pt Arial,sans-serif}
+.rd-quotation .rd-company {font-size:9pt;padding:1.5mm;margin-bottom:2mm}
+.rd-quotation .rd-q-side h3 {margin-top:3mm}
+.rd-quotation .rd-plan {height:135mm}
+.rd-quotation .rd-q-main>.rd-notes {margin-top:0;flex:1;min-height:30mm}
+.rd-quotation .rd-notes-space {min-height:15mm}
+.rd-drawing-footer {font-size:7.5pt;line-height:1.2}
+.rd-drawing-footer p {margin:1mm 0}
+.rd-drawing-footer small {display:block}
+.rd-isometric {margin:3mm 0 0;border:1px solid #aaa;border-radius:6px;padding:1mm;text-align:center;background:white}
+.rd-isometric svg {display:block;width:100%;height:44mm}
+.rd-isometric figcaption {font:7pt Arial,sans-serif;color:#444}
+@page timberlite-quotation {size:A4 landscape;margin:0}
+@page timberlite-order {size:A4 portrait;margin:0}
+@media print{
+ .rd-screen {page:auto}
+ .rd-quotation {page:timberlite-quotation;break-after:auto}
+ .rd-screen .mof {page:timberlite-order;min-height:0;padding:7mm 8mm 5mm}
+ .rd-quotation+.mof {break-before:page}
+ .rd-screen .mof-middle {margin-top:2mm}
+ .rd-screen .mof-payment,.rd-screen .mof-accept {margin-top:3mm;padding-top:2mm}
+ .rd-screen .mof-signatures {padding-top:10mm;margin-bottom:3mm}
+}
+@media print {
+  .rd-quotation {
+    height:205mm;
+    min-height:0;
+  }
+
+  .rd-quotation .rd-q-main {
+    display:grid;
+    grid-template-rows:
+      auto
+      minmax(45mm, 1fr)
+      auto
+      auto
+      auto;
+    min-height:0;
+  }
+
+  .rd-quotation .rd-plan {
+    height:auto;
+    min-height:0;
+  }
+
+  .rd-quotation .rd-q-main > .rd-notes {
+    min-height:0;
+  }
+
+  .rd-quotation .rd-notes-space {
+    min-height:8mm;
+  }
+
+  .rd-quotation .rd-notes li {
+    margin-bottom:1mm;
+  }
+}
+@page timberlite-quotation {
+  size:A4 landscape;
+  margin:0;
+}
+
+@page timberlite-order {
+  size:A4 portrait;
+  margin:0;
+}
+
+@media print {
+  .rd-screen,
+  .rd-screen > main {
+    page:auto !important;
+  }
+
+  .rd-screen .rd-quotation {
+    page:timberlite-quotation !important;
+  }
+
+  .rd-screen .mof {
+    page:timberlite-order !important;
+    width:210mm !important;
+    min-height:0 !important;
+    break-before:page;
+    break-inside:avoid;
+  }
+}

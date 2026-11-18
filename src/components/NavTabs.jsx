@@ -25,6 +25,8 @@ const adminTabsLeft = [
   },
   { to: "/idiot-list", label: "Idiot List" },
   { to: "/summary", label: "Summary" },
+  { to: "/quote/lean-to/quotation", label: "Quotation" },
+  { to: "/quote/lean-to/order-form", label: "Order Form" },
   { to: "/quotes", label: "Quotes" },
   { to: "/jobs", label: "Jobs" },
   { to: "/schedule", label: "Schedule" },

@@ -1,0 +1,148 @@
+import React,{useEffect,useState} from 'react';
+import logo from '../../timberlite-logo-small.jpg';
+import {Link,Navigate,useParams} from 'react-router-dom';
+import NavTabs from '../../components/NavTabs';
+import {readActiveDesignRecord} from '../../lib/activeDesignRecord';
+import {getCustomers} from '../../lib/customers';
+import {getMaterials} from '../../lib/materials';
+import {isAdminUser} from '../../lib/userRole';
+import {documentPlan} from './DocumentPlan';
+import './customerRoofDocument.css';
+import {documentSupplyNotes} from './documentSupplyNotes';
+
+const titles={'lean-to':'Lean-To',gable:'Gable',edwardian:'Edwardian',victorian:'3 Facet Victorian','victorian-five':'5 Facet Victorian','victorian-hipped':'Victorian Hipped Lean-To'};
+const products={britmetShingle:'Britmet',britmet:'Britmet',liteSlate:'LiteSlate',liteslate:'LiteSlate',metrotileShingle:'Metrotile',metrotile:'Metrotile',tapcoSlate:'Tapco',tapco:'Tapco'};
+const GBP=new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP'});
+const money=value=>GBP.format(Number(value));
+const present=(...xs)=>xs.find(x=>x!=null&&String(x).trim()!=='');
+const mm=x=>Number(x)>0?`${Math.round(Number(x))}mm`:'—';
+const date=value=>{if(/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(String(value)))return value;const match=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(value??''));return match?`${match[3]}/${match[2]}/${match[1]}`:'—';};
+const inputDate=value=>{const match=/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(value??'');return match?`${match[3]}-${match[2].padStart(2,'0')}-${match[1].padStart(2,'0')}`:String(value??'').slice(0,10);};
+const titleCase=s=>String(s??'').replace(/\b\w/g,c=>c.toUpperCase());
+const company='Unit 2, The Sidings Business Park, Freightliner Road, Hull, HU3 4XA';
+
+export function roofDocumentData(record,customer,geometry={},family) {
+ const i=record.inputs_json??{},p=record.pricing_json??{},s=p.summary??{};
+ const delivery=record.delivery_address_json??{};
+ const supply=documentSupplyNotes(record,family);
+ const excludedSections=new Set(supply.notIncluded.map(item=>item.section));
+ const product=products[i.tileProductId??i.tileSystem??i.tile_system];
+ const profile=present(i.gutterProfile,i.gutter_profile);
+ const gutter=profile==='none'?'None':present([titleCase(i.gutterColour??i.gutterColor??i.gutter_color),titleCase(profile)].filter(Boolean).join(' ')+(profile?' (Round Pipe)':''),'—');
+ return {
+  name:present(record.customer_name,customer?.name,'—'),reference:present(record.manual_reference,i.customerReference,i.quoteRef,'—'),
+  quote:record.quote_number,job:record.job_number,processed:date(record.created_at),
+  roof:i.roofStyle==='hippedLeanTo'?'Hipped Lean-To':titles[family],
+  product:excludedSections.has('tiles')?'Not Included':product??'Tile',colour:excludedSections.has('tiles')?'Not Included':present(i.tileColour,i.tileColor,i.tile_color,'—'),
+  fascia:present([i.fasciaColour??titleCase(i.plasticsColour??i.plasticsColor??i.plastics_color),i.soffitColour].filter(Boolean).join(' / '),'—'),
+  tilesNotIncluded:excludedSections.has('tiles'),
+  supplyNotes:supply.notes,notIncluded:supply.notIncluded,
+  gutter:excludedSections.has('gutters')?'Not Included':gutter,width:mm(present(s.internalWidthMM,i.internalWidthMM,i.widthMM)),projection:mm(present(s.internalProjectionMM,i.internalProjectionMM,i.projMM)),
+  height:mm(present(geometry.finishedHeightMM,geometry.externalFinishedHeightMM,geometry.finishedRoofHeightMM,geometry.calculatedMaximumFinishedHeightMM,s.externalFinishedHeightMM)),
+  pitch:present(s.pitchDeg,geometry.pitchDeg,i.pitchDeg),
+  frame:mm(present(i.frameThicknessMM,i.side_frame_thickness_mm,geometry.frameMM)),
+  cover:present(i.internalRoofCover,i.internalCover,'Not Included'),
+  net:p.net,vat:p.vat,gross:p.gross,vatRate:p.vatRate??0.2,
+  email:customer?.email??'',phone:present(customer?.phone,customer?.mobile,'—'),
+  billing:[customer?.address1,customer?.address2,customer?.town,customer?.county,customer?.postcode].filter(Boolean).join('\n'),
+  deliveryAddress:present(typeof delivery==='string'?delivery:delivery.deliveryAddress??delivery.address,i.deliveryAddress,i.deliveryPostcode,''),
+  deliveryDate:present(record.requested_delivery_date,i.requestedDeliveryDate,i.requested_delivery_date,''),
+  notes:present(record.order_notes,i.orderNotes),
+  vents:present(i.roofWindowVents,i.ventCount),ventSpec:i.ventSpec,
+  glazing:present(i.fixedGlazingUnits,i.glazingCount),glassSpec:i.glassSpec,uValue:i.uValue,
+  paymentTerms:customer?.paymentTerms
+ };
+}
+const Details=({rows})=><dl className="rd-details">{rows.map(([label,value])=><React.Fragment key={label}><dt>{label}:</dt><dd>{value??'—'}</dd></React.Fragment>)}</dl>;
+const Prices=({data:d})=><Details rows={[[ 'Sub-Total',money(d.net)],[`VAT @${Number((d.vatRate*100).toFixed(2))}%`,money(d.vat)],['Total',money(d.gross)]]}/>;
+const sign=<div className="rd-sign"><span><b>Signed:</b> _______________________________</span><span><b>Print name:</b> _____________________________</span><span><b>Date:</b> _____________________</span></div>;
+const validity=<small>Quotations are valid for 31 days.</small>;
+
+function DocumentNotes({data:d,order=false}){
+ const entries=[...d.supplyNotes,...(order?d.notIncluded.map(item=>item.label+' — Not Included.'):[]),...(d.notes?[d.notes]:[])];
+ return <section className="rd-notes" aria-label="Quotation notes"><h3>Notes</h3>
+ {entries.length?<ul>{entries.map((note,index)=><li key={index}>{note}</li>)}</ul>:<div className="rd-notes-space"/>}
+ </section>;
+}
+function Quotation({data:d,drawing}){
+ return <article className="rd-sheet rd-quotation">
+  <section className="rd-q-main"><h1>TIMBERLITE ROOF CONFIRMATION</h1>
+   <div className="rd-plan">{drawing}</div>
+   <div className="rd-dimensions">Dimensions are in millimetres. The plan identifies internal and external sizes.</div>
+   <footer className="rd-accept">
+    <p>Please check the specification and dimensions shown herewith with care and confirm your acceptance by signing here.</p>
+    {sign}
+    <p><b>Date required:</b> {d.deliveryDate?date(d.deliveryDate):'________/________/________'}</p>
+    <div className="rd-accept-smallprint">{validity}<small>The support structure for this roof must provide the necessary lateral and axial stability in accordance with the relevant British Standards. Guidance if required should be sought from your frame supplier.</small></div>
+   </footer>
+  </section>
+  <aside className="rd-q-side">
+   <header className="rd-company"><strong>Timberlite Ltd.</strong><p>Unit 2, The Sidings Business Park<br/>Freightliner Road<br/>Hull<br/>HU3 4XA<br/>Tel: 01482 609310<br/>andrew@timberlite.biz<br/>www.timberlite.biz</p></header>
+   <h2>ORDER DETAILS</h2>
+   <Details rows={[[ 'Quote No',d.quote],...(d.job?[['Job No',d.job]]:[]),['Processed Date',d.processed],['Customer',d.name],['Reference',d.reference]]}/>
+   <Details rows={[[d.tilesNotIncluded?'Tiles':`${d.product} Colour`,d.colour],['Fascia/Soffit Colour',d.fascia],[d.gutter==='Not Included'?'Gutters':'Gutter Colour',d.gutter],['Roof internal sizes',`${d.width} × ${d.projection}`],['Top of frame to top of ridge',d.height],['Main Pitch',d.pitch!=null?`${Number(d.pitch).toFixed(1)}°`:'—'],['Roof internal cover',d.cover],...d.notIncluded.filter(item=>!['tiles','gutters'].includes(item.section)).map(item=>[item.label,'Not Included'])]}/>
+   <h3>Roof Price:</h3><div className="rd-price"><Prices data={d}/></div>
+   <DocumentNotes data={d}/>
+  </aside>
+ </article>;
+}
+function OrderForm({data:d}){
+ const [address,setAddress]=useState(d.deliveryAddress??''),[requiredDate,setRequiredDate]=useState(inputDate(d.deliveryDate));
+ useEffect(()=>{setAddress(d.deliveryAddress??'');setRequiredDate(inputDate(d.deliveryDate));},[d.deliveryAddress,d.deliveryDate]);
+ return <article className="rd-sheet rd-order">
+  <header className="rd-order-heading"><img src={logo} alt="Timberlite"/><h1>Order Form</h1></header>
+  <p className="rd-contact"><b>Timberlite Ltd., {company}<br/>Tel: 01482 609310 · Email: andrew@timberlite.biz</b></p>
+  <div className="rd-order-columns">
+   <Details rows={[[ 'Customer',d.name],['Address',d.billing||'—'],['Phone',d.phone],['Email',d.email||'—']]}/>
+   <Details rows={[[ 'Quote No',d.quote],['Job No',d.job],['Customer ref',d.reference],['Date',d.processed],['Roof Description',d.roof]]}/>
+  </div>
+  <section className="rd-delivery">
+   <label>Delivery address<textarea value={address} rows={3} onChange={e=>setAddress(e.target.value)}/><span className="rd-print-value">{address||'\u00a0'}</span></label>
+   <label>Required delivery date<input type="date" value={requiredDate} onChange={e=>setRequiredDate(e.target.value)}/><span className="rd-print-value">{requiredDate?date(requiredDate):'____ / ____ / ________'}</span></label>
+  </section>
+  <p>Based on the information supplied, our price to manufacture and deliver your conservatory roof is:</p>
+  <div className="rd-order-columns"><Prices data={d}/>{d.paymentTerms&&<Details rows={[[ 'Payment terms',d.paymentTerms]]}/>}</div>
+  <h2>Roof specification</h2>
+  <div className="rd-order-columns"><Details rows={[[ 'Roof internal sizes',`${d.width} × ${d.projection}`],['Tile type',d.product],['Tile colour',d.colour],['Guttering',d.gutter]]}/><Details rows={[[ 'Fascia/Soffit',d.fascia],['Frame thickness',d.frame],['Pitch',d.pitch!=null?`${d.pitch}°`:'—'],['Roof internal cover',d.cover]]}/></div>
+  {(d.vents!=null||d.glazing!=null||d.uValue!=null)&&<div className="rd-order-columns"><Details rows={[[ 'Roof window vents',d.vents],['Vent specification',d.ventSpec],['Fixed glazing units',d.glazing],['Glass specification',d.glassSpec],['U-value',d.uValue]]}/></div>}
+  <DocumentNotes data={d} order/>
+  <h2>Order acceptance</h2>
+  <p>Please check the details above and sign and return this form to confirm your order. The requested delivery date is subject to confirmation.</p>
+  <p>No work will be carried out until this form is signed and returned. Lead time can vary depending on the complexity of the job. By signing, I confirm that the order details are correct and agree to Timberlite’s standard terms and conditions of business.</p>
+  {sign}
+ </article>;
+}
+export default function CustomerRoofDocument({order=false}){
+ const {family}=useParams();
+ const record=readActiveDesignRecord(family);
+ const [customer,setCustomer]=useState(null);
+ useEffect(()=>{
+  let current=true;
+  if(record?.customer_id)getCustomers().then(rows=>{if(current)setCustomer(rows.find(row=>row.id===record.customer_id));});
+  return ()=>{current=false;};
+ },[record?.customer_id]);
+ const label=order?'Order Form':'Quotation';
+ if(!isAdminUser()||!titles[family])return <Navigate to="/quote" replace/>;
+ const pricing=record?.pricing_json;
+ const priced=pricing&&[pricing.net,pricing.vat,pricing.gross].every(x=>x!=null&&x!==''&&Number.isFinite(Number(x)));
+ const plan=priced?documentPlan(family,record.inputs_json??{},record.materials_snapshot_json??getMaterials()):{};
+ const ready=record?.quote_number&&priced&&plan.drawing&&!pricing.provisional;
+ const d=ready?roofDocumentData(record,customer,plan.geometry,family):null;
+ const subject=d?`Timberlite ${label} ${d.job||d.quote}${d.reference==='—'?'':' – '+d.reference}`:'';
+ const body=`Hello,\n\nPlease find attached your Timberlite ${label.toLowerCase()}.\n\nKind regards,\nTimberlite Ltd.`;
+ const print=()=>{
+  const original=document.title;
+  document.title=subject;
+  try {window.print();} finally {document.title=original;}
+ };
+ return <div className={`rd-screen ${order?'rd-portrait':'rd-landscape'}`}>
+  <style>{`@page{size:A4 ${order?'portrait':'landscape'};margin:0}`}</style><NavTabs/>
+  <main>
+   <div className="rd-tools"><h1>{label}</h1><p>{ready?'This document uses the saved design and price. Save design changes before issuing it.':'Open a saved quote or job with a valid design and price, or save it from Design/Options.'}</p>
+    <Link to={`/quote/${family}`}>Design/Options</Link>{' · '}<Link to="/quotes">Quotes</Link>{' · '}<Link to="/jobs">Jobs</Link>
+    {ready&&<div className="rd-actions"><button type="button" onClick={print}>Print / Save as PDF</button>{d.email&&<a href={`mailto:${encodeURIComponent(d.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`}>Open email draft</a>}<span>Save as PDF, then attach it to your email.</span></div>}
+   </div>
+   {ready&&(order?<OrderForm key={record.id} data={d}/>:<Quotation data={d} drawing={plan.drawing}/>)}
+  </main>
+ </div>;
+}

@@ -1,0 +1,4 @@
+
+.mof-save-controls {display:flex;gap:3mm;align-items:center;flex-wrap:wrap;padding:3mm;margin-bottom:3mm;border:1px solid #aaa}
+.mof-save-controls button {padding:2mm 3mm;cursor:pointer}
+@media print {.mof-save-controls {display:none!important}}

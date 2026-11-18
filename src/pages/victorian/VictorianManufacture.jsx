@@ -31,7 +31,10 @@ export function VictorianManufactureContent({five=false}={}){
  const family=five?'victorian-five':'victorian',inputKey=five?'victorianFiveInputs':'victorianPlanPreviewInputs',geometryBuilder=five?buildVictorianFiveGeometry:buildVictorianGeometry,modelBuilder=five?buildVictorianFiveSummaryMaterialsModel:buildVictorianSummaryMaterialsModel;
  const [inputs]=useState(()=>five?normalizeVictorianFiveDesignInputs(read(inputKey)):read(inputKey)),[materials]=useState(getMaterials);
  const identity=victorianBookIdentity(inputs);
-const [details,setDetails]=useState(()=>readVictorianBookDraft(inputs)||{delivery_address_json:{deliveryAddress:inputs.deliveryPostcode||''}}),[message,setMessage]=useState('');
+const [details,setDetails]=useState(()=>{
+ const draft=readVictorianBookDraft(inputs)||{delivery_address_json:{deliveryAddress:inputs.deliveryPostcode||''}},saved=readActiveDesignRecord(family);
+ return saved?{...draft,job_number:saved.job_number??'',requested_delivery_date:saved.requested_delivery_date??draft.requested_delivery_date??'',delivery_address_json:saved.delivery_address_json??draft.delivery_address_json,order_notes:saved.order_notes??draft.order_notes??''}:draft;
+}),[message,setMessage]=useState('');
  if(!isAdminUser())return <Navigate to="/quote" replace/>;
  const g=geometryBuilder({inputs,materials}),s=buildVictorianTrussSchedule({geometry:g,materials}),r=buildVictorianRingBeamProfiles(g);
  if(!g.valid||!s.valid||!r.valid)return <main><Link to={"/quote/"+family}>← Design/Options</Link><p role="alert">{[...new Set([...(g.errors||[]),...(s.errors||[]),...(r.errors||[])])].join(' ')}</p></main>;
@@ -43,7 +46,7 @@ const [details,setDetails]=useState(()=>readVictorianBookDraft(inputs)||{deliver
   const key=victorianBookDraftKey(inputs);localStorage.setItem(key,JSON.stringify({design:identity,details}));
   const current=five?readActiveDesignRecord(family):null;
   if(!current||victorianBookIdentity(current.inputs_json||{})!==identity){setMessage('Draft book details saved. Save the design on Design/Options to keep them with the quote.');return;}
-  try{const next={...current.inputs_json,[key]:details};const saved=await updateQuote(current.id,{inputs_json:next});if(!saved){setMessage('Book details saved on this device; quote update failed. Please retry.');return;}activateDesignRecord({...current,...saved,inputs_json:next});setMessage('Book details saved with the quote.');}catch{setMessage('Book details saved on this device; quote update failed. Please retry.');}
+  try{const next={...current.inputs_json,[key]:details};const saved=await updateQuote(current.id,{inputs_json:next,requested_delivery_date:details.requested_delivery_date||null,delivery_address_json:{...current.delivery_address_json,...details.delivery_address_json},order_notes:details.order_notes||'',...(current.job_number?{job_number:details.job_number||current.job_number}:{})});if(!saved){setMessage('Book details saved on this device; quote update failed. Please retry.');return;}activateDesignRecord({...current,...saved,inputs_json:next});setMessage('Book details saved with the quote.');}catch{setMessage('Book details saved on this device; quote update failed. Please retry.');}
  };
  return <main className="vm-book"><VictorianNavigation five={five}/>
  <section className="em-page em-front"><ManufactureBookFront roof={roof} details={details} onChange={setDetails} onSave={save} message={message}/></section>

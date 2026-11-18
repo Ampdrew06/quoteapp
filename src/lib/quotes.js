@@ -61,12 +61,21 @@ export async function saveQuote(quote) {
   }
 }
 
+let lastQuoteSaveError = '';
+export const getQuoteSaveError = () => lastQuoteSaveError;
+export function normalizeQuotePatch(patch={}) {
+ const next={...patch};
+ for(const key of ['job_number','requested_delivery_date'])
+  if(Object.prototype.hasOwnProperty.call(next,key) && String(next[key]??'').trim()==='')next[key]=null;
+ return next;
+}
 export async function updateQuote(id, patch) {
+  lastQuoteSaveError = '';
   try {
     const { data, error } = await supabase
       .from("quotes")
       .update({
-        ...patch,
+        ...normalizeQuotePatch(patch),
         updated_at: new Date().toISOString(),
       })
       .eq("id", id)
@@ -74,6 +83,7 @@ export async function updateQuote(id, patch) {
       .single();
 
     if (error) {
+      lastQuoteSaveError = error.message || error.details || "The database rejected the update.";
       console.error("UPDATE QUOTE ERROR", error);
       return null;
     }
@@ -82,6 +92,7 @@ export async function updateQuote(id, patch) {
 
     return data;
   } catch (err) {
+    lastQuoteSaveError = err?.message || "The save request could not be completed.";
     console.error("UPDATE QUOTE FAILED", err);
     return null;
   }
