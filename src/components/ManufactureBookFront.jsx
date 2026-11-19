@@ -1,14 +1,17 @@
 import React from 'react';
 // Roof adapters supply values only. This component owns the front-page layout.
-export default function ManufactureBookFront({roof={},job=null,details={},onChange,onSave,message='',saving=false}) {
+export default function ManufactureBookFront({roof={},job=null,details={},onChange,onSave,message='',saving=false,supply={}}) {
  const address=details.delivery_address_json||{};
  const edit=(key,type='text')=><input aria-label={key.replace(/_/g,' ')} type={type} value={details[key]||''} onChange={e=>onChange({...details,[key]:e.target.value})}/>;
  const setAddress=(key,value)=>onChange({...details,delivery_address_json:{...address,[key]:value}});
  const headers=[['Job Number','Customer Name','Customer Reference','Delivery Date'],['Delivery / Install','Style','Roof Pitch','Frame Thickness'],['Tile Type','Tile Colour','Fascia / Soffit Colour','Soffit / Overhang'],['Gutters','Downpipes','Box Gutter Details','Glazed Options']];
- const values=[[<div className="mbf-numbers">{edit('job_number')}{job?.quote_number&&<span>Quote {job.quote_number}</span>}</div>,roof.customerName||'—',roof.reference||'—',edit('requested_delivery_date','date')],[<select aria-label="Delivery type" value={address.deliveryType||'Delivery'} onChange={e=>setAddress('deliveryType',e.target.value)}><option>Delivery</option><option>Install</option><option>Collection</option></select>,roof.style||'—',roof.pitch||'—',roof.frame||'—'],[roof.tileType||'—',roof.tileColour||'—',roof.fasciaColour||'—',roof.soffit||'—'],[roof.gutters||'—',roof.downpipes||'—',roof.boxGutters||'—',roof.glazing||'—']];
+ const excluded=new Set(supply.excludedSections);
+ const display=(section,value)=>excluded.has(section)?'Not Included':value||'—';
+ const values=[[<div className="mbf-numbers">{edit('job_number')}{job?.quote_number&&<span>Quote {job.quote_number}</span>}</div>,roof.customerName||'—',roof.reference||'—',edit('requested_delivery_date','date')],[<select aria-label="Delivery type" value={address.deliveryType||'Delivery'} onChange={e=>setAddress('deliveryType',e.target.value)}><option>Delivery</option><option>Install</option><option>Collection</option></select>,roof.style||'—',roof.pitch||'—',roof.frame||'—'],[display('tiles',roof.tileType),display('tiles',roof.tileColour),display('plastics',roof.fasciaColour),display('plastics',roof.soffit)],[display('gutters',roof.gutters),display('gutters',roof.downpipes),roof.boxGutters||'—',roof.glazing||'—']];
  return <div className="mbf-front">
  <h2 className="mbf-title">Manufacture Book</h2>
  <table className="mbf-grid"><tbody>{headers.map((row,n)=><React.Fragment key={n}><tr>{row.map(label=><th key={label}>{label}</th>)}</tr><tr>{values[n].map((value,k)=><td key={k}>{value}</td>)}</tr></React.Fragment>)}</tbody></table>
+ {supply.omissions?.length>0&&<p className="mbf-omissions"><b>Not included</b> · {supply.omissions.join(' · ')}</p>}
  <div className="mbf-delivery">
  <label className="mbf-address">Delivery address<textarea aria-label="Delivery address" value={address.deliveryAddress||''} onChange={e=>setAddress('deliveryAddress',e.target.value)}/></label>
  <div className="mbf-contact"><label>Contact name<input aria-label="Contact name" value={address.contactName||''} onChange={e=>setAddress('contactName',e.target.value)}/></label><label>Contact phone<input aria-label="Contact phone" value={address.contactPhone||''} onChange={e=>setAddress('contactPhone',e.target.value)}/></label></div>
@@ -26,6 +29,7 @@ export default function ManufactureBookFront({roof={},job=null,details={},onChan
  .mbf-front input,.mbf-front select,.mbf-front textarea{box-sizing:border-box;font:inherit;color:inherit;background:white;max-width:100%;border:1px solid #cbd5e1;border-radius:3px}
  .mbf-front input,.mbf-front select{display:block;width:100%!important;padding:4px!important;margin:0!important}
  .mbf-numbers{display:flex;align-items:center;gap:6px;min-width:0}.mbf-front .mbf-numbers input{flex:1;min-width:0;width:0!important}.mbf-numbers span{flex:none;font-size:12px;white-space:nowrap}
+ .mbf-front .mbf-omissions{margin:0;font-size:13px;overflow-wrap:anywhere}
  .mbf-front .mbf-delivery{display:flex;flex-direction:column;gap:3mm;flex:1;min-height:0}
  .mbf-front .mbf-delivery label{display:flex;flex-direction:column;gap:2mm;font-size:13px;font-weight:700;margin:0!important;min-height:0}
  .mbf-front .mbf-address{flex:2}

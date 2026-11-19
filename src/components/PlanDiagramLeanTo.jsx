@@ -1,3 +1,4 @@
+import QuotationOutline from './QuotationOutline';
 import {resolveLeanToRafterLayout} from '../lib/geometry/leanToRafterLayout';
 // src/components/PlanDiagramLeanTo.jsx
 import React, { useMemo } from "react";
@@ -8,6 +9,8 @@ const round = (v, dp = 0) => {
 };
 
 export default function PlanDiagramLeanTo({
+  separateOutlineStrokes = false,
+  roofVentLayout,
   iw, ip,
   sft, lip,
 
@@ -83,7 +86,7 @@ const rightDelta = rightWall
   const ip_px = ip * scale;
 
   // --- rafters ---
-  const layout=resolveLeanToRafterLayout({widthMM:iw,positions:rafterPositionsMM,firstCentreMM:firstCentre,spacingMM:rafterSpacing});
+  const layout=resolveLeanToRafterLayout({widthMM:iw,positions:roofVentLayout?.positions ?? rafterPositionsMM,firstCentreMM:firstCentre,spacingMM:rafterSpacing});
   const centres = layout?.valid?[...layout.interiorMM]:[];
 
 
@@ -186,10 +189,11 @@ const rightDelta = rightWall
 </defs>
 
       {/* --- external rectangle (wall = top, eaves = bottom) --- */}
-      <rect x={ox} y={oy} width={ow} height={oh} fill="#f8fafc" stroke="#111827" strokeWidth="2" />
+      <QuotationOutline editable={separateOutlineStrokes} x={ox} y={oy} width={ow} height={oh} fill="#f8fafc" stroke="#111827" strokeWidth="2" />
 
       {/* --- internal rectangle --- */}
-      <rect
+      <QuotationOutline
+        editable={separateOutlineStrokes}
         x={ix}
         y={oy + oh - ip_px - (soffit * scale)}   // push down so eaves at bottom
         width={iw_px}
@@ -280,6 +284,17 @@ const rightDelta = rightWall
         if (outlet === "both") return <g>{[dot(leftX), dot(rightX)]}</g>;
         return null;
       })()}
+
+      {roofVentLayout?.openings.map(opening => {
+        const x = ix + opening.xMM * scale;
+        const y = oy + oh - ip_px - soffit * scale + opening.planYMM * scale;
+        const width = opening.widthMM * scale;
+        const height = opening.planHeightMM * scale;
+        return <g key={opening.id} aria-label={`Roof vent ${opening.widthMM} × ${opening.heightMM} mm, ${opening.finish}`}>
+          <rect {...{x,y,width,height}} fill="#dbeafe" stroke="#111827" strokeWidth="2" />
+          <path d={`M ${x} ${y + height} L ${x + width / 2} ${y} L ${x + width} ${y + height}`} fill="none" stroke="#111827" />
+        </g>;
+      })}
 
       {/* --- faint baseline under bottom labels --- */}
       <polyline

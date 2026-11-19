@@ -1,4 +1,5 @@
 import React,{useEffect,useState,useRef} from 'react';
+import {supplyOmissionNotes} from './documentSupplyNotes';
 import logo from '../../timberlite-logo-small.jpg';
 import './modernOrderForm.css';
 import './orderFormPersistence.css';
@@ -32,11 +33,11 @@ export default function ModernOrderForm({data:d}){
   finally{setSaving(false);}
  };
  const field=(key,label,options={})=><Field label={label} value={fields[key]} onChange={value=>{dirty.current=true;setFields(old=>({...old,[key]:value}));setMessage('Unsaved changes.');}} {...options}/>;
- const notes=[...(d.supplyNotes??[]),...(d.notIncluded??[]).map(item=>item.label+' — Not Included.'),...(d.notes?[d.notes]:[])];
+ const notes=[...(d.supplyNotes??[]),...supplyOmissionNotes(d.notIncluded),...(d.notes?[d.notes]:[])];
  const spec=[
   ['Roof style',d.roof],['Internal size',`${d.width} × ${d.projection}`],['Tile system',d.product],['Tile colour',d.colour],
   ['Fascia / soffit',d.fascia],['Guttering',d.gutter],['Downpipes',d.gutter==='Not Included'||d.gutter==='None'?'Not included':'Round'],
-  ['Roof pitch',d.pitch!=null?`${Number(d.pitch).toFixed(1)}°`:'—'],['Frame thickness',d.frame],['Internal roof cover',d.cover],
+  ['Roof pitch',d.pitch!=null?`${Number(d.pitch).toFixed(1)}°`:'—'],['Frame thickness',d.frame],['Internal roof cover',d.orderCover??d.cover],
   ['Roof vents',d.vents??'—'],['Fixed glazing',d.glazing??'—'],
   ...(d.ventSpec?[['Vent specification',d.ventSpec]]:[]),...(d.glassSpec?[['Glass specification',d.glassSpec]]:[]),...(d.uValue?[['U-value',d.uValue]]:[])
  ];

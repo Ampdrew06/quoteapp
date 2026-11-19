@@ -1,3 +1,4 @@
+import {manufactureFrontSupply} from '../documents/documentSupplyNotes';
 import {doubleEdwardianTileLabels} from '../../lib/doubleEdwardianTileOptions';
 import DoubleEdwardianValleyReview from './DoubleEdwardianValleyReview';
 import React,{useState,useEffect} from 'react';
@@ -5,14 +6,17 @@ import DoubleEdwardianPricing from './DoubleEdwardianPricing';
 import {getCustomers} from '../../lib/customers';
 import {Link,Navigate} from 'react-router-dom';
 import {isAdminUser} from '../../lib/userRole';
-import {readActiveDesignRecord} from '../../lib/activeDesignRecord';
+import {draftDesignIdentity,readActiveDesignRecord,rememberActiveDesignRecord} from '../../lib/activeDesignRecord';
 import {getMaterials} from '../../lib/materials';
 import {buildDoubleEdwardianMaterialsModel} from '../../lib/Calculations/doubleEdwardianMaterialsModel';
 import {buildDoubleEdwardianMemberReview} from '../../lib/Manufacturing/doubleEdwardianMemberReview';
 import {summaryOrderQuantity} from '../../lib/Calculations/summaryOrderQuantity';
 import DoubleEdwardianNavigation from './DoubleEdwardianNavigation';
 import {DoubleEdwardianPlan} from './DoubleEdwardianDesign';
-import SummaryQuoteIdentity from '../../components/SummaryQuoteIdentity';
+import {getQuoteById,updateQuote} from '../../lib/quotes';
+import ManufacturePlanPage from '../../components/ManufacturePlanPage';
+import ManufactureBookFront from '../../components/ManufactureBookFront';
+import SummaryQuoteIdentity,{getSummaryQuoteIdentity} from '../../components/SummaryQuoteIdentity';
 
 import {workshopTabs} from './workshopTabs';
 const sections={timber:'Timber',tiles:'Tiles and ventilation',metal:'Metalwork',plastics:'Plastics',gutters:'Guttering',misc:'Miscellaneous'};
@@ -81,16 +85,18 @@ function WorkshopPage({page}){
  const key='doubleEdwardianGeometryDraft';
  const [inputs,setInputs]=useState(()=>{try{return JSON.parse(localStorage.getItem(key)||'{}')||{};}catch{return {};}});
  const [customers,setCustomers]=useState([]);
- useEffect(()=>{if(page!=='technical')return;let active=true;getCustomers().then(rows=>{if(active&&Array.isArray(rows))setCustomers(rows);}).catch(()=>{});return ()=>{active=false;};},[page]);
+ useEffect(()=>{if(page!=='technical'&&page!=='plan-manufacture')return;let active=true;getCustomers().then(rows=>{if(active&&Array.isArray(rows))setCustomers(rows);}).catch(()=>{});return ()=>{active=false;};},[page]);
  const update=patch=>{const next={...inputs,...patch};localStorage.setItem(key,JSON.stringify(next));setInputs(next);};
  const model=buildDoubleEdwardianMaterialsModel({inputs,materials:getMaterials()});
  const title=workshopTabs.find(([id])=>id===page)?.[1];
- return <><DoubleEdwardianNavigation/><main className={page==='plan-manufacture'?'de-workshop de-book':'de-workshop'}>
+ return <><DoubleEdwardianNavigation showScope={page!=='plan-manufacture'}/><main className={page==='plan-manufacture'?'de-workshop de-book':'de-workshop'}>
  {page!=='plan-manufacture'&&<><h1>{title} — Double Hipped Edwardian</h1>
  <SummaryQuoteIdentity inputs={inputs} family="double-edwardian"/></>}
- {!model.valid?<p role="status">{model.errors.join(' ')} <Link to="/quote/double-edwardian">Open Design/Options</Link></p>:<><WorkshopContent page={page} model={model} inputs={inputs}/>{page==='technical'&&<><DoubleEdwardianValleyReview geometry={model.audits.geometry} inputs={inputs} onChange={update}/><DoubleEdwardianPricing detailed inputs={inputs} materials={getMaterials()} customers={customers} onChange={update}/></>}</>}
+ {!model.valid?<p role="status">{model.errors.join(' ')} <Link to="/quote/double-edwardian">Open Design/Options</Link></p>:<><WorkshopContent page={page} model={model} inputs={inputs} customers={customers}/>{page==='technical'&&<><DoubleEdwardianValleyReview geometry={model.audits.geometry} inputs={inputs} onChange={update}/><DoubleEdwardianPricing detailed inputs={inputs} materials={getMaterials()} customers={customers} onChange={update}/></>}</>}
  <style>{`
  .de-workshop{max-width:1100px;margin:auto;padding:16px;font:14px Inter,system-ui,Arial;color:#111827}
+ .de-book .de-front{width:min(100%,194mm);margin:18px auto;break-after:page}
+ @media print{@page{size:A4;margin:6mm}body:has(.de-book){margin:0}.de-book .de-front{margin:0 auto;break-inside:avoid}}
  .de-book .de-sheet{box-sizing:border-box;width:min(100%,194mm);min-height:265mm;margin:18px auto;padding:6mm;border:1px solid #cbd5e1}
  .de-sheet header{border-bottom:1px solid #cbd5e1;padding-bottom:8px}.de-sheet footer{margin-top:18px;border-top:1px solid #cbd5e1;padding-top:6px;font-size:11px}
  @media print{.de-book .de-sheet{width:100%;min-height:0;border:0;margin:0;padding:0;break-after:page}.de-book .de-sheet:last-of-type{break-after:auto}}
@@ -100,7 +106,7 @@ function WorkshopPage({page}){
  `}</style></main></>;
 }
 
-function WorkshopContent({page,model,inputs}){
+function WorkshopContent({page,model,inputs,customers}){
  const {geometry:g,tiles,memberLengths,internalLaths,lathPlan}=model.audits;
  const tileLine=model.sections.tiles.lines.find(r=>r.key==='double_tiles');
  if(page==='idiot-list')return <>
@@ -130,39 +136,127 @@ function WorkshopContent({page,model,inputs}){
  <div style={{overflowX:'auto'}}><table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}><thead><tr>{['Member','Type','Facet','Position (mm)','Rear fitting'].map(h=><th key={h} style={{border:'1px solid #cbd5e1',padding:5,textAlign:'left'}}>{h}</th>)}</tr></thead><tbody>{g.layout.members.map(r=><tr key={r.id}>{[r.id,r.kind,r.facet||'Corner',r.positionMM==null?'—':number(r.positionMM),r.rearSupport||'—'].map((v,i)=><td key={i} style={{border:'1px solid #cbd5e1',padding:5}}>{v}</td>)}</tr>)}</tbody></table></div>
  <p>Matched opposing truss legs: {g.layout.trusses.map(t=>`${t.id}: ${t.legs.join(' / ')}`).join(' · ')||'None'}.</p><p>{g.layout.ridge?`${g.layout.ridge.id}: Ridge. `:''}{g.layout.ringbeams.map(r=>`${r.id}: ${r.kind}`).join(' · ')}.</p></details>
  <h2>Member length comparison</h2>
- <p>Review only. Valley members end at the roof-facing side of the {g.plateThicknessMM} mm plate. Rear hips are measured to the long point at that face. Open eaves retain their existing foot geometry. The comparison applies the regular Edwardian connection allowances; it does not change cutting or pricing.</p>
+ <p>Review only. Valley members end at the roof-facing side of the {g.plateThicknessMM} mm plate. Rear hips are measured to the long point at that face. Open eaves retain their existing foot geometry. The comparison applies the regular Edwardian connection allowances. The Manufacture Book uses the reviewed dimensions for the member types checked against the factory roof.</p>
  <Table head={['Member','Type','Lower end','Previous estimate (mm)','Review length (mm)','Upper end']} rows={buildDoubleEdwardianMemberReview(g,memberLengths).map(r=>[r.id,r.kind,r.lowerEnd,number(r.lengthMM),number(r.reviewLengthMM),r.basis])}/>
  <h2>Calculation notes</h2><ul>{[...model.notes,...model.supplyReviews].map(note=><li key={note}>{note}</li>)}</ul>
  </>;
+ const memberReview=buildDoubleEdwardianMemberReview(g,memberLengths);
+ const rearHips=memberReview.filter(row=>row.kind==='Hip'&&row.lowerEnd==='Valley plate long point');
+ const scheduledMembers=memberReview.map(row=>{
+  const standardTruss=row.kind==='Rafter / truss leg'&&row.lowerEnd==='Open eaves';
+  const valleyRafter=(row.kind==='Jack rafter'||row.kind==='Boss rafter')&&row.lowerEnd==='Valley plate face';
+  const rearHip=row.kind==='Hip'&&row.lowerEnd==='Valley plate long point';
+  const reviewed=standardTruss||valleyRafter||rearHip;
+  return [row.id,row.kind,row.lowerEnd,reviewed&&Number.isFinite(row.reviewLengthMM)?number(row.reviewLengthMM):'Pending'];
+ });
  const record=readActiveDesignRecord('double-edwardian');
+ const customerId=inputs.selectedCustomerId||record?.customer_id;
+ const customer=customers.find(row=>String(row.id)===String(customerId));
+ const identity=getSummaryQuoteIdentity({inputs,family:'double-edwardian',customer});
+ const {eaves}=model.audits;
+ const mm=value=>Number(value).toFixed(1);
+ const product=inputs.tileProductId||'britmetShingle';
+ const valleyFinish=inputs.valleyFinish?.toUpperCase();
+ const roof={
+  customerName:identity.customerName,
+  reference:identity.reference,
+  style:identity.roofLabel,
+  pitch:`${mm(g.pitchDeg)}°`,
+  frame:`${mm(g.frameMM)}mm`,
+  tileType:product.endsWith('Shingle')?`${doubleEdwardianTileLabels[product]} Shingle`:doubleEdwardianTileLabels[product],
+  tileColour:inputs.tileColour,
+  fasciaColour:inputs.fasciaColour||(inputs.plasticsColour==='foiled'?'Foiled':'White'),
+  soffit:`Sides ${mm(eaves.left.manufacturedSoffitMM)}/${mm(eaves.right.manufacturedSoffitMM)}mm · front ${mm(eaves.effectiveReferenceSoffitMM)}mm`,
+  gutters:`${inputs.gutterProfile||'square'} · ${inputs.gutterColour||'Black'}`,
+  downpipes:'One round downpipe assembly',
+  boxGutters:['Rear valley',valleyFinish,inputs.valleyOutlets&&`outlets: ${inputs.valleyOutlets}`].filter(Boolean).join(' · '),
+ };
+ const facets=[
+  {label:'Front',pitch:roof.pitch,support:`${mm(g.frameMM)} mm frame`,soffit:`${mm(eaves.effectiveReferenceSoffitMM)} mm`},
+  ...['left','right'].map(side=>({
+   label:side==='left'?'Left Side':'Right Side',
+   pitch:roof.pitch,
+   support:`${mm(g.frameMM)} mm frame`,
+   soffit:`${mm(eaves[side].manufacturedSoffitMM)} mm`,
+  })),
+  {label:'Rear / Valley',pitch:roof.pitch,support:`${g.plateThicknessMM} mm valley plate`,soffit:'—'},
+ ];
  const ref=inputs.customerReference||'No reference';
  const job=record?.job_number?`Job ${record.job_number}`:record?.quote_number?`Quote ${record.quote_number}`:'Draft';
  const sheet=(title,content)=><section className="de-sheet"><header><h1>{title}</h1><div>Double Hipped Edwardian · {ref} · {job}</div></header>{content}<footer>Timberlite · {ref} · {job}</footer></section>;
  return <>
- {sheet('Manufacture Book',<>
- <p><strong>Workshop review only — not a cutting sheet.</strong> Connection and cut allowances are pending.</p>
- <SummaryQuoteIdentity inputs={inputs} family="double-edwardian"/>
- <Table head={['Roof specification','Value']} rows={[
- ['Internal width × projection',`${g.widthMM} × ${g.projectionMM} mm`],
- ['External ringbeam width × projection',`${g.externalWidthMM} × ${g.externalProjectionMM} mm`],
- ['Pitch / frame',`${g.pitchDeg}° / ${g.frameMM} mm`],
- ['Tiles',`${doubleEdwardianTileLabels[inputs.tileProductId||'britmetShingle']} · ${inputs.tileColour||'—'}`],
- ['Fascia / soffit',`${inputs.fasciaColour||(inputs.plasticsColour==='foiled'?'Foiled':'White')} · ${g.soffitMM} mm requested`],
- ['Guttering',`${inputs.gutterColour||'Black'} · ${inputs.gutterProfile||'square'}`],
- ['Valley',`${inputs.valleySurface||'To confirm'} · ${inputs.valleyFinish?.toUpperCase()||'To confirm'} · outlets: ${inputs.valleyOutlets||'both'}`],
- ['Known installed weight',`${number(model.installedWeightKg)} kg${model.weightComplete?'':' (partial)'}`]
- ]}/>
- </>)}
- {sheet('Roof plan',<DoubleEdwardianPlan geometry={g} valleyFinish={inputs.valleyFinish}/>)}
+ <DoubleEdwardianBookFront supply={manufactureFrontSupply(inputs,getMaterials(),'double-edwardian')} roof={roof} record={record}/>
+ <ManufacturePlanPage
+  details={{
+   customer:roof.customerName,reference:roof.reference,roof:roof.style,frame:roof.frame,
+   tiles:[roof.tileType,roof.tileColour].filter(Boolean).join(' — '),
+   fascia:roof.fasciaColour,gutter:roof.gutters,
+   weight:`${mm(model.installedWeightKg)} kg${model.weightComplete?' incl. plasterboard':' incl. plasterboard (partial)'}`,
+  }}
+  facets={facets}
+ >
+  <DoubleEdwardianPlan geometry={g} valleyFinish={inputs.valleyFinish}/>
+ </ManufacturePlanPage>
  {sheet('Member schedule — review',<>
- <p>Estimated slope lengths before connection and cut allowances.</p>
- <Table head={['Member','Type','Estimated slope length (mm)']} rows={memberLengths.map(r=>[r.id,r.kind,number(r.lengthMM)])}/>
+ <p>Lengths run along the top edge of the sloping timber. For rear hips, measure along the long edge to the long point at the valley plate face.</p>
+ <Table head={['Member','Type','Lower end','Reviewed length (mm)']} rows={scheduledMembers}/>
  </>)}
  {sheet('Valley plate — seating and end profiles',<ValleyPlateSeating geometry={g}/>)}
  {sheet('Rear hip — square upper cut to valley long point',<>
  <p><strong>Reference dimensions only.</strong> The sketches show the left and right cuts in plan. Each dimension is measured along the long edge of the sloping timber, from the square upper cut to the long point at the valley plate face.</p>
- <div style={{display:'flex',gap:16}}>{buildDoubleEdwardianMemberReview(g,memberLengths).filter(r=>r.lowerEnd==='Valley plate long point').map((r,i)=><ValleyHipSketch key={r.id} right={i===1} id={r.id} length={r.reviewLengthMM}/>)}</div>
+ <div style={{display:'flex',gap:16}}>{rearHips.map((r,i)=><ValleyHipSketch key={r.id} right={i===1} id={r.id} length={r.reviewLengthMM}/>)}</div>
  </>)}
  {sheet('Despatch checklist',<><p>Provisional picking quantities. Check before dispatch.</p>{doubleEdwardianPickingRows(model).map(([name,rows])=><section key={name}><h2>{name}</h2><Table head={['Item','Order quantity','Unit','Checked']} rows={rows}/></section>)}</>)}
  </>;
+}
+
+function DoubleEdwardianBookFront({roof,record,supply}){
+ const draftKey='doubleEdwardianBookDetails';
+ const [job,setJob]=useState(null);
+ const [message,setMessage]=useState('');
+ const [saving,setSaving]=useState(false);
+ const [details,setDetails]=useState(()=>{
+  if(record)return {};
+  try{
+   const saved=JSON.parse(localStorage.getItem(draftKey)||'{}');
+   return saved.draftId===draftDesignIdentity()?saved.details||{}:{};
+  }catch{return {};}
+ });
+ const recordId=record?.id;
+ useEffect(()=>{
+  let active=true;
+  if(recordId)getQuoteById(recordId).then(row=>{
+   if(!active)return;
+   if(!row){setMessage('Job details could not be loaded.');return;}
+   setJob(row);
+   setDetails({
+    job_number:row.job_number||'',
+    requested_delivery_date:row.requested_delivery_date||'',
+    order_notes:row.order_notes||'',
+    delivery_address_json:row.delivery_address_json||{},
+   });
+  }).catch(()=>{if(active)setMessage('Job details could not be loaded.');});
+  return ()=>{active=false;};
+ },[recordId]);
+ const save=async()=>{
+  if(recordId&&!job)return;
+  setSaving(true);
+  try{
+   if(job){
+    const result=await updateQuote(job.id,details);
+    if(!result)throw new Error('Job details could not be saved.');
+    setJob(result);
+    rememberActiveDesignRecord({...record,...result});
+   }else{
+    localStorage.setItem(draftKey,JSON.stringify({draftId:draftDesignIdentity(),details}));
+   }
+   setMessage(job?'Job details saved.':'Draft book details saved on this device.');
+  }catch{
+   setMessage('Book details could not be saved. Please try again.');
+  }finally{setSaving(false);}
+ };
+ if(recordId&&!job)return <section className="de-front"><p role="status">{message||'Loading job details…'}</p></section>;
+ return <section className="de-front">
+  <ManufactureBookFront supply={supply} roof={roof} job={job} details={details} onChange={setDetails} onSave={save} message={message} saving={saving}/>
+ </section>;
 }

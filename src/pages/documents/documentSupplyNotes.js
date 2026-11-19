@@ -1,3 +1,5 @@
+import {buildDoubleEdwardianMaterialsModel} from '../../lib/Calculations/doubleEdwardianMaterialsModel';
+import {buildCombinationSummaryMaterialsModel} from '../../lib/Calculations/combinationQuotation';
 import {buildSummaryMaterialsModel} from '../../lib/Calculations/summaryMaterialsModel';
 import {buildGableSummaryMaterialsModel} from '../../lib/Calculations/gableSummaryMaterialsModel';
 import {buildEdwardianSummaryMaterialsModel} from '../../lib/Calculations/edwardianSummaryMaterialsModel';
@@ -6,7 +8,8 @@ import {buildVictorianFiveSummaryMaterialsModel} from '../../lib/Calculations/vi
 import {buildVictorianHippedSummaryMaterialsModel} from '../../lib/Calculations/victorianHippedSummaryMaterialsModel';
 
 const builders={'lean-to':buildSummaryMaterialsModel,gable:buildGableSummaryMaterialsModel,edwardian:buildEdwardianSummaryMaterialsModel,
- victorian:buildVictorianSummaryMaterialsModel,'victorian-five':buildVictorianFiveSummaryMaterialsModel,'victorian-hipped':buildVictorianHippedSummaryMaterialsModel};
+ victorian:buildVictorianSummaryMaterialsModel,'victorian-five':buildVictorianFiveSummaryMaterialsModel,'victorian-hipped':buildVictorianHippedSummaryMaterialsModel,
+ 'double-edwardian':buildDoubleEdwardianMaterialsModel,combination:buildCombinationSummaryMaterialsModel};
 const names={tiles:'Tiles',gutters:'Gutters',plastics:'Fascia / soffit materials',timber:'Timber',metal:'Metal elements',misc:'Miscellaneous materials'};
 const vhStates=['victorianHippedTimberSummary','victorianHippedTileSummary','victorianHippedPlasticsSummary','victorianHippedMetalGutterSummary','victorianHippedMiscSummary'];
 const quantity=row=>Math.max(0,Number(row.qty??row.baseQty??row.netQty??0)||0);
@@ -52,18 +55,63 @@ export function describeSupplyChanges({rows=[],baseRows=[],exclusions={},adjustm
  }
  return {notes:[...new Set(notes)],notIncluded};
 }
-export function documentSupplyNotes(record={},family) {
+// The quotation and order form both show these omissions in the roof specification.
+export function customerOrderNotes(notes, excludedSections) {
+ const lines=String(notes??'').split(/\r?\n/);
+ return lines.filter(line=>{
+  const text=line.trim().replace(/[.!]$/, '');
+  return !(excludedSections.has('gutters')&&/^no gutters$/i.test(text))
+   && !(excludedSections.has('tiles')&&/^(?:no tiles|tile colou?r tbc)$/i.test(text));
+ }).join('\n').trim();
+}
+export function supplyOmissionNotes(notIncluded = []) {
+ return notIncluded.filter(({section})=>section!=='tiles'&&section!=='gutters')
+  .map(({label})=>label+' — Not Included.');
+}
+export function orderFormInternalCover(cover, plasterboard) {
+ const required=plasterboard?.required;
+ const supplied=plasterboard?.supplied;
+ const sheets=count=>`${count} plasterboard sheet${count===1?'':'s'} (2400 × 1200 mm)`;
+ if(supplied>0){
+  const remaining=Math.max(0,(required??0)-supplied);
+  return `Included — ${sheets(supplied)}${remaining>0?` · ${remaining} more required`:''}`;
+ }
+ return /^not included$/i.test(cover.trim())&&required>0
+  ? `Not Included - ${required} required`
+  : cover;
+}
+export function documentSupplyNotes(record={},family,{includePlasterboard=false}={}) {
  const inputs=record.inputs_json??{},materials=record.materials_snapshot_json??{};
  const states=[inputs.summaryPricingState??{},...(family==='victorian-hipped'?vhStates.map(key=>inputs[key]??{}):[])];
  const exclusions=Object.assign({},...states.map(state=>state.exclusions??{}));
  const adjustments=Object.assign({},...states.map(state=>state.adjustments??{}));
- if(!states.some(state=>Object.values(state.exclusions??{}).some(Boolean)||Object.values(state.adjustments??{}).some(value=>Number(value)!==0))&&!(inputs.summaryAddedItems??[]).some(item=>!item.excluded&&Number(item.qty)>0))
+ const changed=states.some(state=>Object.values(state.exclusions??{}).some(Boolean)||Object.values(state.adjustments??{}).some(value=>Number(value)!==0))||(inputs.summaryAddedItems??[]).some(item=>!item.excluded&&Number(item.qty)>0);
+ if(!changed&&!includePlasterboard)
   return {notes:[],notIncluded:[]};
  const build=builders[family];
  if(!build)return {notes:[],notIncluded:[]};
+ const model=build({inputs,materials,exclusions,adjustments,addedItems:inputs.summaryAddedItems??[]});
+ const rows=supplyModelRows(model);
+ const plasterboard=includePlasterboard?{
+  required:model.plasterboard?.sheets??model.audits?.misc?.plasterboard?.sheets,
+  supplied:rows.filter(row=>row.isAddedItem&&!row.excluded&&!row.extraExcluded&&!exclusions[row.key]
+   && /plasterboard/i.test(text(row))&&/^sheets?$/i.test(row.units??'')).reduce((sum,row)=>sum+quantity(row),0),
+ }:undefined;
+ if(!changed)return {notes:[],notIncluded:[],plasterboard};
  const baseline={...inputs,summaryPricingState:{exclusions:{},adjustments:{}},summaryAddedItems:[]};
  for(const key of vhStates)if(baseline[key])baseline[key]={...baseline[key],exclusions:{},adjustments:{}};
- const rows=supplyModelRows(build({inputs,materials,exclusions,adjustments,addedItems:inputs.summaryAddedItems??[]}));
  const baseRows=supplyModelRows(build({inputs:baseline,materials,exclusions:{},adjustments:{},addedItems:[]}));
- return describeSupplyChanges({rows,baseRows,exclusions,adjustments});
+ const supply=describeSupplyChanges({rows,baseRows,exclusions,adjustments});
+ return includePlasterboard?{...supply,plasterboard}:supply;
+}
+
+export function manufactureFrontSupply(inputs, materials, family) {
+ const {notIncluded, notes}=documentSupplyNotes({inputs_json:inputs,materials_snapshot_json:materials},family);
+ return {
+  excludedSections:notIncluded.map(item=>item.section),
+  omissions:[
+   ...notIncluded.filter(({section})=>!['tiles','gutters','plastics'].includes(section)).map(({label})=>label),
+   ...notes.filter(note=>note.startsWith('Not included: ')).map(note=>note.slice('Not included: '.length,-1)),
+  ],
+ };
 }

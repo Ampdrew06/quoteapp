@@ -1,3 +1,4 @@
+import { buildLeanToVentLayout } from './geometry/leanToVentLayout';
 import {withRoofFrameMaterials} from './roofFrameThickness';
 import {resolveLeanToRafterLayout} from './geometry/leanToRafterLayout';
 import {computeLeanToManufactureGeometry} from './leanToManufactureGeometry';
@@ -82,6 +83,8 @@ orderUnit: r.orderUnit ?? r.order_unit ?? r.orderUom,
 export function buildLeanToTotals(inputs = {}, exclusions = {}, materialsOverride = null) {
   if(inputs.frameThicknessMM!=null)inputs={...inputs,side_frame_thickness_mm:Number(inputs.frameThicknessMM),frame_on_mm:Number(inputs.frameThicknessMM)};
   const m = withRoofFrameMaterials(inputs,materialsOverride || getMaterials());
+  const ventLayout = buildLeanToVentLayout(inputs, m);
+  inputs = { ...inputs, leanToRafterPositionsMM: ventLayout.positions };
   const { isExcluded, sumCostFromLines } = buildExclusionFns(exclusions);
 
   // ---- inputs (internal) ----
@@ -300,6 +303,7 @@ if (typeof window !== "undefined") {
   const misc = computeMiscLeanTo(
     {
       tile_system: tileSystem,
+      ventOpeningAreaM2: ventLayout.areaM2,
       leanToRafterPositionsMM:inputs.roofStyle==='hippedLeanTo'?null:inputs.leanToRafterPositionsMM,
       pitchDeg,
       internalWidthMM: widthMM,

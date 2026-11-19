@@ -30,9 +30,9 @@ function Card({title, children}) {
   </div>;
 }
 
-export default function ManufacturingLeanToWallplate({lengthMM, manufactureRef, geometry}) {
+export default function ManufacturingLeanToWallplate({lengthMM, manufactureRef, geometry, ventNoggins = []}) {
   if (!(lengthMM > 0)) return null;
-  return <section className="pm-page pm-leanto-wallplate-page">
+  return <section className={`pm-page pm-leanto-wallplate-page${ventNoggins.length ? " pm-wallplate-with-noggins" : ""}`}>
     <div style={{height:'100%',boxSizing:'border-box',padding:'4mm',background:'#fff',border:'1px solid #cbd5e1',borderRadius:8}}>
       <h2 style={{fontSize:16,margin:'0 0 10px',fontWeight:800}}>Wallplate</h2>
       <div style={{display:'grid',gap:10}}>
@@ -61,6 +61,18 @@ export default function ManufacturingLeanToWallplate({lengthMM, manufactureRef, 
             <text x="503" y="154" textAnchor="middle" fontSize="14">Assembly thickness at packer</text>
           </svg>
         </Card>
+        {ventNoggins.length > 0 && <Card title="Roof vent noggins">
+          <p style={{margin:'0 0 6px'}}>Supply two loose noggins per vent. Fit one above and one below the vent at the height chosen on site. The roof plan shows an indicative vent height.</p>
+          <table style={{textAlign:'center',width:'100%',borderCollapse:'collapse'}}>
+            <thead><tr><th>Vent</th><th>Joist pieces</th><th>9 mm ply faceplates</th></tr></thead>
+            <tbody>{ventNoggins.map((row, index) => <tr key={row.ventId}>
+              <td>Vent {index + 1}</td>
+              <td>{row.quantity} × {row.lengthMM} mm</td>
+              <td>{row.quantity * row.faceplatesPerNoggin} × {row.lengthMM} × {row.faceHeightMM} mm</td>
+            </tr>)}</tbody>
+          </table>
+          <p style={{margin:'6px 0 0'}}>Fit one 9 mm faceplate to each face of each joist piece.</p>
+        </Card>}
       </div>
     </div>
   </section>;

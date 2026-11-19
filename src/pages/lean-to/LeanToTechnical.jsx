@@ -1,3 +1,4 @@
+import {buildLeanToVentLayout} from '../../lib/geometry/leanToVentLayout';
 import {withRoofFrameMaterials} from '../../lib/roofFrameThickness';
 import {resolveLeanToRafterLayout} from '../../lib/geometry/leanToRafterLayout';
 import SteelTileCourseAudit from '../../components/SteelTileCourseAudit';
@@ -296,7 +297,7 @@ export default function LeanToTechnical() {
     const internalRows =
       pitchDeg > 0 ? Math.ceil(frontRafterLengthMM / 400) : 0;
 
-    const rafterCount=resolveLeanToRafterLayout({widthMM,positions:roofInputs.leanToRafterPositionsMM,firstCentreMM,spacingMM}).count;
+    const rafterCount=resolveLeanToRafterLayout({widthMM,positions:buildLeanToVentLayout(roofInputs,materials).positions,firstCentreMM,spacingMM}).count;
     const cradleFaces = Math.max(0, 2 * rafterCount - 2);
     const pitchRadians = (pitchDeg * Math.PI) / 180;
     const cradleFaceLengthMM =

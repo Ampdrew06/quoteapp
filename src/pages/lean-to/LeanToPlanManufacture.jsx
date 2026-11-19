@@ -1,3 +1,6 @@
+import {manufactureFrontSupply} from '../documents/documentSupplyNotes';
+import {calculateRoofVentPricing} from '../../lib/Calculations/roofVentPricing';
+import {buildLeanToVentLayout} from '../../lib/geometry/leanToVentLayout';
 import {withRoofFrameMaterials} from '../../lib/roofFrameThickness';
 import {resolveLeanToRafterLayout} from '../../lib/geometry/leanToRafterLayout';
 import { buildLeanToBookRingBeam } from '../../lib/Manufacturing/leanToBookSchedule';
@@ -203,14 +206,16 @@ const saveJobDetails = async () => {
   const jobInputs = activeJob?.inputs_json || {};
   const q = loadInputs();
   const m = useMemo(() => withRoofFrameMaterials(q,getMaterials()), [q.frameThicknessMM,q.side_frame_thickness_mm]);
+  const ventLayout=buildLeanToVentLayout(q,m);
+  const ventSpecification=ventLayout.active ? calculateRoofVentPricing(q.roofVentQuantities,m,q.pitchDeg).specification : '';
   useEffect(()=>{let alive=true;getCustomers().then(rows=>{if(alive)setCurrentCustomerName((rows||[]).find(c=>c.id===q.selectedCustomerId)?.name||(q.selectedCustomerId==='retail'?'Retail':''));}).catch(()=>{});return()=>{alive=false;};},[q.selectedCustomerId]);
 
+  const controls = q.summaryPricingState ?? readSummaryPricingState();
   const planSummary = useMemo(() => {
-    const controls = q.summaryPricingState ?? readSummaryPricingState();
     return buildSummaryMaterialsModel({ inputs: q, materials: m,
       exclusions: controls.exclusions ?? {}, adjustments: controls.adjustments ?? {},
       addedItems: q.summaryAddedItems ?? [] });
-  }, [q, m]);
+  }, [q, m, controls]);
 
   // Core quote inputs
   const iw = num(q.internalWidthMM ?? q.widthMM ?? q.width, 0);
@@ -315,7 +320,7 @@ const rightWall =
   const first = num(m.rafter_first_center_mm ?? 690);
   let centresCount = 0;
   for (let c = first; c <= iw; c += spacing) centresCount++;
-  const editedRafters=(q.roofStyle??'leanTo')==='leanTo'?resolveLeanToRafterLayout({widthMM:iw,positions:q.leanToRafterPositionsMM,firstCentreMM:first,spacingMM:spacing}):null;
+  const editedRafters=(q.roofStyle??'leanTo')==='leanTo'?resolveLeanToRafterLayout({widthMM:iw,positions:ventLayout.positions,firstCentreMM:first,spacingMM:spacing}):null;
   const rafterCount=editedRafters?.valid?editedRafters.count:Math.max(2,centresCount+2);
 
   // Item numbering for simple lean-to
@@ -1964,7 +1969,7 @@ const ringBeamManufactureSchedule = useMemo(
   const leanToRingBeam = roofStyleKey === 'leanTo' ? buildLeanToBookRingBeam({
     widthMM: iw, lengthMM: extWidthMM,
     leftExtensionMM: leftWall ? 0 : leftSupportDepthMM + (L > 0 ? L : lip),
-    rafterPositionsMM:q.leanToRafterPositionsMM,firstCentreMM: first, spacingMM: spacing, geometry: manufactureGeom, reference: `P${ringBeamNo}`,
+    rafterPositionsMM:ventLayout.positions,firstCentreMM: first, spacingMM: spacing, geometry: manufactureGeom, reference: `P${ringBeamNo}`,
   }) : null;
   if((editedRafters&&!editedRafters.valid)||hippedGeom?.manualRafterLayout?.valid===false)return <><NavTabs/><p role="alert">{(editedRafters?.errors??hippedGeom?.manualRafterLayout?.errors??[]).join(' ')}</p></>;
   //const roofSizeDisplay = `${round(iw)} × ${round(ip)} mm int / ${round(extWidthMM)} × ${round(extProjectionMM)} mm ext`;
@@ -1978,7 +1983,8 @@ const ringBeamManufactureSchedule = useMemo(
       <div className="app-page-content" style={{ maxWidth: 1180, margin: "0 auto", padding: 14 }}>
  <section className="pm-page pm-front-page">
  <ManufactureBookFront
-  roof={{customerName:customer,reference:customerRef,style:roofStyleLabel,pitch:`${pitchDeg}°`,frame:`${sft} mm`,tileType:(tileType||'—').toString().replace(/^./,c=>c.toUpperCase()),tileColour,fasciaColour,soffit:soffitDisplay,gutters:gutterDisplay,downpipes:downpipeDisplay,boxGutters:boxGutterDetails,glazing:q.glazed_options||q.glazedOptions,dimensions:`${iw} × ${ip}mm`,weight:planSummary?`${planSummary.installedWeightKg.toFixed(1)}kg incl. plasterboard`:'—'}}
+  supply={manufactureFrontSupply({...q, summaryPricingState:controls},m,'lean-to')}
+  roof={{customerName:customer,reference:customerRef,style:roofStyleLabel,pitch:`${pitchDeg}°`,frame:`${sft} mm`,tileType:(tileType||'—').toString().replace(/^./,c=>c.toUpperCase()),tileColour,fasciaColour,soffit:soffitDisplay,gutters:gutterDisplay,downpipes:downpipeDisplay,boxGutters:boxGutterDetails,glazing:[ventSpecification,q.glazed_options||q.glazedOptions].filter(Boolean).join(" · "),dimensions:`${iw} × ${ip}mm`,weight:planSummary?`${planSummary.installedWeightKg.toFixed(1)}kg incl. plasterboard`:'—'}}
   job={activeJob}
   details={{job_number:jobDetails.jobNumber,requested_delivery_date:jobDetails.requested_delivery_date,order_notes:jobDetails.notes,delivery_address_json:{deliveryType:jobDetails.deliveryType,deliveryAddress:jobDetails.deliveryAddress,contactName:jobDetails.contactName,contactPhone:jobDetails.contactPhone}}}
   extras={planSummary?Object.values(planSummary.sections).flatMap(section=>section.lines).filter(row=>row.isAddedItem&&row.qty>0&&row.usage!=='factory').map(row=>`${row.qty} ${row.units} ${row.label}`):[]}
@@ -1995,7 +2001,7 @@ const ringBeamManufactureSchedule = useMemo(
           details={{customer:customer,reference:customerRef,roof:roofStyleLabel,frame:`${sft}mm`,tiles:[tileType,tileColour].filter(Boolean).join(' — '),fascia:fasciaColour,gutter:[gutterColour,gutterProfile].filter(Boolean).join(' — '),weight:planSummary?`${planSummary.installedWeightKg.toFixed(1)}kg incl. plasterboard`:'—'}}
           facets={[{label:'Front',pitch:`${Number(pitchDeg).toFixed(1)}°`,support:`${frameOn} mm frame`,soffit:`${Math.round(soffit)} mm`}]}
           elevation={hasRoofDimensions?<LeanToSideElevationManufacture manufactureGeom={manufactureGeom} pitchDeg={pitchDeg}/>:null}
-          notes={<span><b>Identical rafters:</b> P{firstRafterNo}–P{lastRafterNo} · ×{rafterCount} · manufacture all to the Side Elevation / Height Check above.</span>}
+          notes={<span><b>Identical rafters:</b> P{firstRafterNo}–P{lastRafterNo} · ×{rafterCount} · manufacture all to the Side Elevation / Height Check above. Rafter centres are measured from the left external end of the front ringbeam.{ventLayout.active&&" Vent height is indicative."}</span>}
         >
           {hasRoofDimensions?(<PlanDiagramLeanToManufacture
     iw={iw}
@@ -2012,12 +2018,14 @@ const ringBeamManufactureSchedule = useMemo(
     rightWall={rightWall}
     rafterSpacing={spacing}
     firstCentre={first}
-    rafterPositionsMM={q.leanToRafterPositionsMM}
+    roofVentLayout={ventLayout}
+    rafterPositionsMM={ventLayout.positions}
     pitchDeg={pitchDeg}
     outlet={gutterOutlet}
   />):<p>No roof dimensions loaded</p>}
         </ManufacturePlanPage>
-        <ManufacturingLeanToWallplate lengthMM={wallplateLengthMM} manufactureRef={wallplateNo} geometry={manufactureGeom}/>
+        <ManufacturingLeanToWallplate lengthMM={wallplateLengthMM} manufactureRef={wallplateNo}
+          geometry={manufactureGeom} ventNoggins={ventLayout.noggins}/>
         {leanToRingBeam && <section className="pm-page pm-leanto-ringbeam-page">
           <div style={{...panel,padding:'4mm',height:'100%',boxSizing:'border-box'}}>
             <h2 style={{fontSize:16,margin:'0 0 8px'}}>Ring-beam</h2>
@@ -2448,7 +2456,7 @@ const ringBeamManufactureSchedule = useMemo(
     background: #fff !important;
   }
 
-  .pm-plastics-guide-page, .pm-checklist-page { max-height: none; overflow: visible; height: auto; }
+  .pm-plastics-guide-page, .pm-checklist-page, .pm-wallplate-with-noggins { max-height: none; overflow: visible; height: auto; }
 
   .pm-page:last-child {
     break-after: auto;

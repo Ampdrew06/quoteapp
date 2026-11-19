@@ -251,7 +251,7 @@ const sWeightPerM2 =
   );
 
 if (sCov > 0) {
-  const areaNeeded100 = area_m2_internal * (1 + sWaste);
+  const areaNeeded100 = Math.max(0, area_m2_internal - num(q.ventOpeningAreaM2, 0)) * (1 + sWaste);
   const packsNeeded = ceil(areaNeeded100 / sCov);
 
   if (packsNeeded > 0) {

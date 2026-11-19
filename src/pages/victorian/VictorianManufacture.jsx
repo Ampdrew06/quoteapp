@@ -1,3 +1,4 @@
+import {manufactureFrontSupply} from '../documents/documentSupplyNotes';
 import VictorianCustomerPlan from './VictorianCustomerPlan';
 import VictorianNavigation from './VictorianNavigation';
 import {normalizeVictorianFiveDesignInputs} from '../../lib/geometry/victorianFiveDesignInputs';
@@ -49,7 +50,7 @@ const [details,setDetails]=useState(()=>{
   try{const next={...current.inputs_json,[key]:details};const saved=await updateQuote(current.id,{inputs_json:next,requested_delivery_date:details.requested_delivery_date||null,delivery_address_json:{...current.delivery_address_json,...details.delivery_address_json},order_notes:details.order_notes||'',...(current.job_number?{job_number:details.job_number||current.job_number}:{})});if(!saved){setMessage('Book details saved on this device; quote update failed. Please retry.');return;}activateDesignRecord({...current,...saved,inputs_json:next});setMessage('Book details saved with the quote.');}catch{setMessage('Book details saved on this device; quote update failed. Please retry.');}
  };
  return <main className="vm-book"><VictorianNavigation five={five}/>
- <section className="em-page em-front"><ManufactureBookFront roof={roof} details={details} onChange={setDetails} onSave={save} message={message}/></section>
+ <section className="em-page em-front"><ManufactureBookFront supply={manufactureFrontSupply(inputs,materials,family)} roof={roof} details={details} onChange={setDetails} onSave={save} message={message}/></section>
  <details className="vm-controls"><summary>Book details</summary><div className="vm-job-fields">{[['Customer','customerName'],['Reference','reference'],['Tile type','tileType'],['Tile colour','tileColour'],['Fascia / soffit colour','fasciaColour'],['Gutters','gutters'],['Downpipes','downpipes']].map(([label,key])=><label key={key}>{label}<input value={details[key]||''} onChange={e=>setDetails({...details,[key]:e.target.value})}/></label>)}</div></details>
  <ManufacturePlanPage
  details={{customer:roof.customerName||'Retail',reference:roof.reference,roof:g.style,frame:roof.frame,ringbeamPerimeter:`${r.beams.reduce((n,b)=>n+Math.ceil(b.layers.ply9Base.externalEdgeLengthMM-1e-7),0)} mm (whole-mm cuts)`,tiles:[roof.tileType,roof.tileColour].filter(Boolean).join(' — '),fascia:roof.fasciaColour,gutter:roof.gutters,weight:model.valid?`${model.installedWeightKg.toFixed(2)} kg known incl. plasterboard`:'Unconfigured'}}

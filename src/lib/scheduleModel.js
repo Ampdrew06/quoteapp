@@ -1,3 +1,5 @@
+import {designFamily} from './activeDesignRecord';
+import {documentSupplyNotes} from '../pages/documents/documentSupplyNotes';
 import {quoteStyleLabel} from './quoteStyleLabel';
 export const scheduleStatuses=['Not Started','In Production','Complete','Scheduled','Delivered','On Hold','Cancelled'];
 export const blankScheduleEntry={customerId:'',customerName:'',reference:'',jobNumber:'',areaM2:'',widthMM:'',projectionMM:'',fasciaColour:'',soffitColour:'',gutterDescription:'',deliveryAddress:'',deliveryContact:'',aFrameNet:'',style:'',tiles:'',provisional:false,delivered:false,status:'Not Started',deliveryDate:'',netCost:'',netSell:'',grossSell:'',deposit:'',otherPaid:'',invoiced:false,dueDate:'',bookDone:false,vent:'',aFrame:'',labour:'',materialsCost:'',deliveryCost:'',regs:'',notes:'',archived:false};
@@ -8,14 +10,23 @@ export function validDate(v){if(!/^\d{4}-\d{2}-\d{2}$/.test(v||''))return false;
 export function jobScheduleEntry(job){
  const p=job.pricing_json||{},s=p.summary||{},i=job.inputs_json||{};
  const address=job.delivery_address_json||{};
+ const omitted=new Set(documentSupplyNotes(job,designFamily(job)).notIncluded.map(({section})=>section));
  const materials=moneyNumber(p.materialsCost),labour=moneyNumber(p.labourCost),delivery=moneyNumber(p.delivery);
  const base=moneyNumber(p.baseCost),net=moneyNumber(p.net??s.net),gross=moneyNumber(p.gross??s.gross);
- return {...blankScheduleEntry,widthMM:i.widthMM??'',projectionMM:i.projMM??'',fasciaColour:i.fasciaColour||i.plasticsColour||'',soffitColour:i.soffitColour||i.fasciaColour||i.plasticsColour||'',gutterDescription:[i.gutterColour,i.gutterProfile].filter(Boolean).join(' / '),deliveryAddress:address.deliveryAddress||i.deliveryPostcode||'',deliveryContact:[address.contactName,address.contactPhone].filter(Boolean).join(' · '),customerId:job.customer_id||(i.selectedCustomerId==='retail'?'retail':''),customerName:job.customer_name||(i.selectedCustomerId==='retail'?'Retail':''),reference:job.manual_reference||i.customerReference||'',jobNumber:String(job.job_number||''),style:quoteStyleLabel(job),tiles:[i.tileProductId||i.tileSystem,i.tileColour||i.tileColor].filter(Boolean).join(' / '),deliveryDate:validDate(job.requested_delivery_date)?job.requested_delivery_date:'',netSell:net??'',grossSell:gross??'',netCost:base!==null&&delivery!==null?round(base+delivery):materials!==null&&labour!==null&&delivery!==null?round(materials+labour+delivery):'',labour:labour??'',materialsCost:materials??'',deliveryCost:delivery??''};
+ return {...blankScheduleEntry,widthMM:i.widthMM??'',projectionMM:i.projMM??'',fasciaColour:i.fasciaColour||i.plasticsColour||'',soffitColour:i.soffitColour||i.fasciaColour||i.plasticsColour||'',gutterDescription:omitted.has('gutters')?'Not Included':[i.gutterColour,i.gutterProfile].filter(Boolean).join(' / '),deliveryAddress:address.deliveryAddress||i.deliveryPostcode||'',deliveryContact:[address.contactName,address.contactPhone].filter(Boolean).join(' · '),customerId:job.customer_id||(i.selectedCustomerId==='retail'?'retail':''),customerName:job.customer_name||(i.selectedCustomerId==='retail'?'Retail':''),reference:job.manual_reference||i.customerReference||'',jobNumber:String(job.job_number||''),style:quoteStyleLabel(job),tiles:omitted.has('tiles')?'Not Included':[i.tileProductId||i.tileSystem,i.tileColour||i.tileColor].filter(Boolean).join(' / '),deliveryDate:validDate(job.requested_delivery_date)?job.requested_delivery_date:'',netSell:net??'',grossSell:gross??'',netCost:base!==null&&delivery!==null?round(base+delivery):materials!==null&&labour!==null&&delivery!==null?round(materials+labour+delivery):'',labour:labour??'',materialsCost:materials??'',deliveryCost:delivery??''};
+}
+function mergeJobScheduleEntry(job, stored = {}) {
+ const defaults=jobScheduleEntry(job);
+ const entry={...defaults,...stored};
+ for(const field of ['tiles','gutterDescription']){
+  if(defaults[field]==='Not Included'||entry[field]==='Not Included')entry[field]=defaults[field];
+ }
+ return entry;
 }
 export function combineSchedule(jobs,records){
  const saved=new Map(records.filter(r=>r.quote_id).map(r=>[r.quote_id,r]));
  const manual=records.filter(r=>!r.quote_id);
- const result=jobs.filter(j=>j.status==='converted_to_job'&&j.schedule_included===true).map(job=>{const same=(a,b)=>String(a||'').trim().toLowerCase()===String(b||'').trim().toLowerCase();const matches=manual.filter(r=>same(r.entry_json?.customerName,job.customer_name)&&same(r.entry_json?.reference,job.manual_reference||job.inputs_json?.customerReference)&&String(r.entry_json?.jobNumber||'').trim().toLowerCase()===String(job.job_number||'').trim().toLowerCase()&&String(job.job_number||'').trim());const stored=saved.get(job.id)||(matches.length===1?matches[0]:null);return {id:stored?.id||null,quoteId:job.id,version:stored?.version??null,job,pendingLink:!!stored&&!stored.quote_id,data:{...jobScheduleEntry(job),...(stored?.entry_json||{})}};});
+ const result=jobs.filter(j=>j.status==='converted_to_job'&&j.schedule_included===true).map(job=>{const same=(a,b)=>String(a||'').trim().toLowerCase()===String(b||'').trim().toLowerCase();const matches=manual.filter(r=>same(r.entry_json?.customerName,job.customer_name)&&same(r.entry_json?.reference,job.manual_reference||job.inputs_json?.customerReference)&&String(r.entry_json?.jobNumber||'').trim().toLowerCase()===String(job.job_number||'').trim().toLowerCase()&&String(job.job_number||'').trim());const stored=saved.get(job.id)||(matches.length===1?matches[0]:null);return {id:stored?.id||null,quoteId:job.id,version:stored?.version??null,job,pendingLink:!!stored&&!stored.quote_id,data:mergeJobScheduleEntry(job,stored?.entry_json||{})};});
  const ids=new Set(result.map(r=>r.id).filter(Boolean));
  for(const r of records)if(!r.quote_id&&!ids.has(r.id))result.push({id:r.id,quoteId:r.quote_id,version:r.version,job:null,data:{...blankScheduleEntry,...r.entry_json}});
  return result;

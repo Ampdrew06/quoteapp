@@ -1,3 +1,5 @@
+import {roofVentSupplies} from '../../lib/Calculations/roofVentPricing';
+import {buildLeanToVentLayout} from '../../lib/geometry/leanToVentLayout';
 import {resolveLeanToRafterLayout} from '../../lib/geometry/leanToRafterLayout';
 import SummaryIdiotList from '../../components/SummaryIdiotList';
 import { buildSummaryMaterialsModel } from '../../lib/Calculations/summaryMaterialsModel';
@@ -76,6 +78,13 @@ const jointsFromRunMM = (run_mm, piece_mm = 5000) =>
   Math.max(0, Math.ceil(num(run_mm) / piece_mm) - 1);
 
 // ---------- component ----------
+function glazingChecklistRows(inputs, layout) {
+  if (!layout.openings.length) return [];
+  return roofVentSupplies(inputs.roofVentQuantities).map(({key, label, quantity}) => ({
+    key, item: label, qty: quantity, units: 'Ea',
+  }));
+}
+
 function LegacyIdiotList({ showNavTabs = true }) {
   const q = loadInputs();       // ✅ SINGLE source of inputs
   const m = getMaterials();
@@ -139,6 +148,7 @@ const run_m = extWidthMM / 1000;
   const leanToTotals = useMemo(
   () =>
     buildLeanToTotals({
+      roofStyle:q.roofStyle,roofVentQuantities:q.roofVentQuantities,leanToRafterPositionsMM:q.leanToRafterPositionsMM,
       widthMM: iw,
       projMM: ip,
       pitchDeg,
@@ -381,7 +391,8 @@ for (let c = firstCtr; c <= iw; c += spacing) {
 }
 
 // +2 edge rafters, minimum 2 total
-const editedRafters=q.roofStyle!=='hippedLeanTo'?resolveLeanToRafterLayout({widthMM:iw,positions:q.leanToRafterPositionsMM,firstCentreMM:firstCtr,spacingMM:spacing}):null;
+const ventLayout = buildLeanToVentLayout(q, m);
+const editedRafters=q.roofStyle!=='hippedLeanTo'?resolveLeanToRafterLayout({widthMM:iw,positions:ventLayout.positions,firstCentreMM:firstCtr,spacingMM:spacing}):null;
 const rafters=editedRafters?.valid?editedRafters.count:Math.max(2,centresCount+2);
 
 // --- 50mm PIR (cradle + upstands) — same logic as Summary ---
@@ -879,6 +890,7 @@ scan("miscLines", miscLines);
             rows={[...rowsGutters, ...addedSupplyRows("gutters")]}
           />
 
+          <Section title="Glazing Elements" rows={glazingChecklistRows(q, ventLayout)} />
           <Section title="Miscellaneous" rows={[...rowsMisc, ...addedSupplyRows("misc")]} />
         </div>
 
@@ -977,5 +989,5 @@ export default function IdiotList({ showNavTabs = true, materialsModel = null, i
       addedItems:q.summaryAddedItems ?? [] });
   }, [useIntegrated, materialsModel, q, m]);
   if (!useIntegrated) return <LegacyIdiotList showNavTabs={showNavTabs} />;
-  return <div>{showNavTabs && <NavTabs />}<div className={showNavTabs?"app-page-content":undefined}><SummaryIdiotList model={model} materials={m} inputs={q} /></div></div>;
+  return <div>{showNavTabs && <NavTabs />}<div className={showNavTabs?"app-page-content":undefined}><SummaryIdiotList model={model} materials={m} inputs={q} glazingRows={glazingChecklistRows(q, buildLeanToVentLayout(q, m))} /></div></div>;
 }

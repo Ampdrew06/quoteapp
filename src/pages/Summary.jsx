@@ -1,3 +1,5 @@
+import {hippedVentQuantitiesByProduct} from '../lib/geometry/hippedLeanToVentLayout';
+import {addRoofVentPricing,calculateRoofVentPricing} from '../lib/Calculations/roofVentPricing';
 import {withRoofFrameMaterials} from '../lib/roofFrameThickness';
 import {computeRoofLabour,isSlateCovering,britmetBenchmarkInputs} from '../lib/Calculations/roofLabourPricing';
 import {summaryOrderQuantity} from '../lib/Calculations/summaryOrderQuantity';
@@ -172,6 +174,9 @@ const activeTabStyle = {
 
 
 
+const glazingCell = {border:'1px solid #d1d5db',padding:'5px 7px'};
+const glazingMoneyCell = {...glazingCell,textAlign:'right'};
+const glazingLabelCell = {...glazingCell,textAlign:'left'};
 const fmtMoney = (n) => `£${(Number(n) || 0).toFixed(2)}`;
 const fmtKg = (n) => `${Number(n || 0).toFixed(2)} kg`;
 
@@ -950,7 +955,11 @@ console.log("SUMMARY_PRICE_DEBUG", {
 
 
 const benchmark=isSlateCovering(totalsInput?.tileSystem)?buildSummaryMaterialsModel({inputs:britmetBenchmarkInputs({...savedInputs,...totalsInput}),materials:m,exclusions:ex,adjustments,addedItems:readSummaryAddedItems()}):null;
-const pricing = computePricing(
+const ventPricing=calculateRoofVentPricing(
+  savedInputs.roofStyle==='hippedLeanTo'?hippedVentQuantitiesByProduct(savedInputs.hippedVentQuantities):savedInputs.roofVentQuantities,
+  m,savedInputs.pitchDeg
+);
+const pricing = addRoofVentPricing(computePricing(
   adjustedMaterialsCostForPricing,
   {
     ...m,
@@ -962,7 +971,7 @@ const pricing = computePricing(
     deliveryCost,
     discountPct,
   }
-);
+),ventPricing);
 
 
 
@@ -1006,7 +1015,23 @@ return (
       <Section section="gutters" title="Guttering Elements" lines={gutterLinesAdjusted} totals={gutterTotals} showChargeable={false} />
       <Section section="misc" title="Miscellaneous" lines={miscLinesForSectionAdjusted} totals={miscTotals} showChargeable={false} />
 
-      <SummaryPricingOverview sellingPriceReady={summaryMaterials.leanToRafterLayout?.valid!==false&&summaryMaterials.manufactureGeometry?.manualRafterLayout?.valid!==false} sellingPriceMessage={(summaryMaterials.leanToRafterLayout?.errors??summaryMaterials.manufactureGeometry?.manualRafterLayout?.errors)?.join(' ')} baseCost={overallCost} materialsCost={summaryMaterials.materialsCostForPricing} materialsWeight={overallWeight} installedWeight={installedWeight} plasterboardQty={plasterboardQty} labour={labour} delivery={deliveryResult} pricing={pricing} labourConfig={labourConfig} deliveryConfig={deliveryConfig} markupConfig={markupConfig} overrideDays={labourDaysOverride} onLabourConfig={updateLabourConfig} onDeliveryConfig={updateDeliveryConfig} onMarkupConfig={updateMarkupConfig} onOverride={value=>{setLabourDaysOverride(value);localStorage.setItem('leanToInputs',JSON.stringify({...loadInputs(),labourDaysOverride:value}));}}/>
+      {ventPricing.rows&&<section style={{marginBottom:16}}>
+        <h2 style={{fontSize:18,fontWeight:600,margin:'8px 0'}}>Glazing Elements</h2>
+        <table aria-label="Glazing Elements" style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
+          <thead><tr>{['Item','Qty','Unit cost ex VAT','Cost ex VAT'].map(label=>
+            <th key={label} style={{...glazingCell,background:'#f3f4f6',textAlign:'left'}}>{label}</th>)}</tr></thead>
+          <tbody>{ventPricing.rows.map(row=><tr key={row.key}>
+            <td style={glazingCell}>{row.label}</td><td style={glazingCell}>{row.quantity}</td>
+            <td style={glazingMoneyCell}>{fmtMoney(row.unitCost)}</td><td style={glazingMoneyCell}>{fmtMoney(row.cost)}</td>
+          </tr>)}</tbody>
+          <tfoot>
+            <tr><th scope="row" colSpan={3} style={glazingLabelCell}>Glazing cost included in Total materials cost</th><td style={glazingMoneyCell}><b>{fmtMoney(ventPricing.cost)}</b></td></tr>
+            <tr><th scope="row" colSpan={3} style={glazingLabelCell}>Glazing added to roof selling price ({ventPricing.margin}% gross margin)</th><td style={glazingMoneyCell}><b>{fmtMoney(ventPricing.net)}</b></td></tr>
+          </tfoot>
+        </table>
+      </section>}
+      {summaryMaterials.ventNogginMaterials?.joistM>0&&<p>Vent noggins included in timber costs: £{summaryMaterials.ventNogginMaterials.cost.toFixed(2)} ex VAT before roof markup.</p>}
+      <SummaryPricingOverview sellingPriceReady={!ventPricing.error&&!summaryMaterials.coveringPricingErrors?.length&&summaryMaterials.leanToRafterLayout?.valid!==false&&summaryMaterials.manufactureGeometry?.manualRafterLayout?.valid!==false} sellingPriceMessage={ventPricing.error||summaryMaterials.coveringPricingErrors?.join(" ")||(summaryMaterials.leanToRafterLayout?.errors??summaryMaterials.manufactureGeometry?.manualRafterLayout?.errors)?.join(' ')} baseCost={overallCost+(ventPricing.cost??0)} materialsCost={summaryMaterials.materialsCostForPricing+(ventPricing.cost??0)} materialsWeight={overallWeight} installedWeight={installedWeight} plasterboardQty={plasterboardQty} labour={labour} delivery={deliveryResult} pricing={pricing} labourConfig={labourConfig} deliveryConfig={deliveryConfig} markupConfig={markupConfig} overrideDays={labourDaysOverride} onLabourConfig={updateLabourConfig} onDeliveryConfig={updateDeliveryConfig} onMarkupConfig={updateMarkupConfig} onOverride={value=>{setLabourDaysOverride(value);localStorage.setItem('leanToInputs',JSON.stringify({...loadInputs(),labourDaysOverride:value}));}}/>
 
     </div>
   </div>

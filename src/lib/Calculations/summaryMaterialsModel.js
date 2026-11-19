@@ -1,3 +1,5 @@
+import {buildHippedLeanToVentLayout} from '../geometry/hippedLeanToVentLayout';
+import { buildLeanToVentLayout } from '../geometry/leanToVentLayout';
 import { metrotileCarriageLine } from "./metrotileCarriage";
 import {withRoofFrameMaterials} from '../roofFrameThickness';
 import {installedMainTileWeight,installedHipTileWeight,fixedInstalledWeight} from './roofCoveringWeightRules';
@@ -200,6 +202,8 @@ export function buildSummaryMaterialsModel({ inputs = {}, materials = {}, exclus
   inputs = normalizeBossArrangementInputs(normalizeSummaryInputs(inputs));
   if(inputs.frameThicknessMM!=null)inputs={...inputs,side_frame_thickness_mm:Number(inputs.frameThicknessMM),frame_on_mm:Number(inputs.frameThicknessMM)};
   const m = { ...withRoofFrameMaterials(inputs,materials), include_rafters_pir_cradle_in_rafters: false };
+  const ventLayout = buildLeanToVentLayout(inputs, m);
+  inputs = { ...inputs, leanToRafterPositionsMM: ventLayout.positions };
   const addedLines = buildSummaryAddedItemLines(addedItems, m);
   const isExcluded = key => String(key || '').startsWith('extra:')
     ? !!addedLines.find(row => row.key === key)?.extraExcluded : !!exclusions[key];
@@ -628,6 +632,7 @@ const hippedGeomEarly = isHippedLeanToEarly
         inputs.specifiedSideSoffitMM ?? null,
     })
   : null;
+  const hippedVentLayout=buildHippedLeanToVentLayout(hippedGeomEarly,isHippedLeanToEarly?inputs.hippedVentQuantities:null);
   const centralTrussCosts = buildCentralBossTrussCosts({geometry:hippedGeomEarly,materials:m});
   const timberSpacing   = Number(m.rafter_spacing_mm ?? 665);
   const timberFirstCtr  = Number(m.rafter_first_center_mm ?? 690);
@@ -809,8 +814,14 @@ const raftersTotal_m = isHippedLeanToEarly
     ) / 1000
   : (raftersCount * timberRafterLenMM) / 1000;
 
-// Total Steico length = rafters + wallplate
-let steicoTotal_m = raftersTotal_m + wallplate_m;
+const ventNoggins = ventLayout.noggins ?? [];
+const nogginJoistM = ventNoggins.reduce((sum, row) => sum + row.quantity * row.lengthMM / 1000, 0);
+const nogginPlyM2 = ventNoggins.reduce((sum, row) =>
+  sum + row.quantity * row.faceplatesPerNoggin * row.lengthMM * row.faceHeightMM / 1e6, 0
+);
+
+// Pool vent noggins with the existing orders before rounding to stock.
+const steicoTotal_m = raftersTotal_m + wallplate_m + nogginJoistM;
 
 // Pull price & weight per metre from materials
 const steicoPricePerM = Number(m.steico?.price_per_m ?? 0);
@@ -851,7 +862,7 @@ const ringBeamUpstands_m2 =
 const pir50Upstands_m2 = integratedRingBeam.quantities.pir50AreaM2;
 
 // Total 9 mm ply area used
-const totalPly9_m2 = soffitStrip_m2 + wallplateFace_m2 + ringBeamUpstands_m2;
+const totalPly9_m2 = soffitStrip_m2 + wallplateFace_m2 + ringBeamUpstands_m2 + nogginPlyM2;
 
 // 9 mm ply pricing/weight from materials
 const ply9PricePerM2 = Number(m.ply9mm?.price_per_m2 ?? 0);
@@ -997,7 +1008,7 @@ const lathWeightPerM = Number(m.chamferLath?.weight_kg_per_m ?? 0);
     ...(centralTrussCosts?.valid ? [centralTrussCosts.closureLine] : []),
     {
       key: "steico_220_total_m",
-      label: "Steico 220 I-Joists",
+      label: ventNoggins.length ? "Steico 220 I-Joists (incl. vent noggins)" : "Steico 220 I-Joists",
       qty: Number(steicoTotal_m.toFixed(2)), // total metres
       units: "m",
       order_qty: steicoOrderQty, // number of 12m bars
@@ -1024,7 +1035,7 @@ const lathWeightPerM = Number(m.chamferLath?.weight_kg_per_m ?? 0);
     },
 {
   key: "ply9mm_strips_total_m2",
-  label: centralTrussCosts?.valid ? "9mm Structural Ply (ring-beam + truss gussets)" : "9mm Structural Ply (ring-beam + wallplate assembly)",
+  label: ventNoggins.length ? "9mm Structural Ply (incl. vent noggin faceplates)" : centralTrussCosts?.valid ? "9mm Structural Ply (ring-beam + truss gussets)" : "9mm Structural Ply (ring-beam + wallplate assembly)",
   qty: Number(totalPly9_m2.toFixed(2)),           // m² actually used
   units: "m²",
   order_qty: ply9OrderQty,                        // number of sheets to order
@@ -1232,6 +1243,8 @@ const metalManualLines = summaryEdgeBOM.lines;
 // Map whatever is in localStorage(leanToInputs) into the canonical shape
 // that buildLeanToTotals() expects (same as LeanToLanding).
 const totalsInput = {
+  roofVentQuantities:inputs.roofVentQuantities,
+  roofVentOffsetsMM:inputs.roofVentOffsetsMM,
   leanToRafterPositionsMM:inputs.leanToRafterPositionsMM,
   hippedRafterPositionsMM:inputs.hippedRafterPositionsMM,
   bossArrangement: inputs.bossArrangement ?? "offset",
@@ -1593,8 +1606,9 @@ if (k === "ply18mm_wallplate_infill") {
 if (k === "slab100") {
   const useHippedAudit =
     isHippedLeanToEarly && hippedInsulationIntegration?.valid;
+  const netPirAreaM2 = useHippedAudit ? Math.max(0,hippedInsulationIntegration.pir100.netAreaM2-hippedVentLayout.areaM2) : 0;
   const areaM2 = useHippedAudit
-    ? Number(hippedInsulationIntegration.pir100.orderAreaM2)
+    ? (hippedVentLayout.areaM2>0 ? netPirAreaM2*(1+Number(m?.slab100_wastage_pct??m?.pir50?.waste_pct??5)/100) : Number(hippedInsulationIntegration.pir100.orderAreaM2))
     : Number(line.qty ?? 0);
   const orderQty = useHippedAudit
     ? Number(hippedInsulationIntegration.pir100.orderQty)
@@ -1619,8 +1633,8 @@ if (k === "slab100") {
   if(useHippedAudit){
     const rate=resolvePir100SheetRate(m),supplied=pricePir100SheetAllowance({areaM2,rate});
     if(supplied.valid)return {...line,label:'100mm PIR insulation (sheet)',name:'100mm PIR insulation (sheet)',_k:'slab100 100mm PIR insulation (sheet)',
-      weight_kg:Number((hippedInsulationIntegration.pir100.netAreaM2*weightPerM2).toFixed(2)),
-      qty:Number(areaM2.toFixed(3)),used_m2:hippedInsulationIntegration.pir100.netAreaM2,units:'m²',unit:'m²',unitLabel:'m²',
+      weight_kg:Number((netPirAreaM2*weightPerM2).toFixed(2)),
+      qty:Number(areaM2.toFixed(3)),used_m2:netPirAreaM2,units:'m²',unit:'m²',unitLabel:'m²',
       unitPrice:rate.sheetPrice/rate.sheetAreaM2,priceEach:rate.sheetPrice/rate.sheetAreaM2,
       orderQty:supplied.sheets,order_qty:supplied.sheets,qty_order:supplied.sheets,orderUnit:'Sheets',
       line:supplied.cost,cost:supplied.cost,total:supplied.cost,totalCost:supplied.cost,total_cost:supplied.cost,
@@ -1995,7 +2009,7 @@ if(isHippedLeanToEarly&&automaticRoofTilingAudit?.result&&!automaticRoofTilingAu
  });
 }
 
-const coveringPricingErrors = [];
+const coveringPricingErrors = [...hippedVentLayout.errors];
 let carriageLine;
 if (extraCovering) {
   const metro = extraCovering === 'metrotile';
@@ -2368,7 +2382,7 @@ const miscLinesWithUsedWeights = [...(miscLinesWithWeights || [])]
 const integratedMiscellaneousAudit = isHippedLeanToEarly ? buildHippedMiscellaneousIntegrationAudit({
   geometry: hippedGeomEarly, roofInputs: inputs, materials: m,
   internalAreaM2: hippedInsulationIntegration?.superQuilt?.geometricAreaM2,
-  externalAreaM2: externalUsedM2,
+  externalAreaM2: Math.max(0, externalUsedM2 - ventLayout.areaM2),
   tileQuantity: automaticRoofTilingAudit?.result?.tileQuantityOrdered,
   tileSystem: automaticRoofTilingAudit?.productId,
   legacyLines: miscLinesWithUsedWeights,
@@ -2971,6 +2985,8 @@ const miscTotals = sectionTotals(miscLinesForSectionAdjusted, false);
   const installedWeightKg = materialsWeightKg + plasterboardWeightKg;
   return {
     sections, supplyExclusions:exclusions, pricingSections, materialsCostForPricing, materialsBaseCost,leanToRafterLayout,
+    ventNogginMaterials: { joistM: nogginJoistM, plyM2: nogginPlyM2,
+      cost: round(nogginJoistM * steicoPricePerM + nogginPlyM2 * ply9PricePerM2) },
     lathUseBreakdown:{internalM:Math.max(0,internalLathsM),externalM:Math.max(0,summaryExternalFixingLathM)+hipRidgeSummaryContribution.additionalLathM,fittedM:Math.max(0,ringBeamOuterLathsM)+Math.max(0,ringBeamUpstandLathsM)},
     centralTrussCosts, coveringPricingErrors,
     wallplateIntegrationAudit,
@@ -2979,6 +2995,7 @@ const miscTotals = sectionTotals(miscLinesForSectionAdjusted, false);
     integratedPlasticsAudit, integratedGutterAudit,
     manufactureGeometry: isHippedLeanToEarly ? hippedGeomEarly : null,
     materialsWeightKg, plasterboardWeightKg, installedWeightKg,
+    plasterboard: { sheets: Math.ceil(plasterboardAreaM2 / 2.88) },
     timberLinesAdjusted, tilesLinesAdjusted, plasticsLinesAdjusted, metalLinesAdjusted, gutterLinesAdjusted,
     miscLinesForSection, miscLinesForSectionAdjusted,
     timberTotals, tilesTotals, plasticsTotals, metalTotals, gutterTotals, miscTotals,

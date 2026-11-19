@@ -1,7 +1,9 @@
+import { buildLeanToVentLayout } from '../geometry/leanToVentLayout';
 import {buildHippedRoofPlaneCovering} from './hippedRoofPlaneCovering';
 import { calculateLeanToGeometry } from "../geometry/leanToGeometry";
 import { calculateHippedLeanToGeometry } from "../geometry/hippedLeanToGeometry";
-import { calculateRoofTiling } from "./facetTilingCalc";
+import {buildHippedLeanToVentLayout} from "../geometry/hippedLeanToVentLayout";
+import { calculateRoofTiling, calculateOpeningTileDeduction } from "./facetTilingCalc";
 
 export function resolveAutomaticTileProduct(tileSystem) {
   const normalized = String(tileSystem || "britmet")
@@ -91,9 +93,28 @@ export function buildAutomaticRoofTiling({
   };
 
   let geometry = null;
+  let ventFacets;
 
   if (roofStyle === "leanTo") {
     geometry = calculateLeanToGeometry(commonGeometryInputs);
+    const layout = buildLeanToVentLayout(roofInputs, materials);
+    if (layout.error) return { roofStyle, productId, geometry, result: null, errors: [layout.error] };
+    if (layout.openings.length && geometry.facets.length) {
+      const { leftAllowanceMM, finishedTileSlopeMM } = geometry.tilingGeometry;
+      const internalSlope = Number(commonGeometryInputs.projectionMM) / Math.cos(Number(commonGeometryInputs.pitchDeg) * Math.PI / 180);
+      geometry.mainFacet = {
+        ...geometry.mainFacet,
+        openings: layout.openings.map(opening => ({
+          ...opening,
+          xMM: opening.xMM + leftAllowanceMM,
+          yMM: opening.yMM + finishedTileSlopeMM - internalSlope,
+        })),
+      };
+      geometry.facets = [geometry.mainFacet];
+      // The opening-aware calculator accepts rectangular facets by dimensions.
+      const { outline, ...rectangle } = geometry.mainFacet.geometry.tiling;
+      ventFacets = [{ ...geometry.mainFacet, geometry: { ...geometry.mainFacet.geometry, tiling: rectangle } }];
+    }
   } else if (roofStyle === "hippedLeanTo") {
     const hippedSides = resolveHippedSides(roofInputs);
 
@@ -138,10 +159,32 @@ export function buildAutomaticRoofTiling({
 
   const coveringGeometry=roofStyle==='hippedLeanTo'?buildHippedRoofPlaneCovering({geometry,tileOverhangMM:commonGeometryInputs.tileOverhangMM}):null;
   if(coveringGeometry&&!coveringGeometry.valid)return {roofStyle,productId,geometry,result:null,coveringGeometry,errors:coveringGeometry.errors};
-  const result = calculateRoofTiling({
+  let result = calculateRoofTiling({
     product: productId,
-    facets: coveringGeometry?.facets??geometry.facets,
+    facets: ventFacets ?? coveringGeometry?.facets ?? geometry.facets,
   });
+
+  if(roofStyle==='hippedLeanTo'&&roofInputs.hippedVentQuantities){
+    const layout=buildHippedLeanToVentLayout(geometry,roofInputs.hippedVentQuantities);
+    if(layout.errors.length)return {roofStyle,productId,geometry,result:null,errors:layout.errors};
+    if(layout.openings.length&&!result.errors.length){
+      const ids={front:geometry.frontFacet?.id,left:geometry.leftFacet?.id,right:geometry.rightFacet?.id};
+      const facets=result.facets.map(row=>{
+        const openings=layout.openings.filter(vent=>ids[vent.facet]===row.facet.id);
+        const openingAreaM2=openings.reduce((sum,vent)=>sum+vent.areaM2,0);
+        const deduction=calculateOpeningTileDeduction({openings,product:productId,pitchDeg:row.facet.pitchDeg});
+        const tileQuantityRaw=Math.max(0,row.tileQuantityRaw-deduction);
+        return {...row,openingAreaM2,tileQuantityRaw,tileQuantityOrdered:Math.ceil(tileQuantityRaw)};
+      });
+      const tileQuantityRaw=Number(facets.reduce((sum,row)=>sum+row.tileQuantityRaw,0).toFixed(6));
+      const tileQuantityRounded=Math.ceil(tileQuantityRaw);
+      const tileQuantityOrdered=tileQuantityRounded+result.orderAllowanceTiles;
+      const perTile=result.tileQuantityOrdered?result.fixingQuantity/result.tileQuantityOrdered:0;
+      result={...result,facets,tileQuantityRaw,tileQuantityRounded,tileQuantityOrdered,
+        openingAreaM2:layout.areaM2,netFacetAreaM2:Math.max(0,result.grossFacetAreaM2-layout.areaM2),
+        fixingQuantity:tileQuantityOrdered*perTile};
+    }
+  }
 
   return {
     roofStyle,

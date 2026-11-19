@@ -2,9 +2,11 @@ import {filterChecklistSupplies} from '../lib/Calculations/checklistSupplyExclus
 import React from 'react';
 import { buildSummaryIdiotList } from '../lib/Calculations/summaryIdiotList';
 
-export default function SummaryIdiotList({ model, materials, inputs = {}, checklist: suppliedChecklist, compact = false }) {
-  const checklist = filterChecklistSupplies(suppliedChecklist || buildSummaryIdiotList(model, materials),model);
-  const names = { assemblies:'Manufactured components', laths:'Loose laths', timber:'Timber', tiles:'Tiles', plastics:'Plastics', metal:'Metal accessories', gutters:'Guttering', misc:'Miscellaneous' };
+export default function SummaryIdiotList({ model, materials, inputs = {}, checklist: suppliedChecklist, compact = false, glazingRows = [] }) {
+  const baseChecklist = suppliedChecklist || buildSummaryIdiotList(model, materials);
+  const sections = glazingRows.length ? {...baseChecklist.sections, glazing: glazingRows} : baseChecklist.sections;
+  const checklist = filterChecklistSupplies({...baseChecklist, sections}, model);
+  const names = { assemblies:'Manufactured components', laths:'Loose laths', timber:'Timber', tiles:'Tiles', plastics:'Plastics', metal:'Metal accessories', gutters:'Guttering', glazing:'Glazing Elements', misc:'Miscellaneous' };
   const plastics = inputs.plasticsColor ?? inputs.plastics_color ?? 'White';
   const gutterColour = inputs.gutterColor ?? inputs.gutter_color ?? 'White';
   const tileSystem = inputs.tileSystem ?? inputs.tile_system ?? '';
@@ -13,7 +15,7 @@ export default function SummaryIdiotList({ model, materials, inputs = {}, checkl
   if(compact)return <div className="summary-idiot-list sil-compact">
     <div className="sil-compact-title"><h2>Roof Checklist</h2><span>{inputs.widthMM} × {inputs.projMM}mm · {inputs.pitchDeg}° · {tileName} {tileColour}</span></div>
     <div className="sil-compact-meta">{inputs.customerName||'—'} · {inputs.quoteRef||'—'} · Plastics: {plastics} · Gutters: {gutterColour} {inputs.gutterProfile||''} · {checklist.installedWeightKg.toFixed(1)}kg incl. plasterboard{checklist.weightProvisional?' · weight review pending':''}</div>
-    <table className="sil-compact-table"><tbody>{['assemblies','laths','timber','tiles','plastics','metal','gutters','misc'].flatMap(key=>checklist.sections[key]?.length>0?[
+    <table className="sil-compact-table"><tbody>{['assemblies','laths','timber','tiles','plastics','metal','gutters','glazing','misc'].flatMap(key=>checklist.sections[key]?.length>0?[
       <tr key={key} className="sil-section-title"><th colSpan="3">{names[key]}</th></tr>,
       ...checklist.sections[key].map((row,index)=><tr key={`${key}-${index}`} className={row.informational?'sil-information':''}><td className="sil-compact-tick">{row.informational?'—':'☐'}</td><td>{row.item}</td><td className="sil-compact-qty">{row.displayQty??`${Number(row.qty.toFixed(3))} ${row.units}`}</td></tr>)
     ]:[])}</tbody></table>
@@ -26,7 +28,7 @@ export default function SummaryIdiotList({ model, materials, inputs = {}, checkl
     <div className="sil-details"><b>Tiles:</b> {tileSystem} {tileColour} · <b>Plastics:</b> {plastics} · <b>Gutters:</b> {gutterColour} {inputs.gutterProfile ?? inputs.gutter_profile ?? ''}</div>
     <div className="sil-details"><b>Installed roof weight, including plasterboard:</b> {checklist.installedWeightKg.toFixed(1)} kg</div>
     <div className="sil-note">{checklist.despatchOnly?'Check off finished assemblies and loose goods loaded for delivery. Summary-excluded supplies are omitted. Plasterboard marked NOT SUPPLIED is a customer buying guide.':'Loose materials and site fixings must be packed. Factory consumables are omitted.'}</div>
-    <div className="sil-grid">{['assemblies','laths','timber','tiles','plastics','metal','gutters','misc'].map(key=>checklist.sections[key]?.length>0&&
+    <div className="sil-grid">{['assemblies','laths','timber','tiles','plastics','metal','gutters','glazing','misc'].map(key=>checklist.sections[key]?.length>0&&
       <section className="sil-box" key={key}><h3>{names[key]}</h3>{checklist.sections[key].map((row,index)=><div className={`sil-row${row.informational?' sil-information':''}`} key={`${row.key}-${index}`}><span className="sil-tick">{row.informational?'—':'☐'}</span><span className="sil-item">{row.item}</span><b className="sil-qty">{Number(row.qty.toFixed(3))} {row.units}</b></div>)}</section>)}</div>
     <div className="sil-signoff">Checked by: ____________________ &nbsp; Date: ______________</div>
     <style>{`

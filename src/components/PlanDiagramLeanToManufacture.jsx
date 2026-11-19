@@ -7,6 +7,18 @@ const round = (v, dp = 0) => {
   return Math.round((Number(v) || 0) * p) / p;
 };
 
+// Stagger labels only when their horizontal footprints would collide.
+function dimensionRows(labels) {
+  const rightEdges = [];
+  return labels.map(label => {
+    const halfWidth = label.text.length * 4.25 + 4;
+    let row = rightEdges.findIndex(right => right <= label.x - halfWidth);
+    if (row < 0) row = rightEdges.length;
+    rightEdges[row] = label.x + halfWidth;
+    return { ...label, row };
+  });
+}
+
 export default function PlanDiagramLeanToManufacture({
   iw, ip,
   sft, lip,
@@ -15,6 +27,7 @@ export default function PlanDiagramLeanToManufacture({
   soffit, frameOn,
   leftOH = 0, rightOH = 0,
   leftWall = false, rightWall = false,
+  roofVentLayout,
   rafterSpacing = 665, firstCentre = 690, rafterPositionsMM:manualRafterPositionsMM=null,
   outlet = "left", gutterColor = "black",
   pitchDeg = 15,
@@ -114,6 +127,20 @@ const rafterBays = rafterPositionsMM
     spacingMM: rafterPositionsMM[index + 1] - startMM,
   }));
 
+  const eavesY = oy + oh;
+  const centreLabels = dimensionRows(centres.map(mm => ({
+    x: ix + mm * scale,
+    text: String(Number((mm + leftDelta).toFixed(3))),
+  })));
+  const bayLabels = dimensionRows(rafterBays.map(bay => ({
+    x: ix + (bay.startMM + bay.endMM) / 2 * scale,
+    text: String(round(bay.spacingMM, 0)),
+  })));
+  const rowHeight = 17;
+  const centreY = eavesY + 34;
+  const bayY = centreY + rowHeight * Math.max(0, ...centreLabels.map(label => label.row)) + 23;
+  const externalWidthY = bayY + rowHeight * Math.max(0, ...bayLabels.map(label => label.row)) + 28;
+
   const rafterStroke = Math.max(2, Math.min(6, 0.005 * iw_px + 2));
   const labelFont = "18px Arial, sans-serif";
   const faint = "#6b7280";
@@ -164,7 +191,7 @@ const rafterBays = rafterPositionsMM
     <svg
   width="100%"
   height="100%"
-  viewBox={`0 0 ${VB_W} ${VB_H}`}
+  viewBox={`0 0 ${VB_W} ${Math.max(VB_H, externalWidthY + 12)}`}
   preserveAspectRatio="xMidYMid meet"
   role="img" aria-label="Lean-To manufacturing roof plan"
 >
@@ -206,48 +233,40 @@ const rafterBays = rafterPositionsMM
         strokeWidth={rafterStroke}
       />
 
-      {/* Cumulative rafter position */}
-      <text
-        x={x}
-        y={oy + oh + 16}
-        textAnchor="middle"
-        style={{
-          font: labelFont,
-          fontWeight: 700,
-        }}
-        fill="#111827"
-      >
-        {dim(mm)}
-      </text>
     </g>
   );
 })}
 
-{/* Individual rafter bay spacings */}
-{rafterBays.map((bay, i) => {
-  const x1 = ix + bay.startMM * scale;
-  const x2 = ix + bay.endMM * scale;
-  const midX = (x1 + x2) / 2;
-
-  return (
-    <text
-      key={`bay-${i}`}
-      x={midX}
-      y={oy + oh - 10}
-      textAnchor="middle"
-      style={{ font: "16px Arial, sans-serif", fontWeight:700 }}
-fill="#111827"
-    >
-      {dim(bay.spacingMM)}
-    </text>
-  );
-})}
+      {roofVentLayout?.openings.map(opening => {
+        const x = ix + opening.xMM * scale;
+        const y = oy + oh - ip_px - soffit * scale + opening.planYMM * scale;
+        const width = opening.widthMM * scale;
+        const height = opening.planHeightMM * scale;
+        return <g key={opening.id} aria-label={`Roof vent ${opening.widthMM} × ${opening.heightMM} mm`}>
+          <rect {...{x,y,width,height}} fill="#dbeafe" stroke="#111827" strokeWidth="2" />
+          <path d={`M ${x} ${y+height} L ${x+width/2} ${y} L ${x+width} ${y+height}`} fill="none" stroke="#111827" />
+        </g>;
+      })}
 
 
+      <g fontFamily="Arial, sans-serif" fontSize="13" fill="#111827">
+        {centreLabels.length > 0 && <text x={ox - 10} y={centreY} textAnchor="end" fontSize="11">Centres from LH end</text>}
+        {centreLabels.map(({x,text,row}, index) => {
+          const y = centreY + row * rowHeight;
+          return <g key={index}>
+            <line x1={x} y1={eavesY+2} x2={x} y2={y-12} stroke="#64748b" strokeWidth=".75" />
+            <text x={x} y={y} textAnchor="middle" stroke="white" strokeWidth="3" paintOrder="stroke">{text}</text>
+          </g>;
+        })}
+        <text x={ox - 10} y={bayY} textAnchor="end" fontSize="11">Bay widths</text>
+        {bayLabels.map(({x,text,row}, index) =>
+          <text key={index} x={x} y={bayY + row * rowHeight} textAnchor="middle">{text}</text>
+        )}
+      </g>
 
       {/* --- dimensions --- */}
       <DimX x1={ix} x2={ix + iw_px} y={oy - 8} text={`IW: ${dim(iw)} mm`} />
-      <DimX x1={ox} x2={ox + ow} y={oy + oh + 55} text={`EW: ${dim(extW)} mm`} />
+      <DimX x1={ox} x2={ox + ow} y={externalWidthY} text={`EW: ${dim(extW)} mm`} />
       <DimY x={ox - 60} y1={oy} y2={oy + oh} text={`EP: ${dim(extP)} mm`} />
 <DimY x={ox + ow + 65} y1={oy + oh - ip_px - (soffit * scale)} y2={oy + oh - (soffit * scale)} text={`IP: ${dim(ip)} mm`} />
 

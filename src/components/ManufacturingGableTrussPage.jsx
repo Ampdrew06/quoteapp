@@ -39,7 +39,13 @@ export default function ManufacturingGableTrussPage({schedule:s,assemblyNotes}) 
       <Card title={`45mm rafter-offcut closures · ×${s.componentCounts.closures}`} points={j.closure.points}/>
     </div>
     <p>Dimensions are cut edge lengths. Red values on joint pieces are included corner angles; member labels give saw settings. Apex saw setting {s.geometry.pitchDeg.toFixed(1)}° off square. 220mm joists with current 45mm flanges. Glue and fix closures using the established workshop method.</p>
-    <p>{assemblyNotes || 'Rear truss: 9mm faceplate and wall packers. Intermediate trusses: PIR cradles on both faces. End trusses: inward faces only. Front outer face is detailed on the following page.'}</p>
-    <style>{`.gt-page .gt-card{border:1px solid #cbd5e1;border-radius:6px;padding:8px;break-inside:avoid}.gt-page .gt-card h3{font-size:12px;margin:0 0 3px}.gt-members{display:grid;gap:8px}.gt-members svg{height:48mm!important}.gt-joints{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:8px}.gt-joints svg{height:46mm!important}.gt-joints .gt-card:last-child{grid-column:1/-1}.gt-joints .gt-card:last-child svg{height:32mm!important}`}</style>
+    <p>{assemblyNotes || 'Rear truss: 9mm faceplate and wall packers. Intermediate trusses: PIR cradles on both faces. End trusses: inward faces only.'}</p>
+    <div className="gt-card gt-front-face">
+      <h3>Front truss face · full outer 9mm face</h3>
+      <WorkshopShape points={s.frontFace.points} title="Front truss outer face" showAngles={false}/>
+      <p>Continue the face over both members and the gusset outline, leaving the A-frame opening clear. The outer gusset is included in this single layer, with no duplicate layer.</p>
+      <p>Front fascia: 300mm stock on the slopes. Cut one central box-end blank to fit the gusset. The exact box-end outline remains a workshop detail.</p>
+    </div>
+    <style>{`.gt-page .gt-card{border:1px solid #cbd5e1;border-radius:6px;padding:5px 8px;break-inside:avoid}.gt-page .gt-card h3{font-size:12px;margin:0 0 3px}.gt-members{display:grid;gap:5px}.gt-members svg{height:39mm!important}.gt-joints{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin-top:5px}.gt-joints svg{height:38mm!important}.gt-joints .gt-card:last-child{grid-column:1/-1}.gt-joints .gt-card:last-child svg{height:24mm!important}.gt-front-face svg{height:43mm!important}.gt-page p{margin:5px 0}.gt-front-face p:last-child{margin-bottom:0}`}</style>
   </section>;
 }

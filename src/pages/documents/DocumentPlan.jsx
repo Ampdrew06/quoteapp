@@ -1,3 +1,5 @@
+import {buildHippedLeanToVentLayout} from '../../lib/geometry/hippedLeanToVentLayout';
+import { buildLeanToVentLayout } from '../../lib/geometry/leanToVentLayout';
 import React from 'react';
 import {withRoofFrameMaterials} from '../../lib/roofFrameThickness';
 import {buildGableGeometry} from '../../lib/geometry/gableGeometry';
@@ -10,17 +12,23 @@ import {buildCentralBossDesign} from '../../lib/geometry/centralBossDesign';
 import {computeLeanToManufactureGeometry} from '../../lib/leanToManufactureGeometry';
 import {GableCustomerPlan} from '../gable/GableQuoteResults';
 import EdwardianCustomerPlan from '../edwardian/EdwardianCustomerPlan';
-import VictorianCustomerPlan from '../victorian/VictorianCustomerPlan';
+import VictorianCustomerPlan,{VictorianSurveyFit} from '../victorian/VictorianCustomerPlan';
 import VictorianHippedCustomerPlan from '../victorian-hipped/VictorianHippedCustomerPlan';
 import PlanDiagramHippedLeanTo from '../../components/PlanDiagramHippedLeanTo';
 import PlanDiagramLeanTo from '../../components/PlanDiagramLeanTo';
 
+// Add the Double Hipped Edwardian quotation and editable outline after its Manufacture Book is complete.
 const builders={gable:[buildGableGeometry,GableCustomerPlan],edwardian:[buildEdwardianGeometry,EdwardianCustomerPlan],victorian:[buildVictorianGeometry,VictorianCustomerPlan],'victorian-five':[buildVictorianFiveGeometry,VictorianCustomerPlan],'victorian-hipped':[buildVictorianHippedGeometry,VictorianHippedCustomerPlan]};
-export function documentPlan(family,inputs,materials) {
+export function documentPlan(family,inputs,materials,{separateOutlineStrokes=false}={}) {
  if (builders[family]) {
   const [build,Plan]=builders[family];
   const geometry=build({inputs,materials});
-  return {geometry, drawing:geometry.valid?<Plan geometry={geometry}/>:null};
+  return {
+   geometry,
+   drawing:geometry.valid?<Plan geometry={geometry} separateOutlineStrokes={separateOutlineStrokes} showSurvey={false}/>:null,
+   survey:geometry.valid&&Plan===VictorianCustomerPlan&&geometry.customFacetGeometry?.requiresManufactureReview
+    ? <VictorianSurveyFit geometry={geometry}/> : null,
+  };
  }
  if(family!=='lean-to')return {};
  const i=inputs,m=withRoofFrameMaterials(i,materials);
@@ -33,8 +41,9 @@ export function documentPlan(family,inputs,materials) {
  const sft=m.side_frame_thickness_mm;
  if(i.roofStyle!=='hippedLeanTo'){
   const geometry=computeLeanToManufactureGeometry({internalProjectionMM:ip,pitchDeg,soffitDepthMM:soffit,frameThicknessMM:sft});
-  return {geometry,drawing:<PlanDiagramLeanTo {...common} sft={sft}
-   rafterPositionsMM={i.leanToRafterPositionsMM} leftSupportDepthMM={Number(i.leftSupportDepthMM??70)} rightSupportDepthMM={Number(i.rightSupportDepthMM??70)}
+  const roofVentLayout=buildLeanToVentLayout(i,m);
+  return {geometry,roofVentLayout,drawing:<PlanDiagramLeanTo {...common} separateOutlineStrokes={separateOutlineStrokes} sft={sft}
+   roofVentLayout={roofVentLayout} rafterPositionsMM={i.leanToRafterPositionsMM} leftSupportDepthMM={Number(i.leftSupportDepthMM??70)} rightSupportDepthMM={Number(i.rightSupportDepthMM??70)}
    lip={Number(m.fascia_lip_mm??25)} soffit={soffit} frameOn={Number(m.frame_on_mm??70)} leftOH={leftOH} rightOH={rightOH}
    outlet={i.gutterOutlet??i.gutter_outlet} gutterColor={i.gutterColor??i.gutter_color}/>};
  }
@@ -45,7 +54,7 @@ export function documentPlan(family,inputs,materials) {
   leftWall,rightWall,leftOverhangMM:leftOH,rightOverhangMM:rightOH,materials:m});
  const c=central?buildCentralBossDesign({inputs:{...i,widthMM:iw,projMM:ip,pitchDeg,soffit_mm:soffit},materials:m}):null;
  const externalWidthMM=c?.valid?c.externalWidthMM:geometry.externalWidthMM;
- return {geometry,drawing:<PlanDiagramHippedLeanTo {...common} isAdmin bossArrangement={bossArrangement} hippedSides={hippedSides}
+ return {geometry,drawing:<PlanDiagramHippedLeanTo {...common} roofVentOpenings={buildHippedLeanToVentLayout(geometry,i.hippedVentQuantities).openings} separateOutlineStrokes={separateOutlineStrokes} isAdmin bossArrangement={bossArrangement} hippedSides={hippedSides}
   leftHipWidth={central?iw/2:geometry.leftPitchDerivedHipWidthMM??Number(i.leftHipWidthMM??1000)}
   rightHipWidth={central?iw/2:geometry.rightPitchDerivedHipWidthMM??Number(i.rightHipWidthMM??1000)}
   frontRafterLayout={geometry.frontRafterLayoutV2} leftSidePitchDeg={central?c?.sidePitchDeg:geometry.leftSidePitchDeg}

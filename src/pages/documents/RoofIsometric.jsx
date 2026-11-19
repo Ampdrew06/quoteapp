@@ -41,7 +41,7 @@ export function buildIllustrationSurface({family,geometry:g={},inputs:i={}}){
 }
 const project=p=>({x:.86*p.x-.65*p.y,y:.28*p.x+.4*p.y-p.z});
 const shade=(hex,factor)=>'#'+hex.slice(1).match(/../g).map(v=>Math.max(0,Math.min(255,Math.round(parseInt(v,16)*factor))).toString(16).padStart(2,'0')).join('');
-export default function RoofIsometric({family,geometry,inputs}){
+export default function RoofIsometric({family,geometry,inputs,roofVentLayout}){
  const surface=buildIllustrationSurface({family,geometry,inputs});
  if(!surface.valid)return null;
  const colour=inputs.tileColour??inputs.tileColor??inputs.tile_color;
@@ -66,11 +66,25 @@ export default function RoofIsometric({family,geometry,inputs}){
     for(let u=Math.floor(minU/tileWidth)*tileWidth+(row%2)*tileWidth/2;u<maxU;u+=tileWidth)
      lines.push(segment(f,{u,v},{u,v:Math.min(v+gauge,maxV)},row+':'+u));
    }
+   const vents=f.id==='front' ? roofVentLayout?.openings ?? [] : [];
+   const projection=Number(geometry?.projectionMM??inputs.internalProjectionMM??inputs.projMM);
    return <g key={f.id}>
     {f.vertices.map((a,n)=>{const b=f.vertices[(n+1)%f.vertices.length];return <polygon key={n} points={poly([a,b,{...b,z:b.z-90},{...a,z:a.z-90}])} fill={fascia} stroke="#555" strokeWidth=".5"/>;})}
     <defs><clipPath id={clip}><polygon points={poly(f.vertices)}/></clipPath></defs>
     <polygon points={poly(f.vertices)} fill={shade(fill,.86+index*.05)} stroke="#333" strokeWidth="1"/>
-    <g clipPath={`url(#${clip})`}>{lines}</g>
+    <g clipPath={`url(#${clip})`}>
+     {lines}
+     {vents.map(vent=>{
+      const left=vent.xMM,right=left+vent.widthMM,top=projection-vent.planYMM,bottom=top-vent.planHeightMM;
+      const inset=14;
+      return <g key={vent.id} aria-label={`Roof vent ${vent.widthMM} × ${vent.heightMM} mm`}>
+       <polygon points={poly([f.local(left,bottom),f.local(right,bottom),f.local(right,top),f.local(left,top)])}
+        fill="#263746" stroke="#182630" strokeWidth="1.3"/>
+       <polygon points={poly([f.local(left+inset,bottom+inset),f.local(right-inset,bottom+inset),f.local(right-inset,top-inset),f.local(left+inset,top-inset)])}
+        fill="#9dbed4" stroke="#d0e4ed" strokeWidth=".7"/>
+      </g>;
+     })}
+    </g>
    </g>;
   })}
  </svg><figcaption>Illustrative roof view · colours approximate</figcaption></figure>;

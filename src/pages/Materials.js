@@ -3,6 +3,7 @@
 // All geometry, quantities and coverage calculations live in src/lib/Calculations/*
 // src/pages/Materials.js
 import React, { useState, useEffect, useMemo } from "react";
+import { defaultGlazingSettings, glazingElements } from "../lib/glazingOptions";
 import NavTabs from "../components/NavTabs";
 import {
   defaultMaterials,
@@ -364,8 +365,15 @@ const importMaterialsBackup = (event) => {
   reader.readAsText(file);
 };
   const save = () => {
+  const ventMargin = m.glazing_vent_margin_pct ?? defaultGlazingSettings.glazing_vent_margin_pct;
+  const margin = Number(ventMargin);
+  if (ventMargin === "" || !Number.isFinite(margin) || margin < 0 || margin >= 100) {
+    alert("Enter a vent gross margin from 0% to less than 100%.");
+    return;
+  }
   const next = {
     ...m,
+    glazing_vent_margin_pct: margin,
     delivery_flat: Number(m.delivery_flat ?? 0),
     profit_pct: Number(m.profit_pct ?? 0),
     vat_rate: Number(m.vat_rate ?? 0.2),
@@ -1210,6 +1218,55 @@ setHasUnsavedChanges(false);
       </Section>
 
       
+
+<Section title="Glazing Options">
+  <table style={{ width: "100%", textAlign: "left" }}>
+    <thead>
+      <tr><th>Element</th><th>Supplier code</th><th>Cost (£ ex VAT)</th></tr>
+    </thead>
+    <tbody>
+      {glazingElements.map(({ key, label, code, cost }) => (
+        <tr key={key}>
+          <td>{label}</td>
+          <td>{code || "—"}</td>
+          <td>
+            <input
+              aria-label={`${label} cost`}
+              type="number"
+              min="0"
+              step="0.01"
+              value={m[key] ?? cost}
+              onChange={event => {
+                const value = event.target.valueAsNumber;
+                if (event.target.value === "") set(key, "");
+                else if (Number.isFinite(value) && value >= 0) set(key, value);
+              }}
+              style={{ width: 90 }}
+            />
+          </td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <div style={{ marginTop: 12 }}>
+    <label>
+      Vent gross margin (%){" "}
+      <input
+        type="number"
+        min="0"
+        max="99.99"
+        step="0.01"
+        value={m.glazing_vent_margin_pct ?? defaultGlazingSettings.glazing_vent_margin_pct}
+        onChange={event => set("glazing_vent_margin_pct", event.target.value)}
+        aria-describedby="vent-margin-help"
+        style={{ width: 90 }}
+      />
+    </label>
+    <p id="vent-margin-help" style={{ margin: "4px 0 0", fontSize: 13 }}>
+      Percentage of the vent selling price before VAT.
+    </p>
+  </div>
+</Section>
 
             {/* 4️⃣ PLASTICS — FASCIA & SOFFIT */}
 <Section title="Plastics — Fascia, Soffit & Ventilation">

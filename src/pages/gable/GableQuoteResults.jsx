@@ -1,15 +1,16 @@
+import QuotationOutline from '../../components/QuotationOutline';
 import React from 'react';
 import {buildGableQuotation} from '../../lib/Calculations/gableQuotation';
 import {getLabourPricingConfig,getDeliveryPricingConfig,getMarkupPricingConfig} from '../../lib/pricing';
 const card={background:'#fff',border:'1px solid #e5e7eb',borderRadius:12,padding:12,marginTop:16};
 const rounded=v=>Math.round(Number(v)),money=v=>'£'+Number(v).toFixed(2);
-export function GableCustomerPlan({geometry:g}){
+export function GableCustomerPlan({geometry:g,separateOutlineStrokes=false}){
  const scale=Math.min(560/g.externalWidthMM,430/g.externalProjectionMM),x=v=>125+(v+g.feet[0].hfcMM)*scale,y=v=>105+v*scale,left=x(-g.feet[0].hfcMM),right=x(g.widthMM+g.feet[1].hfcMM),bottom=y(g.externalProjectionMM),mid=x(g.widthMM/2);
  const dim=(x1,y1,x2,y2)=><line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#334155" markerStart="url(#gable-preview-arrow)" markerEnd="url(#gable-preview-arrow)"/>;
  return <svg viewBox="0 0 820 670" role="img" aria-label="Gable plan preview" style={{width:'100%',display:'block',border:'1px solid #f1f5f9',borderRadius:8}}>
  <defs><marker id="gable-preview-arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10" fill="none" stroke="#334155" strokeWidth="2"/></marker></defs>
- <rect x={left} y={y(0)} width={g.externalWidthMM*scale} height={g.externalProjectionMM*scale} fill="#f8fafc" stroke="#64748b"/>
- <rect x={x(0)} y={y(0)} width={g.widthMM*scale} height={g.projectionMM*scale} fill="none" stroke="#111827"/>
+ <QuotationOutline editable={separateOutlineStrokes} x={left} y={y(0)} width={g.externalWidthMM*scale} height={g.externalProjectionMM*scale} fill="#f8fafc" stroke="#64748b"/>
+ <QuotationOutline editable={separateOutlineStrokes} x={x(0)} y={y(0)} width={g.widthMM*scale} height={g.projectionMM*scale} fill="none" stroke="#111827"/>
  {g.layout.centresMM.map((centre,n)=><g key={n}><line x1={left} x2={right} y1={y(centre)} y2={y(centre)} stroke="#2563eb" strokeWidth="3"/>{n>0&&<text x={right+9} y={y(centre)+4} fontSize="12">{rounded(centre)}</text>}</g>)}
  <line x1={mid} x2={mid} y1={y(0)} y2={bottom} stroke="#111827" strokeWidth="3"/>
  <text x={x(g.widthMM/4)} y={y(g.projectionMM/2)-14} textAnchor="middle" fontWeight="bold" fontSize="17">{Number(g.pitchDeg).toFixed(1)}°</text><text x={x(g.widthMM*3/4)} y={y(g.projectionMM/2)-14} textAnchor="middle" fontWeight="bold" fontSize="17">{Number(g.pitchDeg).toFixed(1)}°</text>

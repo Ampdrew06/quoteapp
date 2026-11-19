@@ -1,3 +1,8 @@
+import HippedLeanToVentOptions from '../../components/HippedLeanToVentOptions';
+import {buildHippedLeanToVentLayout,hippedVentQuantitiesByProduct} from '../../lib/geometry/hippedLeanToVentLayout';
+import { buildLeanToVentLayout } from '../../lib/geometry/leanToVentLayout';
+import RoofVentOptions from '../../components/RoofVentOptions';
+import {addRoofVentPricing,calculateRoofVentPricing} from '../../lib/Calculations/roofVentPricing';
 import MetrotileCarriageField from "../../components/MetrotileCarriageField";
 import { tileColoursFor } from "../../lib/tileColours";
 import CustomerPicker from '../../components/CustomerPicker';
@@ -123,6 +128,9 @@ const grid2Responsive = {
   const [rightWall, setRightWall] = useState(false);
   const [leftSupportDepthMM, setLeftSupportDepthMM] = useState(70);
   const [rightSupportDepthMM, setRightSupportDepthMM] = useState(70);
+  const [roofVentOffsetsMM,setRoofVentOffsetsMM]=useState({});
+  const [hippedVentQuantities,setHippedVentQuantities]=useState({});
+  const [roofVentQuantities,setRoofVentQuantities]=useState({});
   const [roofStyle, setRoofStyle] = useState(location.state?.roofStyle || "leanTo");
   const [bossArrangement, setBossArrangement] = useState("offset");
   const isCentralBoss = roofStyle === "hippedLeanTo" && bossArrangement === "central";
@@ -188,6 +196,9 @@ useEffect(() => {
 }
 
     const stored = JSON.parse(raw) || {};
+    setRoofVentQuantities(stored.roofVentQuantities??{});
+    setHippedVentQuantities(stored.hippedVentQuantities??{});
+    setRoofVentOffsetsMM(stored.roofVentOffsetsMM??{});
     setFrameThicknessMM(Number(stored.frameThicknessMM??stored.side_frame_thickness_mm??70));
     setLeanToRafterPositionsMM(stored.leanToRafterPositionsMM??null);
     setHippedRafterPositionsMM(stored.hippedRafterPositionsMM??null);
@@ -431,7 +442,7 @@ window.dispatchEvent(new Event("summary_adjustments_updated"));
 
         // Reset local state (blank/default form)
         setWidth("");setFrameThicknessMM(70);
-        setLeanToRafterPositionsMM(null);setHippedRafterPositionsMM(null);
+        setLeanToRafterPositionsMM(null);setHippedRafterPositionsMM(null);setRoofVentQuantities({});setRoofVentOffsetsMM({});setHippedVentQuantities({});
         setProj("");
         setPitch(15);
         setLeftWall(false);
@@ -760,6 +771,11 @@ useEffect(() => {
   // ——— Persist to match the rest of the app ———
 const persistInputs = (opts = {}) => {
   const payload = {
+  roofVentQuantities:roofStyle==='leanTo'?roofVentQuantities:null,
+  hippedVentQuantities:roofStyle==='hippedLeanTo'?hippedVentQuantities:null,
+  roofVentOffsetsMM:roofStyle==='leanTo'?roofVentOffsetsMM:null,
+  roofWindowVents:ventPricing.count||null,
+  ventSpec:ventPricing.specification||null,
   frameThicknessMM,side_frame_thickness_mm:frameThicknessMM,frame_on_mm:frameThicknessMM,
   summaryAddedItems: readSummaryAddedItems(),
   summaryPricingState: readSummaryPricingState(),
@@ -956,9 +972,30 @@ if (q.deliveryDistanceMiles != null) {
 
 const exclusions = useMemo(() => ({}), []); // Landing = no exclusions (customer-facing)
 
+const ventLayoutInputs={roofStyle,roofVentQuantities,roofVentOffsetsMM,widthMM,projMM,pitchDeg,leanToRafterPositionsMM};
+const ventLayout=buildLeanToVentLayout(ventLayoutInputs,m);
+const hippedVentLayout=buildHippedLeanToVentLayout(hippedGeom,roofStyle==='hippedLeanTo'?hippedVentQuantities:null);
+const proposedVentCentre=(id,centre)=>{
+  const {rafters,...settings}=roofVentOffsetsMM;
+  return {...settings,centres:{...settings.centres,[id]:centre}};
+};
+const layoutWithVentSettings=settings=>buildLeanToVentLayout({...ventLayoutInputs,roofVentOffsetsMM:settings},m);
+const canMoveVent=(id,delta)=>{
+  const vent=ventLayout.openings.find(item=>item.id===id);
+  return !layoutWithVentSettings(proposedVentCentre(id,vent.centreMM+delta)).error;
+};
+const storeRoofVents=(quantities,offsets)=>{
+  setRoofVentQuantities(quantities);
+  setRoofVentOffsetsMM(offsets);
+  const stored=JSON.parse(localStorage.getItem('leanToInputs')||'{}');
+  localStorage.setItem('leanToInputs',JSON.stringify({...stored,roofVentQuantities:quantities,roofVentOffsetsMM:offsets}));
+};
 const totalsInput = useMemo(
   () => ({
     frameThicknessMM,side_frame_thickness_mm:frameThicknessMM,frame_on_mm:frameThicknessMM,
+    roofVentQuantities,
+    hippedVentQuantities,
+    roofVentOffsetsMM,
     leanToRafterPositionsMM,
   hippedRafterPositionsMM,
     roofStyle,
@@ -1005,7 +1042,7 @@ const totalsInput = useMemo(
     gutterOutlet,
     gutterColor,
   }),
-  [frameThicknessMM, 
+  [frameThicknessMM, roofVentQuantities, roofVentOffsetsMM, hippedVentQuantities,
     leanToRafterPositionsMM,
   hippedRafterPositionsMM,
     roofStyle,
@@ -1054,9 +1091,11 @@ const summaryMaterials = buildSummaryMaterialsModel({
   adjustments: summaryQuantityAdjustments, addedItems: readSummaryAddedItems(),
 });
 const centralPricingReady = !isCentralBoss || (Boolean(summaryMaterials.centralTrussCosts?.pricingReady) && Boolean(centralDesign?.valid) && Boolean(summaryMaterials.tileOrderIntegration?.applied || !['britmet','metrotile'].includes(tileSystem)));
-const coveringPricingError = summaryMaterials.coveringPricingErrors?.join(" ");
+const coveringPricingError = ventLayout.error || hippedVentLayout.errors.join(" ") || summaryMaterials.coveringPricingErrors?.join(" ");
 const universalMaterialsCostForPricing = summaryMaterials.materialsCostForPricing;
 
+const activeRoofVents=roofStyle==='leanTo'?roofVentQuantities:hippedVentQuantitiesByProduct(hippedVentQuantities);
+const ventPricing=useMemo(()=>calculateRoofVentPricing(activeRoofVents,m,pitchDeg),[activeRoofVents,m,pitchDeg]);
 const pricing = useMemo(() => {
   const labourConfig = getLabourPricingConfig();
 
@@ -1081,7 +1120,7 @@ console.log("DO_PRICE_DEBUG", {
   deliveryDistanceMiles,
 });
 const benchmark=isSlateCovering(tileSystem)?buildSummaryMaterialsModel({inputs:britmetBenchmarkInputs({...savedSummaryInputs,...totalsInput}),materials:m,exclusions:summaryExclusions,adjustments:summaryQuantityAdjustments,addedItems:readSummaryAddedItems()}):null;
-return computePricing(
+return addRoofVentPricing(computePricing(
   universalMaterialsCostForPricing,
   {
     ...m,
@@ -1093,8 +1132,9 @@ return computePricing(
   deliveryCost: deliveryResult.deliveryCost,
   discountPct,
 }
-);
+),ventPricing);
 }, [
+  ventPricing,
   universalMaterialsCostForPricing,
   summaryAdjustmentTick,
   m,
@@ -1398,7 +1438,7 @@ const collapseQuoteInputs = showQuote && !quoteInputsExpanded && hippedDesignErr
 
 const canQuote =
   hippedDesignErrors.length === 0 &&
-  centralPricingReady && !coveringPricingError &&
+  centralPricingReady && !coveringPricingError && !ventPricing.error &&
   summaryMaterials.leanToRafterLayout?.valid!==false&&hippedGeom?.manualRafterLayout?.valid!==false &&
   !missingWidth &&
   !missingProjection &&
@@ -1456,6 +1496,7 @@ return miles;
 
   const onGetQuote = async () => {
   if (hippedDesignErrors.length) { setQuoteError(missingWidth || missingProjection ? hippedDesignErrors.join(" ") : "");setQuoteInputsExpanded(true);setShowQuote(false);return; }
+  if (ventPricing.error) { setQuoteError(ventPricing.error); return; }
   if (coveringPricingError) { setQuoteError(coveringPricingError); return; }
   if (isCentralBoss && !centralPricingReady) { setQuoteError(summaryMaterials.centralTrussCosts?.errors?.join(" ") || "Complete the central-boss design and its material rates before quoting."); return; }
   setQuoteError("");
@@ -1504,7 +1545,7 @@ setQuoteInputsExpanded(false);
     clearActiveDesignRecord();
     // clear UI
     setWidth("");setFrameThicknessMM(70);
-        setLeanToRafterPositionsMM(null);setHippedRafterPositionsMM(null);
+        setLeanToRafterPositionsMM(null);setHippedRafterPositionsMM(null);setRoofVentQuantities({});setRoofVentOffsetsMM({});setHippedVentQuantities({});
     setProj("");
     setPitch(15);
     setLeftWall(false);
@@ -1563,6 +1604,7 @@ setQuoteInputsExpanded(false);
   if(summaryMaterials.leanToRafterLayout?.valid===false||summaryMaterials.manufactureGeometry?.manualRafterLayout?.valid===false){alert((summaryMaterials.leanToRafterLayout?.errors??summaryMaterials.manufactureGeometry?.manualRafterLayout?.errors??[]).join(' '));return;}
   asNew = asNew === true;
   if (hippedDesignErrors.length) { setQuoteInputsExpanded(true);alert(hippedDesignErrors.join(" "));return; }
+  if (ventPricing.error) { alert(ventPricing.error); return; }
   if (coveringPricingError) { alert(coveringPricingError); return; }
   if (isCentralBoss && !centralPricingReady) { alert(summaryMaterials.centralTrussCosts?.errors?.join(" ") || "Complete the central-boss design and its material rates before saving."); return; }
   const manualReference = (quoteRef || "").trim();
@@ -1583,6 +1625,11 @@ if (!isAdmin && !manualReference) {
   const updating = currentRecord && !asNew;
   const nextQuoteNumber = updating ? currentRecord.quote_number : await getNextQuoteNumber();
   const payload = {
+  roofVentQuantities:roofStyle==='leanTo'?roofVentQuantities:null,
+  hippedVentQuantities:roofStyle==='hippedLeanTo'?hippedVentQuantities:null,
+  roofVentOffsetsMM:roofStyle==='leanTo'?roofVentOffsetsMM:null,
+  roofWindowVents:ventPricing.count||null,
+  ventSpec:ventPricing.specification||null,
   frameThicknessMM,side_frame_thickness_mm:frameThicknessMM,frame_on_mm:frameThicknessMM,
   summaryAddedItems: readSummaryAddedItems(),
   summaryPricingState: readSummaryPricingState(),
@@ -1689,8 +1736,10 @@ manual_reference: manualReference,
     status: "quote",
     inputs_json: normalizeBossArrangementInputs({...JSON.parse(localStorage.getItem('leanToInputs')||'{}'),...payload}),
     pricing_json: {
-      materialsCost: summaryMaterials.materialsCostForPricing,
-      materialSections: summaryMaterials.pricingSections,
+      materialsCost: Number((summaryMaterials.materialsCostForPricing+(ventPricing.cost??0)).toFixed(2)),
+      materialSections: {...summaryMaterials.pricingSections,...(ventPricing.count?{glazing:ventPricing.cost}:{})},
+      ...(ventPricing.count?{roofVents:ventPricing}:{}),
+      vatRate: pricing.vatRate,
       net: Number((pricing.net ?? 0).toFixed(2)),
       vat: Number((pricing.vat ?? 0).toFixed(2)),
       gross: Number((pricing.gross ?? 0).toFixed(2)),
@@ -1892,6 +1941,22 @@ onChange={(e) => {
     style={inputStyle}
   />
 </label>
+{roofStyle==='hippedLeanTo'&&<HippedLeanToVentOptions geometry={hippedGeom} byFacet={hippedVentQuantities} layout={hippedVentLayout} pricing={ventPricing}
+ onChange={quantities=>{
+  setHippedVentQuantities(quantities);
+  const stored=JSON.parse(localStorage.getItem('leanToInputs')||'{}');
+  localStorage.setItem('leanToInputs',JSON.stringify({...stored,hippedVentQuantities:quantities}));
+ }}/>}
+{roofStyle==='leanTo'&&<RoofVentOptions quantities={roofVentQuantities} pricing={ventPricing}
+ layout={ventLayout} canMove={canMoveVent}
+ onPosition={(id,centre)=>{
+  const settings=proposedVentCentre(id,centre);
+  const {error}=layoutWithVentSettings(settings);
+  if(!error)storeRoofVents(roofVentQuantities,settings);
+  return error;
+ }}
+ onCentre={()=>storeRoofVents(roofVentQuantities,{})}
+ onChange={quantities=>storeRoofVents(quantities,{})}/>}
 {roofStyle!=="hippedLeanTo"&&<SoffitRequirementControl mode={Number(eavesOverhangMM)===0?'none':'automatic'} allowSideRestriction={false} onModeChange={mode=>{const value=mode==='none'?0:150;setEavesOverhang(value);persist({soffit_mm:value});}} style={inputStyle}/>}
  {roofStyle!=="hippedLeanTo"&&Number(eavesOverhangMM)===0&&<p>No front soffit requested; compulsory fascia clearance remains. Optional side overhangs are separate.</p>}
  {/* Gutter style + colour */}
@@ -2389,13 +2454,28 @@ title={
         <FrameThicknessEditor admin={isAdmin} value={frameThicknessMM} onApply={value=>{setFrameThicknessMM(value);if(!leftWall)setLeftSupportDepthMM(value);if(!rightWall)setRightSupportDepthMM(value);persist({frameThicknessMM:value,side_frame_thickness_mm:value,frame_on_mm:value,...(!leftWall?{leftSupportDepthMM:value}:{}),...(!rightWall?{rightSupportDepthMM:value}:{})});}}/>
         {isAdmin&&roofStyle==='hippedLeanTo'&&<HippedRafterPositionEditor geometry={hippedGeom} widthMM={num(widthMM)} projectionMM={num(projMM)} positions={hippedRafterPositionsMM} admin={isAdmin} onApply={positions=>{setHippedRafterPositionsMM(positions);persist({hippedRafterPositionsMM:positions});}}/>}
         {hippedGeom?.manualRafterLayout?.valid===false&&<p role="alert">{hippedGeom.manualRafterLayout.errors.join(' ')}</p>}
-        {isAdmin&&roofStyle==='leanTo'&&<RafterPositionEditor widthMM={num(widthMM)} positions={leanToRafterPositionsMM} materials={m} admin={isAdmin} onApply={positions=>{setLeanToRafterPositionsMM(positions);persist({leanToRafterPositionsMM:positions});}}/>}
+        {isAdmin&&roofStyle==='leanTo'&&(!ventLayout.active||!ventLayout.error)&&<RafterPositionEditor
+          widthMM={num(widthMM)} positions={ventLayout.positions} materials={m} admin={isAdmin}
+          showFacetSelector={false} collapsed
+          lockedCentresMM={ventLayout.lockedCentresMM} lockedMemberLabel="Vent rafter — move using the vent centre"
+          automaticPositions={ventLayout.automaticPositions}
+          extraControls={<p>Rafter centres from the left internal edge. Moving a vent recalculates the other rafters.</p>}
+          onApply={positions=>{
+            if(ventLayout.active){
+              const settings={...roofVentOffsetsMM,rafters:positions};
+              const {error}=layoutWithVentSettings(settings);
+              if(error)return error;
+              storeRoofVents(roofVentQuantities,settings);
+            }else{
+              setLeanToRafterPositionsMM(positions);persist({leanToRafterPositionsMM:positions});
+            }
+          }}/>}
         {summaryMaterials.leanToRafterLayout?.valid===false&&<p role="alert" style={{color:'#b91c1c'}}>{(summaryMaterials.leanToRafterLayout?.errors??summaryMaterials.manufactureGeometry?.manualRafterLayout?.errors??[]).join(' ')}</p>}
         {/* Results */}
         {coveringPricingError && <p role="status">{coveringPricingError}</p>}
         {isCentralBoss && !centralPricingReady && <p role="status">{summaryMaterials.centralTrussCosts?.errors?.join(' ') || 'Complete the central-boss design before quoting.'}</p>}
         {showDesignError && <p role="alert" style={{color:"#b91c1c"}}>{hippedDesignErrors.join(" ")}</p>}
-        {showQuote && !coveringPricingError && summaryMaterials.leanToRafterLayout?.valid!==false&&hippedGeom?.manualRafterLayout?.valid!==false && hippedDesignErrors.length === 0 && (!isCentralBoss || centralPricingReady) && (
+        {showQuote && !ventPricing.error && !coveringPricingError && summaryMaterials.leanToRafterLayout?.valid!==false&&hippedGeom?.manualRafterLayout?.valid!==false && hippedDesignErrors.length === 0 && (!isCentralBoss || centralPricingReady) && (
           <div id="quote-result" style={{ marginTop: 16, display: "grid", gap: 14 }}>
             {/* Plan preview */}
             <div style={card}>
@@ -2403,6 +2483,7 @@ title={
               <div style={{ border: "1px solid #e5e7eb", borderRadius: 8, padding: 12 }}>
                 {roofStyle === "hippedLeanTo" ? (
   <PlanDiagramHippedLeanTo
+  roofVentOpenings={hippedVentLayout.openings}
   isAdmin={isAdmin}
   bossArrangement={bossArrangement}
   iw={num(widthMM)}
@@ -2449,6 +2530,7 @@ frontRafterLayout={
 />
 ) : (
   <PlanDiagramLeanTo
+  roofVentLayout={ventLayout}
   rafterPositionsMM={leanToRafterPositionsMM}
   iw={num(widthMM)}
   ip={num(projMM)}
@@ -2958,6 +3040,7 @@ frontRafterLayout={
     <div>
       Subtotal: <b>£{(pricing.net ?? 0).toFixed(2)}</b>
     </div>
+    {ventPricing.count>0&&<div>Roof vents included: £{ventPricing.net.toFixed(2)} ex VAT</div>}
     <div>
       VAT ({((pricing.vatRate ?? 0) * 100).toFixed(0)}%): £{(pricing.vat ?? 0).toFixed(2)}
     </div>

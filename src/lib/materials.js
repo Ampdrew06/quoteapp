@@ -4,12 +4,14 @@
 // src/lib/materials.js
 // Stores editable material prices and provides sane defaults.
 
+import { defaultGlazingSettings } from "./glazingOptions";
 import { supabase } from "./supabaseClient";
 
 const STORAGE_KEY = "materials_v1";
 const CLOUD_SETTINGS_KEY = "materials_v1";
 
 export const defaultMaterials = {
+  ...defaultGlazingSettings,
   ringbeam_corner_brace_price_each: 0.78,
   concrete_screws_units_per_box: 100,
   factory_staples_32mm_price_per_box: 35,
@@ -1671,7 +1673,7 @@ const aliases = {
   // ########## KEEP all saved flat keys from localStorage ##########
 // Put data first so any one-off flat keys (e.g. fascia_vent_price_per_m)
 // survive, while merged still "normalises" nested groups afterwards.
-const out = { ...(data || {}), ...merged, ...flat, ...top, ...aliases };
+const out = { ...defaultGlazingSettings, ...(data || {}), ...merged, ...flat, ...top, ...aliases };
 // ###############################################################
   
 // --- Shape normalisation (restore nested groups from flat UI keys) ---

@@ -33,6 +33,8 @@ export default function PlanDiagramHippedLeanTo({
   rightBoundaryType,
   leftWall,
   rightWall,
+  separateOutlineStrokes = false,
+  roofVentOpenings = [],
 }) {
   const geom = calculateHippedLeanToGeometry({
     bossArrangement,
@@ -268,27 +270,25 @@ const extBack = yBack;
   </marker>
 </defs>
 
-{/* External soffit outline */}
-<rect
-  x={extLeft}
-  y={extBack}
-  width={extRight - extLeft}
-  height={extFront - extBack}
-  fill="none"
-  stroke="#9ca3af"
-  strokeWidth="2"
-
-/>
-      {/* Roof outline */}
-      <rect
-        x={ox}
-        y={oy}
-        width={ow}
-        height={oh}
-        fill="#f8fafc"
-        stroke="#111827"
-        strokeWidth="2"
-      />
+      {separateOutlineStrokes ? (
+        <>
+          {/* The fill has no outline. Each visible perimeter edge is its own stroke. */}
+          <rect x={ox} y={oy} width={ow} height={oh} fill="#f8fafc" />
+          {/* Near-identical greys give each export stroke a distinct paint colour. */}
+          <line x1={extLeft} y1={extBack} x2={extRight} y2={extBack} stroke="#9ca3af" strokeWidth="2" strokeLinecap="square" />
+          <line x1={extRight} y1={extBack} x2={extRight} y2={extFront} stroke="#9da4b0" strokeWidth="2" strokeLinecap="square" />
+          <line x1={extRight} y1={extFront} x2={extLeft} y2={extFront} stroke="#9ba2ae" strokeWidth="2" strokeLinecap="square" />
+          <line x1={extLeft} y1={extFront} x2={extLeft} y2={extBack} stroke="#9ea5b1" strokeWidth="2" strokeLinecap="square" />
+          {/* Wallplate and front ringbeam strokes already draw the other two edges. */}
+          <line x1={ox} y1={yBack} x2={ox} y2={yFront} stroke="#111827" strokeWidth="2" />
+          <line x1={ox + ow} y1={yBack} x2={ox + ow} y2={yFront} stroke="#111827" strokeWidth="2" />
+        </>
+      ) : (
+        <>
+          <rect x={extLeft} y={extBack} width={extRight - extLeft} height={extFront - extBack} fill="none" stroke="#9ca3af" strokeWidth="2" />
+          <rect x={ox} y={oy} width={ow} height={oh} fill="#f8fafc" stroke="#111827" strokeWidth="2" />
+        </>
+      )}
 
       {/* Wallplate: centre flat section */}
       <line
@@ -609,6 +609,9 @@ const extBack = yBack;
 />
 
 
+      {roofVentOpenings.map(vent=><polygon key={vent.id} aria-label={`Roof vent on ${vent.facet} facet`}
+        points={vent.corners.map(([u,v])=>`${x(u)},${yBack+v*scale}`).join(' ')}
+        fill="#dbeafe" stroke="#111827" strokeWidth="2"/>)}
       {/* Front ring beam */}
 <line x1={ox} y1={yFront} x2={ox + ow} y2={yFront} stroke="#111827" strokeWidth="5" />
 

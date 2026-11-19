@@ -1,3 +1,4 @@
+import {manufactureFrontSupply} from '../documents/documentSupplyNotes';
 import {getQuoteSaveError} from '../../lib/quotes';
 import TrussAssembly from '../../components/ManufacturingTrussAssembly';
 import {EdwardianTrussCutPage,EdwardianRingBeamCutPages} from '../../components/EdwardianVisualCutPages';
@@ -35,7 +36,7 @@ export default function EdwardianManufacture(){
  const grouped=new Map();s.members.filter(m=>m.type!=='truss-member').forEach(m=>{const key=JSON.stringify({type:m.type,profile:m.profile,connection:m.connection});if(!grouped.has(key))grouped.set(key,[]);grouped.get(key).push(m);});
 
  return <main className="em-book"><EdwardianNavigation/>
- {page('Manufacture Book',<ManufactureBookFront roof={roof} job={job} details={details} extras={extras} onChange={setDetails} onSave={save} message={message} factoryNote={`Manufacturing external projection ${mm(g.externalProjectionMM)}mm already includes the shared 5mm clearance. Do not add again. Known installed weight ${mm(model.installedWeightKg)}kg includes plasterboard once; ${model.missingWeights.length} weight entries remain unconfigured.`}/>,'em-front')}
+ {page('Manufacture Book',<ManufactureBookFront supply={manufactureFrontSupply(inputs,materials,'edwardian')} roof={roof} job={job} details={details} extras={extras} onChange={setDetails} onSave={save} message={message} factoryNote={`Manufacturing external projection ${mm(g.externalProjectionMM)}mm already includes the shared 5mm clearance. Do not add again. Known installed weight ${mm(model.installedWeightKg)}kg includes plasterboard once; ${model.missingWeights.length} weight entries remain unconfigured.`}/>,'em-front')}
  <ManufacturePlanPage
  details={{customer:customerName,reference:inputs.customerReference,roof:'Edwardian',frame:roof.frame,tiles:`${roof.tileType} — ${inputs.tileColour||'—'}`,fascia:roof.fasciaColour,gutter:`${inputs.gutterColour||'White'} — ${inputs.gutterProfile||'square'}`,weight:roof.weight}}
  facets={[{label:'Front',pitch:`${mm(g.frontPitchDeg)}°`,support:`${mm(g.frameMM)} mm frame`,soffit:`${Math.round(g.eaves.effectiveReferenceSoffitMM)} mm`},...['left','right'].map(side=>({label:side==='left'?'Left Side':'Right Side',pitch:`${mm(g.pitchDeg)}°`,support:`${mm(g.frameMM)} mm frame`,soffit:`${Math.round(g.eaves[side].manufacturedSoffitMM)} mm`}))]}
