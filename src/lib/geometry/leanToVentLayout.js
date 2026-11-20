@@ -1,8 +1,9 @@
 import { roofVentOptions } from '../glazingOptions';
 
-const rafterThicknessMM = 47;
-const clearanceMM = 10;
-const minimumGapMM = 49;
+import {
+  distributeVentRafters, equalVentGapMM, minimumVentRafterGapMM as minimumGapMM,
+  ventBayWidthMM, ventRafterThicknessMM,
+} from './ventRafterSpacing';
 
 export function buildLeanToVentLayout(inputs = {}, materials = {}) {
   const empty = { active: false, openings: [], areaM2: 0, positions: inputs.leanToRafterPositionsMM };
@@ -30,9 +31,9 @@ export function buildLeanToVentLayout(inputs = {}, materials = {}) {
   const vents = selections.flatMap(option => Array.from({ length: option.quantity }, () => ({
     ...option,
     // Use even centres to match the workshop set-out (607 mm becomes 606 mm).
-    bayMM: 2 * Math.floor((option.widthMM + rafterThicknessMM + clearanceMM) / 2),
+    bayMM: ventBayWidthMM(option.widthMM),
   })));
-  const freeGapMM = (width - vents.reduce((sum, vent) => sum + vent.bayMM, 0)) / (count + 1);
+  const freeGapMM = equalVentGapMM(0, width, vents);
   if (freeGapMM < minimumGapMM) return fail('The selected vents do not fit with room between the rafters.');
 
   const settings = inputs.roofVentOffsetsMM ?? {};
@@ -72,19 +73,13 @@ export function buildLeanToVentLayout(inputs = {}, materials = {}) {
 
   const spacing = Number(materials.rafter_spacing_mm ?? 665);
   if (!(spacing >= minimumGapMM)) return fail('Check the rafter spacing in Materials.');
-  let positions = [];
-  let start = 0;
-  for (const opening of [...openings, { leftRafterMM: width, rightRafterMM: width }]) {
-    const run = opening.leftRafterMM - start;
-    const bays = Math.ceil(run / spacing);
-    if (positions.length + bays > 101) return fail('The vent layout requires more than 100 internal rafters.');
-    for (let bay = 1; bay < bays; bay += 1) positions.push(start + run * bay / bays);
-    if (opening.leftRafterMM !== width) positions.push(opening.leftRafterMM, opening.rightRafterMM);
-    start = opening.rightRafterMM;
-  }
-  if (positions.length > 100) return fail('The vent layout requires more than 100 internal rafters.');
-  const automaticPositions = positions;
-  const lockedCentresMM = openings.flatMap(opening => [opening.leftRafterMM, opening.rightRafterMM]);
+  const bays = openings.map(({ leftRafterMM, rightRafterMM }) => ({ left: leftRafterMM, right: rightRafterMM }));
+  const lockedCentresMM = bays.flatMap(({ left, right }) => [left, right]);
+  const automaticPositions = distributeVentRafters({
+    boundaries: [0, ...lockedCentresMM, width], bays, spacingMM: spacing,
+  });
+  if (!automaticPositions) return fail('The vent layout requires more than 100 internal rafters.');
+  let positions = automaticPositions;
   if (Array.isArray(settings.rafters)) {
     const manual = settings.rafters.map(Number).sort((a,b)=>a-b);
     if (manual.length > 100 ||
@@ -100,7 +95,7 @@ export function buildLeanToVentLayout(inputs = {}, materials = {}) {
   const noggins = openings.map(opening => ({
     ventId: opening.id,
     quantity: 2,
-    lengthMM: opening.bayMM - rafterThicknessMM,
+    lengthMM: opening.bayMM - ventRafterThicknessMM,
     faceplatesPerNoggin: 2,
     faceHeightMM: 220,
   }));

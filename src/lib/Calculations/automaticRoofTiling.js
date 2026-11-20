@@ -130,6 +130,8 @@ export function buildAutomaticRoofTiling({
 
     geometry = calculateHippedLeanToGeometry({
       ...commonGeometryInputs,
+      hippedRafterPositionsMM: roofInputs.hippedRafterPositionsMM,
+      hippedVentQuantities: roofInputs.hippedVentQuantities,
       hippedSides,
       bossArrangement: roofInputs.bossArrangement ?? "offset",
       leftHipWidthMM: roofInputs.leftHipWidthMM ?? 1000,

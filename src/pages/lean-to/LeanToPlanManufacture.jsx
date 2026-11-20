@@ -1,3 +1,4 @@
+import {buildHippedLeanToVentLayout} from '../../lib/geometry/hippedLeanToVentLayout';
 import {manufactureFrontSupply} from '../documents/documentSupplyNotes';
 import {calculateRoofVentPricing} from '../../lib/Calculations/roofVentPricing';
 import {buildLeanToVentLayout} from '../../lib/geometry/leanToVentLayout';
@@ -499,6 +500,7 @@ const hippedGeom = useMemo(
     roofStyleKey === "hippedLeanTo"
       ? calculateHippedLeanToGeometry({
           hippedRafterPositionsMM:q.hippedRafterPositionsMM,
+          hippedVentQuantities:q.hippedVentQuantities,
           bossArrangement: q.bossArrangement ?? "offset",
           widthMM: iw,
           projectionMM: ip,
@@ -541,6 +543,7 @@ const hippedGeom = useMemo(
     roofStyleKey,
     q.bossArrangement,
     q.hippedRafterPositionsMM,
+    q.hippedVentQuantities,
     iw,
     ip,
     pitchDeg,
@@ -2048,7 +2051,8 @@ const ringBeamManufactureSchedule = useMemo(
       details={{customer:customer,reference:customerRef,roof:roofStyleLabel,frame:`${sft}mm`,tiles:[tileType,tileColour].filter(Boolean).join(' — '),fascia:fasciaColour,gutter:[gutterColour,gutterProfile].filter(Boolean).join(' — '),weight:planSummary?`${planSummary.installedWeightKg.toFixed(1)}kg incl. plasterboard`:'—'}}
       facets={(roofPlan?.facets||[]).map(f=>({id:f.id,label:f.label,pitch:`${Number(f.pitchDeg||0).toFixed(1)}°`,support:f.metadata?.supportDepthMM?`${f.metadata.supportDepthMM} mm ${f.metadata.supportType||''}`:'—',soffit:`${Math.round(f.metadata?.soffitDepthMM??0)} mm`}))}
     >
-      {roofPlan&&<RoofPlanDiagram model={roofPlan} mode="manufacture" largePrint/>}
+      {roofPlan&&<RoofPlanDiagram model={roofPlan} mode="manufacture" largePrint
+        roofVentOpenings={buildHippedLeanToVentLayout(hippedGeom,q.hippedVentQuantities).openings}/>}
         {hippedGeom ? (
   <>
     {SHOW_LEGACY_HIPPED_WALLPLATE_VISUALISER && (

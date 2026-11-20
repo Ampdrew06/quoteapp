@@ -583,6 +583,7 @@ const hippedGeom =
   roofStyle === "hippedLeanTo"
     ? calculateHippedLeanToGeometry({
         hippedRafterPositionsMM,
+        hippedVentQuantities,
         widthMM: num(widthMM),
         projectionMM: num(projMM),
         pitchDeg: num(pitchDeg, 15),
@@ -2452,7 +2453,7 @@ title={
         </div>
 
         <FrameThicknessEditor admin={isAdmin} value={frameThicknessMM} onApply={value=>{setFrameThicknessMM(value);if(!leftWall)setLeftSupportDepthMM(value);if(!rightWall)setRightSupportDepthMM(value);persist({frameThicknessMM:value,side_frame_thickness_mm:value,frame_on_mm:value,...(!leftWall?{leftSupportDepthMM:value}:{}),...(!rightWall?{rightSupportDepthMM:value}:{})});}}/>
-        {isAdmin&&roofStyle==='hippedLeanTo'&&<HippedRafterPositionEditor geometry={hippedGeom} widthMM={num(widthMM)} projectionMM={num(projMM)} positions={hippedRafterPositionsMM} admin={isAdmin} onApply={positions=>{setHippedRafterPositionsMM(positions);persist({hippedRafterPositionsMM:positions});}}/>}
+        {isAdmin&&roofStyle==='hippedLeanTo'&&<HippedRafterPositionEditor geometry={hippedGeom} ventOpenings={hippedVentLayout.openings} widthMM={num(widthMM)} projectionMM={num(projMM)} positions={hippedRafterPositionsMM} admin={isAdmin} onApply={positions=>{setHippedRafterPositionsMM(positions);persist({hippedRafterPositionsMM:positions});}}/>}
         {hippedGeom?.manualRafterLayout?.valid===false&&<p role="alert">{hippedGeom.manualRafterLayout.errors.join(' ')}</p>}
         {isAdmin&&roofStyle==='leanTo'&&(!ventLayout.active||!ventLayout.error)&&<RafterPositionEditor
           widthMM={num(widthMM)} positions={ventLayout.positions} materials={m} admin={isAdmin}

@@ -1,3 +1,4 @@
+import {buildHippedLeanToVentLayout} from './hippedLeanToVentLayout';
 import {automaticSupportCentres} from './automaticSupportSpacing';
 import {applyHippedFrontRafterPositions,validateHippedRafterPositions} from './hippedRafterLayout';
 import {buildCentralBossDesign} from './centralBossDesign';
@@ -36,6 +37,7 @@ const SPAR_HOOK_TO_WALLPLATE_FACE_MM = 156;
 export function calculateHippedLeanToGeometry({
   widthMM,
   hippedRafterPositionsMM = null,
+  hippedVentQuantities = null,
   projectionMM,
   pitchDeg,
   soffitDepthMM,
@@ -632,9 +634,16 @@ for(const [facet,length,exists] of [['front',width,true],['left',projection,hasL
  }
 }
 const manualRafterLayout={valid:manualRafterErrors.length===0,errors:manualRafterErrors};
-const frontRafterLayoutV2=applyHippedFrontRafterPositions(defaultFrontRafterLayout,hippedRafterPositionsMM?.front,{widthMM:width,hasLeftHip,hasRightHip});
+const frontContext={widthMM:width,hasLeftHip,hasRightHip};
+const ventBaseFrontRafterLayout=applyHippedFrontRafterPositions(defaultFrontRafterLayout,hippedRafterPositionsMM?.front,frontContext);
+const ventFrontManuallyEdited=hippedRafterPositionsMM?.front!=null&&manualRafterLayout.valid;
+const ventFrontPositions=hippedVentQuantities?.front?buildHippedLeanToVentLayout({
+ widthMM:width,projectionMM:projection,frontPitchDeg:Number(pitchDeg),hasLeftHip,hasRightHip,
+ resolvedLeftHipWidthMM,resolvedRightHipWidthMM,frontRafterLayoutV2:ventBaseFrontRafterLayout,ventFrontManuallyEdited,bossArrangement,
+},hippedVentQuantities).frontPositionsMM:null;
+const frontRafterLayoutV2=applyHippedFrontRafterPositions(ventBaseFrontRafterLayout,ventFrontPositions,frontContext);
 
-if(hippedRafterPositionsMM?.front!=null&&manualRafterLayout.valid){
+if((hippedRafterPositionsMM?.front!=null||ventFrontPositions)&&manualRafterLayout.valid){
  sparHookQty=2*((hasLeftHip?1:0)+(hasRightHip?1:0)+frontRafterLayoutV2.bossRafterCount);
 }
 
@@ -976,6 +985,7 @@ const SIDE_RAFTER_SPACING_MM = 665;
 // Temporary manufacturing rule — review after workshop testing.
 
 
+const sideVentBaseLayouts={};
 const buildSideRingBeamLayout = ({
   exists,
   internalLengthMM,
@@ -1019,18 +1029,22 @@ const buildSideRingBeamLayout = ({
   const intermediateJackRafters = [];
 
   const automaticCentres=automaticSupportCentres({startMM:halfSlotMM,endMM:lengthMM-halfSlotMM,firstCentreMM:SIDE_FIRST_RAFTER_CENTRE_MM,spacingMM:SIDE_RAFTER_SPACING_MM});
-  for(const centreMM of automaticCentres.slice(1,-1))intermediateJackRafters.push({type:'side-jack',centreMM,leftMM:centreMM-halfSlotMM,rightMM:centreMM+halfSlotMM,clearGapToHipSeatMM:lengthMM-slotWidthMM-centreMM-halfSlotMM});
 
   const edited=hippedRafterPositionsMM?.[side];
-  if(edited!=null){
-    const resolved=validateHippedRafterPositions({positions:edited,widthMM:lengthMM});
-    if(resolved.valid){
-      intermediateJackRafters.splice(0,intermediateJackRafters.length,...resolved.interiorMM.map(centreMM=>({
-        type:'side-jack',centreMM,leftMM:centreMM-halfSlotMM,rightMM:centreMM+halfSlotMM,
-        clearGapToHipSeatMM:lengthMM-slotWidthMM-centreMM-halfSlotMM,
-      })));
-    }
-  }
+  const resolved=edited==null?null:validateHippedRafterPositions({positions:edited,widthMM:lengthMM});
+  const manual=Boolean(resolved?.valid);
+  const basePositions=manual?resolved.interiorMM:automaticCentres.slice(1,-1);
+  sideVentBaseLayouts[side]={manual,layout:{spacingMM:SIDE_RAFTER_SPACING_MM,
+    allRafters:basePositions.map(centreMM=>({centreMM}))}};
+  const ventPositions=hippedVentQuantities?.[side]?buildHippedLeanToVentLayout({
+    widthMM:width,projectionMM:projection,hasLeftHip,hasRightHip,resolvedLeftHipWidthMM,resolvedRightHipWidthMM,
+    leftSidePitchDeg,rightSidePitchDeg,sideVentBaseLayouts,
+  },{[side]:hippedVentQuantities[side]}).sidePositionsMM[side]:null;
+  const positions=ventPositions??basePositions;
+  intermediateJackRafters.splice(0,intermediateJackRafters.length,...positions.map(centreMM=>({
+    type:'side-jack',centreMM,leftMM:centreMM-halfSlotMM,rightMM:centreMM+halfSlotMM,
+    clearGapToHipSeatMM:lengthMM-slotWidthMM-centreMM-halfSlotMM,
+  })));
 
   // Boundary slot at the front mitred end for the hip.
   const hipSlot = {
@@ -1791,6 +1805,9 @@ resolvedLeftBossXMM,
 resolvedRightBossXMM,
 
 frontRafterLayoutV2,
+ventBaseFrontRafterLayout,
+sideVentBaseLayouts,
+ventFrontManuallyEdited,
 manualRafterLayout,
 
  leftHipPlanLengthMM,

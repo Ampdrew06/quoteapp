@@ -612,6 +612,7 @@ const isHippedLeanToEarly =
 const hippedGeomEarly = isHippedLeanToEarly
   ? calculateHippedLeanToGeometry({
       hippedRafterPositionsMM: inputs.hippedRafterPositionsMM,
+      hippedVentQuantities: inputs.hippedVentQuantities,
       widthMM: iw,
       projectionMM: ip,
       pitchDeg,
@@ -1298,6 +1299,7 @@ const isHippedLeanTo = totalsInput.roofStyle === "hippedLeanTo";
 const hippedGeom = isHippedLeanTo
   ? calculateHippedLeanToGeometry({
       hippedRafterPositionsMM: inputs.hippedRafterPositionsMM,
+      hippedVentQuantities: inputs.hippedVentQuantities,
       widthMM: totalsInput.widthMM,
       projectionMM: totalsInput.projMM,
       pitchDeg: totalsInput.pitchDeg,

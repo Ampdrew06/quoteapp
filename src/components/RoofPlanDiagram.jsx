@@ -83,6 +83,7 @@ export default function RoofPlanDiagram({
   model,
   mode = "manufacture",
   largePrint = false,
+  roofVentOpenings = [],
 }) {
   if (!model) {
     return null;
@@ -508,6 +509,12 @@ case "ring-beam":
             STRUCTURAL LINES
         ============================================ */}
 
+        {roofVentOpenings.map(vent=>{
+          const points=vent.corners.map(([xMM,yMM])=>pointToSvg({xMM,yMM}));
+          return <polygon key={vent.id} aria-label="Roof vent opening"
+            points={points.map(({x,y})=>`${x},${y}`).join(' ')}
+            fill="#dbeafe" stroke="#111827" strokeWidth="2"/>;
+        })}
         {structuralLines.map((line) => {
           const start =
             pointToSvg(line.start);
